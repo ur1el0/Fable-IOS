@@ -1,0 +1,46 @@
+# Environment & Secrets
+.env
+*.env
+*.pem
+*.key
+
+# macOS / System
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+
+# Xcode & Swift
+build/
+DerivedData/
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata/
+*.xccheckout
+*.moved-aside
+*.xcworkspace
+!default.xcworkspace
+*.workspacedata
+!default.workspacedata
+*.xcuserstate
+*.playground/
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# IDE / Editor Configs
+.idea/
+.vscode/
+
+# Logs & Temporary files
+*.log
+scratch/
+
+.agents/
