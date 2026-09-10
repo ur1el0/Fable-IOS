@@ -14,7 +14,7 @@ struct LibraryView: View {
         if selectedFilter == "All" {
             return recents
         } else {
-            return recents.filter { $0.genre.localizedCaseInsensitiveContains(selectedFilter) }
+            return recents.filter { $0.genre.rawValue.localizedCaseInsensitiveContains(selectedFilter) }
         }
     }
     
