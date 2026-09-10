@@ -1,0 +1,13 @@
+{
+  "images": [
+    {
+      "filename": "thumb_tell_tale.png",
+      "idiom": "universal",
+      "scale": "2x"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}
