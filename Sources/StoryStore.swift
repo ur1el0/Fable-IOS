@@ -11,6 +11,7 @@ class StoryStore: ObservableObject {
     @Published var isShowingGenreDetail: Bool = false
     @Published var selectedGenre: GenreCategory?
     @Published var isStoryPublished: Bool = false
+    @Published var selectedTab: FableTab = .library
     
     // Reader Preferences
     @Published var readerFont: ReaderFont = .serif
@@ -294,5 +295,40 @@ One morning, when Gregor Samsa woke from troubled dreams, he found himself trans
         stories.insert(newStory, at: 0)
         profileStories.insert(newStory, at: 0)
         isStoryPublished = true
+    }
+    
+    // MARK: - Actions
+    func toggleBookmark(for story: Story) {
+        if let idx = stories.firstIndex(where: { $0.id == story.id }) {
+            stories[idx].isBookmarked.toggle()
+        }
+        if let idx = profileStories.firstIndex(where: { $0.id == story.id }) {
+            profileStories[idx].isBookmarked.toggle()
+        }
+    }
+    
+    func updateProgress(for storyId: UUID, page: Int, totalPages: Int) {
+        if let idx = stories.firstIndex(where: { $0.id == storyId }) {
+            stories[idx].currentPage = page
+            stories[idx].totalPages = totalPages
+            let pct = min(100, max(0, Int((Double(page) / Double(max(1, totalPages))) * 100)))
+            stories[idx].progressPercent = pct
+            if pct >= 100 {
+                stories[idx].isCompleted = true
+            }
+        }
+    }
+    
+    func markAsFinished(storyId: UUID) {
+        if let idx = stories.firstIndex(where: { $0.id == storyId }) {
+            stories[idx].isCompleted = true
+            stories[idx].progressPercent = 100
+        }
+    }
+    
+    func removeFromShelf(storyId: UUID) {
+        if let idx = stories.firstIndex(where: { $0.id == storyId }) {
+            stories[idx].isBookmarked = false
+        }
     }
 }

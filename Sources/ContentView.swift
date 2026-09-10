@@ -27,13 +27,12 @@ enum FableTab: Int, CaseIterable {
 
 struct ContentView: View {
     @StateObject private var store = StoryStore()
-    @State private var selectedTab: FableTab = .library
     
     var body: some View {
         ZStack(alignment: .bottom) {
             // Tab Contents
             Group {
-                switch selectedTab {
+                switch store.selectedTab {
                 case .library:
                     LibraryView()
                 case .explore:
@@ -54,16 +53,16 @@ struct ContentView: View {
                 HStack(spacing: 0) {
                     ForEach(FableTab.allCases, id: \.self) { tab in
                         Button(action: {
-                            selectedTab = tab
+                            store.selectedTab = tab
                         }) {
                             VStack(spacing: 4) {
                                 Image(systemName: tab.iconName)
-                                    .font(.system(size: 20, weight: selectedTab == tab ? .semibold : .regular))
+                                    .font(.system(size: 20, weight: store.selectedTab == tab ? .semibold : .regular))
                                 
                                 Text(tab.title)
-                                    .font(.system(size: 11, weight: selectedTab == tab ? .semibold : .medium))
+                                    .font(.system(size: 11, weight: store.selectedTab == tab ? .semibold : .medium))
                             }
-                            .foregroundColor(selectedTab == tab ? FableTheme.terracotta : FableTheme.subtleSlate)
+                            .foregroundColor(store.selectedTab == tab ? FableTheme.terracotta : FableTheme.subtleSlate)
                             .frame(maxWidth: .infinity)
                             .padding(.top, 10)
                             .padding(.bottom, 6)
