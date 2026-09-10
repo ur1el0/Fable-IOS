@@ -1,18 +1,49 @@
 import SwiftUI
 
-struct GenreDetailView: View {
+public struct GenreDetailView: View {
     @EnvironmentObject var store: StoryStore
     @Environment(\.dismiss) var dismiss
+    
+    public var genre: GenreCategory
     
     @State private var selectedSubcategory: String = "All"
     @State private var isFollowing: Bool = false
     @State private var selectedStoryToRead: Story?
     
-    let subcategories = ["All", "Forest Spirits", "Urban Legends", "Slavic"]
+    let subcategories = ["All", "Popular", "Editor's Pick", "Short Tales"]
     
-    var body: some View {
+    public init(genre: GenreCategory? = nil) {
+        self.genre = genre ?? GenreCategory(
+            name: "Folklore",
+            storyCount: 340,
+            readersCount: "18.4k",
+            description: "Traditional tales passed down through generations, reimagined by contemporary scribes—from fireside Slavic forest myths to maritime legends whispered across coastal tides.",
+            imageName: "genre_folklore"
+        )
+    }
+    
+    var genreStories: [Story] {
+        let matching = store.stories.filter {
+            $0.genre.rawValue.localizedCaseInsensitiveContains(genre.name) ||
+            $0.title.localizedCaseInsensitiveContains(genre.name) ||
+            $0.badgeText?.localizedCaseInsensitiveContains(genre.name) == true
+        }
+        let list = matching.isEmpty ? store.stories : matching
+        switch selectedSubcategory {
+        case "Popular":
+            return list.filter { $0.rating >= 4.8 }
+        case "Editor's Pick":
+            return list.filter { $0.isSaved || $0.isCuratorSpotlight }
+        case "Short Tales":
+            return list.filter { $0.readingTimeMinutes <= 4 }
+        default:
+            return list
+        }
+    }
+    
+    public var body: some View {
         ZStack {
-            FableTheme.warmCream.ignoresSafeArea()
+            FableTheme.background.ignoresSafeArea()
             
             VStack(spacing: 0) {
                 // Top Nav Bar
@@ -22,28 +53,32 @@ struct GenreDetailView: View {
                     }) {
                         Image(systemName: "chevron.left")
                             .font(.system(size: 18, weight: .semibold))
-                            .foregroundColor(FableTheme.deepCharcoal)
+                            .foregroundColor(FableTheme.textPrimary)
+                            .padding(8)
+                            .background(Color.white)
+                            .clipShape(Circle())
                     }
                     
                     Spacer()
                     
-                    Text("Genre Detail")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(FableTheme.deepCharcoal)
+                    Text(genre.name)
+                        .font(.system(size: 17, weight: .bold, design: .serif))
+                        .foregroundColor(FableTheme.textPrimary)
                     
                     Spacer()
                     
-                    HStack(spacing: 16) {
-                        Button(action: {}) {
-                            Image(systemName: "slider.horizontal.3")
-                                .font(.system(size: 16))
-                                .foregroundColor(FableTheme.deepCharcoal)
-                        }
-                        
-                        Button(action: {}) {
-                            Image(systemName: "bookmark")
-                                .font(.system(size: 16))
-                                .foregroundColor(FableTheme.deepCharcoal)
+                    HStack(spacing: 10) {
+                        Button(action: {
+                            withAnimation {
+                                isFollowing.toggle()
+                            }
+                        }) {
+                            Image(systemName: isFollowing ? "bookmark.fill" : "bookmark")
+                                .font(.system(size: 15))
+                                .foregroundColor(isFollowing ? FableTheme.brandPrimary : FableTheme.textPrimary)
+                                .padding(8)
+                                .background(Color.white)
+                                .clipShape(Circle())
                         }
                     }
                 }
@@ -51,7 +86,7 @@ struct GenreDetailView: View {
                 .padding(.vertical, 12)
                 
                 ScrollView(showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 24) {
+                    VStack(alignment: .leading, spacing: 20) {
                         // Archive Edition Header Card
                         VStack(alignment: .leading, spacing: 14) {
                             HStack(spacing: 6) {
@@ -61,23 +96,23 @@ struct GenreDetailView: View {
                                     .font(.system(size: 11, weight: .bold))
                                     .tracking(1.0)
                             }
-                            .foregroundColor(FableTheme.terracotta)
+                            .foregroundColor(FableTheme.brandPrimary)
                             .padding(.horizontal, 10)
                             .padding(.vertical, 5)
-                            .background(FableTheme.softPeach)
+                            .background(FableTheme.surface)
                             .clipShape(Capsule())
                             
-                            Text("Folklore & Legends")
+                            Text(genre.name)
                                 .font(.system(size: 28, weight: .bold, design: .serif))
-                                .foregroundColor(FableTheme.deepCharcoal)
+                                .foregroundColor(FableTheme.textPrimary)
                             
-                            Text("340 Tales  •  18.4k Readers  •  Curated Weekly")
+                            Text("\(genre.storyCount) Tales  •  \(genre.readersCount) Readers  •  Curated Weekly")
                                 .font(.system(size: 12, weight: .medium))
-                                .foregroundColor(FableTheme.subtleSlate)
+                                .foregroundColor(FableTheme.textMuted)
                             
-                            Text("Traditional tales passed down through generations, reimagined by contemporary scribes—from fireside Slavic forest myths to maritime legends whispered across coastal tides.")
+                            Text(genre.description)
                                 .font(.system(size: 14, weight: .regular, design: .serif))
-                                .foregroundColor(FableTheme.deepCharcoal.opacity(0.85))
+                                .foregroundColor(FableTheme.textPrimary.opacity(0.85))
                                 .lineSpacing(4)
                             
                             Button(action: {
@@ -88,232 +123,109 @@ struct GenreDetailView: View {
                                 HStack(spacing: 6) {
                                     Image(systemName: isFollowing ? "checkmark" : "plus")
                                         .font(.system(size: 12, weight: .bold))
-                                    Text(isFollowing ? "Following" : "Follow Genre")
+                                    Text(isFollowing ? "Following Genre" : "Follow Genre")
                                         .font(.system(size: 13, weight: .semibold))
                                 }
-                                .foregroundColor(isFollowing ? FableTheme.terracotta : .white)
+                                .foregroundColor(isFollowing ? FableTheme.brandPrimary : .white)
                                 .padding(.horizontal, 18)
                                 .padding(.vertical, 10)
-                                .background(isFollowing ? FableTheme.softPeach : FableTheme.terracotta)
+                                .background(isFollowing ? FableTheme.surface : FableTheme.brandPrimary)
                                 .clipShape(Capsule())
                             }
                             .padding(.top, 4)
                         }
                         .padding(20)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.white)
+                        .background(FableTheme.cardBackground)
                         .clipShape(RoundedRectangle(cornerRadius: 18))
                         .shadow(color: Color.black.opacity(0.04), radius: 8, y: 2)
+                        .padding(.horizontal, 20)
                         
                         // Subcategory Pills
                         ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 10) {
+                            HStack(spacing: 8) {
                                 ForEach(subcategories, id: \.self) { sub in
                                     Button(action: {
-                                        selectedSubcategory = sub
+                                        withAnimation {
+                                            selectedSubcategory = sub
+                                        }
                                     }) {
                                         Text(sub)
-                                            .fableTag(isSelected: selectedSubcategory == sub)
+                                            .font(.system(size: 13, weight: selectedSubcategory == sub ? .semibold : .medium))
+                                            .padding(.horizontal, 16)
+                                            .padding(.vertical, 8)
+                                            .background(selectedSubcategory == sub ? FableTheme.brandPrimary : FableTheme.surfaceVariant)
+                                            .foregroundColor(selectedSubcategory == sub ? .white : FableTheme.textPrimary)
+                                            .clipShape(Capsule())
                                     }
                                 }
                             }
+                            .padding(.horizontal, 20)
                         }
                         
-                        // Curator's Spotlight Section
-                        VStack(alignment: .leading, spacing: 14) {
-                            HStack {
-                                Text("Curator's Spotlight")
-                                    .font(.system(size: 17, weight: .bold, design: .serif))
-                                    .foregroundColor(FableTheme.deepCharcoal)
-                                
-                                Spacer()
-                                
-                                Text("STORY OF THE WEEK")
-                                    .font(.system(size: 10, weight: .bold))
-                                    .tracking(0.8)
-                                    .foregroundColor(FableTheme.subtleSlate)
-                            }
+                        // Stories Section
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Featured in \(genre.name)")
+                                .font(.system(size: 18, weight: .bold, design: .serif))
+                                .foregroundColor(FableTheme.textPrimary)
+                                .padding(.horizontal, 20)
                             
-                            // Spotlight Card
-                            VStack(alignment: .center, spacing: 14) {
-                                ZStack(alignment: .bottom) {
-                                    if let cover = UIImage(named: "cover_sleepy_featured") {
-                                        Image(uiImage: cover)
-                                            .resizable()
-                                            .scaledToFit()
-                                            .frame(height: 180)
-                                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                                            .shadow(color: Color.black.opacity(0.15), radius: 8, y: 4)
-                                    }
-                                    
-                                    HStack(spacing: 4) {
-                                        Image(systemName: "star.fill")
-                                            .font(.system(size: 10))
-                                            .foregroundColor(.yellow)
-                                        Text("4.95")
-                                            .font(.system(size: 11, weight: .bold))
-                                            .foregroundColor(.white)
-                                    }
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 3)
-                                    .background(Color.black.opacity(0.7))
-                                    .clipShape(Capsule())
-                                    .padding(.bottom, 8)
-                                }
-                                
-                                Text("The Legend of Sleepy Hollow")
-                                    .font(.system(size: 20, weight: .bold, design: .serif))
-                                    .foregroundColor(FableTheme.deepCharcoal)
-                                    .multilineTextAlignment(.center)
-                                
-                                Text("BY WASHINGTON IRVING")
-                                    .font(.system(size: 11, weight: .bold))
-                                    .tracking(1.0)
-                                    .foregroundColor(FableTheme.terracotta)
-                                
-                                Text("“A drowsy, dreamy influence seems to hang over the land, and to pervade the very atmosphere.”")
-                                    .font(.system(size: 14, weight: .regular, design: .serif))
-                                    .italic()
-                                    .foregroundColor(FableTheme.subtleSlate)
-                                    .multilineTextAlignment(.center)
-                                    .padding(.horizontal, 16)
-                                
-                                HStack(spacing: 14) {
+                            VStack(spacing: 12) {
+                                ForEach(genreStories) { story in
                                     Button(action: {
-                                        if let story = store.stories.first(where: { $0.title.contains("Sleepy Hollow") }) {
-                                            selectedStoryToRead = story
-                                        }
+                                        selectedStoryToRead = story
                                     }) {
-                                        HStack(spacing: 6) {
-                                            Text("Read Now")
-                                                .font(.system(size: 14, weight: .semibold))
-                                            Image(systemName: "book.pages")
-                                                .font(.system(size: 13))
-                                        }
-                                        .foregroundColor(.white)
-                                        .padding(.horizontal, 24)
-                                        .padding(.vertical, 12)
-                                        .background(FableTheme.terracotta)
-                                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                                    }
-                                    
-                                    Button(action: {}) {
-                                        Image(systemName: "bookmark")
-                                            .font(.system(size: 16))
-                                            .foregroundColor(FableTheme.deepCharcoal)
-                                            .frame(width: 44, height: 44)
-                                            .background(Color.gray.opacity(0.1))
-                                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                                    }
-                                }
-                                .padding(.top, 4)
-                            }
-                            .padding(20)
-                            .frame(maxWidth: .infinity)
-                            .background(Color.white)
-                            .clipShape(RoundedRectangle(cornerRadius: 18))
-                            .shadow(color: Color.black.opacity(0.04), radius: 8, y: 2)
-                        }
-                        
-                        // Recent Dispatches
-                        VStack(alignment: .leading, spacing: 14) {
-                            HStack {
-                                Text("Recent Dispatches")
-                                    .font(.system(size: 17, weight: .bold, design: .serif))
-                                    .foregroundColor(FableTheme.deepCharcoal)
-                                
-                                Spacer()
-                                
-                                HStack(spacing: 4) {
-                                    Text("Sort by")
-                                        .font(.system(size: 12, weight: .medium))
-                                    Image(systemName: "chevron.down")
-                                        .font(.system(size: 9, weight: .bold))
-                                }
-                                .foregroundColor(FableTheme.terracotta)
-                            }
-                            
-                            // Story Cards List
-                            let dispatchStories = store.stories.filter { $0.badgeText != nil }
-                            ForEach(dispatchStories) { story in
-                                Button(action: {
-                                    selectedStoryToRead = story
-                                }) {
-                                    HStack(alignment: .top, spacing: 14) {
-                                        if let cover = story.coverImageName, let img = UIImage(named: cover) {
-                                            Image(uiImage: img)
-                                                .resizable()
-                                                .scaledToFill()
-                                                .frame(width: 70, height: 95)
-                                                .clipShape(RoundedRectangle(cornerRadius: 8))
-                                        }
-                                        
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            HStack {
-                                                if let badge = story.badgeText {
-                                                    Text(badge)
+                                        HStack(alignment: .top, spacing: 14) {
+                                            FableImageView(name: story.coverImageName, placeholderIcon: "book")
+                                                .frame(width: 72, height: 90)
+                                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                                            
+                                            VStack(alignment: .leading, spacing: 5) {
+                                                HStack {
+                                                    Text(story.badgeText ?? story.genre.rawValue.uppercased())
                                                         .font(.system(size: 9, weight: .bold))
-                                                        .tracking(0.8)
-                                                        .foregroundColor(FableTheme.terracotta)
+                                                        .tracking(0.6)
+                                                        .foregroundColor(FableTheme.brandPrimary)
+                                                        .padding(.horizontal, 6)
+                                                        .padding(.vertical, 3)
+                                                        .background(FableTheme.surface)
+                                                        .clipShape(Capsule())
+                                                    
+                                                    Spacer()
+                                                    
+                                                    Button(action: {
+                                                        store.toggleBookmark(for: story)
+                                                    }) {
+                                                        Image(systemName: story.isBookmarked ? "bookmark.fill" : "bookmark")
+                                                            .font(.system(size: 12))
+                                                            .foregroundColor(story.isBookmarked ? FableTheme.brandPrimary : FableTheme.textMuted)
+                                                    }
                                                 }
                                                 
-                                                Spacer()
+                                                Text(story.title)
+                                                    .font(.system(size: 16, weight: .bold, design: .serif))
+                                                    .foregroundColor(FableTheme.textPrimary)
+                                                    .lineLimit(1)
                                                 
-                                                HStack(spacing: 3) {
-                                                    Image(systemName: "clock")
-                                                        .font(.system(size: 9))
-                                                    Text("\(story.readingTimeMinutes) min")
-                                                        .font(.system(size: 10))
-                                                }
-                                                .foregroundColor(FableTheme.subtleSlate)
+                                                Text(story.excerpt)
+                                                    .font(.system(size: 12, weight: .regular, design: .serif))
+                                                    .foregroundColor(FableTheme.textPrimary.opacity(0.75))
+                                                    .lineLimit(2)
+                                                    .lineSpacing(2)
                                             }
-                                            
-                                            Text(story.title)
-                                                .font(.system(size: 16, weight: .bold, design: .serif))
-                                                .foregroundColor(FableTheme.deepCharcoal)
-                                                .lineLimit(1)
-                                            
-                                            Text(story.author)
-                                                .font(.system(size: 12))
-                                                .foregroundColor(FableTheme.subtleSlate)
-                                            
-                                            HStack(spacing: 12) {
-                                                HStack(spacing: 3) {
-                                                    Image(systemName: "star.fill")
-                                                        .font(.system(size: 9))
-                                                        .foregroundColor(.yellow)
-                                                    Text(String(format: "%.1f", story.rating))
-                                                        .font(.system(size: 11, weight: .semibold))
-                                                        .foregroundColor(FableTheme.deepCharcoal)
-                                                }
-                                                
-                                                HStack(spacing: 3) {
-                                                    Image(systemName: "bookmark")
-                                                        .font(.system(size: 9))
-                                                    Text(story.savesCount)
-                                                        .font(.system(size: 11))
-                                                }
-                                                .foregroundColor(FableTheme.subtleSlate)
-                                            }
-                                            .padding(.top, 2)
-                                            
-                                            Text(story.excerpt)
-                                                .font(.system(size: 12, weight: .regular, design: .serif))
-                                                .foregroundColor(FableTheme.deepCharcoal.opacity(0.75))
-                                                .lineLimit(2)
-                                                .padding(.top, 2)
                                         }
+                                        .padding(14)
+                                        .background(FableTheme.cardBackground)
+                                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                                        .shadow(color: Color.black.opacity(0.03), radius: 6, y: 2)
+                                        .padding(.horizontal, 20)
                                     }
-                                    .padding(14)
-                                    .background(Color.white)
-                                    .clipShape(RoundedRectangle(cornerRadius: 14))
-                                    .shadow(color: Color.black.opacity(0.03), radius: 6, y: 2)
+                                    .buttonStyle(.plain)
                                 }
                             }
                         }
+                        .padding(.bottom, 40)
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 40)
                 }
             }
         }

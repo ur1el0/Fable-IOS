@@ -1,22 +1,34 @@
 import SwiftUI
 
-struct ShelfView: View {
+public struct ShelfView: View {
     @EnvironmentObject var store: StoryStore
     
     @State private var selectedTab: String = "Saved"
     @State private var selectedStoryToRead: Story?
     @State private var isShowingSettingsSheet: Bool = false
+    @State private var isShowingProfileSheet: Bool = false
     
     let tabs = ["Saved", "Finished", "My Drafts"]
     
-    var activeStories: [Story] {
-        store.stories.filter { $0.isSaved }
+    var displayedStories: [Story] {
+        switch selectedTab {
+        case "Finished":
+            let finished = store.stories.filter { $0.isCompleted || $0.progressPercent >= 100 }
+            return finished.isEmpty ? store.stories.prefix(2).map { $0 } : finished
+        case "My Drafts":
+            return store.profileStories
+        default: // "Saved"
+            let saved = store.stories.filter { $0.isBookmarked }
+            return saved.isEmpty ? store.stories.prefix(3).map { $0 } : saved
+        }
     }
     
-    var body: some View {
+    public init() {}
+    
+    public var body: some View {
         NavigationStack {
             ZStack {
-                FableTheme.warmCream.ignoresSafeArea()
+                FableTheme.background.ignoresSafeArea()
                 
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 20) {
@@ -26,12 +38,12 @@ struct ShelfView: View {
                                 .font(.system(size: 14))
                                 .foregroundColor(.white)
                                 .padding(7)
-                                .background(FableTheme.terracotta)
+                                .background(FableTheme.brandPrimary)
                                 .clipShape(RoundedRectangle(cornerRadius: 8))
                             
                             Text("Fable")
                                 .font(.system(size: 20, weight: .bold, design: .serif))
-                                .foregroundColor(FableTheme.deepCharcoal)
+                                .foregroundColor(FableTheme.textPrimary)
                         }
                         .padding(.horizontal, 20)
                         .padding(.top, 12)
@@ -40,15 +52,17 @@ struct ShelfView: View {
                         HStack {
                             Text("My Shelf")
                                 .font(.system(size: 34, weight: .bold, design: .serif))
-                                .foregroundColor(FableTheme.deepCharcoal)
+                                .foregroundColor(FableTheme.textPrimary)
                             
                             Spacer()
                             
                             HStack(spacing: 16) {
-                                Button(action: {}) {
+                                Button(action: {
+                                    isShowingProfileSheet = true
+                                }) {
                                     Image(systemName: "chart.line.uptrend.xyaxis")
                                         .font(.system(size: 18))
-                                        .foregroundColor(FableTheme.terracotta)
+                                        .foregroundColor(FableTheme.brandPrimary)
                                 }
                                 
                                 Button(action: {
@@ -56,7 +70,7 @@ struct ShelfView: View {
                                 }) {
                                     Image(systemName: "gearshape")
                                         .font(.system(size: 18))
-                                        .foregroundColor(FableTheme.deepCharcoal)
+                                        .foregroundColor(FableTheme.textPrimary)
                                 }
                             }
                         }
@@ -66,7 +80,7 @@ struct ShelfView: View {
                         HStack(spacing: 0) {
                             ForEach(tabs, id: \.self) { tab in
                                 Button(action: {
-                                    withAnimation {
+                                    withAnimation(.easeInOut(duration: 0.2)) {
                                         selectedTab = tab
                                     }
                                 }) {
@@ -75,109 +89,180 @@ struct ShelfView: View {
                                         .frame(maxWidth: .infinity)
                                         .padding(.vertical, 10)
                                         .background(selectedTab == tab ? Color.white : Color.clear)
-                                        .foregroundColor(selectedTab == tab ? FableTheme.deepCharcoal : FableTheme.subtleSlate)
+                                        .foregroundColor(selectedTab == tab ? FableTheme.textPrimary : FableTheme.textMuted)
                                         .clipShape(RoundedRectangle(cornerRadius: 10))
                                         .shadow(color: selectedTab == tab ? Color.black.opacity(0.06) : Color.clear, radius: 4, y: 1)
                                 }
                             }
                         }
                         .padding(4)
-                        .background(Color.gray.opacity(0.09))
+                        .background(FableTheme.surfaceVariant)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                         .padding(.horizontal, 20)
                         
-                        // ACTIVE STORIES Section
-                        VStack(alignment: .leading, spacing: 12) {
+                        // Monthly Reading Stats Card (FIGMA.md Frame 7: 1:1058)
+                        VStack(alignment: .leading, spacing: 14) {
                             HStack {
-                                Text("ACTIVE STORIES (\(activeStories.count))")
-                                    .font(.system(size: 11, weight: .bold))
-                                    .tracking(1.0)
-                                    .foregroundColor(FableTheme.subtleSlate)
-                                
+                                Text("October Reading Stats")
+                                    .font(.system(size: 16, weight: .bold, design: .serif))
+                                    .foregroundColor(FableTheme.textPrimary)
                                 Spacer()
-                                
-                                Button(action: {}) {
-                                    HStack(spacing: 4) {
-                                        Text("Filter")
-                                            .font(.system(size: 12, weight: .semibold))
-                                        Image(systemName: "slider.horizontal.3")
-                                            .font(.system(size: 11))
-                                    }
-                                    .foregroundColor(FableTheme.terracotta)
-                                }
+                                Image(systemName: "flame.fill")
+                                    .foregroundColor(.orange)
                             }
                             
-                            // Container Card for Active Stories
+                            HStack(spacing: 0) {
+                                VStack(spacing: 2) {
+                                    Text("12")
+                                        .font(.system(size: 22, weight: .bold, design: .serif))
+                                        .foregroundColor(FableTheme.brandPrimary)
+                                    Text("Stories Read")
+                                        .font(.system(size: 11, weight: .medium))
+                                        .foregroundColor(FableTheme.textMuted)
+                                }
+                                .frame(maxWidth: .infinity)
+                                
+                                Divider().frame(height: 30)
+                                
+                                VStack(spacing: 2) {
+                                    Text("48m")
+                                        .font(.system(size: 22, weight: .bold, design: .serif))
+                                        .foregroundColor(FableTheme.brandPrimary)
+                                    Text("Logged Time")
+                                        .font(.system(size: 11, weight: .medium))
+                                        .foregroundColor(FableTheme.textMuted)
+                                }
+                                .frame(maxWidth: .infinity)
+                                
+                                Divider().frame(height: 30)
+                                
+                                VStack(spacing: 2) {
+                                    Text("3")
+                                        .font(.system(size: 22, weight: .bold, design: .serif))
+                                        .foregroundColor(FableTheme.brandPrimary)
+                                    Text("Days Streak")
+                                        .font(.system(size: 11, weight: .medium))
+                                        .foregroundColor(FableTheme.textMuted)
+                                }
+                                .frame(maxWidth: .infinity)
+                            }
+                            
+                            // Motivational Micro-Quote
+                            Text("“A room without books is like a body without a soul.” — Cicero")
+                                .font(.system(size: 12, weight: .regular, design: .serif))
+                                .italic()
+                                .foregroundColor(FableTheme.textSecondary)
+                                .padding(.top, 4)
+                        }
+                        .padding(18)
+                        .background(FableTheme.cardBackground)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .shadow(color: Color.black.opacity(0.04), radius: 6, y: 2)
+                        .padding(.horizontal, 20)
+                        
+                        // Active Stories Collection
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Text("\(selectedTab.uppercased()) TALES (\(displayedStories.count))")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .tracking(1.0)
+                                    .foregroundColor(FableTheme.textMuted)
+                                Spacer()
+                            }
+                            .padding(.horizontal, 20)
+                            
                             VStack(spacing: 0) {
-                                ForEach(Array(activeStories.enumerated()), id: \.element.id) { index, story in
+                                ForEach(Array(displayedStories.enumerated()), id: \.element.id) { index, story in
                                     Button(action: {
                                         selectedStoryToRead = story
                                     }) {
-                                        HStack(alignment: .center, spacing: 14) {
+                                        HStack(spacing: 14) {
+                                            FableImageView(name: story.coverImageName, placeholderIcon: "book.closed")
+                                                .frame(width: 50, height: 64)
+                                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                                            
                                             VStack(alignment: .leading, spacing: 4) {
-                                                HStack(spacing: 4) {
-                                                    Circle()
-                                                        .fill(FableTheme.terracotta)
-                                                        .frame(width: 5, height: 5)
-                                                    Text("Reading • \(story.readingTimeMinutes)m left")
-                                                        .font(.system(size: 11, weight: .medium))
-                                                        .foregroundColor(FableTheme.subtleSlate)
-                                                }
-                                                
                                                 Text(story.title)
-                                                    .font(.system(size: 17, weight: .bold, design: .serif))
-                                                    .foregroundColor(FableTheme.deepCharcoal)
+                                                    .font(.system(size: 15, weight: .bold, design: .serif))
+                                                    .foregroundColor(FableTheme.textPrimary)
                                                     .lineLimit(1)
                                                 
                                                 Text(story.author)
-                                                    .font(.system(size: 13))
-                                                    .foregroundColor(FableTheme.subtleSlate)
+                                                    .font(.system(size: 12))
+                                                    .foregroundColor(FableTheme.textMuted)
+                                                
+                                                Text(story.isCompleted ? "Completed" : "\(story.readingTimeMinutes)m left • \(story.genre.rawValue)")
+                                                    .font(.system(size: 11, weight: .medium))
+                                                    .foregroundColor(story.isCompleted ? Color.green.opacity(0.8) : FableTheme.brandPrimary)
                                             }
                                             
                                             Spacer()
                                             
-                                            // Circular Progress Ring with Percentage
+                                            // Progress circle / indicator
                                             ZStack {
                                                 Circle()
                                                     .stroke(Color.gray.opacity(0.15), lineWidth: 3)
-                                                    .frame(width: 38, height: 38)
+                                                    .frame(width: 32, height: 32)
                                                 
-                                                Circle()
-                                                    .trim(from: 0, to: CGFloat(story.progressPercent) / 100.0)
-                                                    .stroke(FableTheme.terracotta, style: StrokeStyle(lineWidth: 3, lineCap: .round))
-                                                    .rotationEffect(.degrees(-90))
-                                                    .frame(width: 38, height: 38)
-                                                
-                                                Text("\(story.progressPercent)%")
-                                                    .font(.system(size: 10, weight: .bold))
-                                                    .foregroundColor(FableTheme.terracotta)
+                                                if story.isCompleted {
+                                                    Image(systemName: "checkmark")
+                                                        .font(.system(size: 12, weight: .bold))
+                                                        .foregroundColor(FableTheme.brandPrimary)
+                                                } else {
+                                                    Circle()
+                                                        .trim(from: 0, to: CGFloat(story.progressPercent) / 100.0)
+                                                        .stroke(FableTheme.brandPrimary, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                                                        .rotationEffect(.degrees(-90))
+                                                        .frame(width: 32, height: 32)
+                                                    
+                                                    Text("\(story.progressPercent)%")
+                                                        .font(.system(size: 9, weight: .bold))
+                                                        .foregroundColor(FableTheme.brandPrimary)
+                                                }
                                             }
                                             
-                                            Button(action: {}) {
+                                            // Action Ellipsis Menu
+                                            Menu {
+                                                Button(action: {
+                                                    store.removeFromShelf(storyId: story.id)
+                                                }) {
+                                                    Label("Remove from Shelf", systemImage: "trash")
+                                                }
+                                                
+                                                Button(action: {
+                                                    store.markAsFinished(storyId: story.id)
+                                                }) {
+                                                    Label("Mark as Finished", systemImage: "checkmark.circle")
+                                                }
+                                                
+                                                ShareLink(item: "\(story.title) by \(story.author)") {
+                                                    Label("Share Tale", systemImage: "square.and.arrow.up")
+                                                }
+                                            } label: {
                                                 Image(systemName: "ellipsis")
                                                     .font(.system(size: 14))
-                                                    .foregroundColor(FableTheme.subtleSlate)
+                                                    .foregroundColor(FableTheme.textMuted)
                                                     .padding(6)
                                             }
                                         }
-                                        .padding(.horizontal, 18)
-                                        .padding(.vertical, 16)
+                                        .padding(.horizontal, 16)
+                                        .padding(.vertical, 12)
                                     }
                                     .buttonStyle(.plain)
                                     
-                                    if index < activeStories.count - 1 {
+                                    if index < displayedStories.count - 1 {
                                         Divider()
-                                            .padding(.horizontal, 18)
+                                            .padding(.horizontal, 16)
                                     }
                                 }
                             }
-                            .background(Color.white)
-                            .clipShape(RoundedRectangle(cornerRadius: 18))
+                            .background(FableTheme.cardBackground)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
                             .shadow(color: Color.black.opacity(0.04), radius: 8, y: 2)
+                            .padding(.horizontal, 20)
                         }
-                        .padding(.horizontal, 20)
-                        .padding(.top, 4)
-                        .padding(.bottom, 90) // spacing for custom tab bar
+                        
+                        Spacer().frame(height: 90) // spacing for custom tab bar
                     }
                 }
             }
@@ -187,6 +272,10 @@ struct ShelfView: View {
             }
             .sheet(isPresented: $isShowingSettingsSheet) {
                 SettingsView()
+                    .environmentObject(store)
+            }
+            .sheet(isPresented: $isShowingProfileSheet) {
+                ProfileView()
                     .environmentObject(store)
             }
         }
