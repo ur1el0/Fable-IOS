@@ -3,8 +3,11 @@
 **Course Project:** Native iOS Application Development  
 **Application Name:** Fable (Curated Micro-Narrative & Editorial E-Reader)  
 **Primary Tech Stack:** Swift 5.9+, SwiftUI, Xcode 15/16, iOS 17+  
+**Primary Tech Stack:** Swift 5.9+, SwiftUI, Xcode 15/16, iOS 17+ (iPhone 15/16 / Pro / Pro Max)  
 **Architecture Pattern:** Model–View–Controller (MVC)  
 **Evaluation Milestone:** Midterm Submission (Minimum 50% Functional & Interface Implementation)
+**Evaluation Milestone:** Midterm Submission (Minimum 50% Functional & Interface Implementation)  
+**Figma Prototype Fidelity:** 100% Complete Visual & Navigational Prototype  
 
 ---
 
@@ -86,6 +89,7 @@ The midterm submission requires a single, well-organized PDF file containing:
 ### Section 2: Figma Prototype
 - Working link to the completed Figma prototype:  
   `https://www.figma.com/design/k90h1If7gNsEl56fQ1HxPq/Fable-App`
+  `https://www.figma.com/design/k90h1If7gNsEl56fQ1HxPq/Fable-App` *(Must be set to "Anyone with the link can view")*.
 - Accompanying prototype document: `Fable-prototype.pdf`.
 
 ### Section 3: Application Screenshots
@@ -110,3 +114,24 @@ The midterm submission requires a single, well-organized PDF file containing:
   4. *The SwiftUI concepts or development skills you improved.*
   5. *What you plan to complete or improve for the final project.*
 
+---
+
+## 5. Lab Mac Reproducibility Guarantees
+
+To ensure that pulling or cloning this repository on any shared lab Mac produces **identical, error-free results**:
+
+1. **Self-Contained Swift Package (`Package.swift`):**
+   - Configured with `.iOS(.v17)` and `resources: [.process("Resources")]`.
+   - Opening `Package.swift` in Xcode automatically links the target, sets up the executable scheme (`FableApp`), and packages the asset catalog (`Assets.xcassets`).
+2. **Zero External Network Dependencies:**
+   - The app does not rely on external CocoaPods, remote Swift Package dependencies, or remote database endpoints.
+   - All seed data (10+ stories, covers, author profiles) is statically populated in memory inside `StoryStore.swift`.
+3. **Resilient Asset Loading (`FableImageView`):**
+   - If an asset image is missing or cannot be resolved on an older simulator cache, `FableImageView` renders a graceful SF Symbol fallback on parchment background, preventing UI crashes.
+4. **Standard 4-Step Lab Routine:**
+   ```bash
+   git clone https://github.com/ur1el0/Fable-IOS.git
+   cd Fable-IOS
+   open Package.swift
+   # In Xcode: Select iPhone 16 Pro / iPhone 15 Pro simulator -> Press Cmd + R
+   ```
