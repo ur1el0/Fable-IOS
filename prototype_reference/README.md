@@ -8,6 +8,7 @@ This directory contains high-fidelity visual references for all **10 screens of 
 
 | # | Screen Name | Connected SwiftUI View | Reference Image |
 |---|---|---|---|
+| **00** | **Full Prototype Canvas** | Global User Journey | [`00_full_canvas_overview.png`](./00_full_canvas_overview.png) |
 | **01** | **Library Feed (Home)** | `Sources/Views/LibraryView.swift` | [`01_library_feed.png`](./01_library_feed.png) |
 | **02** | **Story Reader (`Dracula`)** | `Sources/Views/ReaderView.swift` | [`02_story_reader_dracula.png`](./02_story_reader_dracula.png) |
 | **03** | **Display Options Sheet** | `Sources/Views/DisplayOptionsSheet.swift` | [`03_display_options_sheet.png`](./03_display_options_sheet.png) |
