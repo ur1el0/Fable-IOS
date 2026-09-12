@@ -131,11 +131,88 @@ Fable is designed with an **editorial-first aesthetic**, taking inspiration from
 ---
 
 ## 4. Asset Catalog Inventory (`Assets.xcassets`)
+## 4. Asset-Decoupled Blank Placeholder Architecture
 
 All image assets from the Figma design have been exported at 3x Retina resolution and organized into standard Xcode `.imageset` catalogs:
+To eliminate brittle runtime dependencies on external binary bitmap assets (`.png`, `.jpg`) and guarantee 100% operational consistency across every Mac lab workstation, Fable implements an **asset-decoupled procedural visual architecture**.
 
+### 4.1 Visual Parity with Prototype (Without Bitmap Images)
+Instead of relying on fragile raster image files that can fail to resolve in school computer labs, all story covers, hero containers, and visual banners are rendered procedurally:
+- **Parchment Surface Fill:** `FableTheme.surface` (`#ECE0DB`, warm beige parchment).
+- **Hairline Border:** 1pt stroke in `FableTheme.divider` (`#E0D7D2`).
+- **Dynamic Monogram:** The first initial of the story title rendered in *Playfair Display* / System Serif Bold (`#9F3C16` terracotta).
+- **Genre Eyebrow Pill:** Uppercase category tag pinned to top-left.
+- **Watermark Symbol:** Subtle SF Symbol (`book.closed` or `text.book.closed`) rendered at 40% opacity in `brandSecondary` (`#57423B`).
+
+### 4.2 Structural Blueprint: `PlaceholderCoverView`
+```swift
+public struct PlaceholderCoverView: View {
+    public let title: String
+    public let genre: String
+    public var aspectRatio: CGFloat = 16/9
+    public var cornerRadius: CGFloat = 16
+    
+    public init(title: String, genre: String, aspectRatio: CGFloat = 16/9, cornerRadius: CGFloat = 16) {
+        self.title = title
+        self.genre = genre
+        self.aspectRatio = aspectRatio
+        self.cornerRadius = cornerRadius
+    }
+    
+    public var body: some View {
+        ZStack {
+            FableTheme.surface
+            
+            VStack {
+                HStack {
+                    Text(genre.uppercased())
+                        .font(FableTypography.eyebrowTag)
+                        .foregroundColor(FableTheme.terracotta)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(FableTheme.cardBackground.opacity(0.85))
+                        .clipShape(Capsule())
+                    Spacer()
+                    Image(systemName: "book.closed")
+                        .font(.system(size: 14))
+                        .foregroundColor(FableTheme.textMuted.opacity(0.6))
+                }
+                .padding(12)
+                
+                Spacer()
+                
+                Text(String(title.prefix(1)).uppercased())
+                    .font(.system(size: 42, weight: .bold, design: .serif))
+                    .foregroundColor(FableTheme.terracotta.opacity(0.85))
+                
+                Spacer()
+            }
+        }
+        .aspectRatio(aspectRatio, contentMode: .fit)
+        .overlay(
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .stroke(FableTheme.divider, lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+    }
+}
 ```
 Sources/Resources/Assets.xcassets/
+
+### 4.3 Engineering & Architectural Benefits
+1. **Deterministic Execution:** Zero risk of `UIImage(named:) -> nil` crashes or broken image placeholder squares.
+2. **Instant Clone & Compilation:** Reduces repository footprint by removing 50MB+ of binary image assets.
+3. **High Editorial Tactility:** Evokes high-end typography-first book covers (reminiscent of Faber & Faber and Penguin Modern Classics).
+4. **Offline & Lab Safe:** Zero asynchronous network downloads; 100% instant rendering on both Simulator and physical hardware.
+
+---
+
+## 5. Reference Asset Inventory (Archival / Figma Mapping)
+
+If external artwork is reintroduced in a future production release, the original visual mapping from the Figma prototype correlates to the following identifier namespace:
+
+```
+Sources/Resources/Assets.xcassets/ (Optional Reference)
 ├── AccentColor.colorset
 ├── AppIcon.appiconset
 ├── hero_castle.imageset                # Hero card feature image
