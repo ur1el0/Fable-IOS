@@ -10,7 +10,7 @@
 
 ---
 
-## ⚡ 60-Second Mac Lab Quickstart
+## 60-Second Mac Lab Quickstart
 
 Follow these exact steps to clone, build, and run Fable with **100% consistent results** on any Mac in the computer lab:
 
@@ -39,7 +39,7 @@ open Package.swift
 
 ---
 
-## 📱 App Architecture & Screens (MVC)
+## App Architecture & Screens (MVC)
 
 Fable strictly implements the **Model–View–Controller (MVC)** architectural pattern:
 
@@ -62,7 +62,7 @@ Fable strictly implements the **Model–View–Controller (MVC)** architectural 
 
 ---
 
-## 🎨 Design System & Figma Token Parity
+## Design System & Figma Token Parity
 
 All visual assets and tokens match the live Figma design specification with 100% fidelity:
 - **Primary Brand Accent:** Terracotta `#9F3C16` (`FableTheme.brandPrimary`)
@@ -73,7 +73,7 @@ All visual assets and tokens match the live Figma design specification with 100%
 
 ---
 
-## 🛠️ Lab Troubleshooting & Consistency Guarantees
+## Lab Troubleshooting & Consistency Guarantees
 
 If you encounter common Mac lab environment quirks:
 
@@ -86,7 +86,7 @@ If you encounter common Mac lab environment quirks:
 
 ---
 
-## 📂 Project Structure
+## Project Structure
 
 ```
 Fable-IOS/
@@ -99,6 +99,13 @@ Fable-IOS/
 ├── DESIGN.md                     # Visual tokens, typography hierarchy & placeholder architecture
 ├── LOGIC.md                      # State machine, CRUD flows & algorithm mechanics
 ├── IMPROVEMENTS.md               # Midterm evaluation audit & final FastAPI roadmap
+├── PLANS/                        # Critical system design feature enhancement plans
+│   ├── README.md                 # Master feature roadmap & dependency topology
+│   ├── 01_PERSISTENCE_SWIFTDATA_SQLITE.md # SwiftData offline database plan
+│   ├── 02_MARGINALIA_AND_ANNOTATIONS.md   # Highlight & quote deck plan
+│   ├── 03_PAGINATION_AND_PACING_ENGINE.md # Book pagination & adaptive WPM plan
+│   ├── 04_ORAL_FOLKLORE_AUDIO_SYNTHESIZER.md # Audio speech synthesis plan
+│   └── 05_FASTAPI_CLOUD_SYNC_PIPELINE.md  # FastAPI sync pipeline plan
 ├── Fable-prototype.pdf           # 100% complete Figma prototype reference document
 ├── Package.swift                 # Swift Package Manager manifest (iOS 17+)
 └── Sources/
@@ -114,7 +121,7 @@ Fable-IOS/
 
 ---
 
-## 🔗 Links & Submission References
+## Links & Submission References
 
 - **Live Figma Prototype:** [Fable Figma Prototype](https://www.figma.com/design/k90h1If7gNsEl56fQ1HxPq/Fable-App) *(Set to "Anyone with the link can view")*
 - **Local Prototype PDF:** [`Fable-prototype.pdf`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/Fable-prototype.pdf)
