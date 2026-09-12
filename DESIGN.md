@@ -67,73 +67,166 @@ Fable is designed with an **editorial-first aesthetic**, taking inspiration from
 
 ---
 
-## 3. Screen-by-Screen Figma Frame Alignment
+## 3. Screen-by-Screen Figma Frame Alignment (First Five Fixed Screens)
 
 ### 3.1 Frame 1: `Library Feed` (Figma ID `1:2`) ↔ `LibraryView.swift`
 - **Layout:** Vertical scrolling layout bounded by standard iOS safe areas.
-- **Top App Bar:** Date eyebrow (`"TUESDAY, OCT 14"`), `"Library"` headline, and circular avatar button (opens `ProfileView`).
-- **Category Filter Chips:** Horizontally scrolling pill chips (*All*, *Folklore*, *Mythology*, *Gothic*, *Speculative*, *Classic*).
-- **Tale of the Day Hero:** 16:9 featured card showcasing *"The Clockmaker of Prague"*, displaying cover image, `"TALE OF THE DAY"` badge, bookmark heart button, title, excerpt, and author metadata.
-- **Feed Section:** Vertical stack of story cards featuring cover thumbnails, title, author, read time, and direct tap-to-read triggers.
+- **Top App Bar:** Date eyebrow (`"TUESDAY, OCT 14"` in muted Inter 11pt) and `"Library"` title in Playfair Display 30pt Bold.
+- **Category Filter Chips:** Horizontally scrolling capsule chips (*All* [Active: `#9F3C16` terracotta], *Folklore*, *Mythology*, *Sci-Fi*, *Fables*).
+- **Tale of the Day Hero:** 16:9 featured card showcasing *"Dracula"* by *Bram Stoker*:
+  - Procedural blank parchment cover with terracotta monogram initial `"D"`.
+  - Top-left capsule pill: `"TALE OF THE DAY"` (white background, terracotta text).
+  - Top-right circular bookmark button with ribbon icon.
+  - Subtitle: `"Bram Stoker •"`
+  - Story Headline: `"Dracula"` (Playfair Display 22pt Bold).
+  - Narrative Excerpt: *"“The castle is on the very edge of a terrible precipice. A stone falling from the window would fall a thousand feet without touching anything.”"*
+- **Continue Reading Section:**
+  - Section Header: `"Continue Reading"` with `"See All"` action link.
+  - Story Card: *"The Legend of Sleepy Hollow"* by *Washington Irving*.
+  - Procedural blank cover thumbnail (3:4 aspect ratio with monogram `"S"`).
+  - Linear Progress Bar: Terracotta progress line displaying `"60% complete • Page 14 of 24"` with play icon `▷`.
+- **Recent Submissions Section (Counter: "3 new stories"):**
+  - Card 1: Author tag `"Franz Kafka"`, Title *"The Metamorphosis"*, excerpt: *"“One morning, when Gregor Samsa woke from troubled dreams, he found himself transformed in his bed into a monstrous vermin.”"*
+  - Card 2: Author tag `"Edgar Allan Poe"`, Title *"The Tell-Tale Heart"*, excerpt: *"“True! — nervous — very, very dreadfully nervous I had been and am; but why will you say that I am mad?”"*
+  - Card 3: Author tag `"Jose Rizal"`, Title *"The Legend of Maria Makiling"*, excerpt: *"“She was a fantastic creature, half nymph, half sylph, born under the moonbeams in the mystery of ancient...”"*
+- **Bottom Persistent Navigation:** 4-tab bar (`Library` active, `Explore`, `Write`, `Shelf`).
 
 ### 3.2 Frame 2: `Story Reader` (Figma ID `1:159`) ↔ `ReaderView.swift`
-- **Layout:** Full-screen immersive reader.
-- **Top Filigree & Metadata:** Chapter label (*"CHAPTER IV • THE CELESTIAL ASTROLABE"*), story title, author byline pill (*"M. Vance • Sep 2026 • 4 min read"*).
-- **Vignette Break:** Illustration container with caption (*"Orloj Horologe, Old Town Square • FOLIO 82"*).
-- **Manuscript Rendering:** Justified serif paragraphs with 1.65 line height on warm parchment canvas.
-- **Reading Toolbar (Bottom Float):**
-  - Progress indicator showing current completion percentage.
-  - Interactive bookmark toggle button.
-  - Typography & display settings trigger (presents `DisplayOptionsSheet`).
-  - Dismiss/Close button.
+- **Layout:** Immersive full-screen reading canvas.
+- **Navigation:** Back chevron (`<`) at top-left dismissing back to Library.
+- **Header:** Centered title *"Dracula"* in Playfair Display 28pt Bold.
+- **Metadata Capsule:** Centered pill displaying `🌓 M. Vance • Sep 2026 • ⏱ 4 min read`.
+- **Hero Chapter Vignette:** 16:9 procedural blank parchment container with hairline border and soft corner radius (asset-decoupled placeholder).
+- **Manuscript Text:** Elegant justified serif paragraphs (*Source Serif 4*, 17pt, 1.65 line height) on warm parchment canvas (`#FCF8FB`).
+- **Floating Bottom Reader Toolbar Capsule:**
+  - Left segment: Book symbol + `"Page 2 of 5"`.
+  - Separator: Muted bullet `•`.
+  - Center segment: Mini terracotta progress track indicating `"40%"`.
+  - Right segment: Circular `"TT"` button opening the Display Options Sheet.
 
 ### 3.3 Frame 3: `Reader Customization Sheet` (Figma ID `1:302`) ↔ `DisplayOptionsSheet.swift`
-- **Layout:** Half-height modal sheet over active reading session.
-- **Font Selection:** 3-way segment (*Source Serif 4*, *SF Pro*, *SF Mono*).
-- **Font Size Stepper:** `A-` / `A+` buttons scaling font size from 80% to 150%.
-- **Theme Swatches:** Circular color selectors for *White*, *Sepia* (`#F4ECE0`), *Charcoal* (`#2B2B2B`), and *OLED Black* (`#000000`).
-- **Line Spacing:** Segment control (*Compact*, *Normal*, *Spacious*).
+- **Layout:** Half-height modal sheet presented over dimmed reader content.
+- **Top Control Bar:** Left `"Reset"` action in terracotta, centered `"Display Options"` title, right `"✕"` dismiss button.
+- **Typography Section:** Header `"TYPOGRAPHY"` | `"Source Serif 4"`. 3-segment control: `Serif` (active white card with shadow), `Sans`, `Mono`.
+- **Text Size Section:** Header `"TEXT SIZE"` | `"100%"`. Continuous slider bounded by small `A` and large `A` with terracotta fill.
+- **Reading Background Section:** Header `"READING BACKGROUND"`. 4 circular color swatches:
+  - `White` (`#FFFFFF`)
+  - `Sepia` (`#F4ECE0`, active with terracotta `✓` checkmark inside)
+  - `Charcoal` (`#2B2B2B`)
+  - `OLED` (`#000000`)
+- **Line Spacing Section:** Header `"LINE SPACING"`. 3 options:
+  - `Compact` (tight lines)
+  - `Normal` (standard lines; active state: peach `#FBEAE3` fill, terracotta `#9F3C16` border and text)
+  - `Spacious` (relaxed lines)
 
 ### 3.4 Frame 4: `Story Composer` (Figma ID `1:454`) ↔ `WriteView.swift`
-- **Layout:** Scrollable authoring form with live word and time calculations.
-- **Header:** Navigation title `"Write Tale"` with primary action button `"Publish"`.
-- **Form Controls:**
-  - Story Title (`TextField` with Playfair Display styling).
-  - Genre Picker (Horizontal capsule selection).
-  - Chapter Header input (`TextField`).
-  - Synopsis field (`TextEditor` with character limits).
-  - Main Manuscript Body (`TextEditor` with live word count).
-- **Validation:** Enforces non-empty title and minimum content length before enabling the Publish button.
+- **Layout:** Scrollable authoring studio with live word and time calculations.
+- **Top Navigation Bar:**
+  - Left: `"Clear"` in terracotta / red.
+  - Center: `✍️ DRAFT MODE` capsule pill.
+  - Right: Circular terracotta publish button with upward arrow `↑`.
+- **Identity Section (`IDENTITY • Manuscript`):**
+  - Card container:
+    - Row 1: `"Title"` label | `"The Metamorphosis"` in Playfair Display bold.
+    - Divider line.
+    - Row 2: `"Genre"` label | Pill badge `📖 Classic Fiction` | `"Chapter I"` | Chevron `>`.
+- **Synopsis Section (`SYNOPSIS • Micro-prologue`):**
+  - Card container:
+    - Text: *"“Gregor Samsa wakes one morning to discover he has transformed into a monstrous insect, forcing his family to confront their dependency and disgust.”"*
+    - Footer: `⏱ Card preview previewable on Shelf` (left) | Character count `"142 / 200"` (right).
+- **Manuscript Section (`MANUSCRIPT`):**
+  - Longform body editor containing Gregor Samsa's transformation text.
+  - Pagination dots `• •` and resize grip.
+- **Bottom Stats Capsule (Floating above Tab Bar):**
+  - `"142 / 500 words"` (list icon with active terracotta underline).
+  - `•` bullet.
+  - `⏱ ~1 min fable`.
+  - `•` bullet.
+  - `☁️ Saved 2m ago`.
 
 ### 3.5 Frame 5: `Publish Success Sheet` (Figma ID `1:638`) ↔ `StoryPublishedSheet.swift`
-- **Layout:** Centered celebration modal sheet.
-- **Iconography:** Terracotta quill and parchment seal symbol.
-- **Typography:** `"Tale Published!"` in Playfair Display 24pt Bold.
-- **Actions:** Primary `"Share Tale"` button and secondary `"Return to Library"` button that dismisses the sheet and redirects the tab to Library.
+- **Layout:** Centered celebration modal card over dimmed backdrop.
+- **Celebration Badge:** Circular peach badge (`#FBEAE3`) with subtle terracotta sparkles, enclosing an inner circle with terracotta checkmark `✓`.
+- **Typography:**
+  - Headline: `"Story Published!"` (Playfair Display 24pt Bold).
+  - Subtitle: `"Your fable is now live in the Community Library for fellow wanderers to read and reflect upon."` (14pt regular, centered).
+- **Metadata Pill:** Capsule container with `• Public  • Folklore  • 142 words`.
+- **Action Hierarchy:**
+  - Primary CTA: `"View Story Now →"` (Full-width terracotta `#9F3C16` button, 14pt corner radius).
+  - Secondary Action: `"Return to Library"` (Centered text button).
+  - Tertiary Action: `↑ Share story link` (Terracotta link with upload/share symbol).
 
 ### 3.6 Frame 6: `Explore & Search Tab` (Figma ID `1:752`) ↔ `ExploreView.swift`
-- **Layout:** Discovery hub with search and thematic categorizations.
-- **Search Header:** Persistent search field with clear button.
-- **2-Column Genre Grid:** Visual genre banners for *Folklore*, *Mythology*, *Gothic*, and *Classic Mystery*.
-- **Featured Authors Carousel:** Horizontal scrolling author cards with avatar, name, and story count.
-- **Curated Reading Lists:** "Staff Picks", "Short Reads Under 5 Mins", and "Trending Legends".
+- **Layout:** Discovery hub with search bar, 2x2 genre categories, and author spotlights.
+- **Top Brand Bar:** `📖 Fable` logo on left, category label `"Explore"` on right.
+- **Search Header:** Persistent search field (`#F0EDEF` container) with magnifying glass icon and placeholder `"Search stories, authors, or genres"`.
+- **Discovery Filter Chips:** Capsule pills: `"All"` (active terracotta `#9F3C16`), `"Under 5 mins ✓"`, `"Community Favorites"`.
+- **Popular Genres (2x2 Grid):**
+  - Section Header: `"Popular Genres"` | `"24 categories"`.
+  - Cards: *Folklore* (`340 stories`), *Mythology* (`218 stories`), *Gothic* (`185 stories`), *Classic Mystery* (`185 stories`).
+  - Rendered with procedural warm parchment surfaces and serif typography titles.
+- **Trending Writers Carousel:**
+  - Section Header: `"Trending Writers 📈"` | `"View All>"`.
+  - Horizontal scrolling avatar cards with author names, story counts, and ratings (*R.F. Kuang*, *Rebecca Yarros*, *T.J. Klune*, *Silvia Moreno-Garcia*).
 
-### 3.7 Frame 7: `Shelf & Reading Journal` (Figma ID `1:1058`) ↔ `ShelfView.swift`
-- **Layout:** Personal reading dashboard and archive.
-- **Segmented Control:** Toggles between `"Bookmarked"` and `"Completed"` collections.
-- **Reading Progress Cards:** Each story card renders an interactive SVG circular progress ring indicating current read status (e.g., 60%).
-- **October Reading Stats Grid (3 Columns):**
-  - Metric 1: **12** *Stories Read*
-  - Metric 2: **48m** *Logged Time*
-  - Metric 3: **3** *Days Streak* (with terracotta flame icon)
-- **Literary Quote Card:** *“A room without books is like a body without a soul.” — Cicero* styled in italic Source Serif 4.
+### 3.7 Frame 7: `My Shelf` (Figma ID `1:1058`) ↔ `ShelfView.swift`
+- **Layout:** Personal reading dashboard and library archive.
+- **Top Bar:** Brand logo `📖 Fable`, large headline `"My Shelf"`, top-right analytics icon `📈`, and settings gear icon `⚙️` (presents `SettingsView`).
+- **3-Segment Collection Control:** `"Saved"` (active white card with shadow), `"Finished"`, `"My Drafts"`.
+- **Active Stories List (`ACTIVE STORIES (4)` | `Filter 🎛️`):**
+  - Item 1: `Reading • 2m left` | *"The Legend of Sleepy Hollow"* by *Washington Irving* | Circular progress ring: `60%` | Menu `•••`
+  - Item 2: `Reading • 5m left` | *"Dracula"* by *Bram Stoker* | Circular progress ring: `35%` | Menu `•••`
+  - Item 3: `Reading • 2m left` | *"Metamorphosis"* by *Franz Kafka* | Circular progress ring: `80%` | Menu `•••`
+  - Item 4: `Reading • 1m left` | *"The Tell-Tale Heart"* by *Edgar Allan Poe* | Circular progress ring: `15%` | Menu `•••`
+- **Progress Ring Architecture:** Rendered using vector circle stroke trim (`Circle().trim(from: 0, to: progress)`) in `brandPrimary` terracotta with centered percentage label.
+
+### 3.8 Frame 8: `Author / User Profile` ↔ `ProfileView.swift`
+- **Layout:** Personal author profile and published folio archive.
+- **Navigation:** Top-left back chevron button (`<`).
+- **Identity Header:**
+  - Centered circular avatar photo with edit badge (`✏️`).
+  - Name: `"Roosc Zaño"` with verified terracotta badge (`✓`).
+  - Handle: `"@zanoroosc"`.
+  - Bio: *"“Writer of quiet lore, archivist of dusk folklore, and collector of vintage horology tales. Author of 14 published stories.”"*
+- **Actions:** Primary `"✏️ Edit Profile"` (terracotta) | Secondary `"⬆️ Share Profile"`.
+- **3-Column Metrics:** `14` *Stories* | `4.9k` *Reads* | `890` *Followers*.
+- **Segmented Control:** `"Published"` (active) | `"Reading Lists"`.
+- **Published Story Cards:**
+  - *"The Clockmaker of Prague"* (★ 4.9, 👁 1.2k reads)
+  - *"The Whispering Pines"* (★ 4.8, 👁 840 reads)
+  - *"The Starlit Loom"* (★ 5.0, 👁 620 reads)
+
+### 3.9 Frame 9: `Genre Detail View` ↔ `GenreDetailView.swift`
+- **Layout:** Thematic curated archive hub.
+- **Navigation:** Back chevron (`<`), title `"Genre Detail"`, top pills: `📖 ARCHIVE EDITION`, filter, bookmark.
+- **Curated Genre Hero Card (Warm Parchment):**
+  - Headline: `"Folklore & Legends"` (Playfair Display 26pt Bold).
+  - Metadata: `340 Tales • 19.4k Readers • Curated Weekly`.
+  - Description: *"“Traditional tales passed down through generations, reimagined by contemporary scribes—from fireside Slavic forest myths to maritime legends whispered across coastal tides.”"*
+  - CTA Button: `+ Follow Genre` (`#9F3C16` terracotta).
+- **Sub-Category Filter Chips:** Capsule pills: `"All"` (active terracotta), `"Forest Spirits"`, `"Urban Legends"`, `"Slavic Myths"`.
+- **Curator's Spotlight (`STORY OF THE WEEK`):**
+  - Card: *"The Legend of Sleepy Hollow"* by *Washington Irving* (★ 4.9) with excerpt, `"Read Now 📖"` CTA, and bookmark button.
+- **Recent Dispatches Section (`Sort by ⌄`):**
+  - 4 stories: *"Rip Van Winkle"*, *"The Monkey's Paw"*, *"The Fisherman and His Wife"*, *"The Sandman"*.
+
+### 3.10 Frame 10: `Settings Modal View` ↔ `SettingsView.swift`
+- **Layout:** Modal half/full sheet presenting app and reader preferences.
+- **Header:** Top grabber handle, Left `"Cancel"`, Center `"Settings"` (bold), Right `"Done"` (terracotta).
+- **Account Row:** Avatar of `Roosc Zaño`, email `roosc-zano@fable.app`, chevron `>`.
+- **Reading Preferences Group:**
+  - Row 1: `Default Reader Font` | `"New York >"`
+  - Row 2: `Default Theme` | `"⚪ Light >"`
+  - Row 3: `Haptic Feedback` | Toggle switch: `ON` (terracotta active)
+- **Shelf & Library Group:**
+  - Row 1: `Downloaded Stories` | `"12 Tales (42 MB)"` | Action button `"Clear Cache"`
+  - Row 2: `Auto-Archive Stories` (*"Move completed tales out of shelf view"*) | Toggle switch: `OFF`
+- **Account Action:** Full-width rounded card with centered `"Sign Out"` in red text.
 
 ---
 
-## 4. Asset Catalog Inventory (`Assets.xcassets`)
 ## 4. Asset-Decoupled Blank Placeholder Architecture
 
-All image assets from the Figma design have been exported at 3x Retina resolution and organized into standard Xcode `.imageset` catalogs:
 To eliminate brittle runtime dependencies on external binary bitmap assets (`.png`, `.jpg`) and guarantee 100% operational consistency across every Mac lab workstation, Fable implements an **asset-decoupled procedural visual architecture**.
 
 ### 4.1 Visual Parity with Prototype (Without Bitmap Images)
