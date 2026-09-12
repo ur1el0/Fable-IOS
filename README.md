@@ -91,10 +91,12 @@ If you encounter common Mac lab environment quirks:
 ```
 Fable-IOS/
 ├── README.md                     # Repository entrypoint & quickstart (this file)
+├── SYSTEM_DESIGN.md              # Critical system design & 5 pillars specification
 ├── MAC_LAB_RUNBOOK.md            # Detailed Mac lab setup & verification runbook
 ├── PROJECT_INSTRUCTIONS.md       # Official midterm rubric & submission requirements
 ├── ARCHITECTURE.md               # Technical architecture & MVC layer documentation
 ├── DESIGN.md                     # Visual tokens, typography hierarchy & asset inventory
+├── DESIGN.md                     # Visual tokens, typography hierarchy & placeholder architecture
 ├── LOGIC.md                      # State machine, CRUD flows & algorithm mechanics
 ├── IMPROVEMENTS.md               # Midterm evaluation audit & final FastAPI roadmap
 ├── Fable-prototype.pdf           # 100% complete Figma prototype reference document
