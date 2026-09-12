@@ -21,21 +21,15 @@
 - **One Logical Chunk at a Time:** Present and execute only one discrete, manageable step at a time.
 - **Wait for Confirmation:** Never jump ahead or batch multiple phases together. Always pause and confirm understanding with the user before proceeding to the next step.
 
-### 3. Version Control & Git Strategy
+### 3. Version Control & Automated Git Strategy
 
-- **Feature Branching Protocol (No Pushing to Main):** All development must occur on dedicated feature branches (e.g., `feature/module-name`). Never push commits directly to `main`.
-- **Explicit Branch Declaration:** The active Git feature branch MUST be explicitly declared and confirmed by the user BEFORE beginning any code modifications for a new phase or feature.
-- **Pull Request (PR) Integration Workflow:** Once a feature branch is ready, push it to the remote repository and open a Pull Request. Rely on the CI/CD pipelines to validate the code before merging into `main`.
-- **Concise Commit Formatting:** Provide minimal, crisp, informative conventional commit messages (`feat:`, `fix:`, `refactor:`).
-- **Atomic, Separated Commits (STRICT):** Never bundle unrelated or loosely related changes into a single large commit. You must **ALWAYS provide separate `git add` and `git commit` commands** for each logical boundary. For example, if a step creates a UI component, adds a test, and updates a route, provide THREE separate commits:
-  1. Commit for the UI component and logic.
-  2. Commit for the test file.
-  3. Commit for the routing and configuration.
-- **Commit Boundaries:** Do not mix backend schema changes, frontend UI updates, and external API changes in a single commit. Keep commits strictly scoped to a single architectural layer.
+- **Dedicated Feature Branching (No Pushing to Main):** All development occurs on dedicated feature branches (e.g., `feature/module-name`). Never push commits directly to `main`.
+- **Automated Commit & Push Execution (Zero Lost Work):** The AI assistant automatically executes `git add`, `git commit`, and `git push origin <branch>` via its terminal execution tools upon completing each logical step or task. This guarantees that work is never accidentally left uncommitted or unpushed locally on shared Mac lab or laptop computers.
+- **Zero PR Bloat (No Unnecessary Pull Requests):** Do NOT generate PR titles, PR descriptions, or instruct the user to open Pull Requests on GitHub. Keep remote feature branches cleanly pushed and synchronized without adding unnecessary PR ceremony.
+- **Concise Conventional Commits:** Format commits using minimal, crisp, informative conventional commit types (`feat:`, `fix:`, `refactor:`, `docs:`).
+- **Atomic, Separated Commits (STRICT):** Never bundle unrelated changes into a single large commit. Separate commits cleanly by architectural boundary (e.g., separate UI, tests, and configuration).
 - **Secret Safety:** NEVER commit `.env` files, real API keys, raw sensitive institutional records, or local test databases.
-- **Explicit File Manifest:** Always list the exact relative file paths associated with each atomic commit.
-- **User Command Execution:** The learner executes Git commands (`git add`, `git commit`, `git push`) directly in their terminal.
-- **Pull Request Messages:** ALWAYS paste a markdown-formatted, emoji-free PR Title and Body directly in the chat after finishing each feature branch so the user can easily copy and paste it into GitHub.
+- **Explicit File Manifest:** Always explicitly report the exact relative file paths associated with each atomic commit.
 
 ### 4. Critical System Design Thinking
 

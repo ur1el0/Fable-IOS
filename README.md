@@ -95,7 +95,6 @@ Fable-IOS/
 ├── MAC_LAB_RUNBOOK.md            # Detailed Mac lab setup & verification runbook
 ├── PROJECT_INSTRUCTIONS.md       # Official midterm rubric & submission requirements
 ├── ARCHITECTURE.md               # Technical architecture & MVC layer documentation
-├── DESIGN.md                     # Visual tokens, typography hierarchy & asset inventory
 ├── DESIGN.md                     # Visual tokens, typography hierarchy & placeholder architecture
 ├── LOGIC.md                      # State machine, CRUD flows & algorithm mechanics
 ├── IMPROVEMENTS.md               # Midterm evaluation audit & final FastAPI roadmap
@@ -106,6 +105,9 @@ Fable-IOS/
 │   ├── 03_PAGINATION_AND_PACING_ENGINE.md # Book pagination & adaptive WPM plan
 │   ├── 04_ORAL_FOLKLORE_AUDIO_SYNTHESIZER.md # Audio speech synthesis plan
 │   └── 05_FASTAPI_CLOUD_SYNC_PIPELINE.md  # FastAPI sync pipeline plan
+├── prototype_reference/          # High-resolution screenshots of all 10 prototype screens
+│   ├── README.md                 # Screen catalog, component map & visual previews
+│   └── *.png                     # 10 labeled reference images for lab side-by-side verification
 ├── Fable-prototype.pdf           # 100% complete Figma prototype reference document
 ├── Package.swift                 # Swift Package Manager manifest (iOS 17+)
 └── Sources/
