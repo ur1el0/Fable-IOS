@@ -44,7 +44,7 @@ public struct WriteView: View {
                         Spacer()
                         
                         HStack(spacing: 6) {
-                            Image(systemName: "feather")
+                            Image(systemName: "pencil.and.scribble")
                                 .font(.system(size: 11))
                             Text("DRAFT MODE")
                                 .font(.system(size: 11, weight: .bold))

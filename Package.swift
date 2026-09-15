@@ -15,10 +15,7 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "FableApp",
-            path: "Sources",
-            resources: [
-                .process("Resources")
-            ]
+            path: "Sources"
         )
     ]
 )

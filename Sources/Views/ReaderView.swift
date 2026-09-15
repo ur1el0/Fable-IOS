@@ -230,7 +230,7 @@ public struct ReaderView: View {
                         }
                     }
                     .tabViewStyle(.page(indexDisplayMode: .never))
-                    .onChange(of: currentPage) { newPage in
+                    .onChange(of: currentPage) { _, newPage in
                         let wordCount = pages.indices.contains(newPage - 1) ? pages[newPage - 1].split(separator: " ").count : 180
                         pacingEngine.recordPageTurn(wordsOnPage: wordCount)
                         store.updateProgress(for: story.id, page: newPage, totalPages: max(1, pages.count))

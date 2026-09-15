@@ -12,6 +12,13 @@ public final class PersistenceService {
     }
     
     public init() {
+        // Guarantee Application Support directory exists to prevent CoreData recovery warnings
+        if let appSupportURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
+            if !FileManager.default.fileExists(atPath: appSupportURL.path) {
+                try? FileManager.default.createDirectory(at: appSupportURL, withIntermediateDirectories: true, attributes: nil)
+            }
+        }
+        
         do {
             let schema = Schema([
                 StoryEntity.self,
