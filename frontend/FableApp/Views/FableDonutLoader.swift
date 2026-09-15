@@ -29,7 +29,7 @@ public struct FableDonutLoader: View {
                     .stroke(
                         AngularGradient(
                             gradient: Gradient(colors: [
-                                FableTheme.brandPrimary.opacity(0.2),
+                                FableTheme.brandPrimary.opacity(0.15),
                                 FableTheme.brandPrimary
                             ]),
                             center: .center
@@ -38,22 +38,12 @@ public struct FableDonutLoader: View {
                     )
                     .frame(width: size, height: size)
                     .rotationEffect(.degrees(isSpinning ? 360 : 0))
-                    .animation(
-                        .linear(duration: 0.85)
-                        .repeatForever(autoreverses: false),
-                        value: isSpinning
-                    )
                 
                 // Center filigree serif motif dot
                 Circle()
                     .fill(FableTheme.brandPrimary)
                     .frame(width: size * 0.18, height: size * 0.18)
                     .scaleEffect(pulseScale)
-                    .animation(
-                        .easeInOut(duration: 0.85)
-                        .repeatForever(autoreverses: true),
-                        value: pulseScale
-                    )
             }
             
             if let text = message {
@@ -64,8 +54,12 @@ public struct FableDonutLoader: View {
             }
         }
         .onAppear {
-            self.isSpinning = true
-            self.pulseScale = 1.3
+            withAnimation(.linear(duration: 0.85).repeatForever(autoreverses: false)) {
+                self.isSpinning = true
+            }
+            withAnimation(.easeInOut(duration: 0.85).repeatForever(autoreverses: true)) {
+                self.pulseScale = 1.3
+            }
         }
     }
 }
@@ -99,5 +93,27 @@ public struct PageTransitionDonutOverlay: View {
             )
         }
         .transition(.opacity.combined(with: .scale(scale: 0.95)))
+    }
+}
+
+/// Inline Donut Refresh Bar for ScrollViews
+public struct InlineDonutRefreshView: View {
+    let message: String
+    
+    public init(message: String = "Syncing archive...") {
+        self.message = message
+    }
+    
+    public var body: some View {
+        HStack(spacing: 10) {
+            FableDonutLoader(size: 18, lineWidth: 2.4)
+            Text(message)
+                .font(.system(size: 12, weight: .medium, design: .serif))
+                .foregroundColor(FableTheme.brandPrimary)
+                .tracking(0.5)
+        }
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity)
+        .transition(.opacity.combined(with: .move(edge: .top)))
     }
 }

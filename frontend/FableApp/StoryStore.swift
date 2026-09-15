@@ -414,6 +414,11 @@ One morning, when Gregor Samsa woke from troubled dreams, he found himself trans
         }
     }
     
+    func refreshAll() {
+        reloadReadingStats()
+        reloadPinnedQuotes()
+    }
+    
     // MARK: - Actions
     func toggleBookmark(for story: Story) {
         if let idx = stories.firstIndex(where: { $0.id == story.id }) {
