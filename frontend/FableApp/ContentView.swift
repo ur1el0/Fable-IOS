@@ -27,51 +27,61 @@ enum FableTab: Int, CaseIterable {
 
 struct ContentView: View {
     @StateObject private var store = StoryStore()
+    @ObservedObject private var auth = AuthManager.shared
     
     var body: some View {
-        ZStack(alignment: .bottom) {
-            // Tab Contents
-            Group {
-                switch store.selectedTab {
-                case .library:
-                    LibraryView()
-                case .explore:
-                    ExploreView()
-                case .write:
-                    WriteView()
-                case .shelf:
-                    ShelfView()
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            
-            // Custom Prototype Bottom Tab Bar
-            VStack(spacing: 0) {
-                Divider()
-                    .background(FableTheme.lightBorder)
-                
-                HStack(spacing: 0) {
-                    ForEach(FableTab.allCases, id: \.self) { tab in
-                        Button(action: {
-                            store.selectedTab = tab
-                        }) {
-                            VStack(spacing: 4) {
-                                Image(systemName: tab.iconName)
-                                    .font(.system(size: 20, weight: store.selectedTab == tab ? .semibold : .regular))
-                                
-                                Text(tab.title)
-                                    .font(.system(size: 11, weight: store.selectedTab == tab ? .semibold : .medium))
-                            }
-                            .foregroundColor(store.selectedTab == tab ? FableTheme.terracotta : FableTheme.subtleSlate)
-                            .frame(maxWidth: .infinity)
-                            .padding(.top, 10)
-                            .padding(.bottom, 6)
+        Group {
+            if auth.isAuthenticated {
+                ZStack(alignment: .bottom) {
+                    // Tab Contents
+                    Group {
+                        switch store.selectedTab {
+                        case .library:
+                            LibraryView()
+                        case .explore:
+                            ExploreView()
+                        case .write:
+                            WriteView()
+                        case .shelf:
+                            ShelfView()
                         }
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    
+                    // Custom Prototype Bottom Tab Bar
+                    VStack(spacing: 0) {
+                        Divider()
+                            .background(FableTheme.lightBorder)
+                        
+                        HStack(spacing: 0) {
+                            ForEach(FableTab.allCases, id: \.self) { tab in
+                                Button(action: {
+                                    store.selectedTab = tab
+                                }) {
+                                    VStack(spacing: 4) {
+                                        Image(systemName: tab.iconName)
+                                            .font(.system(size: 20, weight: store.selectedTab == tab ? .semibold : .regular))
+                                        
+                                        Text(tab.title)
+                                            .font(.system(size: 11, weight: store.selectedTab == tab ? .semibold : .medium))
+                                    }
+                                    .foregroundColor(store.selectedTab == tab ? FableTheme.terracotta : FableTheme.subtleSlate)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.top, 10)
+                                    .padding(.bottom, 6)
+                                }
+                            }
+                        }
+                        .background(Color.white.ignoresSafeArea(edges: .bottom))
+                    }
                 }
-                .background(Color.white.ignoresSafeArea(edges: .bottom))
+                .transition(.opacity)
+            } else {
+                WelcomeView()
+                    .transition(.opacity)
             }
         }
+        .animation(.easeInOut(duration: 0.25), value: auth.isAuthenticated)
         .environmentObject(store)
     }
 }

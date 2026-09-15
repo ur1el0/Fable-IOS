@@ -3,6 +3,7 @@ import SwiftUI
 public struct ProfileView: View {
     @EnvironmentObject var store: StoryStore
     @Environment(\.dismiss) var dismiss
+    @ObservedObject var auth = AuthManager.shared
     
     @State private var selectedTab: String = "Published"
     @State private var selectedStoryToRead: Story?
@@ -315,6 +316,15 @@ public struct ProfileView: View {
                     }
                 }
                 .presentationDetents([.medium])
+            }
+            .onAppear {
+                if let session = auth.currentSession {
+                    self.userName = session.name
+                    self.userHandle = session.handle
+                    if !session.bio.isEmpty {
+                        self.userBio = session.bio
+                    }
+                }
             }
         }
     }

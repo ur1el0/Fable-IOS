@@ -18,6 +18,7 @@ public struct ReaderView: View {
     @State private var annotationNote: String = ""
     @State private var isPinToJournal: Bool = true
     @State private var isShowingAnnotationSheet: Bool = false
+    @State private var sessionStartTime: Date = Date()
     
     public init(story: Story) {
         self.story = story
@@ -441,14 +442,18 @@ public struct ReaderView: View {
         }
         .navigationBarBackButtonHidden(true)
         .onAppear {
+            self.sessionStartTime = Date()
             pacingEngine.startSession()
             let rawText = story.content.isEmpty ? story.synopsis : story.content
             let chunked = PacingEngine.chunkIntoPages(text: rawText)
             self.pages = chunked
             self.totalPages = max(1, chunked.count)
+            self.currentPage = min(self.totalPages, max(1, story.currentPage))
             store.loadAnnotations(for: story.id)
         }
         .onDisappear {
+            let elapsed = Int(Date().timeIntervalSince(sessionStartTime))
+            store.logReadingSession(for: story, seconds: elapsed)
             audioNarrator.stop()
         }
         .sheet(isPresented: $store.isShowingDisplayOptions) {
@@ -462,26 +467,44 @@ public struct ReaderView: View {
         }
     }
     
-    // View helper for rendered manuscript paragraph with marginalia highlighting
+    // View helper for rendered manuscript paragraph with marginalia highlighting & oral audio sync
     @ViewBuilder
     private func paragraphView(_ para: String) -> some View {
         let matchingAnnotation = store.activeStoryAnnotations.first { annot in
             para.contains(annot.selectedText) || annot.selectedText.contains(para)
         }
         
+        let isSpokenParagraph: Bool = {
+            guard audioNarrator.isPlaying, audioNarrator.activeStoryId == story.id else { return false }
+            let fullText = story.content.isEmpty ? story.synopsis : story.content
+            guard let spokenRange = audioNarrator.currentSpokenRange,
+                  spokenRange.location != NSNotFound else { return false }
+            let nsFullText = fullText as NSString
+            let paraRange = nsFullText.range(of: para)
+            if paraRange.location != NSNotFound {
+                return spokenRange.location >= paraRange.location && spokenRange.location < (paraRange.location + paraRange.length)
+            }
+            return false
+        }()
+        
         Text(para)
             .font(store.readerFont.font(size: 17 * (store.readerFontSize / 100.0)))
             .lineSpacing(store.readerLineSpacing.points)
             .foregroundColor(store.readerTheme.textColor)
-            .padding(matchingAnnotation != nil ? 6 : 0)
+            .padding(matchingAnnotation != nil || isSpokenParagraph ? 6 : 0)
             .background(
                 matchingAnnotation != nil
                     ? matchingAnnotation!.color.displayColor
-                    : Color.clear
+                    : (isSpokenParagraph ? FableTheme.brandPrimary.opacity(0.12) : Color.clear)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(isSpokenParagraph ? FableTheme.brandPrimary.opacity(0.4) : Color.clear, lineWidth: 1)
             )
             .clipShape(RoundedRectangle(cornerRadius: 6))
             .fixedSize(horizontal: false, vertical: true)
             .contentShape(Rectangle())
+            .animation(.easeInOut(duration: 0.25), value: isSpokenParagraph)
             .onTapGesture {
                 self.selectedTextToAnnotate = para
                 self.isShowingAnnotationSheet = true
@@ -599,11 +622,17 @@ public struct ReaderView: View {
             // Save Action Button
             Button(action: {
                 if let text = selectedTextToAnnotate {
+                    let fullText = story.content.isEmpty ? story.synopsis : story.content
+                    let nsText = fullText as NSString
+                    let targetRange = nsText.range(of: text)
+                    let startOffset = targetRange.location != NSNotFound ? targetRange.location : 0
+                    let endOffset = targetRange.location != NSNotFound ? (targetRange.location + targetRange.length) : text.utf16.count
+                    
                     store.addAnnotation(
                         story: story,
                         text: text,
-                        startOffset: 0,
-                        endOffset: text.utf16.count,
+                        startOffset: startOffset,
+                        endOffset: endOffset,
                         color: selectedHighlightColor,
                         note: annotationNote.isEmpty ? nil : annotationNote,
                         pinToJournal: isPinToJournal

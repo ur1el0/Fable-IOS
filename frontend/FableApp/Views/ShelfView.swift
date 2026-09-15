@@ -113,7 +113,7 @@ public struct ShelfView: View {
                             
                             HStack(spacing: 0) {
                                 VStack(spacing: 2) {
-                                    Text("12")
+                                    Text("\(store.readingStats.storiesReadCount)")
                                         .font(.system(size: 22, weight: .bold, design: .serif))
                                         .foregroundColor(FableTheme.brandPrimary)
                                     Text("Stories Read")
@@ -125,7 +125,9 @@ public struct ShelfView: View {
                                 Divider().frame(height: 30)
                                 
                                 VStack(spacing: 2) {
-                                    Text("48m")
+                                    let mins = store.readingStats.totalMinutesRead
+                                    let formattedTime = mins >= 60 ? "\(mins / 60)h \(mins % 60)m" : "\(mins)m"
+                                    Text(formattedTime)
                                         .font(.system(size: 22, weight: .bold, design: .serif))
                                         .foregroundColor(FableTheme.brandPrimary)
                                     Text("Logged Time")
@@ -137,7 +139,7 @@ public struct ShelfView: View {
                                 Divider().frame(height: 30)
                                 
                                 VStack(spacing: 2) {
-                                    Text("3")
+                                    Text("\(store.readingStats.streakDays)")
                                         .font(.system(size: 22, weight: .bold, design: .serif))
                                         .foregroundColor(FableTheme.brandPrimary)
                                     Text("Days Streak")
@@ -324,6 +326,9 @@ public struct ShelfView: View {
             .sheet(isPresented: $isShowingProfileSheet) {
                 ProfileView()
                     .environmentObject(store)
+            }
+            .onAppear {
+                store.reloadReadingStats()
             }
         }
     }

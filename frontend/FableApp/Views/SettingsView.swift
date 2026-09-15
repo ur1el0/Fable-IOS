@@ -3,10 +3,12 @@ import SwiftUI
 public struct SettingsView: View {
     @EnvironmentObject var store: StoryStore
     @Environment(\.dismiss) var dismiss
+    @ObservedObject var auth = AuthManager.shared
     
     @State private var autoArchiveStories: Bool = false
     @State private var cacheCleared: Bool = false
     @State private var navigateToProfile: Bool = false
+    @State private var isShowingSignOutAlert: Bool = false
     
     public init() {}
     
@@ -23,16 +25,28 @@ public struct SettingsView: View {
                                 navigateToProfile = true
                             }) {
                                 HStack(spacing: 14) {
-                                    FableImageView(name: "avatar_roosc", placeholderIcon: "person.crop.circle")
+                                    FableImageView(name: auth.currentSession?.avatarName ?? "avatar_roosc", placeholderIcon: "person.crop.circle")
                                         .frame(width: 54, height: 54)
                                         .clipShape(Circle())
                                     
                                     VStack(alignment: .leading, spacing: 3) {
-                                        Text("Roosc Zaño")
-                                            .font(.system(size: 17, weight: .bold))
-                                            .foregroundColor(FableTheme.textPrimary)
+                                        HStack(spacing: 6) {
+                                            Text(auth.currentSession?.name ?? "Guest Reader")
+                                                .font(.system(size: 17, weight: .bold))
+                                                .foregroundColor(FableTheme.textPrimary)
+                                            
+                                            if auth.isGuestMode {
+                                                Text("GUEST")
+                                                    .font(.system(size: 9, weight: .bold))
+                                                    .padding(.horizontal, 6)
+                                                    .padding(.vertical, 2)
+                                                    .background(FableTheme.brandPrimary.opacity(0.12))
+                                                    .foregroundColor(FableTheme.brandPrimary)
+                                                    .clipShape(Capsule())
+                                            }
+                                        }
                                         
-                                        Text("roosc-zano@fable.app")
+                                        Text(auth.currentSession?.email ?? "Tap to view profile")
                                             .font(.system(size: 13))
                                             .foregroundColor(FableTheme.textMuted)
                                     }
@@ -222,6 +236,48 @@ public struct SettingsView: View {
                                 .background(FableTheme.cardBackground)
                                 .clipShape(RoundedRectangle(cornerRadius: 16))
                                 .shadow(color: Color.black.opacity(0.03), radius: 6, y: 2)
+                            }
+                            
+                            // Account & Session Section
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text("ACCOUNT & SESSION")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .tracking(1.0)
+                                    .foregroundColor(FableTheme.textMuted)
+                                    .padding(.leading, 8)
+                                
+                                VStack(spacing: 0) {
+                                    Button(action: {
+                                        isShowingSignOutAlert = true
+                                    }) {
+                                        HStack(spacing: 12) {
+                                            Image(systemName: "rectangle.portrait.and.arrow.right")
+                                                .foregroundColor(.red.opacity(0.85))
+                                                .font(.system(size: 15))
+                                                .frame(width: 24)
+                                            
+                                            Text(auth.isGuestMode ? "Exit Guest Mode" : "Sign Out of Fable")
+                                                .font(.system(size: 15, weight: .medium))
+                                                .foregroundColor(.red.opacity(0.9))
+                                            
+                                            Spacer()
+                                        }
+                                        .padding(.horizontal, 16)
+                                        .padding(.vertical, 14)
+                                    }
+                                }
+                                .background(FableTheme.cardBackground)
+                                .clipShape(RoundedRectangle(cornerRadius: 16))
+                                .shadow(color: Color.black.opacity(0.03), radius: 6, y: 2)
+                            }
+                            .alert(auth.isGuestMode ? "Exit Guest Mode?" : "Sign Out?", isPresented: $isShowingSignOutAlert) {
+                                Button(auth.isGuestMode ? "Exit" : "Sign Out", role: .destructive) {
+                                    dismiss()
+                                    auth.signOut()
+                                }
+                                Button("Cancel", role: .cancel) {}
+                            } message: {
+                                Text(auth.isGuestMode ? "You will return to the welcome screen." : "Your local reading data and drafts will remain preserved on this device.")
                             }
                             
                             // App Version Info
