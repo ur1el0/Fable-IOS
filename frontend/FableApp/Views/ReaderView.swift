@@ -20,6 +20,7 @@ public struct ReaderView: View {
     @State private var isShowingAnnotationSheet: Bool = false
     @State private var sessionStartTime: Date = Date()
     @State private var quoteToExport: Annotation?
+    @State private var isLoadingFolio: Bool = true
     
     public init(story: Story) {
         self.story = story
@@ -52,8 +53,17 @@ public struct ReaderView: View {
             store.readerTheme.backgroundColor
                 .ignoresSafeArea()
             
-            VStack(spacing: 0) {
-                // Top Navigation Bar (FIGMA.md Frame 2: 1:159)
+            if isLoadingFolio {
+                VStack(spacing: 16) {
+                    Spacer()
+                    FableDonutLoader(size: 48, lineWidth: 3.8, message: "Binding Manuscript...")
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .transition(.opacity)
+            } else {
+                VStack(spacing: 0) {
+                    // Top Navigation Bar (FIGMA.md Frame 2: 1:159)
                 HStack(spacing: 12) {
                     Button(action: {
                         audioNarrator.stop()
@@ -440,6 +450,7 @@ public struct ReaderView: View {
             )
             .padding(.horizontal, 24)
             .padding(.bottom, 24)
+            }
         }
         .navigationBarBackButtonHidden(true)
         .onAppear {
@@ -451,6 +462,13 @@ public struct ReaderView: View {
             self.totalPages = max(1, chunked.count)
             self.currentPage = min(self.totalPages, max(1, story.currentPage))
             store.loadAnnotations(for: story.id)
+            
+            Task {
+                try? await Task.sleep(nanoseconds: 220_000_000)
+                withAnimation(.easeInOut(duration: 0.18)) {
+                    self.isLoadingFolio = false
+                }
+            }
         }
         .onDisappear {
             let elapsed = Int(Date().timeIntervalSince(sessionStartTime))

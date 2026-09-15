@@ -8,6 +8,7 @@ public struct ExploreView: View {
     @State private var selectedGenreForDetail: GenreCategory?
     @State private var selectedStoryToRead: Story?
     @State private var selectedWriter: Writer?
+    @State private var isRefreshing: Bool = false
     
     let filters = ["All", "Under 5 mins", "Community Favorites", "Quick Reads"]
     
@@ -46,6 +47,11 @@ public struct ExploreView: View {
                 
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 22) {
+                        if isRefreshing {
+                            InlineDonutRefreshView(message: "Discovering Tales & Scribes...")
+                                .padding(.horizontal, 20)
+                                .padding(.top, 8)
+                        }
                         // Top Brand Header
                         HStack {
                             HStack(spacing: 8) {
@@ -345,6 +351,16 @@ public struct ExploreView: View {
                         }
                         .padding(.top, 8)
                         .padding(.bottom, 90) // spacing for custom tab bar
+                    }
+                }
+                .refreshable {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isRefreshing = true
+                    }
+                    try? await Task.sleep(nanoseconds: 550_000_000)
+                    store.refreshAll()
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isRefreshing = false
                     }
                 }
             }

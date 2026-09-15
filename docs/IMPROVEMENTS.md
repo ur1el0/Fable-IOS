@@ -34,38 +34,52 @@
 3. **Reactive State Binding:** Changes made in the reader (such as toggling bookmarks) immediately reflect across the Library hero card, the Shelf bookmarked list, and the reading journal stats without state inconsistency.
 4. **Resilient Asset Loader (`FableImageView`):** Handles missing image assets gracefully by falling back to SF Symbols, preventing blank spaces or image loading crashes.
 
-### 2.2 Current Limitations & Design Trade-offs (Midterm Scope)
-1. **Volatile In-Memory Persistence:** Currently, stories published in `WriteView` and updated reading progress persist during the active app session, but reset when the app process is terminated. (Acceptable for midterm scope; planned for final).
-2. **Continuous Vertical Scroll vs. Book Pagination:** The reader currently relies on continuous vertical scrolling (`ScrollView`) rather than horizontal page flipping.
-3. **Fixed Seed Library:** Stories are defined statically within `StoryStore.swift` rather than loaded from an external dynamic feed or SQLite database.
+### 2.2 Transition from Midterm Prototype to Advanced Platform
+Through iterative architectural sprints, the primary midterm limitations have been successfully resolved:
+1. **Local SwiftData & SQLite Persistence (RESOLVED - Plan 01):** Newly authored stories, reading progress, and custom bookmarks are permanently persisted in on-device SQLite storage via `PersistenceService.swift`.
+2. **Book Pagination & Pacing Engine (RESOLVED - Plan 03):** Horizontal page-turning book mode and dynamic WPM estimation are fully operational in `ReaderView.swift`.
+3. **Marginalia & Social Sharing (RESOLVED - Plan 02 & Quote Export):** Character-accurate highlighting, journal quote pinning, and high-DPI typographic quote card export (`ImageRenderer`) are fully integrated.
+4. **Authentication & Identity (RESOLVED):** Added `UserSession` domain model, `AuthManager` state controller, and full Welcome/SignIn/SignUp flow.
+5. **Reading Analytics & Journal (RESOLVED):** Added weekly reading time charts, streak tracking, and literary achievement badges in `ReadingAnalyticsView.swift`.
 
 ---
 
-## 3. Final Project Roadmap & Improvements (FastAPI + Local SQLite)
+## 3. The Final 4 Pillars to 100% Capstone Completion
 
-To achieve 100% completion for the **Final Project Submission**, the architecture transitions to a clean, decoupled full-stack model:
+To reach a definitive 100% capstone score across all academic and enterprise rubrics, development focuses on the final four architectural pillars:
 
-### 3.1 Local Persistence: SQLite / SwiftData on the iPhone
-- **Objective:** Persist newly authored stories, user reading progress, custom bookmarks, and streak metrics locally on the physical iOS device.
-- **Implementation Strategy:**
-  - Define local SQLite tables via Apple's native **SwiftData** (or direct SQLite wrapper) on the phone.
-  - Ensures 100% offline capability: users can read and write stories with zero internet connection.
+```text
+               ┌─────────────────────────────────────────────────────────┐
+               │              FABLE: THE ROADMAP TO 100%                 │
+               └─────────────────────────────────────────────────────────┘
+                                            │
+        ┌───────────────────┬───────────────┴───────────────┬───────────────────┐
+        ▼                   ▼                               ▼                   ▼
+   [ Pillar 1 ]        [ Pillar 2 ]                    [ Pillar 3 ]        [ Pillar 4 ]
+Automated Tests     Live Catalog Ingestion           FastAPI Sync         Accessibility
+ (XCTest Suite)     (Gutendex / Gutenberg)         (Cloud Pipeline)    (VoiceOver / a11y)
+    Plan 06                 Plan 07                     Plan 05              Plan 08
+```
 
-### 3.2 Lightweight Backend Service: FastAPI (Python)
-- **Why FastAPI over ASP.NET Core:**
-  - **Zero Enterprise Overhead:** A lightweight Python service (`main.py`) with Pydantic v2 schemas is dramatically easier to maintain, test, and run.
-  - **Instant OpenAPI / Swagger:** Auto-generates interactive API documentation at `/docs`.
-  - **REST Endpoints:** `/api/stories` (GET/POST), `/api/shelf` (GET/POST), and `/api/authors`.
-- **Client Synchronization:** `StoryAPIService.swift` connects via `URLSession` async/await to sync user stories to the FastAPI service when network is available.
+### 3.1 Pillar 1: Automated Unit & Integration Testing Suite (Plan 06)
+- **Objective:** Fulfill academic software engineering testing rubrics with determinism and high test coverage.
+- **Specification:** [`docs/plans/06_AUTOMATED_XCTEST_SUITE.md`](./plans/06_AUTOMATED_XCTEST_SUITE.md).
+- **Deliverables:** In-memory SwiftData container tests, `AuthManager` credential validation tests, and `PacingEngine` WPM velocity tests.
 
-### 3.3 Advanced E-Reader UX: Book Pagination & Text Interaction
-- **Interactive Highlighting & Marginalia:** Allow readers to select text, highlight passages in terracotta or pastel amber, and attach personal reading notes.
-- **Two-Page & Horizontal Flip Mode:** Integrate `UIPageViewController` or horizontal `TabView` with page-curl or slide transitions for an authentic physical book feel.
-- **Estimated Time-to-Finish-Chapter:** Dynamic calculation of remaining read time based on the user’s measured reading speed (words-per-minute tracker).
+### 3.2 Pillar 2: Live Public Domain Literature Ingestion Engine (Plan 07)
+- **Objective:** Eliminate the static library barrier by connecting Fable to millions of open-access world folklore tales via Project Gutenberg / Gutendex.
+- **Specification:** [`docs/plans/07_LIVE_CATALOG_INGESTION.md`](./plans/07_LIVE_CATALOG_INGESTION.md).
+- **Deliverables:** Asynchronous `URLSession` data task pipeline, Gutenberg DTO to Fable Story transformer, and automated SwiftData caching with zero offline blocking.
 
-### 3.4 Audio Narration & Accessibility (a11y)
-- **Text-to-Speech Integration:** Utilize Apple's native `AVSpeechSynthesizer` with enhanced voices to provide immersive audio narration of folklore stories.
-- **Dynamic Type & VoiceOver:** Audit all custom serif font sizes with `@ScaledMetric` to ensure full compliance with iOS accessibility sizing and screen readers.
+### 3.3 Pillar 3: Distributed Cloud Synchronization Pipeline (Plan 05)
+- **Objective:** Deliver a lightweight full-stack client-server bridge with Last-Write-Wins (LWW) conflict resolution.
+- **Specification:** [`docs/plans/05_FASTAPI_CLOUD_SYNC_PIPELINE.md`](./plans/05_FASTAPI_CLOUD_SYNC_PIPELINE.md).
+- **Deliverables:** Python FastAPI service (`backend/main.py`), SQLite backend, OpenAPI interactive Swagger documentation, and client synchronization via `StoryAPIService.swift`.
+
+### 3.4 Pillar 4: Universal Accessibility (a11y) & VoiceOver Compliance (Plan 08)
+- **Objective:** Ensure 100% compliance with Apple Human Interface Guidelines (HIG) and WCAG 2.1 AA accessibility standards.
+- **Specification:** [`docs/plans/08_ACCESSIBILITY_AND_A11Y_AUDIT.md`](./plans/08_ACCESSIBILITY_AND_A11Y_AUDIT.md).
+- **Deliverables:** Semantic `.accessibilityLabel` and `.accessibilityHint` on all icon controls, `@ScaledMetric` Dynamic Type support, and Accessibility Inspector verification.
 
 ---
 

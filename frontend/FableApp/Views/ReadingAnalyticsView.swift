@@ -6,6 +6,7 @@ public struct ReadingAnalyticsView: View {
 
     @State private var snapshot: AnalyticsSnapshot?
     @State private var selectedTimeframe: String = "This Week"
+    @State private var isLoadingChronicle: Bool = true
 
     public init() {}
 
@@ -15,8 +16,17 @@ public struct ReadingAnalyticsView: View {
                 FableTheme.background
                     .ignoresSafeArea()
 
-                ScrollView(showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 24) {
+                if isLoadingChronicle {
+                    VStack(spacing: 16) {
+                        Spacer()
+                        FableDonutLoader(size: 48, lineWidth: 4, message: "Synthesizing Reading Chronicle...")
+                        Spacer()
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .transition(.opacity)
+                } else {
+                    ScrollView(showsIndicators: false) {
+                        VStack(alignment: .leading, spacing: 24) {
                         // Title & Subtitle
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Reading Analytics")
@@ -277,6 +287,7 @@ public struct ReadingAnalyticsView: View {
                         .padding(.bottom, 36)
                     }
                 }
+                }
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -293,6 +304,12 @@ public struct ReadingAnalyticsView: View {
             }
             .onAppear {
                 loadAnalytics()
+                Task {
+                    try? await Task.sleep(nanoseconds: 220_000_000)
+                    withAnimation(.easeInOut(duration: 0.18)) {
+                        isLoadingChronicle = false
+                    }
+                }
             }
         }
     }

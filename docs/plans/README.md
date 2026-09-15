@@ -29,6 +29,9 @@ All plans are formulated under **strict critical system design tenets**:
 | **[`03_PAGINATION_AND_PACING_ENGINE.md`](./03_PAGINATION_AND_PACING_ENGINE.md)** | Pagination & Reading Velocity | Authentic page-turning & adaptive WPM tracker | Dynamic word tokenization; remaining chapter time recalculation based on actual reader pacing |
 | **[`04_ORAL_FOLKLORE_AUDIO_SYNTHESIZER.md`](./04_ORAL_FOLKLORE_AUDIO_SYNTHESIZER.md)** | Audio Narration & Accessibility | Native text-to-speech audio reader (`AVSpeechSynthesizer`) | Lock-screen `MPNowPlaying` metadata; sentence-level highlighting synchronization; zero audio clipping |
 | **[`05_FASTAPI_CLOUD_SYNC_PIPELINE.md`](./05_FASTAPI_CLOUD_SYNC_PIPELINE.md)** | Distributed Cloud Synchronization | Minimalist FastAPI backend & SQLite cloud sync | Contract-first OpenAPI pipeline; Last-Write-Wins (LWW) conflict resolution; zero enterprise bloat |
+| **[`06_AUTOMATED_XCTEST_SUITE.md`](./06_AUTOMATED_XCTEST_SUITE.md)** | Quality Assurance & TDD | Automated XCTest unit & integration suite | Sub-3s in-memory execution; zero flaky network dependencies; strict domain invariants |
+| **[`07_LIVE_CATALOG_INGESTION.md`](./07_LIVE_CATALOG_INGESTION.md)** | Remote Content Ingestion | Live public-domain folklore via Gutendex REST | Asynchronous URLSession streaming; automatic SwiftData caching; zero offline blocking |
+| **[`08_ACCESSIBILITY_AND_A11Y_AUDIT.md`](./08_ACCESSIBILITY_AND_A11Y_AUDIT.md)** | Inclusive Design & Accessibility | VoiceOver trait mapping & Dynamic Type scaling | Semantic labels and hints on all controls; WCAG 2.1 AA contrast compliance |
 
 ---
 

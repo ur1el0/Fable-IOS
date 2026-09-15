@@ -9,6 +9,7 @@ public struct ShelfView: View {
     @State private var isShowingProfileSheet: Bool = false
     @State private var isShowingAnalyticsSheet: Bool = false
     @State private var quoteToExport: Annotation?
+    @State private var isRefreshing: Bool = false
     
     let tabs = ["Saved", "Finished", "My Drafts"]
     
@@ -34,6 +35,11 @@ public struct ShelfView: View {
                 
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 20) {
+                        if isRefreshing {
+                            InlineDonutRefreshView(message: "Refreshing Bookmarks & Annotations...")
+                                .padding(.horizontal, 20)
+                                .padding(.top, 8)
+                        }
                         // Brand Logo Header
                         HStack(spacing: 8) {
                             Image(systemName: "book.pages.fill")
@@ -347,6 +353,16 @@ public struct ShelfView: View {
                         }
                         
                         Spacer().frame(height: 90) // spacing for custom tab bar
+                    }
+                }
+                .refreshable {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isRefreshing = true
+                    }
+                    try? await Task.sleep(nanoseconds: 550_000_000)
+                    store.refreshAll()
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isRefreshing = false
                     }
                 }
             }
