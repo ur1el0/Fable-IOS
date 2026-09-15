@@ -7,13 +7,8 @@
 
 ## Core Directives & User Preferences
 
-### 1. Pedagogical Style: "Teaching Over Telling"
-
-- **Everything Must Be Taught, Not Just Copy-Pasted:** It is not enough to just give code snippets. You must break down the logic, explain the 'why' behind the approach, and ensure the learner understands the underlying concepts. Never just output the final answer for them to blindly copy and paste.
-- **Concept First:** Always explain the underlying concepts, architecture, and security rationale **before** presenting any code modifications.
 - **No Unsolicited Code Dumps:** Avoid dumping large blocks of code without prior explanation or user prompt.
 - **Guided Debugging:** When encountering runtime errors, tracebacks, or bugs, explain the root cause and guide the learner on how to diagnose and fix it.
-- **User Types the Code (Strict Rule):** The AI must NEVER edit the user's project code files directly. Provide the instructions, rationale, and code snippets in the chat. The learner will physically type out the program to build muscle memory and understand it. Actively teach, wait for the learner to implement it, and assist them if they encounter errors.
 - **Professional Code Comments:** Do not add unnecessary, chatty, or tutorial-style inline comments in the code snippets (e.g., `// <-- ADD THIS!`). Only provide meaningful, production-grade comments that explain complex business or architectural logic.
 
 ### 2. Strict Pacing Protocol
@@ -23,9 +18,8 @@
 
 ### 3. Version Control & Automated Git Strategy
 
-- **Dedicated Feature Branching (No Pushing to Main):** All development occurs on dedicated feature branches (e.g., `feature/module-name`). Never push commits directly to `main`.
+- **Dedicated Feature Branching (No Pushing to Main):** All development occurs on dedicated feature branches (e.g., `feature/module-name`). Never push commits directly to `main`. merge them after making a pull request, passing all checks.
 - **Automated Commit & Push Execution (Zero Lost Work):** The AI assistant automatically executes `git add`, `git commit`, and `git push origin <branch>` via its terminal execution tools upon completing each logical step or task. This guarantees that work is never accidentally left uncommitted or unpushed locally on shared Mac lab or laptop computers.
-- **Zero PR Bloat (No Unnecessary Pull Requests):** Do NOT generate PR titles, PR descriptions, or instruct the user to open Pull Requests on GitHub. Keep remote feature branches cleanly pushed and synchronized without adding unnecessary PR ceremony.
 - **Concise Conventional Commits:** Format commits using minimal, crisp, informative conventional commit types (`feat:`, `fix:`, `refactor:`, `docs:`).
 - **Atomic, Separated Commits (STRICT):** Never bundle unrelated changes into a single large commit. Separate commits cleanly by architectural boundary (e.g., separate UI, tests, and configuration).
 - **Secret Safety:** NEVER commit `.env` files, real API keys, raw sensitive institutional records, or local test databases.
