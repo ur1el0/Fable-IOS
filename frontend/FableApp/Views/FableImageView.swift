@@ -12,21 +12,10 @@ public struct FableImageView: View {
     }
 
     public var body: some View {
-        if let name = name, !name.isEmpty, let img = UIImage(named: name) {
-            Image(uiImage: img)
-                .resizable()
-                .aspectRatio(contentMode: contentMode)
-        } else if let name = name, !name.isEmpty {
-            Image(name)
-                .resizable()
-                .aspectRatio(contentMode: contentMode)
-        } else {
-            ZStack {
-                FableTheme.surface
-                Image(systemName: placeholderIcon)
-                    .font(.system(size: 24))
-                    .foregroundColor(FableTheme.terracotta)
-            }
+        ZStack {
+            Color.white
+            Rectangle()
+                .strokeBorder(Color.black.opacity(0.06), lineWidth: 1)
         }
     }
 }
