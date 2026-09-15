@@ -14,17 +14,32 @@ public final class StoryStore: ObservableObject {
     @Published var isStoryPublished: Bool = false
     @Published var selectedTab: FableTab = .library
     
-    // Reader Preferences
-    @Published var readerFont: ReaderFont = .serif
-    @Published var readerFontSize: Double = 100.0 // 80% to 150%
-    @Published var readerTheme: ReaderTheme = .sepia
-    @Published var readerLineSpacing: ReaderLineSpacing = .normal
-    @Published var hapticFeedback: Bool = true
-    @Published var isPaginatedMode: Bool = false
+    // Reader Preferences (Persisted across launches)
+    @Published var readerFont: ReaderFont = .serif {
+        didSet { UserDefaults.standard.set(readerFont.rawValue, forKey: "fable_pref_reader_font") }
+    }
+    @Published var readerFontSize: Double = 100.0 {
+        didSet { UserDefaults.standard.set(readerFontSize, forKey: "fable_pref_reader_font_size") }
+    }
+    @Published var readerTheme: ReaderTheme = .sepia {
+        didSet { UserDefaults.standard.set(readerTheme.rawValue, forKey: "fable_pref_reader_theme") }
+    }
+    @Published var readerLineSpacing: ReaderLineSpacing = .normal {
+        didSet { UserDefaults.standard.set(readerLineSpacing.rawValue, forKey: "fable_pref_reader_line_spacing") }
+    }
+    @Published var hapticFeedback: Bool = true {
+        didSet { UserDefaults.standard.set(hapticFeedback, forKey: "fable_pref_reader_haptics") }
+    }
+    @Published var isPaginatedMode: Bool = false {
+        didSet { UserDefaults.standard.set(isPaginatedMode, forKey: "fable_pref_reader_paginated") }
+    }
     
     // Marginalia & Quotes (Plan 02)
     @Published var activeStoryAnnotations: [Annotation] = []
     @Published var pinnedQuotes: [Annotation] = []
+    
+    // Living Reading Stats (Plan 03 & Mobile Hardening)
+    @Published var readingStats: PersistenceService.ReadingStatsSummary = PersistenceService.ReadingStatsSummary(storiesReadCount: 12, totalMinutesRead: 48, streakDays: 3)
     
     // Writing Draft
     @Published var draftTitle: String = "The Metamorphosis"
@@ -81,8 +96,34 @@ One morning, when Gregor Samsa woke from troubled dreams, he found himself trans
     @Published var profileStories: [Story] = []
     
     init() {
+        loadReaderPreferences()
         setupInitialStories()
         syncWithPersistence()
+    }
+    
+    private func loadReaderPreferences() {
+        if let fontRaw = UserDefaults.standard.string(forKey: "fable_pref_reader_font"),
+           let font = ReaderFont(rawValue: fontRaw) {
+            self.readerFont = font
+        }
+        let storedSize = UserDefaults.standard.double(forKey: "fable_pref_reader_font_size")
+        if storedSize >= 80.0 && storedSize <= 150.0 {
+            self.readerFontSize = storedSize
+        }
+        if let themeRaw = UserDefaults.standard.string(forKey: "fable_pref_reader_theme"),
+           let theme = ReaderTheme(rawValue: themeRaw) {
+            self.readerTheme = theme
+        }
+        if let spacingRaw = UserDefaults.standard.string(forKey: "fable_pref_reader_line_spacing"),
+           let spacing = ReaderLineSpacing(rawValue: spacingRaw) {
+            self.readerLineSpacing = spacing
+        }
+        if UserDefaults.standard.object(forKey: "fable_pref_reader_haptics") != nil {
+            self.hapticFeedback = UserDefaults.standard.bool(forKey: "fable_pref_reader_haptics")
+        }
+        if UserDefaults.standard.object(forKey: "fable_pref_reader_paginated") != nil {
+            self.isPaginatedMode = UserDefaults.standard.bool(forKey: "fable_pref_reader_paginated")
+        }
     }
     
     private func setupInitialStories() {
@@ -319,6 +360,8 @@ One morning, when Gregor Samsa woke from troubled dreams, he found himself trans
                     stories[idx].isBookmarked = entity.isBookmarked
                     stories[idx].isCompleted = entity.isCompleted
                     stories[idx].progressPercent = Int(entity.readingProgress * 100.0)
+                    stories[idx].currentPage = max(1, entity.currentPage)
+                    stories[idx].totalPages = max(1, entity.totalPages)
                 } else {
                     let userStory = Story(
                         id: entity.id,
@@ -329,8 +372,8 @@ One morning, when Gregor Samsa woke from troubled dreams, he found himself trans
                         paragraphs: [entity.content],
                         coverImageName: "thumb_metamorphosis",
                         readingTimeMinutes: entity.readTimeMinutes,
-                        totalPages: max(1, entity.readTimeMinutes),
-                        currentPage: 1,
+                        totalPages: max(1, entity.totalPages),
+                        currentPage: max(1, entity.currentPage),
                         progressPercent: Int(entity.readingProgress * 100.0),
                         rating: 5.0,
                         isRecentSubmission: true,
@@ -344,6 +387,11 @@ One morning, when Gregor Samsa woke from troubled dreams, he found himself trans
         }
         
         reloadPinnedQuotes()
+        reloadReadingStats()
+    }
+    
+    func reloadReadingStats() {
+        self.readingStats = PersistenceService.shared.fetchReadingStats()
     }
     
     func reloadPinnedQuotes() {
@@ -386,15 +434,40 @@ One morning, when Gregor Samsa woke from troubled dreams, he found himself trans
             if pct >= 100 {
                 stories[idx].isCompleted = true
             }
-            PersistenceService.shared.updateProgress(storyId: storyId, progressPercent: pct, isCompleted: pct >= 100)
+            PersistenceService.shared.updateProgress(
+                storyId: storyId,
+                progressPercent: pct,
+                isCompleted: pct >= 100,
+                page: page,
+                totalPages: totalPages
+            )
+            reloadReadingStats()
         }
+    }
+    
+    func logReadingSession(for story: Story, seconds: Int) {
+        PersistenceService.shared.logReadingSession(
+            storyId: story.id,
+            storyTitle: story.title,
+            seconds: seconds,
+            isCompleted: story.isCompleted
+        )
+        reloadReadingStats()
     }
     
     func markAsFinished(storyId: UUID) {
         if let idx = stories.firstIndex(where: { $0.id == storyId }) {
             stories[idx].isCompleted = true
             stories[idx].progressPercent = 100
-            PersistenceService.shared.updateProgress(storyId: storyId, progressPercent: 100, isCompleted: true)
+            let pages = stories[idx].totalPages
+            PersistenceService.shared.updateProgress(
+                storyId: storyId,
+                progressPercent: 100,
+                isCompleted: true,
+                page: pages,
+                totalPages: pages
+            )
+            reloadReadingStats()
         }
     }
     

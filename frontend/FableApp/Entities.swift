@@ -12,6 +12,8 @@ public final class StoryEntity {
     public var content: String
     public var readTimeMinutes: Int
     public var readingProgress: Double
+    public var currentPage: Int = 1
+    public var totalPages: Int = 1
     public var isBookmarked: Bool
     public var isCompleted: Bool
     public var createdAtUtc: Date
@@ -30,6 +32,8 @@ public final class StoryEntity {
         content: String,
         readTimeMinutes: Int,
         readingProgress: Double = 0.0,
+        currentPage: Int = 1,
+        totalPages: Int = 1,
         isBookmarked: Bool = false,
         isCompleted: Bool = false,
         createdAtUtc: Date = Date(),
@@ -44,6 +48,8 @@ public final class StoryEntity {
         self.content = content
         self.readTimeMinutes = readTimeMinutes
         self.readingProgress = min(1.0, max(0.0, readingProgress))
+        self.currentPage = max(1, currentPage)
+        self.totalPages = max(1, totalPages)
         self.isBookmarked = isBookmarked
         self.isCompleted = isCompleted
         self.createdAtUtc = createdAtUtc
@@ -84,5 +90,31 @@ public final class AnnotationEntity {
         self.isPinnedToJournal = isPinnedToJournal
         self.createdAtUtc = createdAtUtc
         self.story = story
+    }
+}
+
+@Model
+public final class ReadingLogEntity {
+    @Attribute(.unique) public var id: UUID
+    public var storyId: UUID
+    public var storyTitle: String
+    public var secondsRead: Int
+    public var date: Date
+    public var isCompleted: Bool
+
+    public init(
+        id: UUID = UUID(),
+        storyId: UUID,
+        storyTitle: String,
+        secondsRead: Int,
+        date: Date = Date(),
+        isCompleted: Bool = false
+    ) {
+        self.id = id
+        self.storyId = storyId
+        self.storyTitle = storyTitle
+        self.secondsRead = secondsRead
+        self.date = date
+        self.isCompleted = isCompleted
     }
 }
