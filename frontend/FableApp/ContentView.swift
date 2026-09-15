@@ -23,6 +23,15 @@ enum FableTab: Int, CaseIterable {
         case .shelf: return "bookmark"
         }
     }
+    
+    var loadingMessage: String {
+        switch self {
+        case .library: return "Opening Library..."
+        case .explore: return "Discovering Tales..."
+        case .write: return "Preparing Parchment..."
+        case .shelf: return "Opening Shelves..."
+        }
+    }
 }
 
 struct ContentView: View {
@@ -60,13 +69,13 @@ struct ContentView: View {
                             ForEach(FableTab.allCases, id: \.self) { tab in
                                 Button(action: {
                                     if store.selectedTab != tab {
-                                        navigationMessage = "Loading \(tab.title)..."
+                                        navigationMessage = tab.loadingMessage
                                         withAnimation(.easeInOut(duration: 0.12)) {
                                             isPageNavigating = true
                                         }
                                         store.selectedTab = tab
                                         Task {
-                                            try? await Task.sleep(nanoseconds: 220_000_000)
+                                            try? await Task.sleep(nanoseconds: 240_000_000)
                                             withAnimation(.easeInOut(duration: 0.18)) {
                                                 isPageNavigating = false
                                             }

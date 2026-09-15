@@ -6,6 +6,7 @@ public struct LibraryView: View {
     @State private var selectedFilter: String = "All"
     @State private var selectedStoryToRead: Story?
     @State private var isShowingProfileSheet: Bool = false
+    @State private var isRefreshing: Bool = false
     
     let filterCategories = ["All", "Folklore", "Mythology", "Gothic", "Speculative", "Classic"]
     
@@ -30,6 +31,11 @@ public struct LibraryView: View {
                 
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 20) {
+                        if isRefreshing {
+                            InlineDonutRefreshView(message: "Syncing Library Manuscripts...")
+                                .padding(.horizontal, 20)
+                                .padding(.top, 8)
+                        }
                         // Header Date, Title & Profile Avatar
                         HStack(alignment: .center) {
                             VStack(alignment: .leading, spacing: 4) {
@@ -304,6 +310,16 @@ public struct LibraryView: View {
                         }
                         .padding(.top, 6)
                         .padding(.bottom, 90) // spacing for custom tab bar
+                    }
+                }
+                .refreshable {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isRefreshing = true
+                    }
+                    try? await Task.sleep(nanoseconds: 550_000_000)
+                    store.refreshAll()
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isRefreshing = false
                     }
                 }
             }
