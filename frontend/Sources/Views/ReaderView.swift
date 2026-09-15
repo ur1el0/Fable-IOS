@@ -38,7 +38,7 @@ public struct ReaderView: View {
         if pages.isEmpty {
             remainingWords = story.readTimeMinutes * 180
         } else {
-            let unreadPages = pages.dropFirst(currentPage)
+            let unreadPages = pages.dropFirst(max(0, currentPage - 1))
             remainingWords = unreadPages.reduce(0) { $0 + $1.split(separator: " ").count }
         }
         return pacingEngine.estimatedMinutesRemaining(remainingWords: max(40, remainingWords))
@@ -199,11 +199,11 @@ public struct ReaderView: View {
                 // Content Viewport: Paginated Mode vs Continuous Scroll Mode (Plan 03)
                 if store.isPaginatedMode {
                     TabView(selection: $currentPage) {
-                        ForEach(1...max(1, pages.count), id: \.self) { pageNum in
+                        ForEach(1...max(1, totalPages), id: \.self) { pageNum in
                             ScrollView(showsIndicators: false) {
                                 VStack(alignment: .leading, spacing: 20) {
                                     HStack {
-                                        Text("PAGE \(pageNum) OF \(pages.count)")
+                                        Text("PAGE \(pageNum) OF \(totalPages)")
                                             .font(.system(size: 10, weight: .bold))
                                             .tracking(1.2)
                                             .foregroundColor(FableTheme.brandPrimary)
@@ -230,10 +230,10 @@ public struct ReaderView: View {
                         }
                     }
                     .tabViewStyle(.page(indexDisplayMode: .never))
-                    .onChange(of: currentPage) { _, newPage in
+                    .onChange(of: currentPage) { oldPage, newPage in
                         let wordCount = pages.indices.contains(newPage - 1) ? pages[newPage - 1].split(separator: " ").count : 180
                         pacingEngine.recordPageTurn(wordsOnPage: wordCount)
-                        store.updateProgress(for: story.id, page: newPage, totalPages: max(1, pages.count))
+                        store.updateProgress(for: story.id, page: newPage, totalPages: totalPages)
                     }
                 } else {
                     // Scrollable Editorial Manuscript Body
@@ -506,6 +506,7 @@ public struct ReaderView: View {
                 
                 Button(action: {
                     isShowingAnnotationSheet = false
+                    resetAnnotationState()
                 }) {
                     Image(systemName: "xmark")
                         .font(.system(size: 13, weight: .bold))
@@ -564,6 +565,23 @@ public struct ReaderView: View {
                 .padding(.horizontal, 20)
             }
             
+            // Optional note field
+            VStack(alignment: .leading, spacing: 6) {
+                Text("NOTE (OPTIONAL)")
+                    .font(.system(size: 10, weight: .bold))
+                    .tracking(1.0)
+                    .foregroundColor(FableTheme.subtleSlate)
+                    .padding(.horizontal, 20)
+                
+                TextField("Add your thoughts...", text: $annotationNote, axis: .vertical)
+                    .font(.system(size: 14))
+                    .lineLimit(2...4)
+                    .padding(12)
+                    .background(Color.gray.opacity(0.06))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .padding(.horizontal, 20)
+            }
+            
             // Pin to Shelf Reading Journal Quote Deck Toggle
             Toggle(isOn: $isPinToJournal) {
                 VStack(alignment: .leading, spacing: 2) {
@@ -592,6 +610,7 @@ public struct ReaderView: View {
                     )
                 }
                 isShowingAnnotationSheet = false
+                resetAnnotationState()
             }) {
                 Text("Save Annotation")
                     .font(.system(size: 15, weight: .semibold))
@@ -604,5 +623,13 @@ public struct ReaderView: View {
             .padding(.horizontal, 20)
             .padding(.bottom, 16)
         }
+    }
+    
+    // Helper to reset annotation state
+    private func resetAnnotationState() {
+        selectedTextToAnnotate = nil
+        annotationNote = ""
+        selectedHighlightColor = .terracotta
+        isPinToJournal = true
     }
 }
