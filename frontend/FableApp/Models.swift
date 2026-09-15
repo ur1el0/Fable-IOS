@@ -386,3 +386,56 @@ public struct Annotation: Identifiable, Codable, Equatable, Hashable {
     }
 }
 
+// MARK: - User & Authentication Domain Models
+
+public struct UserSession: Identifiable, Codable, Equatable {
+    public let id: UUID
+    public var name: String
+    public var handle: String
+    public var email: String
+    public var bio: String
+    public var avatarName: String?
+    public var isGuest: Bool
+    public var joinedDate: Date
+
+    public init(
+        id: UUID = UUID(),
+        name: String,
+        handle: String,
+        email: String,
+        bio: String = "",
+        avatarName: String? = nil,
+        isGuest: Bool = false,
+        joinedDate: Date = Date()
+    ) {
+        self.id = id
+        self.name = name
+        self.handle = handle
+        self.email = email
+        self.bio = bio
+        self.avatarName = avatarName
+        self.isGuest = isGuest
+        self.joinedDate = joinedDate
+    }
+
+    /// Pre-configured seed profile for default authoring
+    public static let defaultUser = UserSession(
+        name: "Roosc Zaño",
+        handle: "@zanoroosc",
+        email: "roosc-zano@fable.app",
+        bio: "Writer of quiet lore, archivist of dusk folklore, and collector of vintage horology tales.",
+        avatarName: "avatar_roosc",
+        isGuest: false
+    )
+
+    /// Ephemeral session for guest exploration
+    public static let guestUser = UserSession(
+        name: "Guest Reader",
+        handle: "@reader",
+        email: "guest@fable.local",
+        bio: "Exploring the curated folklore manuscripts as a guest.",
+        avatarName: nil,
+        isGuest: true
+    )
+}
+
