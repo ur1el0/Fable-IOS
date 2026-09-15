@@ -321,3 +321,68 @@ public struct Writer: Identifiable, Hashable, Codable {
         self.rating = rating
     }
 }
+
+public enum HighlightColor: String, Codable, CaseIterable, Identifiable {
+    case terracotta
+    case amber
+    case sage
+    
+    public var id: String { rawValue }
+    
+    public var displayName: String {
+        switch self {
+        case .terracotta: return "Terracotta"
+        case .amber: return "Amber"
+        case .sage: return "Sage"
+        }
+    }
+    
+    public var displayColor: Color {
+        switch self {
+        case .terracotta: return Color(red: 0.624, green: 0.235, blue: 0.086).opacity(0.28)
+        case .amber:      return Color(red: 0.851, green: 0.604, blue: 0.306).opacity(0.32)
+        case .sage:       return Color(red: 0.482, green: 0.549, blue: 0.494).opacity(0.32)
+        }
+    }
+}
+
+public struct Annotation: Identifiable, Codable, Equatable, Hashable {
+    public let id: UUID
+    public let storyId: UUID
+    public var storyTitle: String
+    public var storyAuthor: String
+    public let utf16StartOffset: Int
+    public let utf16EndOffset: Int
+    public let selectedText: String
+    public var note: String?
+    public var color: HighlightColor
+    public var isPinnedToJournal: Bool
+    public let createdAt: Date
+
+    public init(
+        id: UUID = UUID(),
+        storyId: UUID,
+        storyTitle: String = "",
+        storyAuthor: String = "",
+        utf16StartOffset: Int,
+        utf16EndOffset: Int,
+        selectedText: String,
+        note: String? = nil,
+        color: HighlightColor = .terracotta,
+        isPinnedToJournal: Bool = false,
+        createdAt: Date = Date()
+    ) {
+        self.id = id
+        self.storyId = storyId
+        self.storyTitle = storyTitle
+        self.storyAuthor = storyAuthor
+        self.utf16StartOffset = utf16StartOffset
+        self.utf16EndOffset = utf16EndOffset
+        self.selectedText = selectedText
+        self.note = note
+        self.color = color
+        self.isPinnedToJournal = isPinnedToJournal
+        self.createdAt = createdAt
+    }
+}
+
