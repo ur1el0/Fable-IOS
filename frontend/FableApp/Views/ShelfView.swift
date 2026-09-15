@@ -8,6 +8,7 @@ public struct ShelfView: View {
     @State private var isShowingSettingsSheet: Bool = false
     @State private var isShowingProfileSheet: Bool = false
     @State private var isShowingAnalyticsSheet: Bool = false
+    @State private var quoteToExport: Annotation?
     
     let tabs = ["Saved", "Finished", "My Drafts"]
     
@@ -192,10 +193,29 @@ public struct ShelfView: View {
                                                     Text("— \(quote.storyTitle.isEmpty ? "Fable Manuscript" : quote.storyTitle) • \(quote.storyAuthor.isEmpty ? "Anonymous" : quote.storyAuthor)")
                                                         .font(.system(size: 11, weight: .medium))
                                                         .foregroundColor(FableTheme.textMuted)
+                                                        .lineLimit(1)
                                                     
                                                     Spacer()
                                                     
-                                                    Text("TAP TO READ")
+                                                    Button(action: {
+                                                        quoteToExport = quote
+                                                    }) {
+                                                        HStack(spacing: 4) {
+                                                            Image(systemName: "square.and.arrow.up")
+                                                                .font(.system(size: 10))
+                                                            Text("EXPORT")
+                                                                .font(.system(size: 9, weight: .bold))
+                                                                .tracking(0.8)
+                                                        }
+                                                        .foregroundColor(FableTheme.brandPrimary)
+                                                        .padding(.horizontal, 7)
+                                                        .padding(.vertical, 4)
+                                                        .background(FableTheme.brandPrimary.opacity(0.10))
+                                                        .clipShape(Capsule())
+                                                    }
+                                                    .buttonStyle(.plain)
+                                                    
+                                                    Text("READ")
                                                         .font(.system(size: 9, weight: .bold))
                                                         .tracking(1.0)
                                                         .foregroundColor(FableTheme.brandPrimary)
@@ -208,7 +228,7 @@ public struct ShelfView: View {
                                         .buttonStyle(.plain)
                                     }
                                 }
-                                .frame(height: 100)
+                                .frame(height: 106)
                                 .tabViewStyle(.page(indexDisplayMode: .automatic))
                             } else {
                                 Text("“A room without books is like a body without a soul.” — Cicero")
@@ -345,6 +365,9 @@ public struct ShelfView: View {
             .sheet(isPresented: $isShowingAnalyticsSheet) {
                 ReadingAnalyticsView()
                     .environmentObject(store)
+            }
+            .sheet(item: $quoteToExport) { quote in
+                QuoteExportSheet(quote: quote)
             }
             .onAppear {
                 store.reloadReadingStats()

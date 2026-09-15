@@ -19,6 +19,7 @@ public struct ReaderView: View {
     @State private var isPinToJournal: Bool = true
     @State private var isShowingAnnotationSheet: Bool = false
     @State private var sessionStartTime: Date = Date()
+    @State private var quoteToExport: Annotation?
     
     public init(story: Story) {
         self.story = story
@@ -462,8 +463,11 @@ public struct ReaderView: View {
         }
         .sheet(isPresented: $isShowingAnnotationSheet) {
             annotationSheetView
-                .presentationDetents([.fraction(0.48), .medium])
+                .presentationDetents([.fraction(0.54), .medium])
                 .background(Color.white)
+        }
+        .sheet(item: $quoteToExport) { quote in
+            QuoteExportSheet(quote: quote)
         }
     }
     
@@ -619,35 +623,74 @@ public struct ReaderView: View {
             .tint(FableTheme.brandPrimary)
             .padding(.horizontal, 20)
             
-            // Save Action Button
-            Button(action: {
-                if let text = selectedTextToAnnotate {
-                    let fullText = story.content.isEmpty ? story.synopsis : story.content
-                    let nsText = fullText as NSString
-                    let targetRange = nsText.range(of: text)
-                    let startOffset = targetRange.location != NSNotFound ? targetRange.location : 0
-                    let endOffset = targetRange.location != NSNotFound ? (targetRange.location + targetRange.length) : text.utf16.count
-                    
-                    store.addAnnotation(
-                        story: story,
-                        text: text,
-                        startOffset: startOffset,
-                        endOffset: endOffset,
-                        color: selectedHighlightColor,
-                        note: annotationNote.isEmpty ? nil : annotationNote,
-                        pinToJournal: isPinToJournal
-                    )
-                }
-                isShowingAnnotationSheet = false
-                resetAnnotationState()
-            }) {
-                Text("Save Annotation")
-                    .font(.system(size: 15, weight: .semibold))
+            // Action Buttons
+            HStack(spacing: 12) {
+                Button(action: {
+                    if let text = selectedTextToAnnotate {
+                        let quote = Annotation(
+                            storyId: story.id,
+                            storyTitle: story.title,
+                            storyAuthor: story.author,
+                            utf16StartOffset: 0,
+                            utf16EndOffset: 0,
+                            selectedText: text,
+                            note: annotationNote.isEmpty ? nil : annotationNote,
+                            color: selectedHighlightColor,
+                            isPinnedToJournal: isPinToJournal
+                        )
+                        isShowingAnnotationSheet = false
+                        resetAnnotationState()
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                            self.quoteToExport = quote
+                        }
+                    }
+                }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "square.and.arrow.up")
+                            .font(.system(size: 13, weight: .semibold))
+                        Text("Export Card")
+                            .font(.system(size: 14, weight: .medium))
+                    }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
-                    .background(FableTheme.brandPrimary)
-                    .foregroundColor(.white)
+                    .background(FableTheme.surface)
+                    .foregroundColor(FableTheme.brandSecondary)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(FableTheme.lightBorder, lineWidth: 1)
+                    )
+                }
+
+                Button(action: {
+                    if let text = selectedTextToAnnotate {
+                        let fullText = story.content.isEmpty ? story.synopsis : story.content
+                        let nsText = fullText as NSString
+                        let targetRange = nsText.range(of: text)
+                        let startOffset = targetRange.location != NSNotFound ? targetRange.location : 0
+                        let endOffset = targetRange.location != NSNotFound ? (targetRange.location + targetRange.length) : text.utf16.count
+                        
+                        store.addAnnotation(
+                            story: story,
+                            text: text,
+                            startOffset: startOffset,
+                            endOffset: endOffset,
+                            color: selectedHighlightColor,
+                            note: annotationNote.isEmpty ? nil : annotationNote,
+                            pinToJournal: isPinToJournal
+                        )
+                    }
+                    isShowingAnnotationSheet = false
+                    resetAnnotationState()
+                }) {
+                    Text("Save")
+                        .font(.system(size: 15, weight: .semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(FableTheme.brandPrimary)
+                        .foregroundColor(.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 16)
