@@ -189,9 +189,58 @@ struct DisplayOptionsSheet: View {
             }
             .padding(.horizontal, 20)
             
+            // Reading Mode Section (Plan 03: Authentic Pagination)
+            VStack(alignment: .leading, spacing: 10) {
+                Text("READING LAYOUT")
+                    .font(.system(size: 11, weight: .bold))
+                    .tracking(1.0)
+                    .foregroundColor(FableTheme.subtleSlate)
+                
+                HStack(spacing: 12) {
+                    Button(action: {
+                        store.isPaginatedMode = false
+                    }) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "scroll")
+                            Text("Scroll")
+                        }
+                        .font(.system(size: 13, weight: .medium))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(!store.isPaginatedMode ? FableTheme.softPeach : Color.gray.opacity(0.07))
+                        .foregroundColor(!store.isPaginatedMode ? FableTheme.terracotta : FableTheme.deepCharcoal)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(!store.isPaginatedMode ? FableTheme.terracotta.opacity(0.4) : Color.clear, lineWidth: 1)
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                    }
+                    
+                    Button(action: {
+                        store.isPaginatedMode = true
+                    }) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "book.pages")
+                            Text("Paginated Book")
+                        }
+                        .font(.system(size: 13, weight: .medium))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(store.isPaginatedMode ? FableTheme.softPeach : Color.gray.opacity(0.07))
+                        .foregroundColor(store.isPaginatedMode ? FableTheme.terracotta : FableTheme.deepCharcoal)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(store.isPaginatedMode ? FableTheme.terracotta.opacity(0.4) : Color.clear, lineWidth: 1)
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                    }
+                }
+            }
+            .padding(.horizontal, 20)
+            
             Spacer()
         }
-        .presentationDetents([.fraction(0.68), .medium])
+        .presentationDetents([.fraction(0.82), .large])
         .presentationDragIndicator(.hidden)
         .background(Color.white)
     }

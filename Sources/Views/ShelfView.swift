@@ -147,12 +147,59 @@ public struct ShelfView: View {
                                 .frame(maxWidth: .infinity)
                             }
                             
-                            // Motivational Micro-Quote
-                            Text("“A room without books is like a body without a soul.” — Cicero")
-                                .font(.system(size: 12, weight: .regular, design: .serif))
-                                .italic()
-                                .foregroundColor(FableTheme.textSecondary)
-                                .padding(.top, 4)
+                            // Reading Journal Quote Deck (Plan 02 Parity)
+                            if !store.pinnedQuotes.isEmpty {
+                                TabView {
+                                    ForEach(store.pinnedQuotes) { quote in
+                                        Button(action: {
+                                            if let matchingStory = store.stories.first(where: { $0.id == quote.storyId }) {
+                                                selectedStoryToRead = matchingStory
+                                            }
+                                        }) {
+                                            VStack(alignment: .leading, spacing: 6) {
+                                                HStack(alignment: .top, spacing: 6) {
+                                                    Text("“")
+                                                        .font(.system(size: 36, weight: .bold, design: .serif))
+                                                        .foregroundColor(quote.color.displayColor.opacity(1.0))
+                                                        .offset(y: -4)
+                                                    
+                                                    Text(quote.selectedText)
+                                                        .font(.system(size: 13, weight: .regular, design: .serif))
+                                                        .italic()
+                                                        .foregroundColor(FableTheme.textPrimary)
+                                                        .lineLimit(3)
+                                                        .multilineTextAlignment(.leading)
+                                                }
+                                                
+                                                HStack {
+                                                    Text("— \(quote.storyTitle.isEmpty ? "Fable Manuscript" : quote.storyTitle) • \(quote.storyAuthor.isEmpty ? "Anonymous" : quote.storyAuthor)")
+                                                        .font(.system(size: 11, weight: .medium))
+                                                        .foregroundColor(FableTheme.textMuted)
+                                                    
+                                                    Spacer()
+                                                    
+                                                    Text("TAP TO READ")
+                                                        .font(.system(size: 9, weight: .bold))
+                                                        .tracking(1.0)
+                                                        .foregroundColor(FableTheme.brandPrimary)
+                                                }
+                                            }
+                                            .padding(12)
+                                            .background(FableTheme.surface.opacity(0.6))
+                                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                }
+                                .frame(height: 100)
+                                .tabViewStyle(.page(indexDisplayMode: .automatic))
+                            } else {
+                                Text("“A room without books is like a body without a soul.” — Cicero")
+                                    .font(.system(size: 12, weight: .regular, design: .serif))
+                                    .italic()
+                                    .foregroundColor(FableTheme.textSecondary)
+                                    .padding(.top, 4)
+                            }
                         }
                         .padding(18)
                         .background(FableTheme.cardBackground)

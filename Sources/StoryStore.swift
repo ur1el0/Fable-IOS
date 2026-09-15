@@ -1,7 +1,8 @@
 import SwiftUI
 import Combine
 
-class StoryStore: ObservableObject {
+@MainActor
+public final class StoryStore: ObservableObject {
     @Published var stories: [Story] = []
     @Published var selectedCategory: String = "All"
     @Published var activeReaderStory: Story?
@@ -19,6 +20,11 @@ class StoryStore: ObservableObject {
     @Published var readerTheme: ReaderTheme = .sepia
     @Published var readerLineSpacing: ReaderLineSpacing = .normal
     @Published var hapticFeedback: Bool = true
+    @Published var isPaginatedMode: Bool = false
+    
+    // Marginalia & Quotes (Plan 02)
+    @Published var activeStoryAnnotations: [Annotation] = []
+    @Published var pinnedQuotes: [Annotation] = []
     
     // Writing Draft
     @Published var draftTitle: String = "The Metamorphosis"
@@ -76,6 +82,7 @@ One morning, when Gregor Samsa woke from troubled dreams, he found himself trans
     
     init() {
         setupInitialStories()
+        syncWithPersistence()
     }
     
     private func setupInitialStories() {
@@ -295,6 +302,68 @@ One morning, when Gregor Samsa woke from troubled dreams, he found himself trans
         stories.insert(newStory, at: 0)
         profileStories.insert(newStory, at: 0)
         isStoryPublished = true
+        
+        // Persist to SwiftData SQLite
+        PersistenceService.shared.saveStory(newStory)
+    }
+    
+    private func syncWithPersistence() {
+        // Seed default stories if SQLite is empty
+        PersistenceService.shared.seedInitialDataIfNeeded(seedStories: self.stories)
+        
+        // Hydrate and reconcile from SQLite
+        let persisted = PersistenceService.shared.fetchAllStories()
+        if !persisted.isEmpty {
+            for entity in persisted {
+                if let idx = stories.firstIndex(where: { $0.id == entity.id }) {
+                    stories[idx].isBookmarked = entity.isBookmarked
+                    stories[idx].isCompleted = entity.isCompleted
+                    stories[idx].progressPercent = Int(entity.readingProgress * 100.0)
+                } else {
+                    let userStory = Story(
+                        id: entity.id,
+                        title: entity.title,
+                        author: entity.author,
+                        genre: entity.genreRaw,
+                        excerpt: entity.synopsis,
+                        paragraphs: [entity.content],
+                        coverImageName: "thumb_metamorphosis",
+                        readingTimeMinutes: entity.readTimeMinutes,
+                        totalPages: max(1, entity.readTimeMinutes),
+                        currentPage: 1,
+                        progressPercent: Int(entity.readingProgress * 100.0),
+                        rating: 5.0,
+                        isRecentSubmission: true,
+                        isSaved: entity.isBookmarked,
+                        isFinished: entity.isCompleted
+                    )
+                    stories.insert(userStory, at: 0)
+                    profileStories.insert(userStory, at: 0)
+                }
+            }
+        }
+        
+        reloadPinnedQuotes()
+    }
+    
+    func reloadPinnedQuotes() {
+        let loaded = PersistenceService.shared.fetchAllPinnedAnnotations()
+        if loaded.isEmpty {
+            let defaultQuote = Annotation(
+                storyId: UUID(uuidString: "11111111-1111-1111-1111-111111111111") ?? UUID(),
+                storyTitle: "De Oratore",
+                storyAuthor: "Marcus Tullius Cicero",
+                utf16StartOffset: 0,
+                utf16EndOffset: 51,
+                selectedText: "A room without books is like a body without a soul.",
+                note: "Foundational literary ethos",
+                color: .terracotta,
+                isPinnedToJournal: true
+            )
+            self.pinnedQuotes = [defaultQuote]
+        } else {
+            self.pinnedQuotes = loaded
+        }
     }
     
     // MARK: - Actions
@@ -305,6 +374,7 @@ One morning, when Gregor Samsa woke from troubled dreams, he found himself trans
         if let idx = profileStories.firstIndex(where: { $0.id == story.id }) {
             profileStories[idx].isBookmarked.toggle()
         }
+        _ = PersistenceService.shared.toggleBookmark(storyId: story.id)
     }
     
     func updateProgress(for storyId: UUID, page: Int, totalPages: Int) {
@@ -316,6 +386,7 @@ One morning, when Gregor Samsa woke from troubled dreams, he found himself trans
             if pct >= 100 {
                 stories[idx].isCompleted = true
             }
+            PersistenceService.shared.updateProgress(storyId: storyId, progressPercent: pct, isCompleted: pct >= 100)
         }
     }
     
@@ -323,12 +394,62 @@ One morning, when Gregor Samsa woke from troubled dreams, he found himself trans
         if let idx = stories.firstIndex(where: { $0.id == storyId }) {
             stories[idx].isCompleted = true
             stories[idx].progressPercent = 100
+            PersistenceService.shared.updateProgress(storyId: storyId, progressPercent: 100, isCompleted: true)
         }
     }
     
     func removeFromShelf(storyId: UUID) {
         if let idx = stories.firstIndex(where: { $0.id == storyId }) {
             stories[idx].isBookmarked = false
+            _ = PersistenceService.shared.toggleBookmark(storyId: storyId)
         }
+    }
+    
+    // MARK: - Marginalia & Annotations (Plan 02)
+    func loadAnnotations(for storyId: UUID) {
+        self.activeStoryAnnotations = PersistenceService.shared.fetchAnnotations(for: storyId)
+    }
+    
+    func addAnnotation(
+        story: Story,
+        text: String,
+        startOffset: Int,
+        endOffset: Int,
+        color: HighlightColor,
+        note: String? = nil,
+        pinToJournal: Bool = false
+    ) {
+        let annotation = Annotation(
+            storyId: story.id,
+            storyTitle: story.title,
+            storyAuthor: story.author,
+            utf16StartOffset: startOffset,
+            utf16EndOffset: endOffset,
+            selectedText: text,
+            note: note,
+            color: color,
+            isPinnedToJournal: pinToJournal
+        )
+        activeStoryAnnotations.append(annotation)
+        PersistenceService.shared.saveAnnotation(annotation)
+        if pinToJournal {
+            reloadPinnedQuotes()
+        }
+    }
+    
+    func deleteAnnotation(id: UUID, storyId: UUID) {
+        activeStoryAnnotations.removeAll(where: { $0.id == id })
+        PersistenceService.shared.deleteAnnotation(id: id)
+        reloadPinnedQuotes()
+    }
+    
+    func togglePinQuote(for annotation: Annotation) {
+        var updated = annotation
+        updated.isPinnedToJournal.toggle()
+        PersistenceService.shared.saveAnnotation(updated)
+        if let idx = activeStoryAnnotations.firstIndex(where: { $0.id == annotation.id }) {
+            activeStoryAnnotations[idx] = updated
+        }
+        reloadPinnedQuotes()
     }
 }
