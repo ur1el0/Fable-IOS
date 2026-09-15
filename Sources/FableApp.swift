@@ -1,11 +1,5 @@
-//
-//  Fable_iosApp.swift
-//  Fable-ios
-//
-//  Created by Mac-LAB on 9/10/26.
-//
-
 import SwiftUI
+import SwiftData
 
 @main
 struct FableApp: App {
@@ -13,5 +7,7 @@ struct FableApp: App {
         WindowGroup {
             ContentView()
         }
+        .modelContainer(PersistenceService.shared.container)
     }
 }
+
