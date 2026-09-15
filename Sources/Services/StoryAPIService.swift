@@ -18,42 +18,90 @@ public struct CreateStoryRequest: Codable {
     }
 }
 
-public struct PagedResult<T: Codable>: Codable {
-    public let items: [T]
-    public let pageNumber: Int
-    public let pageSize: Int
-    public let totalCount: Int
-    public let hasNextPage: Bool
+public struct ShelfSyncItem: Codable, Equatable {
+    public let storyId: UUID
+    public let readingProgress: Double
+    public let isBookmarked: Bool
+    public let isCompleted: Bool
+    public let updatedAtUtc: Date
     
-    public init(items: [T], pageNumber: Int, pageSize: Int, totalCount: Int, hasNextPage: Bool) {
+    enum CodingKeys: String, CodingKey {
+        case storyId = "story_id"
+        case readingProgress = "reading_progress"
+        case isBookmarked = "is_bookmarked"
+        case isCompleted = "is_completed"
+        case updatedAtUtc = "updated_at_utc"
+    }
+    
+    public init(storyId: UUID, readingProgress: Double, isBookmarked: Bool, isCompleted: Bool, updatedAtUtc: Date = Date()) {
+        self.storyId = storyId
+        self.readingProgress = readingProgress
+        self.isBookmarked = isBookmarked
+        self.isCompleted = isCompleted
+        self.updatedAtUtc = updatedAtUtc
+    }
+}
+
+public struct ShelfSyncPayload: Codable {
+    public let deviceId: UUID
+    public let items: [ShelfSyncItem]
+    
+    enum CodingKeys: String, CodingKey {
+        case deviceId = "device_id"
+        case items
+    }
+    
+    public init(deviceId: UUID, items: [ShelfSyncItem]) {
+        self.deviceId = deviceId
         self.items = items
-        self.pageNumber = pageNumber
-        self.pageSize = pageSize
-        self.totalCount = totalCount
-        self.hasNextPage = hasNextPage
+    }
+}
+
+public struct ShelfSyncResponse: Codable {
+    public let status: String
+    public let reconciledItems: [ShelfSyncItem]
+    public let serverTimeUtc: Date
+    
+    enum CodingKeys: String, CodingKey {
+        case status
+        case reconciledItems = "reconciled_items"
+        case serverTimeUtc = "server_time_utc"
     }
 }
 
 public protocol StoryAPIServiceProtocol: Sendable {
-    func fetchStories(genre: String?, search: String?) async throws -> [Story]
+    func fetchStories(genre: String?, search: String?, since: Date?) async throws -> [Story]
     func createStory(_ request: CreateStoryRequest) async throws -> Story
+    func syncShelf(deviceId: UUID, items: [ShelfSyncItem]) async throws -> [ShelfSyncItem]
     func toggleBookmark(storyId: UUID) async throws -> Bool
+}
+
+public extension StoryAPIServiceProtocol {
+    func fetchStories(genre: String? = nil, search: String? = nil) async throws -> [Story] {
+        try await fetchStories(genre: genre, search: search, since: nil)
+    }
 }
 
 public final class StoryAPIService: StoryAPIServiceProtocol {
     private let baseURL: URL
     private let session: URLSession
 
-    public init(baseURL: URL = URL(string: "http://localhost:8080/api/v1")!, session: URLSession = .shared) {
+    public init(baseURL: URL = URL(string: "http://127.0.0.1:8000/api/v1")!) {
         self.baseURL = baseURL
-        self.session = session
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 5.0
+        self.session = URLSession(configuration: config)
     }
 
-    public func fetchStories(genre: String? = nil, search: String? = nil) async throws -> [Story] {
+    public func fetchStories(genre: String? = nil, search: String? = nil, since: Date? = nil) async throws -> [Story] {
         var components = URLComponents(url: baseURL.appendingPathComponent("stories"), resolvingAgainstBaseURL: true)!
         var queryItems: [URLQueryItem] = []
         if let genre, genre != "All" { queryItems.append(URLQueryItem(name: "genre", value: genre)) }
         if let search, !search.isEmpty { queryItems.append(URLQueryItem(name: "search", value: search)) }
+        if let since {
+            let formatter = ISO8601DateFormatter()
+            queryItems.append(URLQueryItem(name: "since", value: formatter.string(from: since)))
+        }
         if !queryItems.isEmpty { components.queryItems = queryItems }
 
         guard let targetURL = components.url else { throw URLError(.badURL) }
@@ -64,8 +112,20 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
 
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        let paged = try decoder.decode(PagedResult<Story>.self, from: data)
-        return paged.items
+        
+        // Supports both raw array and paged responses
+        if let directList = try? decoder.decode([Story].self, from: data) {
+            return directList
+        }
+        
+        struct PagedStoryWrapper: Codable {
+            let items: [Story]
+        }
+        if let wrapped = try? decoder.decode(PagedStoryWrapper.self, from: data) {
+            return wrapped.items
+        }
+        
+        return try decoder.decode([Story].self, from: data)
     }
 
     public func createStory(_ request: CreateStoryRequest) async throws -> Story {
@@ -73,7 +133,10 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        urlRequest.httpBody = try JSONEncoder().encode(request)
+        
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        urlRequest.httpBody = try encoder.encode(request)
 
         let (data, response) = try await session.data(for: urlRequest)
         guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
@@ -85,21 +148,31 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
         return try decoder.decode(Story.self, from: data)
     }
 
-    public func toggleBookmark(storyId: UUID) async throws -> Bool {
-        let url = baseURL.appendingPathComponent("shelf").appendingPathComponent(storyId.uuidString).appendingPathComponent("toggle-bookmark")
+    public func syncShelf(deviceId: UUID, items: [ShelfSyncItem]) async throws -> [ShelfSyncItem] {
+        let url = baseURL.appendingPathComponent("shelf").appendingPathComponent("sync")
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
-
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let payload = ShelfSyncPayload(deviceId: deviceId, items: items)
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        urlRequest.httpBody = try encoder.encode(payload)
+        
         let (data, response) = try await session.data(for: urlRequest)
         guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
             throw URLError(.badServerResponse)
         }
+        
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let result = try decoder.decode(ShelfSyncResponse.self, from: data)
+        return result.reconciledItems
+    }
 
-        struct BookmarkResponse: Codable {
-            let storyId: UUID
-            let isBookmarked: Bool
-        }
-        let res = try JSONDecoder().decode(BookmarkResponse.self, from: data)
-        return res.isBookmarked
+    public func toggleBookmark(storyId: UUID) async throws -> Bool {
+        let item = ShelfSyncItem(storyId: storyId, readingProgress: 0.0, isBookmarked: true, isCompleted: false, updatedAtUtc: Date())
+        let reconciled = try await syncShelf(deviceId: UUID(), items: [item])
+        return reconciled.first?.isBookmarked ?? true
     }
 }
