@@ -29,6 +29,9 @@ struct ContentView: View {
     @StateObject private var store = StoryStore()
     @ObservedObject private var auth = AuthManager.shared
     
+    @State private var isPageNavigating: Bool = false
+    @State private var navigationMessage: String = "Opening Library..."
+    
     var body: some View {
         Group {
             if auth.isAuthenticated {
@@ -56,7 +59,19 @@ struct ContentView: View {
                         HStack(spacing: 0) {
                             ForEach(FableTab.allCases, id: \.self) { tab in
                                 Button(action: {
-                                    store.selectedTab = tab
+                                    if store.selectedTab != tab {
+                                        navigationMessage = "Loading \(tab.title)..."
+                                        withAnimation(.easeInOut(duration: 0.12)) {
+                                            isPageNavigating = true
+                                        }
+                                        store.selectedTab = tab
+                                        Task {
+                                            try? await Task.sleep(nanoseconds: 220_000_000)
+                                            withAnimation(.easeInOut(duration: 0.18)) {
+                                                isPageNavigating = false
+                                            }
+                                        }
+                                    }
                                 }) {
                                     VStack(spacing: 4) {
                                         Image(systemName: tab.iconName)
@@ -73,6 +88,12 @@ struct ContentView: View {
                             }
                         }
                         .background(Color.white.ignoresSafeArea(edges: .bottom))
+                    }
+                    
+                    // Donut Refresh Page Navigation Indicator
+                    if isPageNavigating {
+                        PageTransitionDonutOverlay(message: navigationMessage)
+                            .zIndex(100)
                     }
                 }
                 .transition(.opacity)
