@@ -1,6 +1,7 @@
 import Foundation
 import AVFoundation
 import MediaPlayer
+import Combine
 
 @MainActor
 public final class AudioNarratorController: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {

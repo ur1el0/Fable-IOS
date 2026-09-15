@@ -29,9 +29,9 @@ cd Fable-IOS
 ### Step 2: Open Directly in Xcode
 Run the following command in Terminal:
 ```bash
-open frontend.swiftpm
+open frontend/FableApp.xcodeproj
 ```
-*Alternatively:* Open **Xcode** ➔ **File** ➔ **Open...** ➔ Select `frontend.swiftpm`.
+*Alternatively:* Open **Xcode** ➔ **File** ➔ **Open...** ➔ Select `frontend/FableApp.xcodeproj`.
 
 ### Step 3: Verify Xcode Scheme & Destination
 Look at the top center of the Xcode window:

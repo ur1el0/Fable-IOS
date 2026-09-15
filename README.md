@@ -24,9 +24,9 @@ cd Fable-IOS
 ### 2. Open in Xcode
 You can open the project directly via Terminal or through the Xcode GUI:
 ```bash
-open frontend.swiftpm
+open frontend/FableApp.xcodeproj
 ```
-*(Or launch Xcode ➔ **File** ➔ **Open...** ➔ Select `frontend.swiftpm`).*
+*(Or launch Xcode ➔ **File** ➔ **Open...** ➔ Select `frontend/FableApp.xcodeproj`).*
 
 ### 3. Select Target & Simulator
 1. At the top toolbar of Xcode, click the active scheme dropdown (it should read **FableApp**).
@@ -98,17 +98,18 @@ Fable-IOS/
 │   ├── schemas.py                # Pydantic schemas & validation models
 │   ├── requirements.txt          # Python runtime dependencies
 │   └── test_main.py              # Pytest endpoint verification suite
-├── frontend.swiftpm/             # Native iOS SwiftUI App Playground (Playgrounds & Xcode)
-│   ├── Package.swift             # Swift Package Manager manifest (iOS 17+)
-│   └── Sources/
+├── frontend/                     # Native iOS Xcode Project & SwiftUI application
+│   ├── FableApp.xcodeproj/       # Native Xcode 16 Project (Bundle ID: mseuf.edu.ph.FableApp)
+│   └── FableApp/                 # Synchronized Root Group (SwiftUI Source Files)
 │       ├── FableApp.swift        # Application entry point (@main)
 │       ├── ContentView.swift     # Root Tab navigation host & custom tab bar
 │       ├── Models.swift          # Pure domain models (Story, Genre, Author, Enums)
 │       ├── StoryStore.swift      # Central MVC controller & in-memory database
 │       ├── Theme.swift           # Design tokens, palette & view modifiers
+│       ├── Controllers/          # Business logic (AudioNarrator, PacingEngine, StoryController)
+│       ├── Services/             # PersistenceService (SwiftData) & StoryAPIService
 │       ├── Views/                # All 14 modular SwiftUI views & sheets
-│       └── Resources/
-│           └── Assets.xcassets/  # 3x Retina covers, thumbnails, avatars & banners
+│       └── Assets.xcassets/      # 3x Retina covers, thumbnails, avatars & banners
 ├── docs/                         # System specifications, manuals & runbooks
 │   ├── ARCHITECTURE.md           # Technical architecture & MVC layer documentation
 │   ├── DESIGN.md                 # Visual tokens, typography hierarchy & placeholder architecture

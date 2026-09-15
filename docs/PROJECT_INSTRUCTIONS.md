@@ -120,9 +120,9 @@ The midterm submission requires a single, well-organized PDF file containing:
 
 To ensure that pulling or cloning this repository on any shared lab Mac produces **identical, error-free results**:
 
-1. **Self-Contained Swift Package (`Package.swift`):**
-   - Configured with `.iOS(.v17)` and `resources: [.process("Resources")]`.
-   - Opening `Package.swift` in Xcode automatically links the target, sets up the executable scheme (`FableApp`), and packages the asset catalog (`Assets.xcassets`).
+1. **Standard Native Xcode Project (`FableApp.xcodeproj`):**
+   - Configured for iOS 17+ (`IPHONEOS_DEPLOYMENT_TARGET = 17.0`) with bundle identifier `mseuf.edu.ph.FableApp`.
+   - Uses Xcode 16 Synchronized Root Groups to automatically link all SwiftUI views, models, controllers, and asset catalogs (`Assets.xcassets`).
 2. **Zero External Network Dependencies:**
    - The app does not rely on external CocoaPods, remote Swift Package dependencies, or remote database endpoints.
    - All seed data (10+ stories, covers, author profiles) is statically populated in memory inside `StoryStore.swift`.
@@ -132,6 +132,6 @@ To ensure that pulling or cloning this repository on any shared lab Mac produces
    ```bash
    git clone https://github.com/ur1el0/Fable-IOS.git
    cd Fable-IOS
-   open frontend.swiftpm
+   open frontend/FableApp.xcodeproj
    # In Xcode: Select iPhone 16 Pro / iPhone 15 Pro simulator -> Press Cmd + R
    ```
