@@ -132,6 +132,6 @@ To ensure that pulling or cloning this repository on any shared lab Mac produces
    ```bash
    git clone https://github.com/ur1el0/Fable-IOS.git
    cd Fable-IOS
-   open Package.swift
+   open frontend/Package.swift
    # In Xcode: Select iPhone 16 Pro / iPhone 15 Pro simulator -> Press Cmd + R
    ```

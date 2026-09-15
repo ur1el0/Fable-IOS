@@ -24,9 +24,9 @@ cd Fable-IOS
 ### 2. Open in Xcode
 You can open the project directly via Terminal or through the Xcode GUI:
 ```bash
-open Package.swift
+open frontend/Package.swift
 ```
-*(Or launch Xcode ➔ **File** ➔ **Open...** ➔ Select the `Fable-IOS` folder).*
+*(Or launch Xcode ➔ **File** ➔ **Open...** ➔ Select the `frontend` folder).*
 
 ### 3. Select Target & Simulator
 1. At the top toolbar of Xcode, click the active scheme dropdown (it should read **FableApp**).
@@ -109,16 +109,22 @@ Fable-IOS/
 │   ├── README.md                 # Screen catalog, component map & visual previews
 │   └── *.png                     # 10 labeled reference images for lab side-by-side verification
 ├── Fable-prototype.pdf           # 100% complete Figma prototype reference document
-├── Package.swift                 # Swift Package Manager manifest (iOS 17+)
-└── Sources/
-    ├── FableApp.swift            # Application entry point (@main)
-    ├── ContentView.swift         # Root Tab navigation host & custom tab bar
-    ├── Models.swift              # Pure domain models (Story, Genre, Author, Enums)
-    ├── StoryStore.swift          # Central MVC controller & in-memory database
-    ├── Theme.swift               # Design tokens, palette & view modifiers
-    ├── Views/                    # All 14 modular SwiftUI views & sheets
-    └── Resources/
-        └── Assets.xcassets/      # 3x Retina covers, thumbnails, avatars & banners
+├── backend/                      # Lightweight FastAPI sync backend service
+│   ├── main.py                   # FastAPI application & REST endpoints
+│   ├── schemas.py                # Pydantic schemas & validation models
+│   ├── requirements.txt          # Python runtime dependencies
+│   └── test_main.py              # Pytest endpoint verification suite
+├── frontend/                     # Native iOS SwiftUI client application
+│   ├── Package.swift             # Swift Package Manager manifest (iOS 17+)
+│   └── Sources/
+│       ├── FableApp.swift        # Application entry point (@main)
+│       ├── ContentView.swift     # Root Tab navigation host & custom tab bar
+│       ├── Models.swift          # Pure domain models (Story, Genre, Author, Enums)
+│       ├── StoryStore.swift      # Central MVC controller & in-memory database
+│       ├── Theme.swift           # Design tokens, palette & view modifiers
+│       ├── Views/                # All 14 modular SwiftUI views & sheets
+│       └── Resources/
+│           └── Assets.xcassets/  # 3x Retina covers, thumbnails, avatars & banners
 ```
 
 ---

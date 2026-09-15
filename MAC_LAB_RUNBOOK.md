@@ -29,9 +29,9 @@ cd Fable-IOS
 ### Step 2: Open Directly in Xcode
 Run the following command in Terminal:
 ```bash
-open Package.swift
+open frontend/Package.swift
 ```
-*Alternatively:* Open **Xcode** ➔ **File** ➔ **Open...** ➔ Select the `Fable-IOS` root directory.
+*Alternatively:* Open **Xcode** ➔ **File** ➔ **Open...** ➔ Select the `frontend` directory.
 
 ### Step 3: Verify Xcode Scheme & Destination
 Look at the top center of the Xcode window:
