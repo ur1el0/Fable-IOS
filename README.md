@@ -112,6 +112,7 @@ Fable-IOS/
 │       └── Assets.xcassets/      # 3x Retina covers, thumbnails, avatars & banners
 ├── docs/                         # System specifications, manuals & runbooks
 │   ├── ARCHITECTURE.md           # Technical architecture & MVC layer documentation
+│   ├── DATA_SOURCES_AND_API_STRATEGY.md # Live data sources & API integration strategy
 │   ├── DESIGN.md                 # Visual tokens, typography hierarchy & placeholder architecture
 │   ├── FIGMA.md                  # Screen-by-screen prototype catalog & UI audit
 │   ├── IMPROVEMENTS.md           # Midterm evaluation audit & final FastAPI roadmap
