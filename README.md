@@ -24,9 +24,9 @@ cd Fable-IOS
 ### 2. Open in Xcode
 You can open the project directly via Terminal or through the Xcode GUI:
 ```bash
-open Package.swift
+open frontend/FableApp.xcodeproj
 ```
-*(Or launch Xcode ➔ **File** ➔ **Open...** ➔ Select the `Fable-IOS` folder).*
+*(Or launch Xcode ➔ **File** ➔ **Open...** ➔ Select `frontend/FableApp.xcodeproj`).*
 
 ### 3. Select Target & Simulator
 1. At the top toolbar of Xcode, click the active scheme dropdown (it should read **FableApp**).
@@ -91,34 +91,43 @@ If you encounter common Mac lab environment quirks:
 ```
 Fable-IOS/
 ├── README.md                     # Repository entrypoint & quickstart (this file)
-├── SYSTEM_DESIGN.md              # Critical system design & 5 pillars specification
-├── MAC_LAB_RUNBOOK.md            # Detailed Mac lab setup & verification runbook
-├── PROJECT_INSTRUCTIONS.md       # Official midterm rubric & submission requirements
-├── ARCHITECTURE.md               # Technical architecture & MVC layer documentation
-├── DESIGN.md                     # Visual tokens, typography hierarchy & placeholder architecture
-├── LOGIC.md                      # State machine, CRUD flows & algorithm mechanics
-├── IMPROVEMENTS.md               # Midterm evaluation audit & final FastAPI roadmap
-├── PLANS/                        # Critical system design feature enhancement plans
-│   ├── README.md                 # Master feature roadmap & dependency topology
-│   ├── 01_PERSISTENCE_SWIFTDATA_SQLITE.md # SwiftData offline database plan
-│   ├── 02_MARGINALIA_AND_ANNOTATIONS.md   # Highlight & quote deck plan
-│   ├── 03_PAGINATION_AND_PACING_ENGINE.md # Book pagination & adaptive WPM plan
-│   ├── 04_ORAL_FOLKLORE_AUDIO_SYNTHESIZER.md # Audio speech synthesis plan
-│   └── 05_FASTAPI_CLOUD_SYNC_PIPELINE.md  # FastAPI sync pipeline plan
-├── prototype_reference/          # High-resolution screenshots of all 10 prototype screens
-│   ├── README.md                 # Screen catalog, component map & visual previews
-│   └── *.png                     # 10 labeled reference images for lab side-by-side verification
+├── AGENTS.md                     # AI instructor & system protocol
 ├── Fable-prototype.pdf           # 100% complete Figma prototype reference document
-├── Package.swift                 # Swift Package Manager manifest (iOS 17+)
-└── Sources/
-    ├── FableApp.swift            # Application entry point (@main)
-    ├── ContentView.swift         # Root Tab navigation host & custom tab bar
-    ├── Models.swift              # Pure domain models (Story, Genre, Author, Enums)
-    ├── StoryStore.swift          # Central MVC controller & in-memory database
-    ├── Theme.swift               # Design tokens, palette & view modifiers
-    ├── Views/                    # All 14 modular SwiftUI views & sheets
-    └── Resources/
-        └── Assets.xcassets/      # 3x Retina covers, thumbnails, avatars & banners
+├── backend/                      # Lightweight FastAPI sync backend service
+│   ├── main.py                   # FastAPI application & REST endpoints
+│   ├── schemas.py                # Pydantic schemas & validation models
+│   ├── requirements.txt          # Python runtime dependencies
+│   └── test_main.py              # Pytest endpoint verification suite
+├── frontend/                     # Native iOS Xcode Project & SwiftUI application
+│   ├── FableApp.xcodeproj/       # Native Xcode 16 Project (Bundle ID: mseuf.edu.ph.FableApp)
+│   └── FableApp/                 # Synchronized Root Group (SwiftUI Source Files)
+│       ├── FableApp.swift        # Application entry point (@main)
+│       ├── ContentView.swift     # Root Tab navigation host & custom tab bar
+│       ├── Models.swift          # Pure domain models (Story, Genre, Author, Enums)
+│       ├── StoryStore.swift      # Central MVC controller & in-memory database
+│       ├── Theme.swift           # Design tokens, palette & view modifiers
+│       ├── Controllers/          # Business logic (AudioNarrator, PacingEngine, StoryController)
+│       ├── Services/             # PersistenceService (SwiftData) & StoryAPIService
+│       ├── Views/                # All 14 modular SwiftUI views & sheets
+│       └── Assets.xcassets/      # 3x Retina covers, thumbnails, avatars & banners
+├── docs/                         # System specifications, manuals & runbooks
+│   ├── ARCHITECTURE.md           # Technical architecture & MVC layer documentation
+│   ├── DATA_SOURCES_AND_API_STRATEGY.md # Live data sources & API integration strategy
+│   ├── DESIGN.md                 # Visual tokens, typography hierarchy & placeholder architecture
+│   ├── FIGMA.md                  # Screen-by-screen prototype catalog & UI audit
+│   ├── IMPROVEMENTS.md           # Midterm evaluation audit & final FastAPI roadmap
+│   ├── LOGIC.md                  # State machine, CRUD flows & algorithm mechanics
+│   ├── MAC_LAB_RUNBOOK.md        # Detailed Mac lab setup & verification runbook
+│   ├── PROJECT_INSTRUCTIONS.md   # Official midterm rubric & submission requirements
+│   ├── SYSTEM_DESIGN.md          # Critical system design & 5 pillars specification
+│   └── plans/                    # Critical system design feature enhancement plans
+│       ├── README.md             # Master feature roadmap & dependency topology
+│       ├── 01_PERSISTENCE_SWIFTDATA_SQLITE.md
+│       ├── 02_MARGINALIA_AND_ANNOTATIONS.md
+│       ├── 03_PAGINATION_AND_PACING_ENGINE.md
+│       ├── 04_ORAL_FOLKLORE_AUDIO_SYNTHESIZER.md
+│       └── 05_FASTAPI_CLOUD_SYNC_PIPELINE.md
+└── prototype_reference/          # High-resolution screenshots of all 10 prototype screens
 ```
 
 ---
