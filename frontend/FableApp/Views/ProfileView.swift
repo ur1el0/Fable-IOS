@@ -8,6 +8,7 @@ public struct ProfileView: View {
     @State private var selectedTab: String = "Published"
     @State private var selectedStoryToRead: Story?
     @State private var isShowingEditProfile: Bool = false
+    @State private var isShowingAnalyticsSheet: Bool = false
     
     @State private var userName: String = "Roosc Zaño"
     @State private var userHandle: String = "@zanoroosc"
@@ -254,7 +255,8 @@ public struct ProfileView: View {
                                             Text("Total Reading")
                                                 .font(.system(size: 12))
                                                 .foregroundColor(FableTheme.textMuted)
-                                            Text("28.5 hrs")
+                                            let hrs = Double(store.readingStats.totalMinutesRead) / 60.0
+                                            Text(String(format: "%.1f hrs", hrs))
                                                 .font(.system(size: 22, weight: .bold, design: .serif))
                                                 .foregroundColor(FableTheme.brandPrimary)
                                         }
@@ -267,7 +269,7 @@ public struct ProfileView: View {
                                             Text("Stories Finished")
                                                 .font(.system(size: 12))
                                                 .foregroundColor(FableTheme.textMuted)
-                                            Text("42")
+                                            Text("\(store.readingStats.storiesReadCount)")
                                                 .font(.system(size: 22, weight: .bold, design: .serif))
                                                 .foregroundColor(FableTheme.brandPrimary)
                                         }
@@ -277,6 +279,28 @@ public struct ProfileView: View {
                                         .clipShape(RoundedRectangle(cornerRadius: 14))
                                     }
                                     .padding(.horizontal, 20)
+                                    
+                                    Button(action: {
+                                        isShowingAnalyticsSheet = true
+                                    }) {
+                                        HStack(spacing: 8) {
+                                            Image(systemName: "chart.bar.fill")
+                                                .font(.system(size: 14))
+                                            Text("Open Full Literary Analytics")
+                                                .font(.system(size: 14, weight: .semibold))
+                                            Spacer()
+                                            Image(systemName: "arrow.right")
+                                                .font(.system(size: 12, weight: .bold))
+                                        }
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 16)
+                                        .padding(.vertical, 14)
+                                        .background(FableTheme.brandPrimary)
+                                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                                        .shadow(color: FableTheme.brandPrimary.opacity(0.25), radius: 6, y: 2)
+                                    }
+                                    .padding(.horizontal, 20)
+                                    .padding(.top, 4)
                                 }
                             }
                             
@@ -317,7 +341,12 @@ public struct ProfileView: View {
                 }
                 .presentationDetents([.medium])
             }
+            .sheet(isPresented: $isShowingAnalyticsSheet) {
+                ReadingAnalyticsView()
+                    .environmentObject(store)
+            }
             .onAppear {
+                store.reloadReadingStats()
                 if let session = auth.currentSession {
                     self.userName = session.name
                     self.userHandle = session.handle

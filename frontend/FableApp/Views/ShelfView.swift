@@ -7,6 +7,7 @@ public struct ShelfView: View {
     @State private var selectedStoryToRead: Story?
     @State private var isShowingSettingsSheet: Bool = false
     @State private var isShowingProfileSheet: Bool = false
+    @State private var isShowingAnalyticsSheet: Bool = false
     
     let tabs = ["Saved", "Finished", "My Drafts"]
     
@@ -107,8 +108,22 @@ public struct ShelfView: View {
                                     .font(.system(size: 16, weight: .bold, design: .serif))
                                     .foregroundColor(FableTheme.textPrimary)
                                 Spacer()
-                                Image(systemName: "flame.fill")
-                                    .foregroundColor(.orange)
+                                
+                                Button(action: {
+                                    isShowingAnalyticsSheet = true
+                                }) {
+                                    HStack(spacing: 4) {
+                                        Text("Analytics")
+                                            .font(.system(size: 11, weight: .bold))
+                                        Image(systemName: "chevron.right")
+                                            .font(.system(size: 10, weight: .bold))
+                                    }
+                                    .foregroundColor(FableTheme.brandPrimary)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(FableTheme.brandPrimary.opacity(0.08))
+                                    .clipShape(Capsule())
+                                }
                             }
                             
                             HStack(spacing: 0) {
@@ -325,6 +340,10 @@ public struct ShelfView: View {
             }
             .sheet(isPresented: $isShowingProfileSheet) {
                 ProfileView()
+                    .environmentObject(store)
+            }
+            .sheet(isPresented: $isShowingAnalyticsSheet) {
+                ReadingAnalyticsView()
                     .environmentObject(store)
             }
             .onAppear {

@@ -439,3 +439,82 @@ public struct UserSession: Identifiable, Codable, Equatable {
     )
 }
 
+// MARK: - Analytics & Reading Insights Domain Models
+
+public struct DailyReadingActivity: Identifiable, Codable {
+    public var id: String { dayName }
+    public let dayName: String
+    public let minutesRead: Int
+    public let isToday: Bool
+    
+    public init(dayName: String, minutesRead: Int, isToday: Bool = false) {
+        self.dayName = dayName
+        self.minutesRead = minutesRead
+        self.isToday = isToday
+    }
+}
+
+public struct GenreReadingDistribution: Identifiable, Codable {
+    public var id: String { genreName }
+    public let genreName: String
+    public let storyCount: Int
+    public let percentage: Double // 0.0 to 1.0
+    public let colorHex: String
+    
+    public init(genreName: String, storyCount: Int, percentage: Double, colorHex: String) {
+        self.genreName = genreName
+        self.storyCount = storyCount
+        self.percentage = percentage
+        self.colorHex = colorHex
+    }
+}
+
+public struct LiteraryBadge: Identifiable, Codable {
+    public let id: String
+    public let title: String
+    public let subtitle: String
+    public let iconName: String
+    public let isUnlocked: Bool
+    public let progressFraction: Double // 0.0 to 1.0
+    
+    public init(id: String, title: String, subtitle: String, iconName: String, isUnlocked: Bool, progressFraction: Double) {
+        self.id = id
+        self.title = title
+        self.subtitle = subtitle
+        self.iconName = iconName
+        self.isUnlocked = isUnlocked
+        self.progressFraction = min(1.0, max(0.0, progressFraction))
+    }
+}
+
+public struct AnalyticsSnapshot: Codable {
+    public let totalMinutesRead: Int
+    public let storiesCompletedCount: Int
+    public let currentStreakDays: Int
+    public let averageWPM: Int
+    public let estimatedWordsRead: Int
+    public let weeklyActivity: [DailyReadingActivity]
+    public let topGenres: [GenreReadingDistribution]
+    public let badges: [LiteraryBadge]
+    
+    public init(
+        totalMinutesRead: Int,
+        storiesCompletedCount: Int,
+        currentStreakDays: Int,
+        averageWPM: Int,
+        estimatedWordsRead: Int,
+        weeklyActivity: [DailyReadingActivity],
+        topGenres: [GenreReadingDistribution],
+        badges: [LiteraryBadge]
+    ) {
+        self.totalMinutesRead = totalMinutesRead
+        self.storiesCompletedCount = storiesCompletedCount
+        self.currentStreakDays = currentStreakDays
+        self.averageWPM = averageWPM
+        self.estimatedWordsRead = estimatedWordsRead
+        self.weeklyActivity = weeklyActivity
+        self.topGenres = topGenres
+        self.badges = badges
+    }
+}
+
