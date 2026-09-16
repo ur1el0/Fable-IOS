@@ -11,11 +11,15 @@ class StoryDTO(BaseModel):
     chapter: str = "Chapter I"
     synopsis: str
     content: str
-    read_time_minutes: int = Field(default=4, ge=1)
-    is_bookmarked: bool = False
-    is_completed: bool = False
-    created_at_utc: datetime
-    updated_at_utc: datetime
+    read_time_minutes: int = Field(default=4, ge=1, serialization_alias="readTimeMinutes")
+    is_bookmarked: bool = Field(default=False, serialization_alias="isBookmarked")
+    is_completed: bool = Field(default=False, serialization_alias="isCompleted")
+    created_at_utc: datetime = Field(..., serialization_alias="createdAtUtc")
+    updated_at_utc: datetime = Field(..., serialization_alias="updatedAtUtc")
+
+    model_config = {
+        "populate_by_name": True
+    }
 
 class CreateStoryRequest(BaseModel):
     title: str = Field(..., min_length=1, max_length=120)
@@ -24,7 +28,11 @@ class CreateStoryRequest(BaseModel):
     chapter: Optional[str] = "Chapter I"
     synopsis: str
     content: str
-    read_time_minutes: int = Field(default=4, ge=1)
+    read_time_minutes: int = Field(default=4, ge=1, alias="readTimeMinutes")
+
+    model_config = {
+        "populate_by_name": True
+    }
 
 class ShelfSyncItemDTO(BaseModel):
     story_id: UUID

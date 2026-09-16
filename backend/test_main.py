@@ -26,12 +26,38 @@ def test_health_check():
     assert data["status"] == "healthy"
     assert data["database"] == "connected"
 
-def test_get_stories_includes_seed():
+def test_get_stories_includes_full_editorial_catalog():
     response = client.get("/api/v1/stories")
     assert response.status_code == 200
     stories = response.json()
-    assert len(stories) >= 1
-    assert stories[0]["title"] == "The Clockmaker of Prague"
+    assert len(stories) >= 10
+    titles = [s["title"] for s in stories]
+    assert "The Clockmaker of Prague" in titles
+    assert "The Balete Tree of Baler" in titles
+    assert "The Midnight Jeepney" in titles
+    assert "Tears of the Diwata" in titles
+    assert "Dracula" in titles
+    assert "The Legend of Sleepy Hollow" in titles
+    assert "The Metamorphosis" in titles
+
+def test_story_dto_camelcase_serialization_contract():
+    response = client.get("/api/v1/stories")
+    assert response.status_code == 200
+    first = response.json()[0]
+    # Verify contract parity with Swift JSONDecoder
+    assert "readTimeMinutes" in first
+    assert "isBookmarked" in first
+    assert "isCompleted" in first
+    assert "createdAtUtc" in first
+    assert "updatedAtUtc" in first
+
+def test_gutenberg_gateway_endpoint():
+    response = client.get("/api/v1/public/gutenberg?topic=folklore")
+    assert response.status_code == 200
+    results = response.json()
+    assert len(results) >= 1
+    assert "readTimeMinutes" in results[0]
+
 
 def test_create_story():
     payload = {
