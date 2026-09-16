@@ -262,6 +262,8 @@ $ curl -s http://127.0.0.1:8000/api/v1/stories | head -n 25
 | `be68c21` | `feat(ui): implement multi-chapter navigation, table of contents sheet, and chapter pagination` | `frontend/FableApp/Views/ReaderView.swift` |
 | `7a8bb24` | `fix(shelf): use effectiveCoverImage for shelf collection items` | `frontend/FableApp/Views/ShelfView.swift` |
 | `b469916` | `fix(genre): use effectiveCoverImage for genre story cards` | `frontend/FableApp/Views/GenreDetailView.swift` |
+| `d7dfdf9` | `docs: record multi-chapter reader navigation in milestone progress` | `docs/FINAL_MILESTONE_PROGRESS.md` |
+| `[HEAD]` | `feat(store): eliminate residual hardcoded draft strings and genre fallbacks` | `StoryStore.swift`, `GenreDetailView.swift` |
 
 
 

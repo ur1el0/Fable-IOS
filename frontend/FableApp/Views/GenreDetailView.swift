@@ -12,14 +12,8 @@ public struct GenreDetailView: View {
     
     let subcategories = ["All", "Popular", "Editor's Pick", "Short Tales"]
     
-    public init(genre: GenreCategory? = nil) {
-        self.genre = genre ?? GenreCategory(
-            name: "Folklore",
-            storyCount: 340,
-            readersCount: "18.4k",
-            description: "Traditional tales passed down through generations, reimagined by contemporary scribes—from fireside Slavic forest myths to maritime legends whispered across coastal tides.",
-            imageName: "genre_folklore"
-        )
+    public init(genre: GenreCategory) {
+        self.genre = genre
     }
     
     var genreStories: [Story] {
