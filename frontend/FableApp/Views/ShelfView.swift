@@ -314,6 +314,9 @@ public struct ShelfView: View {
                         Spacer().frame(height: 90) // spacing for custom tab bar
                     }
                 }
+                .refreshable {
+                    await store.syncWithCloudBackend()
+                }
             }
             .fullScreenCover(item: $selectedStoryToRead) { story in
                 ReaderView(story: story)

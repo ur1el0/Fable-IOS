@@ -347,6 +347,10 @@ public struct ExploreView: View {
                         .padding(.bottom, 90) // spacing for custom tab bar
                     }
                 }
+                .refreshable {
+                    await store.syncWithCloudBackend()
+                    await store.fetchGutenbergPublicStories(topic: "folklore", search: nil)
+                }
             }
             .navigationDestination(item: $selectedGenreForDetail) { genre in
                 GenreDetailView(genre: genre)
