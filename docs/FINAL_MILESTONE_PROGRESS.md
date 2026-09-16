@@ -165,7 +165,24 @@ feature/final-milestone:     └───[abce454]───[a91ec51]───[0a
   - Removed ~200 lines of hardcoded static stories, pre-baked genres, and static writers from `StoryStore`.
   - Defaulted `StoryController.isLiveBackendEnabled = true` and purged `loadMockStories()`.
   - Upgraded `StoryStore.syncWithCloudBackend()` to fetch live catalog stories, live dynamic genres from `/api/v1/genres`, trending authors from `/api/v1/authors/top`, and dynamic editorial highlights from `/api/v1/updates`.
-  - Added on-demand authentic chapter retrieval method `fetchChapters(for story: Story)` in `StoryStore`.
+---
+
+### 2.9 Multi-Chapter Reader Navigation & Live Cover Ingestion
+* **Files Modified:**
+  - [`frontend/FableApp/Models/Models.swift`](../frontend/FableApp/Models/Models.swift)
+  - [`frontend/FableApp/Views/ReaderView.swift`](../frontend/FableApp/Views/ReaderView.swift)
+  - [`frontend/FableApp/Views/LibraryView.swift`](../frontend/FableApp/Views/LibraryView.swift)
+  - [`frontend/FableApp/Views/ExploreView.swift`](../frontend/FableApp/Views/ExploreView.swift)
+  - [`frontend/FableApp/Views/ShelfView.swift`](../frontend/FableApp/Views/ShelfView.swift)
+  - [`frontend/FableApp/Views/GenreDetailView.swift`](../frontend/FableApp/Views/GenreDetailView.swift)
+  - [`frontend/FableApp/Views/ProfileView.swift`](../frontend/FableApp/Views/ProfileView.swift)
+* **Commits:** `be68c21`, `7a8bb24`, `b469916`
+* **Rationale:**
+  - Integrated `story.effectiveCoverImage` across Library, Explore, Shelf, Genre, and Profile views, prioritizing live Gutenberg cover images over procedural fallbacks.
+  - Implemented on-demand chapter fetching in `ReaderView.onAppear` via `store.fetchChapters(for: story)`.
+  - Added interactive Table of Contents (TOC) bottom sheet modal with chapter titles, numbers, word counts, and estimated read times.
+  - Built bidirectional chapter transitions ("Next Chapter" and "Prev Chapter") in the manuscript footer and HUD.
+  - Dynamically recalibrated pagination and spoken audio synchronization across chapter transitions.
 
 ---
 
@@ -242,6 +259,9 @@ $ curl -s http://127.0.0.1:8000/api/v1/stories | head -n 25
 | `bdfed19` | `docs: record backend modularization in milestone progress` | `docs/FINAL_MILESTONE_PROGRESS.md` |
 | `b469827` | `refactor(frontend): align directory topology to Core, Models, Services, and ViewModels` | `Theme.swift`, `Entities.swift`, `Models.swift`, `StoryStore.swift`, `StoryController.swift`, `AudioNarratorController.swift`, `PacingEngine.swift`, `AuthManager.swift` |
 | `0364aac` | `feat(store): purge hardcoded mock stories, genres, and writers in favor of live api ingestion` | `frontend/FableApp/StoryStore.swift`, `frontend/FableApp/Controllers/StoryController.swift` |
+| `be68c21` | `feat(ui): implement multi-chapter navigation, table of contents sheet, and chapter pagination` | `frontend/FableApp/Views/ReaderView.swift` |
+| `7a8bb24` | `fix(shelf): use effectiveCoverImage for shelf collection items` | `frontend/FableApp/Views/ShelfView.swift` |
+| `b469916` | `fix(genre): use effectiveCoverImage for genre story cards` | `frontend/FableApp/Views/GenreDetailView.swift` |
 
 
 
