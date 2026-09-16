@@ -176,7 +176,7 @@ public struct GenreDetailView: View {
                                         selectedStoryToRead = story
                                     }) {
                                         HStack(alignment: .top, spacing: 14) {
-                                            FableImageView(name: story.coverImageName, placeholderIcon: "book")
+                                            FableImageView(name: story.effectiveCoverImage, placeholderIcon: "book")
                                                 .frame(width: 72, height: 90)
                                                 .clipShape(RoundedRectangle(cornerRadius: 12))
                                             
