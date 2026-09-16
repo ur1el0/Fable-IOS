@@ -223,6 +223,8 @@ $ curl -s http://127.0.0.1:8000/api/v1/stories | head -n 25
 | `51aeba2` | `feat(backend): implement multi-chapter serialization and catalog expansion` | `backend/main.py`, `backend/schemas.py`, `backend/test_main.py` |
 | `a0f1a6f` | `feat(backend): refine chapter extraction parser and add chapter extraction unit test` | `backend/main.py`, `backend/test_main.py` |
 | `b4148f4` | `feat(backend): implement live genres, top authors, and update feed endpoints` | `backend/main.py`, `backend/test_main.py` |
+| `964b95b` | `feat(network): implement client chapter, genre, author, and feed API methods` | `frontend/FableApp/Models.swift`, `frontend/FableApp/Services/StoryAPIService.swift`, `backend/schemas.py`, `backend/core/`, `backend/models/`, `backend/schemas/`, `backend/services/` |
+
 
 
 
