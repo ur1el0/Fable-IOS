@@ -44,3 +44,7 @@ xcuserdata/
 scratch/
 
 .agents/
+.venv/
+venv/
+*.sqlite3
+reference/
