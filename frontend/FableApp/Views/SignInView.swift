@@ -24,7 +24,7 @@ public struct SignInView: View {
                                 .font(.system(size: 32, weight: .bold, design: .serif))
                                 .foregroundColor(FableTheme.textPrimary)
 
-                            Text("Enter your pen credentials to access your personal shelf, bookmarked folklore, and authored manuscripts.")
+                            Text("Enter your credentials to continue.")
                                 .font(.system(size: 14))
                                 .foregroundColor(FableTheme.textMuted)
                                 .lineSpacing(3)
@@ -50,7 +50,7 @@ public struct SignInView: View {
                         VStack(spacing: 16) {
                             // Email Field
                             VStack(alignment: .leading, spacing: 6) {
-                                Text("EMAIL ADDRESS")
+                                Text("EMAIL")
                                     .font(.system(size: 11, weight: .bold))
                                     .tracking(1.0)
                                     .foregroundColor(FableTheme.textMuted)
@@ -60,7 +60,7 @@ public struct SignInView: View {
                                         .foregroundColor(FableTheme.textMuted)
                                         .frame(width: 20)
 
-                                    TextField("scribe@fable.app", text: $email)
+                                    TextField("Enter your email", text: $email)
                                         .keyboardType(.emailAddress)
                                         .textInputAutocapitalization(.never)
                                         .autocorrectionDisabled(true)
@@ -88,10 +88,10 @@ public struct SignInView: View {
                                         .frame(width: 20)
 
                                     if isPasswordVisible {
-                                        TextField("Enter password", text: $password)
+                                        TextField("Enter your password", text: $password)
                                             .font(.system(size: 15))
                                     } else {
-                                        SecureField("Enter password", text: $password)
+                                        SecureField("Enter your password", text: $password)
                                             .font(.system(size: 15))
                                     }
 
@@ -143,13 +143,13 @@ public struct SignInView: View {
 
                         // Demo Credentials Quick-Fill (Lab Convenience)
                         Button(action: {
-                            self.email = "roosc-zano@fable.app"
-                            self.password = "prague1890"
+                            self.email = "demo@example.com"
+                            self.password = "password123"
                         }) {
                             HStack(spacing: 6) {
                                 Image(systemName: "sparkles")
                                     .font(.system(size: 12))
-                                Text("Fill Demo Author Credentials")
+                                Text("Use Demo Account")
                                     .font(.system(size: 13, weight: .medium))
                             }
                             .foregroundColor(FableTheme.brandPrimary)

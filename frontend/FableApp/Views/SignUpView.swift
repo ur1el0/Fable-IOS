@@ -26,7 +26,7 @@ public struct SignUpView: View {
                                 .font(.system(size: 32, weight: .bold, design: .serif))
                                 .foregroundColor(FableTheme.textPrimary)
 
-                            Text("Join a fellowship of storytellers and archivist readers. Publish original folklore or curate your personal literary shelf.")
+                            Text("Sign up to start reading and writing.")
                                 .font(.system(size: 14))
                                 .foregroundColor(FableTheme.textMuted)
                                 .lineSpacing(3)
@@ -52,7 +52,7 @@ public struct SignUpView: View {
                         VStack(spacing: 16) {
                             // Pen Name Field
                             VStack(alignment: .leading, spacing: 6) {
-                                Text("PEN NAME / FULL NAME")
+                                Text("FULL NAME")
                                     .font(.system(size: 11, weight: .bold))
                                     .tracking(1.0)
                                     .foregroundColor(FableTheme.textMuted)
@@ -62,7 +62,7 @@ public struct SignUpView: View {
                                         .foregroundColor(FableTheme.textMuted)
                                         .frame(width: 20)
 
-                                    TextField("e.g. Roosc Zaño", text: $name)
+                                    TextField("Enter your full name", text: $name)
                                         .font(.system(size: 15))
                                 }
                                 .padding(14)
@@ -76,7 +76,7 @@ public struct SignUpView: View {
 
                             // Author Handle
                             VStack(alignment: .leading, spacing: 6) {
-                                Text("AUTHOR HANDLE")
+                                Text("USERNAME")
                                     .font(.system(size: 11, weight: .bold))
                                     .tracking(1.0)
                                     .foregroundColor(FableTheme.textMuted)
@@ -86,7 +86,7 @@ public struct SignUpView: View {
                                         .foregroundColor(FableTheme.textMuted)
                                         .frame(width: 20)
 
-                                    TextField("e.g. @zanoroosc", text: $handle)
+                                    TextField("Choose a username", text: $handle)
                                         .autocorrectionDisabled(true)
                                         .textInputAutocapitalization(.never)
                                         .font(.system(size: 15))
@@ -102,7 +102,7 @@ public struct SignUpView: View {
 
                             // Email Field
                             VStack(alignment: .leading, spacing: 6) {
-                                Text("EMAIL ADDRESS")
+                                Text("EMAIL")
                                     .font(.system(size: 11, weight: .bold))
                                     .tracking(1.0)
                                     .foregroundColor(FableTheme.textMuted)
@@ -112,7 +112,7 @@ public struct SignUpView: View {
                                         .foregroundColor(FableTheme.textMuted)
                                         .frame(width: 20)
 
-                                    TextField("scribe@fable.app", text: $email)
+                                    TextField("Enter your email", text: $email)
                                         .keyboardType(.emailAddress)
                                         .textInputAutocapitalization(.never)
                                         .autocorrectionDisabled(true)
@@ -129,7 +129,7 @@ public struct SignUpView: View {
 
                             // Password Field
                             VStack(alignment: .leading, spacing: 6) {
-                                Text("PASSWORD (MINIMUM 6 CHARACTERS)")
+                                Text("PASSWORD")
                                     .font(.system(size: 11, weight: .bold))
                                     .tracking(1.0)
                                     .foregroundColor(FableTheme.textMuted)
@@ -140,10 +140,10 @@ public struct SignUpView: View {
                                         .frame(width: 20)
 
                                     if isPasswordVisible {
-                                        TextField("Create password", text: $password)
+                                        TextField("Enter a password (min. 6 characters)", text: $password)
                                             .font(.system(size: 15))
                                     } else {
-                                        SecureField("Create password", text: $password)
+                                        SecureField("Enter a password (min. 6 characters)", text: $password)
                                             .font(.system(size: 15))
                                     }
 
@@ -171,7 +171,7 @@ public struct SignUpView: View {
                                 .foregroundColor(FableTheme.brandPrimary)
                                 .padding(.top, 2)
 
-                            Text("By registering, you commit to publishing original writings, respect historical public domain lore, and preserve respectful literary discourse.")
+                            Text("By creating an account, you agree to our Terms of Service and Privacy Policy.")
                                 .font(.system(size: 11))
                                 .foregroundColor(FableTheme.textMuted)
                                 .lineSpacing(2)
@@ -194,7 +194,7 @@ public struct SignUpView: View {
                                     ProgressView()
                                         .progressViewStyle(CircularProgressViewStyle(tint: .white))
                                 } else {
-                                    Text("Complete Author Registration")
+                                    Text("Create Account")
                                         .font(.system(size: 16, weight: .semibold))
                                     Image(systemName: "arrow.right")
                                         .font(.system(size: 13, weight: .bold))
