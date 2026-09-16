@@ -221,6 +221,8 @@ $ curl -s http://127.0.0.1:8000/api/v1/stories | head -n 25
 | `afb6964` | `feat(security): implement native iOS KeychainStore using Apple Security framework` | `frontend/FableApp/Core/KeychainStore.swift` |
 | `111d64f` | `feat(auth): integrate AuthViewModel state machine, card UI, and root router` | `frontend/FableApp/ViewModels/AuthViewModel.swift`, `frontend/FableApp/Controllers/AuthManager.swift`, `frontend/FableApp/Theme.swift`, `frontend/FableApp/Views/SignInView.swift`, `frontend/FableApp/Views/SignUpView.swift`, `frontend/FableApp/Views/WelcomeView.swift`, `frontend/FableApp/ContentView.swift` |
 | `51aeba2` | `feat(backend): implement multi-chapter serialization and catalog expansion` | `backend/main.py`, `backend/schemas.py`, `backend/test_main.py` |
+| `a0f1a6f` | `feat(backend): refine chapter extraction parser and add chapter extraction unit test` | `backend/main.py`, `backend/test_main.py` |
+
 
 ---
 
