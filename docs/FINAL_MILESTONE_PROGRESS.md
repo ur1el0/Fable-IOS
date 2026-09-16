@@ -239,6 +239,8 @@ $ curl -s http://127.0.0.1:8000/api/v1/stories | head -n 25
 | `964b95b` | `feat(network): implement client chapter, genre, author, and feed API methods` | `frontend/FableApp/Models.swift`, `frontend/FableApp/Services/StoryAPIService.swift`, `backend/schemas.py`, `backend/core/`, `backend/models/`, `backend/schemas/`, `backend/services/` |
 | `06228ee` | `chore(git): ignore local reference directory` | `.gitignore` |
 | `2f3a57a` | `refactor(backend): modularize core, api, models, schemas, and services` | `backend/main.py`, `backend/core/__init__.py`, `backend/test_main.py`, `backend/api/` |
+| `bdfed19` | `docs: record backend modularization in milestone progress` | `docs/FINAL_MILESTONE_PROGRESS.md` |
+| `b469827` | `refactor(frontend): align directory topology to Core, Models, Services, and ViewModels` | `Theme.swift`, `Entities.swift`, `Models.swift`, `StoryStore.swift`, `StoryController.swift`, `AudioNarratorController.swift`, `PacingEngine.swift`, `AuthManager.swift` |
 | `0364aac` | `feat(store): purge hardcoded mock stories, genres, and writers in favor of live api ingestion` | `frontend/FableApp/StoryStore.swift`, `frontend/FableApp/Controllers/StoryController.swift` |
 
 
