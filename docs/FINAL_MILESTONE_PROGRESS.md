@@ -156,6 +156,19 @@ feature/final-milestone:     └───[abce454]───[a91ec51]───[0a
 
 ---
 
+### 2.8 Purge of Static Mocks & Multi-Chapter Dynamic Ingestion
+* **Files Modified:**
+  - [`frontend/FableApp/StoryStore.swift`](../frontend/FableApp/StoryStore.swift)
+  - [`frontend/FableApp/Controllers/StoryController.swift`](../frontend/FableApp/Controllers/StoryController.swift)
+* **Commit:** `0364aac` (`feat(store): purge hardcoded mock stories, genres, and writers in favor of live api ingestion`)
+* **Rationale:**
+  - Removed ~200 lines of hardcoded static stories, pre-baked genres, and static writers from `StoryStore`.
+  - Defaulted `StoryController.isLiveBackendEnabled = true` and purged `loadMockStories()`.
+  - Upgraded `StoryStore.syncWithCloudBackend()` to fetch live catalog stories, live dynamic genres from `/api/v1/genres`, trending authors from `/api/v1/authors/top`, and dynamic editorial highlights from `/api/v1/updates`.
+  - Added on-demand authentic chapter retrieval method `fetchChapters(for story: Story)` in `StoryStore`.
+
+---
+
 ## 3. Verification & Test Evidence
 
 ### 3.1 Backend Test Results (`pytest`)
@@ -226,6 +239,7 @@ $ curl -s http://127.0.0.1:8000/api/v1/stories | head -n 25
 | `964b95b` | `feat(network): implement client chapter, genre, author, and feed API methods` | `frontend/FableApp/Models.swift`, `frontend/FableApp/Services/StoryAPIService.swift`, `backend/schemas.py`, `backend/core/`, `backend/models/`, `backend/schemas/`, `backend/services/` |
 | `06228ee` | `chore(git): ignore local reference directory` | `.gitignore` |
 | `2f3a57a` | `refactor(backend): modularize core, api, models, schemas, and services` | `backend/main.py`, `backend/core/__init__.py`, `backend/test_main.py`, `backend/api/` |
+| `0364aac` | `feat(store): purge hardcoded mock stories, genres, and writers in favor of live api ingestion` | `frontend/FableApp/StoryStore.swift`, `frontend/FableApp/Controllers/StoryController.swift` |
 
 
 
