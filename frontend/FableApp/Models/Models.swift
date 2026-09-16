@@ -214,6 +214,13 @@ public struct Story: Identifiable, Hashable, Codable {
         set { isCompleted = newValue }
     }
 
+    public var effectiveCoverImage: String? {
+        if let url = coverImageUrl, !url.isEmpty {
+            return url
+        }
+        return coverImageName
+    }
+
     public var paragraphs: [String] {
         let split = content.components(separatedBy: "\n\n").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
         return split.isEmpty ? (synopsis.isEmpty ? [] : [synopsis]) : split

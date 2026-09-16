@@ -138,7 +138,7 @@ public struct ExploreView: View {
                                                 selectedStoryToRead = story
                                             }) {
                                                 HStack(spacing: 14) {
-                                                    FableImageView(name: story.coverImageName, placeholderIcon: "book.closed")
+                                                    FableImageView(name: story.effectiveCoverImage, placeholderIcon: "book.closed")
                                                         .frame(width: 50, height: 64)
                                                         .clipShape(RoundedRectangle(cornerRadius: 8))
                                                     
@@ -212,7 +212,7 @@ public struct ExploreView: View {
                                                 selectedStoryToRead = story
                                             }) {
                                                 VStack(alignment: .leading, spacing: 6) {
-                                                    FableImageView(name: story.coverImageName, placeholderIcon: "book")
+                                                    FableImageView(name: story.effectiveCoverImage, placeholderIcon: "book")
                                                         .frame(width: 120, height: 150)
                                                         .clipShape(RoundedRectangle(cornerRadius: 12))
                                                     

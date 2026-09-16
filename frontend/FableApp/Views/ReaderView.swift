@@ -12,6 +12,12 @@ public struct ReaderView: View {
     @State private var totalPages: Int = 5
     @State private var pages: [String] = []
     
+    // Multi-Chapter Dynamic State
+    @State private var chapters: [Chapter] = []
+    @State private var currentChapterIndex: Int = 0
+    @State private var isShowingChapterSheet: Bool = false
+    @State private var isLoadingChapters: Bool = false
+    
     // Marginalia & Highlight Sheet State (Plan 02)
     @State private var selectedTextToAnnotate: String? = nil
     @State private var selectedHighlightColor: HighlightColor = .terracotta
@@ -26,6 +32,32 @@ public struct ReaderView: View {
         _totalPages = State(initialValue: max(1, story.totalPages))
     }
     
+    private var activeChapter: Chapter? {
+        chapters.indices.contains(currentChapterIndex) ? chapters[currentChapterIndex] : nil
+    }
+    
+    private var activeChapterText: String {
+        if let chap = activeChapter, !chap.content.isEmpty {
+            return chap.content
+        }
+        return story.content.isEmpty ? story.synopsis : story.content
+    }
+    
+    private var activeParagraphs: [String] {
+        let split = activeChapterText.components(separatedBy: "\n\n")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        return split.isEmpty ? (story.synopsis.isEmpty ? [] : [story.synopsis]) : split
+    }
+    
+    private var activeChapterTag: String {
+        if let chap = activeChapter {
+            let titleClean = chap.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            return "CHAPTER \(chap.chapterNumber) • \(titleClean.uppercased())"
+        }
+        return "CHAPTER I • MANUSCRIPT"
+    }
+    
     private var currentStoryBookmarked: Bool {
         store.stories.first(where: { $0.id == story.id })?.isBookmarked ?? story.isBookmarked
     }
@@ -37,7 +69,7 @@ public struct ReaderView: View {
     private var dynamicMinutesRemaining: Int {
         let remainingWords: Int
         if pages.isEmpty {
-            remainingWords = story.readTimeMinutes * 180
+            remainingWords = (activeChapter?.wordCount ?? (story.readTimeMinutes * 180))
         } else {
             let unreadPages = pages.dropFirst(max(0, currentPage - 1))
             remainingWords = unreadPages.reduce(0) { $0 + $1.split(separator: " ").count }
@@ -68,22 +100,48 @@ public struct ReaderView: View {
                     
                     Spacer()
                     
-                    // Chapter / Folio Tag
-                    VStack(spacing: 2) {
-                        Text("CHAPTER I • MANUSCRIPT")
-                            .font(.system(size: 10, weight: .bold))
-                            .tracking(1.0)
-                            .foregroundColor(FableTheme.brandPrimary)
-                        
-                        Text(story.title)
-                            .font(.system(size: 13, weight: .medium, design: .serif))
-                            .foregroundColor(store.readerTheme.textColor.opacity(0.8))
-                            .lineLimit(1)
+                    // Chapter / Folio Tag (Interactive TOC Trigger)
+                    Button(action: {
+                        isShowingChapterSheet = true
+                    }) {
+                        VStack(spacing: 2) {
+                            HStack(spacing: 4) {
+                                Text(activeChapterTag)
+                                    .font(.system(size: 10, weight: .bold))
+                                    .tracking(1.0)
+                                    .foregroundColor(FableTheme.brandPrimary)
+                                    .lineLimit(1)
+                                
+                                if !chapters.isEmpty {
+                                    Image(systemName: "chevron.down")
+                                        .font(.system(size: 8, weight: .bold))
+                                        .foregroundColor(FableTheme.brandPrimary)
+                                }
+                            }
+                            
+                            Text(story.title)
+                                .font(.system(size: 13, weight: .medium, design: .serif))
+                                .foregroundColor(store.readerTheme.textColor.opacity(0.8))
+                                .lineLimit(1)
+                        }
                     }
+                    .buttonStyle(.plain)
                     
                     Spacer()
                     
                     HStack(spacing: 8) {
+                        // Table of Contents Sheet Button
+                        Button(action: {
+                            isShowingChapterSheet = true
+                        }) {
+                            Image(systemName: "list.bullet.rectangle")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(store.readerTheme.textColor)
+                                .padding(8)
+                                .background(store.readerTheme.textColor.opacity(0.06))
+                                .clipShape(Circle())
+                        }
+                        
                         // Oral Folklore Audio Synthesizer Toggle (Plan 04)
                         Button(action: {
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
@@ -333,13 +391,63 @@ public struct ReaderView: View {
                             
                             // Typographical Manuscript Body with Marginalia highlight capability
                             VStack(alignment: .leading, spacing: 18 + store.readerLineSpacing.points) {
-                                ForEach(story.paragraphs, id: \.self) { para in
+                                ForEach(activeParagraphs, id: \.self) { para in
                                     paragraphView(para)
                                 }
                             }
                             .padding(.horizontal, 24)
                             .padding(.top, 8)
-                            .padding(.bottom, 130) // spacing for floating HUD
+                            
+                            // Multi-Chapter Footer Navigation Controls
+                            if chapters.count > 1 {
+                                VStack(spacing: 16) {
+                                    Divider()
+                                        .background(FableTheme.divider)
+                                        .padding(.horizontal, 24)
+                                    
+                                    HStack(spacing: 14) {
+                                        if currentChapterIndex > 0 {
+                                            Button(action: {
+                                                selectChapter(at: currentChapterIndex - 1)
+                                            }) {
+                                                HStack(spacing: 6) {
+                                                    Image(systemName: "chevron.left")
+                                                    Text("Chapter \(chapters[currentChapterIndex - 1].chapterNumber)")
+                                                }
+                                                .font(.system(size: 12, weight: .semibold))
+                                                .foregroundColor(FableTheme.textPrimary)
+                                                .padding(.horizontal, 14)
+                                                .padding(.vertical, 8)
+                                                .background(FableTheme.surface)
+                                                .clipShape(Capsule())
+                                            }
+                                        }
+                                        
+                                        Spacer()
+                                        
+                                        if currentChapterIndex < chapters.count - 1 {
+                                            Button(action: {
+                                                selectChapter(at: currentChapterIndex + 1)
+                                            }) {
+                                                HStack(spacing: 6) {
+                                                    Text("Chapter \(chapters[currentChapterIndex + 1].chapterNumber)")
+                                                    Image(systemName: "chevron.right")
+                                                }
+                                                .font(.system(size: 12, weight: .semibold))
+                                                .foregroundColor(.white)
+                                                .padding(.horizontal, 14)
+                                                .padding(.vertical, 8)
+                                                .background(FableTheme.brandPrimary)
+                                                .clipShape(Capsule())
+                                            }
+                                        }
+                                    }
+                                    .padding(.horizontal, 24)
+                                }
+                                .padding(.top, 16)
+                            }
+                            
+                            Spacer().frame(height: 130) // spacing for floating HUD
                         }
                     }
                 }
@@ -367,7 +475,7 @@ public struct ReaderView: View {
                 
                 // Page Indicator & Dynamic Pacing
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("Page \(currentPage) of \(totalPages)")
+                    Text("Ch. \(activeChapter?.chapterNumber ?? 1) • Page \(currentPage)/\(totalPages)")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundColor(FableTheme.textPrimary)
                     
@@ -444,12 +552,23 @@ public struct ReaderView: View {
         .onAppear {
             self.sessionStartTime = Date()
             pacingEngine.startSession()
-            let rawText = story.content.isEmpty ? story.synopsis : story.content
-            let chunked = PacingEngine.chunkIntoPages(text: rawText)
-            self.pages = chunked
-            self.totalPages = max(1, chunked.count)
-            self.currentPage = min(self.totalPages, max(1, story.currentPage))
-            store.loadAnnotations(for: story.id)
+            if let existing = story.chapters, !existing.isEmpty {
+                self.chapters = existing
+                loadCurrentChapterPages()
+            } else {
+                loadCurrentChapterPages()
+                isLoadingChapters = true
+                Task {
+                    let fetched = await store.fetchChapters(for: story)
+                    await MainActor.run {
+                        self.isLoadingChapters = false
+                        if !fetched.isEmpty {
+                            self.chapters = fetched
+                            loadCurrentChapterPages()
+                        }
+                    }
+                }
+            }
         }
         .onDisappear {
             let elapsed = Int(Date().timeIntervalSince(sessionStartTime))
@@ -465,6 +584,10 @@ public struct ReaderView: View {
                 .presentationDetents([.fraction(0.48), .medium])
                 .background(Color.white)
         }
+        .sheet(isPresented: $isShowingChapterSheet) {
+            tableOfContentsSheetView
+                .presentationDetents([.medium, .large])
+        }
     }
     
     // View helper for rendered manuscript paragraph with marginalia highlighting & oral audio sync
@@ -476,7 +599,7 @@ public struct ReaderView: View {
         
         let isSpokenParagraph: Bool = {
             guard audioNarrator.isPlaying, audioNarrator.activeStoryId == story.id else { return false }
-            let fullText = story.content.isEmpty ? story.synopsis : story.content
+            let fullText = activeChapterText
             guard let spokenRange = audioNarrator.currentSpokenRange,
                   spokenRange.location != NSNotFound else { return false }
             let nsFullText = fullText as NSString
@@ -622,7 +745,7 @@ public struct ReaderView: View {
             // Save Action Button
             Button(action: {
                 if let text = selectedTextToAnnotate {
-                    let fullText = story.content.isEmpty ? story.synopsis : story.content
+                    let fullText = activeChapterText
                     let nsText = fullText as NSString
                     let targetRange = nsText.range(of: text)
                     let startOffset = targetRange.location != NSNotFound ? targetRange.location : 0
@@ -660,5 +783,133 @@ public struct ReaderView: View {
         annotationNote = ""
         selectedHighlightColor = .terracotta
         isPinToJournal = true
+    }
+    
+    // Multi-Chapter Synchronization Helpers
+    private func loadCurrentChapterPages() {
+        let text = activeChapterText
+        let chunked = PacingEngine.chunkIntoPages(text: text)
+        self.pages = chunked
+        self.totalPages = max(1, chunked.count)
+        self.currentPage = 1
+        store.loadAnnotations(for: story.id)
+    }
+    
+    private func selectChapter(at index: Int) {
+        guard chapters.indices.contains(index) else { return }
+        withAnimation(.easeInOut(duration: 0.25)) {
+            currentChapterIndex = index
+            loadCurrentChapterPages()
+            if audioNarrator.isPlaying {
+                audioNarrator.stop()
+            }
+        }
+    }
+    
+    // Table of Contents Sheet View
+    private var tableOfContentsSheetView: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 14) {
+                // Header
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("TABLE OF CONTENTS")
+                            .font(.system(size: 11, weight: .bold))
+                            .tracking(1.2)
+                            .foregroundColor(FableTheme.brandPrimary)
+                        
+                        Text(story.title)
+                            .font(.system(size: 18, weight: .bold, design: .serif))
+                            .foregroundColor(FableTheme.textPrimary)
+                            .lineLimit(1)
+                    }
+                    
+                    Spacer()
+                    
+                    Button(action: {
+                        isShowingChapterSheet = false
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 20))
+                            .foregroundColor(FableTheme.textMuted)
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 18)
+                
+                if isLoadingChapters {
+                    HStack(spacing: 12) {
+                        ProgressView()
+                        Text("Loading live chapters...")
+                            .font(.system(size: 13))
+                            .foregroundColor(FableTheme.textMuted)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.vertical, 36)
+                } else if chapters.isEmpty {
+                    VStack(spacing: 8) {
+                        Image(systemName: "book.pages")
+                            .font(.system(size: 28))
+                            .foregroundColor(FableTheme.brandPrimary.opacity(0.6))
+                        Text("Single Chapter Manuscript")
+                            .font(.system(size: 15, weight: .semibold, design: .serif))
+                            .foregroundColor(FableTheme.textPrimary)
+                        Text("This title is preserved as a single unbroken folio.")
+                            .font(.system(size: 12))
+                            .foregroundColor(FableTheme.textMuted)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 36)
+                } else {
+                    List {
+                        ForEach(Array(chapters.enumerated()), id: \.element.id) { index, chapter in
+                            Button(action: {
+                                isShowingChapterSheet = false
+                                selectChapter(at: index)
+                            }) {
+                                HStack(spacing: 14) {
+                                    Text("\(chapter.chapterNumber)")
+                                        .font(.system(size: 12, weight: .bold, design: .monospaced))
+                                        .foregroundColor(index == currentChapterIndex ? .white : FableTheme.brandPrimary)
+                                        .frame(width: 28, height: 28)
+                                        .background(index == currentChapterIndex ? FableTheme.brandPrimary : FableTheme.brandPrimary.opacity(0.12))
+                                        .clipShape(Circle())
+                                    
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Text(chapter.title.isEmpty ? "Chapter \(chapter.chapterNumber)" : chapter.title)
+                                            .font(.system(size: 14, weight: index == currentChapterIndex ? .bold : .medium, design: .serif))
+                                            .foregroundColor(index == currentChapterIndex ? FableTheme.brandPrimary : FableTheme.textPrimary)
+                                            .lineLimit(1)
+                                        
+                                        HStack(spacing: 8) {
+                                            Text("\(chapter.wordCount) words")
+                                                .font(.system(size: 11))
+                                                .foregroundColor(FableTheme.textMuted)
+                                            
+                                            Text("•")
+                                                .foregroundColor(FableTheme.textMuted)
+                                            
+                                            Text("~\(max(1, chapter.wordCount / 200)) min read")
+                                                .font(.system(size: 11))
+                                                .foregroundColor(FableTheme.textMuted)
+                                        }
+                                    }
+                                    
+                                    Spacer()
+                                    
+                                    if index == currentChapterIndex {
+                                        Image(systemName: "checkmark")
+                                            .font(.system(size: 13, weight: .bold))
+                                            .foregroundColor(FableTheme.brandPrimary)
+                                    }
+                                }
+                                .padding(.vertical, 4)
+                            }
+                        }
+                    }
+                    .listStyle(.plain)
+                }
+            }
+        }
     }
 }

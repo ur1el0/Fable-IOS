@@ -88,7 +88,7 @@ public struct LibraryView: View {
                                 VStack(alignment: .leading, spacing: 0) {
                                     // Book Cover with Badge & Bookmark
                                     ZStack(alignment: .top) {
-                                        FableImageView(name: taleOfTheDay.coverImageName ?? "cover_dracula", placeholderIcon: "book.closed")
+                                        FableImageView(name: taleOfTheDay.effectiveCoverImage ?? "cover_dracula", placeholderIcon: "book.closed")
                                             .frame(maxWidth: .infinity)
                                             .frame(height: 210)
                                             .clipped()
@@ -177,7 +177,7 @@ public struct LibraryView: View {
                                     selectedStoryToRead = inProgressStory
                                 }) {
                                     HStack(spacing: 14) {
-                                        FableImageView(name: inProgressStory.coverImageName ?? inProgressStory.heroImageName, placeholderIcon: "book.pages")
+                                        FableImageView(name: inProgressStory.effectiveCoverImage ?? inProgressStory.heroImageName, placeholderIcon: "book.pages")
                                             .frame(width: 64, height: 80)
                                             .clipShape(RoundedRectangle(cornerRadius: 10))
                                         
@@ -252,7 +252,7 @@ public struct LibraryView: View {
                                         selectedStoryToRead = story
                                     }) {
                                         HStack(alignment: .top, spacing: 14) {
-                                            FableImageView(name: story.coverImageName, placeholderIcon: "book.closed")
+                                            FableImageView(name: story.effectiveCoverImage, placeholderIcon: "book.closed")
                                                 .frame(width: 72, height: 90)
                                                 .clipShape(RoundedRectangle(cornerRadius: 12))
                                             
