@@ -104,6 +104,42 @@ The morning brought no relief. The fog clung tightly to the moors, concealing wh
     assert chapters[1]["chapter_number"] == 2
     assert "CHAPTER II" in chapters[1]["title"]
 
+def test_get_genres_endpoint():
+    response = client.get("/api/v1/genres")
+    assert response.status_code == 200
+    genres = response.json()
+    assert len(genres) >= 4
+    names = [g["name"] for g in genres]
+    assert "Folklore" in names
+    assert "Gothic" in names
+    # Verify contract keys matching Swift GenreCategory
+    first = genres[0]
+    assert "storyCount" in first
+    assert "readersCount" in first
+    assert "description" in first
+    assert "imageName" in first
+
+def test_get_top_authors_endpoint():
+    response = client.get("/api/v1/authors/top")
+    assert response.status_code == 200
+    writers = response.json()
+    assert len(writers) >= 1
+    first = writers[0]
+    assert "name" in first
+    assert "storyCount" in first
+    assert "avatarImageName" in first
+    assert "rating" in first
+
+def test_get_update_feed_endpoint():
+    response = client.get("/api/v1/updates")
+    assert response.status_code == 200
+    feed = response.json()
+    assert "taleOfTheDay" in feed
+    assert "curatorSpotlight" in feed
+    assert "recentSubmissions" in feed
+    assert "totalStories" in feed
+    assert feed["totalStories"] >= 10
+
 
 
 def test_create_story():
