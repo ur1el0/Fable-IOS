@@ -226,7 +226,7 @@ public struct ShelfView: View {
                                         selectedStoryToRead = story
                                     }) {
                                         HStack(spacing: 14) {
-                                            FableImageView(name: story.coverImageName, placeholderIcon: "book.closed")
+                                            FableImageView(name: story.effectiveCoverImage, placeholderIcon: "book.closed")
                                                 .frame(width: 50, height: 64)
                                                 .clipShape(RoundedRectangle(cornerRadius: 8))
                                             
