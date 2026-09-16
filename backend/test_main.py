@@ -214,3 +214,40 @@ def test_last_write_wins_resolution():
     res3 = client.post("/api/v1/shelf/sync", json=fresh_sync)
     assert res3.status_code == 200
     assert res3.json()["reconciled_items"][0]["reading_progress"] == 0.9
+
+def test_package_modularity_imports():
+    from core import get_db, init_db, SEED_STORIES
+    from models import Story, Chapter, ShelfItem
+    from schemas import StoryDTO, ChapterDTO, ShelfSyncPayload
+    from services import (
+        story_service,
+        shelf_sync,
+        extract_chapters_from_text,
+        ingest_gutenberg_book,
+        get_gutenberg_stories
+    )
+    from api.v1.api import api_router
+
+    assert callable(get_db)
+    assert callable(init_db)
+    assert len(SEED_STORIES) >= 10
+    assert Story is not None
+    assert Chapter is not None
+    assert ShelfItem is not None
+    assert StoryDTO is not None
+    assert ChapterDTO is not None
+    assert ShelfSyncPayload is not None
+    assert callable(story_service.get_stories)
+    assert callable(shelf_sync.sync_shelf)
+    assert callable(extract_chapters_from_text)
+    assert callable(ingest_gutenberg_book)
+    assert callable(get_gutenberg_stories)
+    assert api_router is not None
+
+def test_get_gutenberg_public_stories():
+    response = client.get("/api/v1/public/gutenberg?topic=folklore")
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    assert len(data) > 0
+
