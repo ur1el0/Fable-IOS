@@ -38,15 +38,14 @@ public struct WelcomeView: View {
                             .font(.system(size: 42, weight: .bold, design: .serif))
                             .foregroundColor(FableTheme.textPrimary)
 
-                        Text("CURATED EDITORIAL MICRO-FICTION")
+                        Text("READ & WRITE STORIES")
                             .font(.system(size: 11, weight: .bold))
                             .tracking(2.0)
                             .foregroundColor(FableTheme.brandPrimary)
                     }
 
-                    Text("“Enter a sanctuary of folklore, mythology, and serialized literary shorts crafted for distraction-free reading.”")
-                        .font(.system(size: 14, weight: .regular, design: .serif))
-                        .italic()
+                    Text("A simple, distraction-free space for reading and writing stories.")
+                        .font(.system(size: 15, weight: .regular))
                         .foregroundColor(FableTheme.textSecondary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 36)
@@ -68,10 +67,10 @@ public struct WelcomeView: View {
                             )
 
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("The Reader's Parchment")
+                            Text("Read Anywhere")
                                 .font(.system(size: 13, weight: .bold, design: .serif))
                                 .foregroundColor(FableTheme.textPrimary)
-                            Text("Offline-first • Custom Serif Typography • Audio Lore")
+                            Text("Offline reading • Custom typography • Audio narration")
                                 .font(.system(size: 11))
                                 .foregroundColor(FableTheme.textMuted)
                         }
@@ -96,7 +95,7 @@ public struct WelcomeView: View {
                         isShowingSignIn = true
                     }) {
                         HStack {
-                            Text("Sign In to Chronicle")
+                            Text("Sign In")
                                 .font(.system(size: 16, weight: .semibold))
                             Image(systemName: "arrow.right")
                                 .font(.system(size: 13, weight: .bold))
@@ -112,7 +111,7 @@ public struct WelcomeView: View {
                     Button(action: {
                         isShowingSignUp = true
                     }) {
-                        Text("Create Author Account")
+                        Text("Create Account")
                             .font(.system(size: 15, weight: .semibold))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 15)
@@ -130,7 +129,7 @@ public struct WelcomeView: View {
                             auth.continueAsGuest()
                         }
                     }) {
-                        Text("Continue as Guest Reader")
+                        Text("Continue as Guest")
                             .font(.system(size: 13, weight: .medium))
                             .foregroundColor(FableTheme.textMuted)
                             .padding(.vertical, 8)
