@@ -1,7 +1,4 @@
-"""
-Compatibility shim forwarding to schemas package.
-"""
-from schemas.schemas import (
+from .schemas import (
     ChapterDTO,
     StoryDTO,
     GenreDTO,

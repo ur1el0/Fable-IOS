@@ -17,6 +17,11 @@ public struct ProfileView: View {
     
     public init() {}
     
+    private var savedStories: [Story] {
+        let saved = store.stories.filter { $0.isBookmarked }
+        return saved.isEmpty ? Array(store.stories.prefix(3)) : saved
+    }
+    
     public var body: some View {
         NavigationStack {
             ZStack {
@@ -212,9 +217,8 @@ public struct ProfileView: View {
                                     }
                                 }
                             } else if selectedTab == "Saved" {
-                                let saved = store.stories.filter { $0.isBookmarked }
                                 VStack(spacing: 12) {
-                                    ForEach(saved.isEmpty ? store.stories.prefix(3).map { $0 } : saved) { story in
+                                    ForEach(savedStories) { story in
                                         Button(action: {
                                             selectedStoryToRead = story
                                         }) {

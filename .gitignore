@@ -44,3 +44,12 @@ xcuserdata/
 scratch/
 
 .agents/
+.venv/
+venv/
+*.sqlite3
+reference/
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.pytest_cache/
