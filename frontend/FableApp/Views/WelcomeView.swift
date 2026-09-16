@@ -1,6 +1,7 @@
 import SwiftUI
 
 public struct WelcomeView: View {
+    @ObservedObject var authVM: AuthViewModel = .shared
     @ObservedObject var auth = AuthManager.shared
 
     @State private var isShowingSignIn: Bool = false
@@ -126,7 +127,7 @@ public struct WelcomeView: View {
 
                     Button(action: {
                         withAnimation(.easeInOut) {
-                            auth.continueAsGuest()
+                            authVM.continueAsGuest()
                         }
                     }) {
                         Text("Continue as Guest")
@@ -140,10 +141,10 @@ public struct WelcomeView: View {
             }
         }
         .sheet(isPresented: $isShowingSignIn) {
-            SignInView()
+            SignInView(authVM: authVM)
         }
         .sheet(isPresented: $isShowingSignUp) {
-            SignUpView()
+            SignUpView(authVM: authVM)
         }
     }
 }

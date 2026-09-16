@@ -1,16 +1,22 @@
 import SwiftUI
 
 public struct SignUpView: View {
-    @ObservedObject var auth = AuthManager.shared
+    @ObservedObject var authVM: AuthViewModel
+    var onNavigateToLogin: (() -> Void)?
     @Environment(\.dismiss) var dismiss
 
     @State private var name: String = ""
     @State private var handle: String = ""
     @State private var email: String = ""
     @State private var password: String = ""
+    @State private var confirmPassword: String = ""
     @State private var isPasswordVisible: Bool = false
+    @State private var validationError: String? = nil
 
-    public init() {}
+    public init(authVM: AuthViewModel = .shared, onNavigateToLogin: (() -> Void)? = nil) {
+        self.authVM = authVM
+        self.onNavigateToLogin = onNavigateToLogin
+    }
 
     public var body: some View {
         NavigationStack {
@@ -19,7 +25,7 @@ public struct SignUpView: View {
                     .ignoresSafeArea()
 
                 ScrollView(showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 22) {
+                    VStack(alignment: .leading, spacing: 20) {
                         // Header
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Create Account")
@@ -33,10 +39,10 @@ public struct SignUpView: View {
                         }
                         .padding(.top, 16)
 
-                        // Error Banner
-                        if let error = auth.authErrorMessage {
+                        // Error Banner (Validation or Backend error)
+                        if let error = validationError ?? authVM.errorMessage {
                             HStack(spacing: 10) {
-                                Image(systemName: "exclamationmark.triangle.fill")
+                                Image(systemName: "exclamationmark.circle.fill")
                                     .foregroundColor(.red)
                                 Text(error)
                                     .font(.system(size: 13, weight: .medium))
@@ -48,9 +54,9 @@ public struct SignUpView: View {
                             .clipShape(RoundedRectangle(cornerRadius: 10))
                         }
 
-                        // Form Fields
+                        // Form Card
                         VStack(spacing: 16) {
-                            // Pen Name Field
+                            // Full Name Field
                             VStack(alignment: .leading, spacing: 6) {
                                 Text("FULL NAME")
                                     .font(.system(size: 11, weight: .bold))
@@ -66,7 +72,7 @@ public struct SignUpView: View {
                                         .font(.system(size: 15))
                                 }
                                 .padding(14)
-                                .background(FableTheme.cardBackground)
+                                .background(FableTheme.surface.opacity(0.4))
                                 .clipShape(RoundedRectangle(cornerRadius: 12))
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 12)
@@ -74,7 +80,7 @@ public struct SignUpView: View {
                                 )
                             }
 
-                            // Author Handle
+                            // Username Handle
                             VStack(alignment: .leading, spacing: 6) {
                                 Text("USERNAME")
                                     .font(.system(size: 11, weight: .bold))
@@ -92,7 +98,7 @@ public struct SignUpView: View {
                                         .font(.system(size: 15))
                                 }
                                 .padding(14)
-                                .background(FableTheme.cardBackground)
+                                .background(FableTheme.surface.opacity(0.4))
                                 .clipShape(RoundedRectangle(cornerRadius: 12))
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 12)
@@ -119,7 +125,7 @@ public struct SignUpView: View {
                                         .font(.system(size: 15))
                                 }
                                 .padding(14)
-                                .background(FableTheme.cardBackground)
+                                .background(FableTheme.surface.opacity(0.4))
                                 .clipShape(RoundedRectangle(cornerRadius: 12))
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 12)
@@ -155,61 +161,98 @@ public struct SignUpView: View {
                                     }
                                 }
                                 .padding(14)
-                                .background(FableTheme.cardBackground)
+                                .background(FableTheme.surface.opacity(0.4))
                                 .clipShape(RoundedRectangle(cornerRadius: 12))
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 12)
                                         .stroke(FableTheme.lightBorder, lineWidth: 1)
                                 )
                             }
-                        }
 
-                        // Literary Ethics Disclaimer
-                        HStack(alignment: .top, spacing: 10) {
-                            Image(systemName: "checkmark.shield")
+                            // Confirm Password Field
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("CONFIRM PASSWORD")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .tracking(1.0)
+                                    .foregroundColor(FableTheme.textMuted)
+
+                                HStack {
+                                    Image(systemName: "lock.shield")
+                                        .foregroundColor(FableTheme.textMuted)
+                                        .frame(width: 20)
+
+                                    SecureField("Re-enter password", text: $confirmPassword)
+                                        .font(.system(size: 15))
+                                }
+                                .padding(14)
+                                .background(FableTheme.surface.opacity(0.4))
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(FableTheme.lightBorder, lineWidth: 1)
+                                )
+                            }
+
+                            // Policy Disclaimer
+                            HStack(alignment: .top, spacing: 10) {
+                                Image(systemName: "checkmark.shield")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(FableTheme.brandPrimary)
+                                    .padding(.top, 2)
+
+                                Text("By creating an account, you agree to our Terms of Service and Privacy Policy.")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(FableTheme.textMuted)
+                                    .lineSpacing(2)
+                            }
+                            .padding(12)
+                            .background(FableTheme.surface.opacity(0.3))
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+
+                            // Submit Button
+                            Button(action: {
+                                validateAndSubmit()
+                            }) {
+                                HStack(spacing: 8) {
+                                    if authVM.isLoading {
+                                        ProgressView()
+                                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                    } else {
+                                        Text("Create Account")
+                                            .font(.system(size: 16, weight: .semibold))
+                                        Image(systemName: "arrow.right")
+                                            .font(.system(size: 13, weight: .bold))
+                                    }
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 15)
+                                .background(isSubmitDisabled ? FableTheme.brandPrimary.opacity(0.5) : FableTheme.brandPrimary)
+                                .foregroundColor(.white)
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                                .shadow(color: FableTheme.brandPrimary.opacity(0.25), radius: 8, y: 3)
+                            }
+                            .disabled(isSubmitDisabled || authVM.isLoading)
+                        }
+                        .padding(18)
+                        .fableCard()
+
+                        // Navigation switch to Sign In
+                        if let onNavigateToLogin {
+                            Button(action: onNavigateToLogin) {
+                                HStack(spacing: 4) {
+                                    Text("Already have an account?")
+                                        .foregroundColor(FableTheme.textSecondary)
+                                    Text("Sign In")
+                                        .fontWeight(.bold)
+                                        .foregroundColor(FableTheme.brandPrimary)
+                                }
                                 .font(.system(size: 14))
-                                .foregroundColor(FableTheme.brandPrimary)
-                                .padding(.top, 2)
-
-                            Text("By creating an account, you agree to our Terms of Service and Privacy Policy.")
-                                .font(.system(size: 11))
-                                .foregroundColor(FableTheme.textMuted)
-                                .lineSpacing(2)
-                        }
-                        .padding(12)
-                        .background(FableTheme.surface.opacity(0.5))
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-
-                        // Submit Button
-                        Button(action: {
-                            Task {
-                                let success = await auth.signUp(name: name, handle: handle, email: email, password: password)
-                                if success {
-                                    dismiss()
-                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.top, 4)
                             }
-                        }) {
-                            HStack(spacing: 8) {
-                                if auth.isLoading {
-                                    ProgressView()
-                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                } else {
-                                    Text("Create Account")
-                                        .font(.system(size: 16, weight: .semibold))
-                                    Image(systemName: "arrow.right")
-                                        .font(.system(size: 13, weight: .bold))
-                                }
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(FableTheme.brandPrimary)
-                            .foregroundColor(.white)
-                            .clipShape(RoundedRectangle(cornerRadius: 14))
-                            .shadow(color: FableTheme.brandPrimary.opacity(0.25), radius: 8, y: 3)
                         }
-                        .disabled(auth.isLoading)
                     }
-                    .padding(.horizontal, 24)
+                    .padding(.horizontal, 20)
                     .padding(.bottom, 24)
                 }
             }
@@ -225,6 +268,46 @@ public struct SignUpView: View {
                             .clipShape(Circle())
                     }
                 }
+            }
+        }
+    }
+
+    private var isSubmitDisabled: Bool {
+        name.trimmingCharacters(in: .whitespaces).isEmpty ||
+        email.trimmingCharacters(in: .whitespaces).isEmpty ||
+        password.isEmpty ||
+        confirmPassword.isEmpty
+    }
+
+    private func validateAndSubmit() {
+        validationError = nil
+
+        let trimmedName = name.trimmingCharacters(in: .whitespaces)
+        guard !trimmedName.isEmpty else {
+            validationError = "Please enter your name."
+            return
+        }
+
+        let trimmedEmail = email.trimmingCharacters(in: .whitespaces)
+        guard trimmedEmail.contains("@") && trimmedEmail.contains(".") else {
+            validationError = "Please enter a valid email address."
+            return
+        }
+
+        guard password.count >= 6 else {
+            validationError = "Password must be at least 6 characters."
+            return
+        }
+
+        guard password == confirmPassword else {
+            validationError = "Passwords do not match."
+            return
+        }
+
+        Task {
+            let success = await authVM.register(name: trimmedName, handle: handle, email: trimmedEmail, password: password)
+            if success {
+                dismiss()
             }
         }
     }

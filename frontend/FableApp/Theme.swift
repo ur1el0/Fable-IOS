@@ -49,8 +49,33 @@ public struct FableTagStyle: ViewModifier {
     }
 }
 
+public struct FableCardStyle: ViewModifier {
+    var backgroundColor: Color = FableTheme.cardBackground
+    var cornerRadius: CGFloat = 16
+    var borderColor: Color = FableTheme.lightBorder.opacity(0.8)
+
+    public func body(content: Content) -> some View {
+        content
+            .background(backgroundColor)
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .stroke(borderColor, lineWidth: 1)
+            )
+            .shadow(color: Color.black.opacity(0.04), radius: 8, x: 0, y: 3)
+    }
+}
+
 public extension View {
     func fableTag(isSelected: Bool = false) -> some View {
         self.modifier(FableTagStyle(isSelected: isSelected))
+    }
+
+    func fableCard(
+        backgroundColor: Color = FableTheme.cardBackground,
+        cornerRadius: CGFloat = 16,
+        borderColor: Color = FableTheme.lightBorder.opacity(0.8)
+    ) -> some View {
+        self.modifier(FableCardStyle(backgroundColor: backgroundColor, cornerRadius: cornerRadius, borderColor: borderColor))
     }
 }
