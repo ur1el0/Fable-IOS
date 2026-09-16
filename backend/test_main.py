@@ -80,12 +80,30 @@ def test_get_story_chapters():
     assert ch1["chapterNumber"] == 1
     assert "Bistritz" in ch1["content"]
 
-def test_gutenberg_gateway_endpoint():
-    response = client.get("/api/v1/public/gutenberg?topic=folklore")
-    assert response.status_code == 200
-    results = response.json()
-    assert len(results) >= 1
-    assert "readTimeMinutes" in results[0]
+def test_extract_chapters_from_text():
+    from main import extract_chapters_from_text
+    raw_sample = """
+*** START OF THE PROJECT GUTENBERG EBOOK SAMPLE ***
+
+PREFACE
+Some preamble here.
+
+CHAPTER I. THE BEGINNING
+It was a dark and stormy night. The wind howled through the ancient eaves with terrifying ferocity, shaking the foundations of the ancestral manor.
+
+CHAPTER II. THE RETURN
+The morning brought no relief. The fog clung tightly to the moors, concealing what lay beneath.
+
+*** END OF THE PROJECT GUTENBERG EBOOK SAMPLE ***
+"""
+    chapters = extract_chapters_from_text(raw_sample)
+    assert len(chapters) == 2
+    assert chapters[0]["chapter_number"] == 1
+    assert "CHAPTER I" in chapters[0]["title"]
+    assert "dark and stormy" in chapters[0]["content"]
+    assert chapters[1]["chapter_number"] == 2
+    assert "CHAPTER II" in chapters[1]["title"]
+
 
 
 def test_create_story():

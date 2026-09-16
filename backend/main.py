@@ -63,8 +63,8 @@ def extract_chapters_from_text(raw_text: str) -> list[dict]:
         for i in range(1, len(splits), 2):
             ch_title = splits[i].strip()
             ch_body = splits[i+1].strip() if i+1 < len(splits) else ""
-            # Filter out table of contents listings
-            if len(ch_body) > 300 and not ch_body.count("CHAPTER ") > 3:
+            # Filter out table of contents listings (which contain rapid chapter repetitions or are empty)
+            if len(ch_body.strip()) >= 50 and ch_body.count("CHAPTER ") < 3 and ch_body.count("Chapter ") < 3:
                 words = len(ch_body.split())
                 extracted.append({
                     "chapter_number": chapter_idx,
@@ -83,7 +83,7 @@ def extract_chapters_from_text(raw_text: str) -> list[dict]:
             for i in range(1, len(roman_splits), 2):
                 ch_title = f"Chapter {roman_splits[i].strip()}"
                 ch_body = roman_splits[i+1].strip() if i+1 < len(roman_splits) else ""
-                if len(ch_body) > 200:
+                if len(ch_body.strip()) >= 50:
                     words = len(ch_body.split())
                     extracted.append({
                         "chapter_number": chapter_idx,
