@@ -32,13 +32,12 @@ def test_get_stories_includes_full_editorial_catalog():
     stories = response.json()
     assert len(stories) >= 10
     titles = [s["title"] for s in stories]
-    assert "The Clockmaker of Prague" in titles
-    assert "The Balete Tree of Baler" in titles
-    assert "The Midnight Jeepney" in titles
-    assert "Tears of the Diwata" in titles
     assert "Dracula" in titles
     assert "The Legend of Sleepy Hollow" in titles
     assert "The Metamorphosis" in titles
+    assert "The Tell-Tale Heart" in titles
+    assert "Frankenstein" in titles
+    assert "The Odyssey" in titles
 
 def test_story_dto_camelcase_serialization_contract():
     response = client.get("/api/v1/stories")
@@ -50,6 +49,36 @@ def test_story_dto_camelcase_serialization_contract():
     assert "isCompleted" in first
     assert "createdAtUtc" in first
     assert "updatedAtUtc" in first
+    assert "totalChapters" in first
+
+def test_get_story_chapters():
+    response = client.get("/api/v1/stories")
+    assert response.status_code == 200
+    stories = response.json()
+    dracula = next(s for s in stories if s["title"] == "Dracula")
+    story_id = dracula["id"]
+
+    # Test single story with chapters
+    detail_res = client.get(f"/api/v1/stories/{story_id}")
+    assert detail_res.status_code == 200
+    detail = detail_res.json()
+    assert "chapters" in detail
+    assert len(detail["chapters"]) >= 3
+    assert detail["chapters"][0]["chapterNumber"] == 1
+    assert "CHAPTER I" in detail["chapters"][0]["title"]
+
+    # Test chapters endpoint
+    ch_res = client.get(f"/api/v1/stories/{story_id}/chapters")
+    assert ch_res.status_code == 200
+    chapters = ch_res.json()
+    assert len(chapters) >= 3
+
+    # Test chapter 1 endpoint
+    ch1_res = client.get(f"/api/v1/stories/{story_id}/chapters/1")
+    assert ch1_res.status_code == 200
+    ch1 = ch1_res.json()
+    assert ch1["chapterNumber"] == 1
+    assert "Bistritz" in ch1["content"]
 
 def test_gutenberg_gateway_endpoint():
     response = client.get("/api/v1/public/gutenberg?topic=folklore")
