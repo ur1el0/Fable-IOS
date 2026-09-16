@@ -224,6 +224,8 @@ $ curl -s http://127.0.0.1:8000/api/v1/stories | head -n 25
 | `a0f1a6f` | `feat(backend): refine chapter extraction parser and add chapter extraction unit test` | `backend/main.py`, `backend/test_main.py` |
 | `b4148f4` | `feat(backend): implement live genres, top authors, and update feed endpoints` | `backend/main.py`, `backend/test_main.py` |
 | `964b95b` | `feat(network): implement client chapter, genre, author, and feed API methods` | `frontend/FableApp/Models.swift`, `frontend/FableApp/Services/StoryAPIService.swift`, `backend/schemas.py`, `backend/core/`, `backend/models/`, `backend/schemas/`, `backend/services/` |
+| `06228ee` | `chore(git): ignore local reference directory` | `.gitignore` |
+| `2f3a57a` | `refactor(backend): modularize core, api, models, schemas, and services` | `backend/main.py`, `backend/core/__init__.py`, `backend/test_main.py`, `backend/api/` |
 
 
 
