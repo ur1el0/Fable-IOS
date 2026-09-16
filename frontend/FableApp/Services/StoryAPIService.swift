@@ -75,6 +75,10 @@ public protocol StoryAPIServiceProtocol: Sendable {
     func syncShelf(deviceId: UUID, items: [ShelfSyncItem]) async throws -> [ShelfSyncItem]
     func toggleBookmark(storyId: UUID) async throws -> Bool
     func fetchGutenbergStories(topic: String?, search: String?) async throws -> [Story]
+    func fetchChapters(for storyId: UUID) async throws -> [Chapter]
+    func fetchGenres() async throws -> [GenreCategory]
+    func fetchTopAuthors() async throws -> [Writer]
+    func fetchUpdateFeed() async throws -> UpdateFeed
 }
 
 public extension StoryAPIServiceProtocol {
@@ -198,4 +202,49 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
         decoder.dateDecodingStrategy = .iso8601
         return try decoder.decode([Story].self, from: data)
     }
+
+    public func fetchChapters(for storyId: UUID) async throws -> [Chapter] {
+        let url = baseURL.appendingPathComponent("stories").appendingPathComponent(storyId.uuidString).appendingPathComponent("chapters")
+        let (data, response) = try await session.data(from: url)
+        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try decoder.decode([Chapter].self, from: data)
+    }
+
+    public func fetchGenres() async throws -> [GenreCategory] {
+        let url = baseURL.appendingPathComponent("genres")
+        let (data, response) = try await session.data(from: url)
+        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try decoder.decode([GenreCategory].self, from: data)
+    }
+
+    public func fetchTopAuthors() async throws -> [Writer] {
+        let url = baseURL.appendingPathComponent("authors").appendingPathComponent("top")
+        let (data, response) = try await session.data(from: url)
+        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try decoder.decode([Writer].self, from: data)
+    }
+
+    public func fetchUpdateFeed() async throws -> UpdateFeed {
+        let url = baseURL.appendingPathComponent("updates")
+        let (data, response) = try await session.data(from: url)
+        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try decoder.decode(UpdateFeed.self, from: data)
+    }
 }
+

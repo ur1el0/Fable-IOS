@@ -110,6 +110,60 @@ public enum Genre: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+public struct Chapter: Identifiable, Hashable, Codable {
+    public let id: UUID
+    public let storyId: UUID
+    public let chapterNumber: Int
+    public var title: String
+    public var content: String
+    public var wordCount: Int
+    public let createdAtUtc: Date
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case storyId
+        case chapterNumber
+        case title
+        case content
+        case wordCount
+        case createdAtUtc
+    }
+
+    public init(
+        id: UUID = UUID(),
+        storyId: UUID,
+        chapterNumber: Int,
+        title: String,
+        content: String,
+        wordCount: Int = 0,
+        createdAtUtc: Date = Date()
+    ) {
+        self.id = id
+        self.storyId = storyId
+        self.chapterNumber = chapterNumber
+        self.title = title
+        self.content = content
+        self.wordCount = wordCount == 0 ? content.components(separatedBy: .whitespacesAndNewlines).filter({ !$0.isEmpty }).count : wordCount
+        self.createdAtUtc = createdAtUtc
+    }
+}
+
+public struct UpdateFeed: Codable {
+    public let taleOfTheDay: Story?
+    public let curatorSpotlight: Story?
+    public let recentSubmissions: [Story]
+    public let totalStories: Int
+    public let timestampUtc: Date
+
+    enum CodingKeys: String, CodingKey {
+        case taleOfTheDay
+        case curatorSpotlight
+        case recentSubmissions
+        case totalStories
+        case timestampUtc
+    }
+}
+
 public struct Story: Identifiable, Hashable, Codable {
     public let id: UUID
     public var title: String
@@ -125,6 +179,7 @@ public struct Story: Identifiable, Hashable, Codable {
     // Prototype presentation fields
     public var coverImageName: String?
     public var heroImageName: String?
+    public var coverImageUrl: String?
     public var totalPages: Int
     public var currentPage: Int
     public var progressPercent: Int
@@ -135,6 +190,8 @@ public struct Story: Identifiable, Hashable, Codable {
     public var isRecentSubmission: Bool
     public var isCuratorSpotlight: Bool
     public var badgeText: String?
+    public var totalChapters: Int
+    public var chapters: [Chapter]?
 
     // Convenience accessors
     public var excerpt: String {
@@ -164,8 +221,8 @@ public struct Story: Identifiable, Hashable, Codable {
 
     enum CodingKeys: String, CodingKey {
         case id, title, author, genre, synopsis, content, readTimeMinutes, isBookmarked, isCompleted, createdAtUtc
-        case coverImageName, heroImageName, totalPages, currentPage, progressPercent, rating, savesCount, readsCount
-        case isTaleOfTheDay, isRecentSubmission, isCuratorSpotlight, badgeText
+        case coverImageName, heroImageName, coverImageUrl, totalPages, currentPage, progressPercent, rating, savesCount, readsCount
+        case isTaleOfTheDay, isRecentSubmission, isCuratorSpotlight, badgeText, totalChapters, chapters
     }
 
     public init(from decoder: Decoder) throws {
@@ -183,6 +240,7 @@ public struct Story: Identifiable, Hashable, Codable {
 
         self.coverImageName = try container.decodeIfPresent(String.self, forKey: .coverImageName)
         self.heroImageName = try container.decodeIfPresent(String.self, forKey: .heroImageName)
+        self.coverImageUrl = try container.decodeIfPresent(String.self, forKey: .coverImageUrl)
         self.totalPages = try container.decodeIfPresent(Int.self, forKey: .totalPages) ?? 5
         self.currentPage = try container.decodeIfPresent(Int.self, forKey: .currentPage) ?? 1
         self.progressPercent = try container.decodeIfPresent(Int.self, forKey: .progressPercent) ?? 0
@@ -193,6 +251,8 @@ public struct Story: Identifiable, Hashable, Codable {
         self.isRecentSubmission = try container.decodeIfPresent(Bool.self, forKey: .isRecentSubmission) ?? false
         self.isCuratorSpotlight = try container.decodeIfPresent(Bool.self, forKey: .isCuratorSpotlight) ?? false
         self.badgeText = try container.decodeIfPresent(String.self, forKey: .badgeText)
+        self.totalChapters = try container.decodeIfPresent(Int.self, forKey: .totalChapters) ?? 1
+        self.chapters = try container.decodeIfPresent([Chapter].self, forKey: .chapters)
     }
 
     // Architecture Contract Initializer (ARCHITECTURE.md Section 3.1 & 7.2)
@@ -230,6 +290,9 @@ public struct Story: Identifiable, Hashable, Codable {
         self.badgeText = nil
         self.coverImageName = nil
         self.heroImageName = nil
+        self.coverImageUrl = nil
+        self.totalChapters = 1
+        self.chapters = nil
     }
 
     // Full Prototype Initializer
@@ -275,6 +338,7 @@ public struct Story: Identifiable, Hashable, Codable {
         self.createdAtUtc = Date()
         self.coverImageName = coverImageName
         self.heroImageName = heroImageName
+        self.coverImageUrl = nil
         self.totalPages = totalPages
         self.currentPage = currentPage
         self.progressPercent = progressPercent
@@ -285,6 +349,8 @@ public struct Story: Identifiable, Hashable, Codable {
         self.isRecentSubmission = isRecentSubmission
         self.isCuratorSpotlight = isCuratorSpotlight
         self.badgeText = badgeText
+        self.totalChapters = 1
+        self.chapters = nil
     }
 }
 
