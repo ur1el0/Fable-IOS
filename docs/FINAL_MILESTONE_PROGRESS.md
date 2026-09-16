@@ -215,6 +215,8 @@ $ curl -s http://127.0.0.1:8000/api/v1/stories | head -n 25
 | `577d08b` | `feat(network): enable local networking ATS exceptions in project build configuration` | `project.pbxproj` |
 | `cded8c0` | `feat(ui): implement procedural editorial book covers, genre banners, and author monograms in FableImageView` | `FableImageView.swift` |
 | `b3b01ee` | `feat(views): enable pull-to-refresh cloud synchronization on shelf and explore feeds` | `ShelfView.swift`, `ExploreView.swift` |
+| `190824d` | `fix(auth): simplify and generalize copy on welcome landing view` | `frontend/FableApp/Views/WelcomeView.swift` |
+| `719ff6c` | `fix(auth): generalize input labels, placeholders, and copy in sign-in and sign-up views` | `frontend/FableApp/Views/SignInView.swift`, `frontend/FableApp/Views/SignUpView.swift` |
 
 ---
 
