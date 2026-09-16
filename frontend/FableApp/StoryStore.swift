@@ -34,6 +34,11 @@ public final class StoryStore: ObservableObject {
         didSet { UserDefaults.standard.set(isPaginatedMode, forKey: "fable_pref_reader_paginated") }
     }
     
+    // Cloud Synchronization Pipeline (Plan 05)
+    @Published var isCloudSyncActive: Bool = false
+    @Published var isBackendReachable: Bool = false
+    private let apiService: StoryAPIServiceProtocol = StoryAPIService()
+    
     // Marginalia & Quotes (Plan 02)
     @Published var activeStoryAnnotations: [Annotation] = []
     @Published var pinnedQuotes: [Annotation] = []
@@ -99,6 +104,9 @@ One morning, when Gregor Samsa woke from troubled dreams, he found himself trans
         loadReaderPreferences()
         setupInitialStories()
         syncWithPersistence()
+        Task { [weak self] in
+            await self?.syncWithCloudBackend()
+        }
     }
     
     private func loadReaderPreferences() {
@@ -346,6 +354,20 @@ One morning, when Gregor Samsa woke from troubled dreams, he found himself trans
         
         // Persist to SwiftData SQLite
         PersistenceService.shared.saveStory(newStory)
+        
+        // Asynchronously sync newly published manuscript with cloud backend
+        Task { [weak self] in
+            guard let self = self else { return }
+            let req = CreateStoryRequest(
+                title: newStory.title,
+                author: newStory.author,
+                genre: newStory.genre.rawValue,
+                synopsis: newStory.synopsis,
+                content: newStory.content,
+                readTimeMinutes: newStory.readTimeMinutes
+            )
+            _ = try? await self.apiService.createStory(req)
+        }
     }
     
     private func syncWithPersistence() {
@@ -414,6 +436,64 @@ One morning, when Gregor Samsa woke from troubled dreams, he found himself trans
         }
     }
     
+    // MARK: - Cloud Synchronization Pipeline (Plan 05)
+    func syncWithCloudBackend() async {
+        isCloudSyncActive = true
+        defer { isCloudSyncActive = false }
+        
+        do {
+            // 1. Fetch remote stories
+            let remoteStories = try await apiService.fetchStories(genre: nil, search: nil)
+            self.isBackendReachable = true
+            
+            // Reconcile into local store and SQLite
+            for remote in remoteStories {
+                if let idx = stories.firstIndex(where: { $0.id == remote.id }) {
+                    stories[idx].isBookmarked = stories[idx].isBookmarked || remote.isBookmarked
+                } else {
+                    stories.append(remote)
+                    PersistenceService.shared.saveStory(remote)
+                }
+            }
+            
+            // 2. Bidirectional shelf sync using Last-Write-Wins
+            let shelfItems = stories.map { story in
+                ShelfSyncItem(
+                    storyId: story.id,
+                    readingProgress: Double(story.progressPercent) / 100.0,
+                    isBookmarked: story.isBookmarked,
+                    isCompleted: story.isCompleted,
+                    updatedAtUtc: story.createdAtUtc
+                )
+            }
+            let reconciled = try await apiService.syncShelf(deviceId: UUID(), items: shelfItems)
+            for item in reconciled {
+                if let idx = stories.firstIndex(where: { $0.id == item.storyId }) {
+                    stories[idx].isBookmarked = item.isBookmarked
+                    stories[idx].isCompleted = item.isCompleted
+                    stories[idx].progressPercent = Int(item.readingProgress * 100.0)
+                }
+            }
+        } catch {
+            // Offline-First Invariant: Operates seamlessly on local SwiftData/SQLite
+            self.isBackendReachable = false
+        }
+    }
+    
+    func fetchGutenbergPublicStories(topic: String? = nil, search: String? = nil) async {
+        do {
+            let fetched = try await apiService.fetchGutenbergStories(topic: topic, search: search)
+            for book in fetched {
+                if !stories.contains(where: { $0.id == book.id }) {
+                    stories.append(book)
+                    PersistenceService.shared.saveStory(book)
+                }
+            }
+        } catch {
+            // Graceful fallback to offline local stories
+        }
+    }
+    
     // MARK: - Actions
     func toggleBookmark(for story: Story) {
         if let idx = stories.firstIndex(where: { $0.id == story.id }) {
@@ -423,6 +503,11 @@ One morning, when Gregor Samsa woke from troubled dreams, he found himself trans
             profileStories[idx].isBookmarked.toggle()
         }
         _ = PersistenceService.shared.toggleBookmark(storyId: story.id)
+        
+        Task { [weak self] in
+            guard let self = self else { return }
+            _ = try? await self.apiService.toggleBookmark(storyId: story.id)
+        }
     }
     
     func updateProgress(for storyId: UUID, page: Int, totalPages: Int) {
@@ -442,6 +527,19 @@ One morning, when Gregor Samsa woke from troubled dreams, he found himself trans
                 totalPages: totalPages
             )
             reloadReadingStats()
+            
+            let currentBookmarked = stories[idx].isBookmarked
+            Task { [weak self] in
+                guard let self = self else { return }
+                let item = ShelfSyncItem(
+                    storyId: storyId,
+                    readingProgress: Double(pct) / 100.0,
+                    isBookmarked: currentBookmarked,
+                    isCompleted: pct >= 100,
+                    updatedAtUtc: Date()
+                )
+                _ = try? await self.apiService.syncShelf(deviceId: UUID(), items: [item])
+            }
         }
     }
     

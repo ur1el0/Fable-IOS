@@ -74,11 +74,16 @@ public protocol StoryAPIServiceProtocol: Sendable {
     func createStory(_ request: CreateStoryRequest) async throws -> Story
     func syncShelf(deviceId: UUID, items: [ShelfSyncItem]) async throws -> [ShelfSyncItem]
     func toggleBookmark(storyId: UUID) async throws -> Bool
+    func fetchGutenbergStories(topic: String?, search: String?) async throws -> [Story]
 }
 
 public extension StoryAPIServiceProtocol {
     func fetchStories(genre: String? = nil, search: String? = nil) async throws -> [Story] {
         try await fetchStories(genre: genre, search: search, since: nil)
+    }
+    
+    func fetchGutenbergStories(topic: String? = nil, search: String? = nil) async throws -> [Story] {
+        try await fetchGutenbergStories(topic: topic, search: search)
     }
 }
 
@@ -174,5 +179,23 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
         let item = ShelfSyncItem(storyId: storyId, readingProgress: 0.0, isBookmarked: true, isCompleted: false, updatedAtUtc: Date())
         let reconciled = try await syncShelf(deviceId: UUID(), items: [item])
         return reconciled.first?.isBookmarked ?? true
+    }
+
+    public func fetchGutenbergStories(topic: String? = nil, search: String? = nil) async throws -> [Story] {
+        var components = URLComponents(url: baseURL.appendingPathComponent("public").appendingPathComponent("gutenberg"), resolvingAgainstBaseURL: true)!
+        var queryItems: [URLQueryItem] = []
+        if let topic, topic != "All" { queryItems.append(URLQueryItem(name: "topic", value: topic)) }
+        if let search, !search.isEmpty { queryItems.append(URLQueryItem(name: "search", value: search)) }
+        if !queryItems.isEmpty { components.queryItems = queryItems }
+
+        guard let targetURL = components.url else { throw URLError(.badURL) }
+        let (data, response) = try await session.data(from: targetURL)
+        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try decoder.decode([Story].self, from: data)
     }
 }
