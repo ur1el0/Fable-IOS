@@ -219,6 +219,8 @@ $ curl -s http://127.0.0.1:8000/api/v1/stories | head -n 25
 | `719ff6c` | `fix(auth): generalize input labels, placeholders, and copy in sign-in and sign-up views` | `frontend/FableApp/Views/SignInView.swift`, `frontend/FableApp/Views/SignUpView.swift` |
 | `6c4073f` | `docs: document reference architecture patterns and system design guidelines` | `docs/REFERENCE_PATTERNS.md` |
 | `afb6964` | `feat(security): implement native iOS KeychainStore using Apple Security framework` | `frontend/FableApp/Core/KeychainStore.swift` |
+| `111d64f` | `feat(auth): integrate AuthViewModel state machine, card UI, and root router` | `frontend/FableApp/ViewModels/AuthViewModel.swift`, `frontend/FableApp/Controllers/AuthManager.swift`, `frontend/FableApp/Theme.swift`, `frontend/FableApp/Views/SignInView.swift`, `frontend/FableApp/Views/SignUpView.swift`, `frontend/FableApp/Views/WelcomeView.swift`, `frontend/FableApp/ContentView.swift` |
+| `51aeba2` | `feat(backend): implement multi-chapter serialization and catalog expansion` | `backend/main.py`, `backend/schemas.py`, `backend/test_main.py` |
 
 ---
 
