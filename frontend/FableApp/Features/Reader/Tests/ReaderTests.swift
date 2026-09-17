@@ -1,5 +1,6 @@
 import Foundation
 
+@MainActor
 public struct ReaderTests {
     public static func runAllTests() -> (passed: Int, total: Int, failures: [String]) {
         var passed = 0

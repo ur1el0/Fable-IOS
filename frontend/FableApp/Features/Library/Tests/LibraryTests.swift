@@ -32,7 +32,7 @@ public struct LibraryTests {
 
         // Test 3: Reading progress mutation
         if let first = store.stories.first {
-            store.updateProgress(for: first, progressPercent: 75, currentPage: 3, totalPages: 4)
+            store.updateProgress(for: first.id, page: 3, totalPages: 4)
             let updated = store.stories.first(where: { $0.id == first.id })
             assert(updated?.progressPercent == 75 && updated?.currentPage == 3, "Update Reading Progress")
         }
