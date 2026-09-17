@@ -89,7 +89,7 @@ One morning, when Gregor Samsa woke from troubled dreams, he found himself trans
         Writer(name: "R.F. Kuang", avatarImageName: "author_kuang", storyCount: 14, rating: 4.9),
         Writer(name: "Rebecca Yarros", avatarImageName: "author_yarros", storyCount: 9, rating: 4.8),
         Writer(name: "T.J. Klune", avatarImageName: "author_klune", storyCount: 16, rating: 4.9),
-        Writer(name: "Silvia Moreno", avatarImageName: "author_kuang", storyCount: 14, rating: 4.8)
+        Writer(name: "Silvia Moreno", avatarImageName: "author_moreno", storyCount: 14, rating: 4.8)
     ]
     
     // User Profile Stories
