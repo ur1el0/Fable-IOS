@@ -58,3 +58,6 @@ __pycache__/
 # Context Reference (Local Only)
 context/
 
+# Temporary Office Lock Files
+~$*
+
