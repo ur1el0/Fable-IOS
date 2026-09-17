@@ -53,3 +53,11 @@ __pycache__/
 *.py[cod]
 *.so
 .pytest_cache/
+
+
+# Context Reference (Local Only)
+context/
+
+# Temporary Office Lock Files
+~$*
+

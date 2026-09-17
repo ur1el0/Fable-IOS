@@ -39,6 +39,17 @@ public final class PacingEngine: ObservableObject {
         self.pacingVelocityWPM = (alpha * instantaneousWPM) + ((1.0 - alpha) * pacingVelocityWPM)
     }
     
+    public var currentWPM: Double {
+        pacingVelocityWPM
+    }
+    
+    public func recordReadingPace(wordsRead: Int, elapsedSeconds: Double) {
+        guard elapsedSeconds > 0 else { return }
+        let instantaneousWPM = Double(wordsRead) / (elapsedSeconds / 60.0)
+        let clampedWPM = min(600.0, max(100.0, instantaneousWPM))
+        self.pacingVelocityWPM = (alpha * clampedWPM) + ((1.0 - alpha) * pacingVelocityWPM)
+    }
+    
     public func estimatedMinutesRemaining(remainingWords: Int) -> Int {
         guard remainingWords > 0 else { return 1 }
         let minutes = Double(remainingWords) / max(80.0, pacingVelocityWPM)
