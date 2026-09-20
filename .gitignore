@@ -54,3 +54,9 @@ venv/
 
 .agents/
 reference/
+
+# Context Reference (Local Only)
+context/
+
+# Temporary Office Lock Files
+~$*

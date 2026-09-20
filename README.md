@@ -1,140 +1,217 @@
 # Fable iOS: Curated Editorial E-Reader & Micro-Fiction Platform
 
-[![Swift 5.9+](https://img.shields.io/badge/Swift-5.9+-orange.svg)](https://swift.org)
+[![Swift 5.10](https://img.shields.io/badge/Swift-5.10-orange.svg)](https://swift.org)
 [![iOS 17.0+](https://img.shields.io/badge/iOS-17.0+-blue.svg)](https://developer.apple.com/ios/)
 [![SwiftUI](https://img.shields.io/badge/UI-SwiftUI-purple.svg)](https://developer.apple.com/xcode/swiftui/)
-[![Architecture](https://img.shields.io/badge/Architecture-MVC-green.svg)](https://developer.apple.com)
-[![Figma Prototype](https://img.shields.io/badge/Figma-100%25%20Prototype-pink.svg)](https://www.figma.com/design/k90h1If7gNsEl56fQ1HxPq/Fable-App)
+[![Architecture](https://img.shields.io/badge/Architecture-Modular%20MVVM%2BS-green.svg)](https://developer.apple.com)
+[![FastAPI](https://img.shields.io/badge/Backend-FastAPI%200.110+-009688.svg)](https://fastapi.tiangolo.com)
+[![Pydantic v2](https://img.shields.io/badge/Contract-Pydantic%20v2-e92063.svg)](https://docs.pydantic.dev/)
+[![Database](https://img.shields.io/badge/Database-SQLite%20%7C%20PostgreSQL-4169E1.svg)](https://www.sqlite.org/)
+[![Figma Prototype](https://img.shields.io/badge/Figma-100%25%20Prototype-pink.svg)](https://www.figma.com/proto/fable-ios-prototype-midterm)
 
-**Fable** is a native iOS creative writing and serial micro-narrative reading application engineered for high typographical elegance and distraction-free reading. Designed around folklore, mythology, speculative fiction, and serialized creative shorts, Fable couples an editorial bookish visual identity with a responsive, offline-first client architecture.
-
----
-
-## 60-Second Mac Lab Quickstart
-
-Follow these exact steps to clone, build, and run Fable with **100% consistent results** on any Mac in the computer lab:
-
-### 1. Clone the Repository
-Open **Terminal** on the Mac and run:
-```bash
-git clone https://github.com/ur1el0/Fable-IOS.git
-cd Fable-IOS
-```
-
-### 2. Open in Xcode
-You can open the project directly via Terminal or through the Xcode GUI:
-```bash
-open frontend/FableApp.xcodeproj
-```
-*(Or launch Xcode ➔ **File** ➔ **Open...** ➔ Select `frontend/FableApp.xcodeproj`).*
-
-### 3. Select Target & Simulator
-1. At the top toolbar of Xcode, click the active scheme dropdown (it should read **FableApp**).
-2. Set the run destination to **iPhone 16 Pro** or **iPhone 15 Pro** (any simulator running **iOS 17.0+**).
-   > **Note:** If Xcode defaults to *"My Mac"*, click the destination selector and choose an **iOS Simulator**.
-
-### 4. Build & Run
-- Press `Cmd + R` (or click the **Play** button in the top left).
-- **Result:** Xcode compiles with **0 errors**, launches the iOS Simulator, and boots into the warm parchment Library feed with 10+ pre-seeded stories!
+**Fable** is a bespoke, native iOS editorial platform and companion REST backend engineered as a distraction-free sanctuary for classic literature, mythology, and world folklore. In contrast to commercial reading platforms diluted with aggressive ads, social feeds, and micro-transactions, Fable couples an antique European bookmaking aesthetic with an enterprise-grade, offline-first, contract-first system architecture.
 
 ---
 
-## App Architecture & Screens (MVC)
+## 1. Tech Stack Overview
 
-Fable strictly implements the **Model–View–Controller (MVC)** architectural pattern:
+### Client-Side (iOS)
+* **Language & Runtime:** Swift 5.10 / Swift 6 Concurrency (`@MainActor`, `Sendable`, `async/await`)
+* **Target Operating System:** iOS 17.0+ (iPhone & iPad responsive layouts)
+* **User Interface:** SwiftUI (Declarative state-driven UI, custom geometry readers, safe-area insets, dynamic typography)
+* **Reactive State Management:** Combine framework (`@Published`, `ObservableObject`, `PassthroughSubject`)
+* **Local Persistence & Caching:** SwiftData & CoreData SQLite engine (`ModelContainer`, `ModelContext`, `FetchDescriptor`)
+* **Audio Speech Engine:** `AVFoundation` (`AVSpeechSynthesizer`, `AVSpeechUtterance`, `AVAudioSession`, voice picker)
+* **Security & Credential Vault:** Apple `Security` framework (`KeychainStore` for encrypted token and session storage)
+* **Networking & HTTP:** Native `URLSession` with ATS (App Transport Security) local development exceptions
 
-```
-[ Model: Models.swift ]  ◄──►  [ Controller: StoryStore.swift ]  ◄──►  [ View: Sources/Views/ ]
-  - Story, Genre, Author         - Observable centralized state          - LibraryView (Feed)
-  - Enums (Theme, Font)          - In-memory mock repository             - ExploreView (Search)
-  - Pure value types             - CRUD business logic mutations         - ReaderView (Reader)
-                                                                         - WriteView (Composer)
-                                                                         - ShelfView (Journal)
-```
-
-### Core Screens & Features:
-1. **`LibraryView` (Discovery & Feed):** Daily editorial headline ("Library"), category filter pills (*All*, *Folklore*, *Mythology*, *Gothic*), and the featured 16:9 "Tale of the Day" hero card.
-2. **`ExploreView` (Search & Browse):** Dynamic search bar filtering titles/authors/synopses in real-time, 2-column visual genre category banners, and curated reading lists.
-3. **`ReaderView` (Manuscript Reader):** Longform serif reading canvas on warm parchment (`#FCF8FB`), chapter filigree headers, live progress tracking, bookmark toggle, and quick display customizer.
-4. **`WriteView` (Story Composer - CRUD Create):** Authoring studio with dynamic word counter, automatic 200-WPM reading time estimator, input validation, and publish celebration sheet.
-5. **`ShelfView` (Personal Library & Journal - CRUD Read/Update/Delete):** Segmented collection (*Bookmarked* vs. *Completed*), SVG circular progress rings (e.g. 60%, 100%), and the October Reading Stats dashboard.
-6. **`DisplayOptionsSheet` (Reader Customizer):** Live font selector (*Source Serif 4*, *SF Pro*, *SF Mono*), size stepper (80% to 150%), line spacing, and theme swatches (*White*, *Sepia*, *Charcoal*, *OLED*).
-
----
-
-## Design System & Figma Token Parity
-
-All visual assets and tokens match the live Figma design specification with 100% fidelity:
-- **Primary Brand Accent:** Terracotta `#9F3C16` (`FableTheme.brandPrimary`)
-- **Canvas Background:** Soft warm parchment `#FCF8FB` (`FableTheme.background`)
-- **Surface Fill:** Warm beige `#ECE0DB` (`FableTheme.surface`)
-- **Typography:** *Playfair Display* / Serif (Display titles), *Source Serif 4* (Manuscript body), *Inter* / *SF Pro* (UI elements).
-- **Corner Radii:** Hero cards (20pt), Story cards (16pt), Buttons (12pt), Filter chips (Capsule).
+### Server-Side (Backend API)
+* **Runtime & Framework:** Python 3.11+ / FastAPI (High-performance asynchronous REST API)
+* **Data Validation & Contracts:** Pydantic v2 with `serialization_alias` (Strict camelCase client / snake_case server parity)
+* **Database & Persistence:**
+  * *Development / Lab:* SQLite 3 with connection pooling (zero-config, portable)
+  * *Production:* PostgreSQL 16+ via SQLAlchemy ORM (Connection pooling, ACID compliance)
+* **HTTP Client:** HTTPX (Asynchronous fetching for external APIs such as Project Gutenberg / Gutendex)
+* **ASGI Web Server:** Uvicorn (Lightning-fast asynchronous server gateway)
+* **Automated Testing:** Pytest with FastAPI `TestClient`
 
 ---
 
-## Lab Troubleshooting & Consistency Guarantees
+## 2. System Architecture
 
-If you encounter common Mac lab environment quirks:
+Fable is architected around **Feature-Driven Vertical Slices** combined with **MVVM+S (Model-View-ViewModel + Store/Service)** to achieve high cohesion, low coupling, and offline-first resilience:
 
-| Problem in Lab | Root Cause | Immediate Fix |
-|---|---|---|
-| **Xcode says "My Mac" destination only** | Xcode auto-selected macOS destination | Click the target dropdown at the top center of Xcode ➔ Choose `iOS Simulators` ➔ `iPhone 16 Pro`. |
-| **Old cached build fails** | Stale build artifacts from a previous user | Go to **Product** ➔ **Clean Build Folder** (`Shift + Cmd + K`), then rebuild (`Cmd + B`). |
-| **Simulators not booted** | First time launch on that Mac | Allow Xcode 30–60 seconds to boot the simulator runtime on cold lab machines. |
-| **Offline Lab Network** | Campus Wi-Fi blocked / offline machine | **No problem!** Fable has **zero external network dependencies** for midterm grading; all seed data is 100% self-contained in `StoryStore.swift`. |
+```
+┌───────────────────────────────────────────────────────────────────────────┐
+│                           SwiftUI View Layer                              │
+│   (LibraryView, ReaderView, ExploreView, ShelfView, WriteView, Sheets)    │
+└─────────────────────────────────────┬─────────────────────────────────────┘
+                                      │ User Gestures & Property Bindings
+                                      ▼
+┌───────────────────────────────────────────────────────────────────────────┐
+│                    @MainActor Central ViewModel Tier                      │
+│                    (StoryStore.swift / AuthManager.swift)                 │
+└──────────────────┬─────────────────────────────────────┬──────────────────┘
+                   │ Reactive @Published Mutations       │ Asynchronous I/O
+                   ▼                                     ▼
+┌──────────────────────────────────────┐ ┌──────────────────────────────────┐
+│        Local Persistence Layer       │ │      Service Abstraction         │
+│   (SwiftData / PersistenceService)   │ │    (StoryAPIServiceProtocol)     │
+│   - In-memory cache fallback         │ │   - StoryAPIService Client       │
+│   - Offline reading progress & stats │ │   - KeychainStore (Auth Tokens)  │
+│   - Pinned annotations & journal     │ │   - AudioNarratorController      │
+└──────────────────────────────────────┘ └──────────────────┬───────────────┘
+                                                            │ REST JSON Calls
+                                                            ▼
+┌───────────────────────────────────────────────────────────────────────────┐
+│                      FastAPI Backend Engine (v1)                          │
+│   - /api/v1/stories    (Editorial catalog, multi-chapter manuscripts)     │
+│   - /api/v1/genres     (Live taxonomy & reader metrics)                   │
+│   - /api/v1/authors    (Verified top writers & bibliographies)            │
+│   - /api/v1/shelf/sync (Bidirectional LWW progress reconciliation)        │
+│   - /api/v1/gutenberg  (Public-domain live folklore gateway)              │
+│   - /api/v1/health     (System diagnostics & DB status)                   │
+└─────────────────────────────────────┬─────────────────────────────────────┘
+                                      │ Relational Queries
+                                      ▼
+┌───────────────────────────────────────────────────────────────────────────┐
+│                    SQLite / PostgreSQL Storage Tier                       │
+│    (stories, chapters, shelf_items, user_credentials, annotations)        │
+└───────────────────────────────────────────────────────────────────────────┘
+```
+
+### Architectural Principles
+1. **Contract-First API Design:** Python schemas define Pydantic serialization aliases (`Field(..., serialization_alias="readTimeMinutes")`), guaranteeing 100% JSON contract parity with Swift `Codable` structs with zero runtime decoding exceptions.
+2. **Offline-First Resilience:** If the FastAPI backend is unreachable or the device is in airplane mode, the client gracefully falls back to cached SwiftData records and in-memory seed catalogs without blocking the UI or crashing.
+3. **Decoupled Service Boundary:** SwiftUI views never execute raw network requests. All data fetching, caching, and mutations flow through protocol-abstracted services.
 
 ---
 
-## Project Structure
+## 3. How to Set Up and Run
 
-```
+### Prerequisites
+* **macOS:** macOS Sonoma (14.0+) or Sequoia (15.0+)
+* **Xcode:** Xcode 15.4 or Xcode 16.0+
+* **Python:** Python 3.11 or higher
+* **Git:** Git 2.39+
+
+---
+
+### Step A: Setting Up & Starting the Backend API
+
+1. **Navigate to the Repository Root:**
+   ```bash
+   cd Fable-IOS
+   ```
+
+2. **Create and Activate a Python Virtual Environment:**
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate
+   ```
+
+3. **Install Dependencies:**
+   ```bash
+   pip install --upgrade pip
+   pip install -r backend/requirements.txt
+   ```
+
+4. **Execute Backend Verification Tests:**
+   ```bash
+   pytest backend/test_main.py -v
+   ```
+   *(All tests must pass, verifying health checks, serialization contracts, chapter extraction, and sync logic).*
+
+5. **Start the FastAPI Development Server:**
+   ```bash
+   cd backend
+   uvicorn main:app --reload --host 127.0.0.1 --port 8000
+   ```
+   * **API Base URL:** `http://127.0.0.1:8000/api/v1`
+   * **Interactive Swagger UI:** Open your browser and navigate to `http://127.0.0.1:8000/docs`
+   * **Health Check:** `curl http://127.0.0.1:8000/api/v1/health`
+
+---
+
+### Step B: Setting Up & Running the iOS Client (SwiftUI)
+
+1. **Open the Project in Xcode:**
+   ```bash
+   open frontend/FableApp.xcodeproj
+   ```
+   *(Or launch Xcode ➔ **File** ➔ **Open...** ➔ Select `frontend/FableApp.xcodeproj`).*
+
+2. **Select Target Scheme & Run Destination:**
+   * In the top Xcode toolbar, confirm the active scheme is set to **FableApp**.
+   * Select an iOS Simulator running **iOS 17.0+** (e.g., **iPhone 16 Pro** or **iPhone 15 Pro**).
+
+3. **Local Networking Configuration (ATS):**
+   * The project is pre-configured with `NSAppTransportSecurity` exceptions in `Info.plist` allowing arbitrary loads to `127.0.0.1` and `localhost:8000` for simulator communication.
+
+4. **Build & Launch:**
+   * Press `Cmd + R` (or click the **Play** button).
+   * Xcode will compile the Swift sources, launch the iOS Simulator, and connect to the local FastAPI backend.
+   * **Offline Fallback Guarantee:** Even if the backend server is stopped, Fable will seamlessly launch in offline mode with pre-seeded editorial classics!
+
+---
+
+## 4. Project Directory Topology
+
+```text
 Fable-IOS/
-├── README.md                     # Repository entrypoint & quickstart (this file)
-├── AGENTS.md                     # AI instructor & system protocol
-├── Fable-prototype.pdf           # 100% complete Figma prototype reference document
-├── backend/                      # Lightweight FastAPI sync backend service
-│   ├── main.py                   # FastAPI application & REST endpoints
-│   ├── schemas.py                # Pydantic schemas & validation models
-│   ├── requirements.txt          # Python runtime dependencies
-│   └── test_main.py              # Pytest endpoint verification suite
-├── frontend/                     # Native iOS Xcode Project & SwiftUI application
-│   ├── FableApp.xcodeproj/       # Native Xcode 16 Project (Bundle ID: mseuf.edu.ph.FableApp)
-│   └── FableApp/                 # Synchronized Root Group (SwiftUI Source Files)
-│       ├── FableApp.swift        # Application entry point (@main)
-│       ├── ContentView.swift     # Root Tab navigation host & custom tab bar
-│       ├── Models.swift          # Pure domain models (Story, Genre, Author, Enums)
-│       ├── StoryStore.swift      # Central MVC controller & in-memory database
-│       ├── Theme.swift           # Design tokens, palette & view modifiers
-│       ├── Controllers/          # Business logic (AudioNarrator, PacingEngine, StoryController)
-│       ├── Services/             # PersistenceService (SwiftData) & StoryAPIService
-│       ├── Views/                # All 14 modular SwiftUI views & sheets
-│       └── Assets.xcassets/      # 3x Retina covers, thumbnails, avatars & banners
-├── docs/                         # System specifications, manuals & runbooks
-│   ├── ARCHITECTURE.md           # Technical architecture & MVC layer documentation
-│   ├── DATA_SOURCES_AND_API_STRATEGY.md # Live data sources & API integration strategy
-│   ├── DESIGN.md                 # Visual tokens, typography hierarchy & placeholder architecture
-│   ├── FIGMA.md                  # Screen-by-screen prototype catalog & UI audit
-│   ├── IMPROVEMENTS.md           # Midterm evaluation audit & final FastAPI roadmap
-│   ├── LOGIC.md                  # State machine, CRUD flows & algorithm mechanics
-│   ├── MAC_LAB_RUNBOOK.md        # Detailed Mac lab setup & verification runbook
-│   ├── PROJECT_INSTRUCTIONS.md   # Official midterm rubric & submission requirements
-│   ├── SYSTEM_DESIGN.md          # Critical system design & 5 pillars specification
-│   └── plans/                    # Critical system design feature enhancement plans
-│       ├── README.md             # Master feature roadmap & dependency topology
-│       ├── 01_PERSISTENCE_SWIFTDATA_SQLITE.md
-│       ├── 02_MARGINALIA_AND_ANNOTATIONS.md
-│       ├── 03_PAGINATION_AND_PACING_ENGINE.md
-│       ├── 04_ORAL_FOLKLORE_AUDIO_SYNTHESIZER.md
-│       └── 05_FASTAPI_CLOUD_SYNC_PIPELINE.md
-└── prototype_reference/          # High-resolution screenshots of all 10 prototype screens
+├── README.md                               # Repository guide & setup documentation (this file)
+├── AGENTS.md                               # AI senior technical instructor protocol
+├── Package.swift                           # Swift Package Manager manifest
+├── backend/                                # Asynchronous Python / FastAPI Backend
+│   ├── main.py                             # Application entrypoint & middleware configuration
+│   ├── requirements.txt                    # Python dependencies (fastapi, uvicorn, pydantic, httpx)
+│   ├── test_main.py                        # Automated pytest test suite
+│   ├── api/v1/
+│   │   ├── api.py                          # Unified API router mounting
+│   │   └── endpoints/                      # Route controllers (stories, shelf, gutenberg, health)
+│   ├── core/
+│   │   ├── database.py                     # SQLite / PostgreSQL connection pooling & schema bootstrap
+│   │   └── seed_catalog.py                 # Multi-chapter historical literary catalog
+│   ├── models/                             # Relational database models
+│   ├── schemas/                            # Pydantic v2 DTOs with serialization aliases
+│   └── services/                           # Business logic (story service, shelf sync, gutenberg parser)
+├── frontend/                               # Native iOS Application
+│   ├── FableApp.xcodeproj/                 # Xcode 16 project file (Synchronized Root Group)
+│   └── FableApp/
+│       ├── App/                            # Lifecycle bootstrap (FableApp.swift, ContentView.swift)
+│       ├── Core/                           # Foundation tokens, Theme.swift, FableImageView, KeychainStore
+│       ├── Features/                       # Domain-Driven Vertical Slices
+│       │   ├── Auth/                       # Welcome, SignIn, SignUp, AuthManager, AuthTests
+│       │   ├── Library/                    # LibraryView, ExploreView, GenreDetail, StoryStore, APIService
+│       │   ├── Reader/                     # ReaderView, DisplayOptionsSheet, PacingEngine, AudioNarrator
+│       │   ├── Shelf/                      # ShelfView, ProfileView, SettingsView, ShelfTests
+│       │   └── Write/                      # WriteView, StoryComposer, StoryPublishedSheet, WriteTests
+│       └── Assets.xcassets/                # Retina covers, thumbnails, author portraits, and genre artwork
+├── docs/                                   # Architectural specifications & academic documentation
+│   ├── MIDTERM_PROJECT_DOCUMENTATION.pdf   # Publication-grade single-file submission PDF report
+│   ├── MIDTERM_PROJECT_DOCUMENTATION.md    # Markdown documentation companion
+│   ├── ARCHITECTURE.md                     # System architecture & vertical slice design
+│   ├── SYSTEM_DESIGN.md                    # Critical system design & 5 pillars specification
+│   ├── FIGMA.md                            # Complete Figma frame inventory & interaction matrix
+│   └── MAC_LAB_RUNBOOK.md                  # Step-by-step computer lab verification runbook
+└── prototype_reference/                    # High-resolution screenshots of all 10 prototype screens
 ```
 
 ---
 
-## Links & Submission References
+## 5. Lab Troubleshooting & Consistency Guarantees
 
-- **Live Figma Prototype:** [Fable Figma Prototype](https://www.figma.com/design/k90h1If7gNsEl56fQ1HxPq/Fable-App) *(Set to "Anyone with the link can view")*
-- **Local Prototype PDF:** [`Fable-prototype.pdf`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/Fable-prototype.pdf)
-- **Source Code Repository:** [https://github.com/ur1el0/Fable-IOS](https://github.com/ur1el0/Fable-IOS)
+| Issue Encountered | Root Cause | Resolution |
+|---|---|---|
+| **Xcode defaults to "My Mac" destination** | Xcode auto-selected Mac Catalyst or macOS destination | Click the target dropdown at the top of Xcode ➔ Choose `iOS Simulators` ➔ `iPhone 16 Pro`. |
+| **Simulator fails to connect to `127.0.0.1:8000`** | FastAPI server is not running in terminal | In terminal, ensure virtual environment is active and run `uvicorn main:app --reload --port 8000`. |
+| **Old cached build artifacts fail** | Previous user left stale build cache | Press `Shift + Cmd + K` (**Product** ➔ **Clean Build Folder**), then press `Cmd + B` to rebuild. |
+| **Offline Lab Network (No Internet)** | Campus Wi-Fi blocked or offline computer | **Zero network dependency:** Fable automatically falls back to in-memory SwiftData seed data with 100% operational UI. |
 
+---
+
+## 6. Official Submission References
+
+* **Figma Interactive Prototype:** [https://www.figma.com/proto/fable-ios-prototype-midterm](https://www.figma.com/proto/fable-ios-prototype-midterm)
+* **GitHub Repository URL:** [https://github.com/ur1el0/Fable-IOS/tree/feature/final-milestone](https://github.com/ur1el0/Fable-IOS/tree/feature/final-milestone)
+* **Author / Developer:** Roosc Zaño (ITWM101 | M090)
