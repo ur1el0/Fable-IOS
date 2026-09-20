@@ -8,7 +8,11 @@ from .schemas import (
     ShelfSyncItemDTO,
     ShelfSyncPayload,
     ShelfSyncResponse,
-    HealthResponse
+    HealthResponse,
+    UserDTO,
+    LoginRequest,
+    RegisterRequest,
+    AuthResponse
 )
 
 __all__ = [
@@ -21,5 +25,9 @@ __all__ = [
     "ShelfSyncItemDTO",
     "ShelfSyncPayload",
     "ShelfSyncResponse",
-    "HealthResponse"
+    "HealthResponse",
+    "UserDTO",
+    "LoginRequest",
+    "RegisterRequest",
+    "AuthResponse"
 ]

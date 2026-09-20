@@ -272,13 +272,22 @@ def test_multi_tenant_device_shelf_isolation():
 def test_package_modularity_imports():
     from core import get_db, init_db, SEED_STORIES
     from models import Story, Chapter, ShelfItem
-    from schemas import StoryDTO, ChapterDTO, ShelfSyncPayload
+    from schemas import (
+        StoryDTO,
+        ChapterDTO,
+        ShelfSyncPayload,
+        UserDTO,
+        RegisterRequest,
+        LoginRequest,
+        AuthResponse
+    )
     from services import (
         story_service,
         shelf_sync,
         extract_chapters_from_text,
         ingest_gutenberg_book,
-        get_gutenberg_stories
+        get_gutenberg_stories,
+        auth_service
     )
     from api.v1.api import api_router
 
@@ -291,12 +300,19 @@ def test_package_modularity_imports():
     assert StoryDTO is not None
     assert ChapterDTO is not None
     assert ShelfSyncPayload is not None
+    assert UserDTO is not None
+    assert RegisterRequest is not None
+    assert LoginRequest is not None
+    assert AuthResponse is not None
     assert callable(story_service.get_stories)
     assert callable(shelf_sync.sync_shelf)
     assert callable(shelf_sync.get_shelf)
     assert callable(extract_chapters_from_text)
     assert callable(ingest_gutenberg_book)
     assert callable(get_gutenberg_stories)
+    assert callable(auth_service.register_user)
+    assert callable(auth_service.login_user)
+    assert callable(auth_service.get_current_user)
     assert api_router is not None
 
 def test_get_gutenberg_public_stories():
@@ -305,4 +321,79 @@ def test_get_gutenberg_public_stories():
     data = response.json()
     assert isinstance(data, list)
     assert len(data) > 0
+
+def test_register_and_login_auth_flow():
+    reg_payload = {
+        "email": "reader.roosc@fable.app",
+        "password": "SecurePassword123!",
+        "name": "Roosc Zaño"
+    }
+    # 1. Register
+    reg_res = client.post("/api/v1/auth/register", json=reg_payload)
+    assert reg_res.status_code == 201
+    reg_data = reg_res.json()
+    assert "accessToken" in reg_data
+    assert reg_data["tokenType"] == "bearer"
+    assert reg_data["user"]["email"] == "reader.roosc@fable.app"
+    assert reg_data["user"]["name"] == "Roosc Zaño"
+    token = reg_data["accessToken"]
+
+    # 2. Get /auth/me with Bearer token
+    me_res = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert me_res.status_code == 200
+    me_data = me_res.json()
+    assert me_data["email"] == "reader.roosc@fable.app"
+    assert me_data["name"] == "Roosc Zaño"
+
+    # 3. Login
+    login_payload = {
+        "email": "reader.roosc@fable.app",
+        "password": "SecurePassword123!"
+    }
+    login_res = client.post("/api/v1/auth/login", json=login_payload)
+    assert login_res.status_code == 200
+    login_data = login_res.json()
+    assert "accessToken" in login_data
+    assert login_data["user"]["email"] == "reader.roosc@fable.app"
+
+def test_register_duplicate_email_conflict():
+    payload = {
+        "email": "duplicate@fable.app",
+        "password": "Password123!",
+        "name": "Original User"
+    }
+    res1 = client.post("/api/v1/auth/register", json=payload)
+    assert res1.status_code == 201
+
+    # Second attempt with same email
+    res2 = client.post("/api/v1/auth/register", json=payload)
+    assert res2.status_code == 409
+    assert "already registered" in res2.json()["detail"].lower()
+
+def test_login_invalid_password():
+    payload = {
+        "email": "invalid_login@fable.app",
+        "password": "CorrectPassword123!",
+        "name": "Test Login"
+    }
+    client.post("/api/v1/auth/register", json=payload)
+
+    # Wrong password
+    bad_login = {
+        "email": "invalid_login@fable.app",
+        "password": "WrongPassword999!"
+    }
+    res = client.post("/api/v1/auth/login", json=bad_login)
+    assert res.status_code == 401
+    assert "Invalid email or password" in res.json()["detail"]
+
+def test_auth_me_unauthorized():
+    # Missing header
+    res1 = client.get("/api/v1/auth/me")
+    assert res1.status_code == 401
+
+    # Invalid token
+    res2 = client.get("/api/v1/auth/me", headers={"Authorization": "Bearer non_existent_token_12345"})
+    assert res2.status_code == 401
+
 

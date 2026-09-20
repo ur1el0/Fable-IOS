@@ -1,7 +1,7 @@
 # Domain 01: Backend Security, Data Isolation & Authentication Contract
 
 **Domain:** Core Data Architecture, Multi-Tenancy & Security  
-**Status:** In Progress  
+**Status:** Completed & Verified  
 **Feature Branch:** `feature/final-milestone`
 
 ---
@@ -23,6 +23,10 @@ In the initial prototype, the SQLite database table `shelf_items` defined `story
 ### 1.3 Contract Parity & Swift JSON Decoding
 - **The Defect:** Swift models use idiomatic `camelCase` (`storyId`, `readingProgress`, `isBookmarked`), while standard Python backend models use `snake_case` (`story_id`, `reading_progress`). Without explicit serialization aliases, the Swift `JSONDecoder` required custom decoding strategies or failed to parse payload keys.
 - **The Architectural Fix:** Configured Pydantic v2 `Field(..., alias="storyId", serialization_alias="storyId")` across all client-facing DTOs in `backend/schemas/schemas.py`, enabling zero-cost deserialization in Swift while preserving Pythonic snake_case internally.
+
+### 1.4 Secure User Authentication & Session Handling
+- **The Requirement:** Provide NIST-compliant PBKDF2 password hashing (SHA-256, 100,000 iterations, 16-byte cryptographically secure salt) and stateless bearer token issuance for reader account creation, profile persistence, and multi-device identity.
+- **The Architectural Fix:** Implemented `backend/services/auth_service.py` with `hash_password`, constant-time `verify_password` using `hmac.compare_digest`, `register_user`, `login_user`, and `get_current_user`. Exposed via `/api/v1/auth` endpoints with proper `try...finally: conn.close()` resource cleanup.
 
 ---
 
@@ -47,13 +51,13 @@ In the initial prototype, the SQLite database table `shelf_items` defined `story
 - **Reconciliation Logic:** Last-Write-Wins (LWW) resolution isolated by `(device_id, story_id)`. If the client timestamp is newer than the stored record for that device, the record updates. If older, the server returns the authoritative server state.
 
 ### 2.2 Shelf Retrieval: `GET /api/v1/shelf`
-- **Parameters:** `device_id: UUID` (query parameter).
+- **Parameters:** `device_id: UUID` (query parameter `deviceId`).
 - **Response:** List of `ShelfSyncItemDTO` belonging exclusively to that `device_id`.
 
 ### 2.3 User Authentication: `/api/v1/auth`
-- **`POST /api/v1/auth/register`**: Registers a new user with PBKDF2-SHA256 salted password hashing.
-- **`POST /api/v1/auth/login`**: Authenticates credentials and issues a secure Bearer token.
-- **`GET /api/v1/auth/me`**: Returns current authenticated user profile (`UserDTO`).
+- **`POST /api/v1/auth/register`**: Registers a new user with PBKDF2-SHA256 salted password hashing. Returns HTTP 201 Created and `AuthResponse` (`accessToken`, `user`).
+- **`POST /api/v1/auth/login`**: Authenticates credentials and issues a secure Bearer token. Returns `AuthResponse`.
+- **`GET /api/v1/auth/me`**: Returns current authenticated user profile (`UserDTO`) based on `Authorization: Bearer <token>`.
 
 ---
 
@@ -61,21 +65,39 @@ In the initial prototype, the SQLite database table `shelf_items` defined `story
 
 | File Path | Action | Description |
 | :--- | :--- | :--- |
-| `backend/core/database.py` | MODIFIED | Added compound PK `(device_id, story_id)` to `shelf_items`, created `users` table with `idx_users_email`. |
-| `backend/schemas/schemas.py` | MODIFIED | Added camelCase serialization aliases to shelf DTOs; defined `UserDTO`, `LoginRequest`, `RegisterRequest`, `AuthResponse`. |
+| `backend/core/database.py` | VERIFIED | Added compound PK `(device_id, story_id)` to `shelf_items`, created `users` table with `idx_users_email`. |
+| `backend/schemas/schemas.py` | VERIFIED | Added camelCase serialization aliases to shelf DTOs; defined `UserDTO`, `LoginRequest`, `RegisterRequest`, `AuthResponse`. |
+| `backend/schemas/__init__.py` | VERIFIED | Exported auth DTOs for modular package access. |
 | `backend/services/shelf_sync.py` | VERIFIED | Enforces `device_id` partitioning across SELECT/INSERT/UPDATE; normalizes ISO timestamps with `to_utc()`; implemented `get_shelf()`. |
 | `backend/api/v1/endpoints/shelf.py` | VERIFIED | Added `GET /shelf` endpoint with query validation against `deviceId`. |
-| `backend/test_main.py` | VERIFIED | Validated Last-Write-Wins and multi-device shelf isolation (13/13 tests passing). |
-| `backend/services/auth_service.py` | PENDING | Security service providing PBKDF2 password hashing, verification, and token management. |
-| `backend/api/v1/endpoints/auth.py` | PENDING | Authentication router exposing register, login, and me endpoints. |
+| `backend/services/auth_service.py` | VERIFIED | Security service providing PBKDF2 password hashing, verification, token sessions, and database cleanup. |
+| `backend/services/__init__.py` | VERIFIED | Exported `auth_service` and `get_shelf`. |
+| `backend/api/v1/endpoints/auth.py` | VERIFIED | Authentication router exposing register, login, and me endpoints. |
+| `backend/api/v1/api.py` | VERIFIED | Mounted `auth.router` into API v1. |
+| `backend/test_main.py` | VERIFIED | Comprehensive test suite covering LWW, multi-tenant isolation, auth flow, duplicate registration conflicts, invalid passwords, and unauthorized access (17/17 tests passing). |
 
 ---
 
 ## 4. Verification & Test Evidence
 
-- **Test Suite Run:** `PYTHONPATH=backend .venv/bin/pytest backend/test_main.py`
-- **Result:** `13 passed, 2 warnings in 3.54s`
-- **Verified Scenarios:**
-  - `test_last_write_wins_resolution`: Stale client sync rejected, fresh client sync accepted using camelCase aliases.
-  - `test_multi_tenant_device_shelf_isolation`: Device A (progress `0.75`) and Device B (progress `0.20`) update identical `story_id` without collision; querying `GET /api/v1/shelf?deviceId=...` returns isolated states.
+- **Test Suite Command:** `PYTHONPATH=backend .venv/bin/pytest backend/test_main.py`
+- **Result:** `17 passed, 2 warnings in 4.33s`
+- **Verified Test Cases:**
+  1. `test_health_check`
+  2. `test_get_stories_includes_full_editorial_catalog`
+  3. `test_story_dto_camelcase_serialization_contract`
+  4. `test_get_story_chapters`
+  5. `test_extract_chapters_from_text`
+  6. `test_get_genres_endpoint`
+  7. `test_get_top_authors_endpoint`
+  8. `test_get_update_feed_endpoint`
+  9. `test_create_story`
+  10. `test_last_write_wins_resolution`
+  11. `test_multi_tenant_device_shelf_isolation`
+  12. `test_package_modularity_imports`
+  13. `test_get_gutenberg_public_stories`
+  14. `test_register_and_login_auth_flow`
+  15. `test_register_duplicate_email_conflict`
+  16. `test_login_invalid_password`
+  17. `test_auth_me_unauthorized`
 

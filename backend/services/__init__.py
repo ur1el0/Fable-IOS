@@ -10,8 +10,9 @@ from .story_service import (
     get_top_authors,
     get_update_feed
 )
-from .shelf_sync import sync_shelf
+from .shelf_sync import sync_shelf, get_shelf
 from .gutenberg import ingest_gutenberg_book, get_gutenberg_stories
+from . import auth_service
 
 __all__ = [
     "extract_chapters_from_text",
@@ -25,6 +26,8 @@ __all__ = [
     "get_top_authors",
     "get_update_feed",
     "sync_shelf",
+    "get_shelf",
     "ingest_gutenberg_book",
-    "get_gutenberg_stories"
+    "get_gutenberg_stories",
+    "auth_service"
 ]

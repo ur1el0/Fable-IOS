@@ -15,8 +15,8 @@ The Final Milestone transforms **Fable** from an editorial prototype into a full
 
 | Domain | Document Reference | Status | Scope Description |
 | :--- | :--- | :--- | :--- |
-| **1. Backend Security, Data Isolation & Auth** | [`01_BACKEND_SECURITY_AND_DATA.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/01_BACKEND_SECURITY_AND_DATA.md) | **In Progress** | Multi-tenant compound keys, UTC datetime normalization, PBKDF2 authentication, Swift-parity JSON serialization aliases. |
-| **2. Live Media & Content Pipelines** | [`02_LIVE_MEDIA_AND_CONTENT.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/02_LIVE_MEDIA_AND_CONTENT.md) | **Planned** | Async remote image loading for covers and author avatars, Gutendex live ingestion, resilient vector fallbacks. |
+| **1. Backend Security, Data Isolation & Auth** | [`01_BACKEND_SECURITY_AND_DATA.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/01_BACKEND_SECURITY_AND_DATA.md) | **Complete** | Multi-tenant compound keys, UTC datetime normalization, PBKDF2 authentication, Swift-parity JSON serialization aliases. |
+| **2. Live Media & Content Pipelines** | [`02_LIVE_MEDIA_AND_CONTENT.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/02_LIVE_MEDIA_AND_CONTENT.md) | **In Progress** | Async remote image loading for covers and author avatars, Gutendex live ingestion, resilient vector fallbacks. |
 | **3. Reader Pacing & Word Tokenization** | [`03_READER_PACING_AND_WORD_TOKENIZATION.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/03_READER_PACING_AND_WORD_TOKENIZATION.md) | **Planned** | Zoom-invariant word counting, multi-whitespace tokenization, dynamic page chunking responsive to font scale. |
 | **4. UI Interactions & Voice Accessibility** | [`04_UI_INTERACTIONS_AND_AUDIO_ACCESSIBILITY.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/04_UI_INTERACTIONS_AND_AUDIO_ACCESSIBILITY.md) | **Planned** | 100% interactive button bindings, `AVSpeechSynthesizer` voice selector sheet, active chapter narration state machine. |
 
@@ -26,8 +26,8 @@ The Final Milestone transforms **Fable** from an editorial prototype into a full
 
 | Feature / UI Component | Original State (Midterm) | Final Milestone Target | Status | Implementation File(s) |
 | :--- | :--- | :--- | :--- | :--- |
-| **Shelf Sync API** | Single-tenant overwrite (`story_id` PK) | Multi-tenant isolation `(device_id, story_id)` with UTC normalization | **In Progress** | `backend/services/shelf_sync.py`, `backend/core/database.py` |
-| **User Authentication** | Hardcoded profile data | PBKDF2 hash, JWT/Bearer token, register & login endpoints | **In Progress** | `backend/services/auth_service.py`, `backend/api/v1/endpoints/auth.py` |
+| **Shelf Sync API** | Single-tenant overwrite (`story_id` PK) | Multi-tenant isolation `(device_id, story_id)` with UTC normalization | **Complete** | `backend/services/shelf_sync.py`, `backend/core/database.py` |
+| **User Authentication** | Hardcoded profile data | PBKDF2 hash, JWT/Bearer token, register & login endpoints | **Complete** | `backend/services/auth_service.py`, `backend/api/v1/endpoints/auth.py` |
 | **Device ID Persistence** | Ephemeral `UUID()` regenerated every sync | Hardware/vendor-backed `UserDefaults` UUID (`fable_device_id`) | Planned | `StoryStore.swift` |
 | **Story Covers & Avatars** | Local asset catalogs only (`cover_dracula`) | Live URL fetch via `AsyncImage` with procedural fallback | Planned | `StoryCard.swift`, `StoryCoverView.swift`, `AuthorProfileView.swift` |
 | **Word Count Accuracy** | `split(separator: " ")` (fails on tabs/newlines) | Regex/tokenized whitespace counter invariant to zoom level | Planned | `PacingEngine.swift`, `ReaderView.swift` |
@@ -41,13 +41,13 @@ The Final Milestone transforms **Fable** from an editorial prototype into a full
 
 ## Step-by-Step Milestone Roadmap
 
-- [ ] **Milestone 1: Backend Security, Isolation & Authentication Contract**
+- [x] **Milestone 1: Backend Security, Isolation & Authentication Contract**
   - [x] Step 1.1: Database schema upgrade (multi-tenant `shelf_items`, indexed `users` table).
   - [x] Step 1.2: Pydantic v2 DTO contract parity with camelCase Swift serialization aliases.
   - [x] Step 1.3: Update `shelf_sync.py` to enforce `device_id` isolation and timezone-aware comparison.
   - [x] Step 1.4: Add `GET /shelf` endpoint in `shelf.py` with device filtering.
-  - [ ] Step 1.5: Implement `auth_service.py` and `api/v1/endpoints/auth.py` (register, login, me).
-  - [ ] Step 1.6: Execute automated test suite (`pytest`) and commit atomically.
+  - [x] Step 1.5: Implement `auth_service.py` and `api/v1/endpoints/auth.py` (register, login, me).
+  - [x] Step 1.6: Execute automated test suite (`pytest`) and commit atomically.
 - [ ] **Milestone 2: Live Content & Remote Media Pipeline**
   - [ ] Step 2.1: Implement remote image loading and cached rendering in SwiftUI.
   - [ ] Step 2.2: Gutenberg dynamic ingestion & public query proxy.
