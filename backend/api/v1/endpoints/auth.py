@@ -21,3 +21,4 @@ def get_me(authorization: str = Header(None)):
         )
     token = authorization.split(" ", 1)[1]
     return auth_service.get_current_user(token)
+

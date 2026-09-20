@@ -61,7 +61,7 @@ public struct ProfileView: View {
                         VStack(spacing: 20) {
                             // Avatar with Edit Badge
                             ZStack(alignment: .bottomTrailing) {
-                                FableImageView(name: "avatar_roosc", placeholderIcon: "person.crop.circle.fill")
+                                FableImageView(name: auth.currentSession?.avatarName ?? "avatar_roosc", placeholderIcon: "person.crop.circle.fill")
                                     .frame(width: 96, height: 96)
                                     .clipShape(Circle())
                                     .overlay(Circle().stroke(Color.white, lineWidth: 3))
@@ -173,7 +173,7 @@ public struct ProfileView: View {
                                             selectedStoryToRead = story
                                         }) {
                                             HStack(spacing: 14) {
-                                                FableImageView(name: story.coverImageName, placeholderIcon: "book")
+                                                FableImageView(name: story.effectiveCoverImage, placeholderIcon: "book")
                                                     .frame(width: 54, height: 68)
                                                     .clipShape(RoundedRectangle(cornerRadius: 8))
                                                 
@@ -219,7 +219,7 @@ public struct ProfileView: View {
                                             selectedStoryToRead = story
                                         }) {
                                             HStack(spacing: 14) {
-                                                FableImageView(name: story.coverImageName, placeholderIcon: "bookmark.fill")
+                                                FableImageView(name: story.effectiveCoverImage, placeholderIcon: "bookmark.fill")
                                                     .frame(width: 54, height: 68)
                                                     .clipShape(RoundedRectangle(cornerRadius: 8))
                                                 

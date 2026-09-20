@@ -26,11 +26,8 @@ public struct ShelfSyncItem: Codable, Equatable {
     public let updatedAtUtc: Date
     
     enum CodingKeys: String, CodingKey {
-        case storyId = "story_id"
-        case readingProgress = "reading_progress"
-        case isBookmarked = "is_bookmarked"
-        case isCompleted = "is_completed"
-        case updatedAtUtc = "updated_at_utc"
+        case storyId, readingProgress, isBookmarked, isCompleted, updatedAtUtc
+        case story_id, reading_progress, is_bookmarked, is_completed, updated_at_utc
     }
     
     public init(storyId: UUID, readingProgress: Double, isBookmarked: Bool, isCompleted: Bool, updatedAtUtc: Date = Date()) {
@@ -40,6 +37,29 @@ public struct ShelfSyncItem: Codable, Equatable {
         self.isCompleted = isCompleted
         self.updatedAtUtc = updatedAtUtc
     }
+    
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.storyId = try (container.decodeIfPresent(UUID.self, forKey: .storyId)
+            ?? container.decode(UUID.self, forKey: .story_id))
+        self.readingProgress = try (container.decodeIfPresent(Double.self, forKey: .readingProgress)
+            ?? container.decode(Double.self, forKey: .reading_progress))
+        self.isBookmarked = try (container.decodeIfPresent(Bool.self, forKey: .isBookmarked)
+            ?? container.decode(Bool.self, forKey: .is_bookmarked))
+        self.isCompleted = try (container.decodeIfPresent(Bool.self, forKey: .isCompleted)
+            ?? container.decode(Bool.self, forKey: .is_completed))
+        self.updatedAtUtc = try (container.decodeIfPresent(Date.self, forKey: .updatedAtUtc)
+            ?? container.decode(Date.self, forKey: .updated_at_utc))
+    }
+    
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(storyId, forKey: .storyId)
+        try container.encode(readingProgress, forKey: .readingProgress)
+        try container.encode(isBookmarked, forKey: .isBookmarked)
+        try container.encode(isCompleted, forKey: .isCompleted)
+        try container.encode(updatedAtUtc, forKey: .updatedAtUtc)
+    }
 }
 
 public struct ShelfSyncPayload: Codable {
@@ -47,13 +67,26 @@ public struct ShelfSyncPayload: Codable {
     public let items: [ShelfSyncItem]
     
     enum CodingKeys: String, CodingKey {
-        case deviceId = "device_id"
-        case items
+        case deviceId, items
+        case device_id
     }
     
     public init(deviceId: UUID, items: [ShelfSyncItem]) {
         self.deviceId = deviceId
         self.items = items
+    }
+    
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.deviceId = try (container.decodeIfPresent(UUID.self, forKey: .deviceId)
+            ?? container.decode(UUID.self, forKey: .device_id))
+        self.items = try container.decode([ShelfSyncItem].self, forKey: .items)
+    }
+    
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(deviceId, forKey: .deviceId)
+        try container.encode(items, forKey: .items)
     }
 }
 
@@ -64,21 +97,62 @@ public struct ShelfSyncResponse: Codable {
     
     enum CodingKeys: String, CodingKey {
         case status
-        case reconciledItems = "reconciled_items"
-        case serverTimeUtc = "server_time_utc"
+        case reconciledItems, serverTimeUtc
+        case reconciled_items, server_time_utc
     }
+    
+    public init(status: String = "ok", reconciledItems: [ShelfSyncItem], serverTimeUtc: Date) {
+        self.status = status
+        self.reconciledItems = reconciledItems
+        self.serverTimeUtc = serverTimeUtc
+    }
+    
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.status = try container.decodeIfPresent(String.self, forKey: .status) ?? "ok"
+        self.reconciledItems = try (container.decodeIfPresent([ShelfSyncItem].self, forKey: .reconciledItems)
+            ?? container.decode([ShelfSyncItem].self, forKey: .reconciled_items))
+        self.serverTimeUtc = try (container.decodeIfPresent(Date.self, forKey: .serverTimeUtc)
+            ?? container.decode(Date.self, forKey: .server_time_utc))
+    }
+    
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(status, forKey: .status)
+        try container.encode(reconciledItems, forKey: .reconciledItems)
+        try container.encode(serverTimeUtc, forKey: .serverTimeUtc)
+    }
+}
+
+public struct AuthUserDTO: Codable {
+    public let id: UUID
+    public let email: String
+    public let name: String
+    public let avatarImageName: String?
+    public let avatarImageUrl: String?
+    public let createdAtUtc: Date
+}
+
+public struct AuthTokenResponse: Codable {
+    public let accessToken: String
+    public let tokenType: String
+    public let user: AuthUserDTO
 }
 
 public protocol StoryAPIServiceProtocol: Sendable {
     func fetchStories(genre: String?, search: String?, since: Date?) async throws -> [Story]
     func createStory(_ request: CreateStoryRequest) async throws -> Story
     func syncShelf(deviceId: UUID, items: [ShelfSyncItem]) async throws -> [ShelfSyncItem]
+    func fetchShelf(deviceId: UUID) async throws -> [ShelfSyncItem]
     func toggleBookmark(storyId: UUID) async throws -> Bool
     func fetchGutenbergStories(topic: String?, search: String?) async throws -> [Story]
     func fetchChapters(for storyId: UUID) async throws -> [Chapter]
     func fetchGenres() async throws -> [GenreCategory]
     func fetchTopAuthors() async throws -> [Writer]
     func fetchUpdateFeed() async throws -> UpdateFeed
+    func register(email: String, password: String, name: String) async throws -> AuthTokenResponse
+    func login(email: String, password: String) async throws -> AuthTokenResponse
+    func fetchCurrentUser(token: String) async throws -> AuthUserDTO
 }
 
 public extension StoryAPIServiceProtocol {
@@ -180,8 +254,17 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
     }
 
     public func toggleBookmark(storyId: UUID) async throws -> Bool {
+        let deviceId: UUID = {
+            let key = "fable_device_id"
+            if let saved = UserDefaults.standard.string(forKey: key), let uuid = UUID(uuidString: saved) {
+                return uuid
+            }
+            let newId = UUID()
+            UserDefaults.standard.set(newId.uuidString, forKey: key)
+            return newId
+        }()
         let item = ShelfSyncItem(storyId: storyId, readingProgress: 0.0, isBookmarked: true, isCompleted: false, updatedAtUtc: Date())
-        let reconciled = try await syncShelf(deviceId: UUID(), items: [item])
+        let reconciled = try await syncShelf(deviceId: deviceId, items: [item])
         return reconciled.first?.isBookmarked ?? true
     }
 
@@ -245,6 +328,82 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         return try decoder.decode(UpdateFeed.self, from: data)
+    }
+
+    public func fetchShelf(deviceId: UUID) async throws -> [ShelfSyncItem] {
+        var components = URLComponents(url: baseURL.appendingPathComponent("shelf"), resolvingAgainstBaseURL: true)!
+        components.queryItems = [URLQueryItem(name: "deviceId", value: deviceId.uuidString)]
+        guard let targetURL = components.url else { throw URLError(.badURL) }
+        
+        let (data, response) = try await session.data(from: targetURL)
+        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+        
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try decoder.decode([ShelfSyncItem].self, from: data)
+    }
+
+    public func register(email: String, password: String, name: String) async throws -> AuthTokenResponse {
+        let url = baseURL.appendingPathComponent("auth").appendingPathComponent("register")
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let body: [String: String] = [
+            "email": email,
+            "password": password,
+            "name": name
+        ]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        
+        let (data, response) = try await session.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+        
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try decoder.decode(AuthTokenResponse.self, from: data)
+    }
+
+    public func login(email: String, password: String) async throws -> AuthTokenResponse {
+        let url = baseURL.appendingPathComponent("auth").appendingPathComponent("login")
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let body: [String: String] = [
+            "email": email,
+            "password": password
+        ]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        
+        let (data, response) = try await session.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+        
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try decoder.decode(AuthTokenResponse.self, from: data)
+    }
+
+    public func fetchCurrentUser(token: String) async throws -> AuthUserDTO {
+        let url = baseURL.appendingPathComponent("auth").appendingPathComponent("me")
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        
+        let (data, response) = try await session.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+        
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try decoder.decode(AuthUserDTO.self, from: data)
     }
 }
 

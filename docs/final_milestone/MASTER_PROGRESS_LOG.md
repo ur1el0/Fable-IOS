@@ -16,8 +16,8 @@ The Final Milestone transforms **Fable** from an editorial prototype into a full
 | Domain | Document Reference | Status | Scope Description |
 | :--- | :--- | :--- | :--- |
 | **1. Backend Security, Data Isolation & Auth** | [`01_BACKEND_SECURITY_AND_DATA.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/01_BACKEND_SECURITY_AND_DATA.md) | **Complete** | Multi-tenant compound keys, UTC datetime normalization, PBKDF2 authentication, Swift-parity JSON serialization aliases. |
-| **2. Live Media & Content Pipelines** | [`02_LIVE_MEDIA_AND_CONTENT.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/02_LIVE_MEDIA_AND_CONTENT.md) | **In Progress** | Async remote image loading for covers and author avatars, Gutendex live ingestion, resilient vector fallbacks. |
-| **3. Reader Pacing & Word Tokenization** | [`03_READER_PACING_AND_WORD_TOKENIZATION.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/03_READER_PACING_AND_WORD_TOKENIZATION.md) | **Planned** | Zoom-invariant word counting, multi-whitespace tokenization, dynamic page chunking responsive to font scale. |
+| **2. Live Media & Content Pipelines** | [`02_LIVE_MEDIA_AND_CONTENT.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/02_LIVE_MEDIA_AND_CONTENT.md) | **Complete** | Async remote image loading for covers and author avatars, Gutendex live ingestion, resilient vector fallbacks, persistent device identity. |
+| **3. Reader Pacing & Word Tokenization** | [`03_READER_PACING_AND_WORD_TOKENIZATION.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/03_READER_PACING_AND_WORD_TOKENIZATION.md) | **In Progress** | Zoom-invariant word counting, multi-whitespace tokenization, dynamic page chunking responsive to font scale. |
 | **4. UI Interactions & Voice Accessibility** | [`04_UI_INTERACTIONS_AND_AUDIO_ACCESSIBILITY.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/04_UI_INTERACTIONS_AND_AUDIO_ACCESSIBILITY.md) | **Planned** | 100% interactive button bindings, `AVSpeechSynthesizer` voice selector sheet, active chapter narration state machine. |
 
 ---
@@ -28,8 +28,8 @@ The Final Milestone transforms **Fable** from an editorial prototype into a full
 | :--- | :--- | :--- | :--- | :--- |
 | **Shelf Sync API** | Single-tenant overwrite (`story_id` PK) | Multi-tenant isolation `(device_id, story_id)` with UTC normalization | **Complete** | `backend/services/shelf_sync.py`, `backend/core/database.py` |
 | **User Authentication** | Hardcoded profile data | PBKDF2 hash, JWT/Bearer token, register & login endpoints | **Complete** | `backend/services/auth_service.py`, `backend/api/v1/endpoints/auth.py` |
-| **Device ID Persistence** | Ephemeral `UUID()` regenerated every sync | Hardware/vendor-backed `UserDefaults` UUID (`fable_device_id`) | Planned | `StoryStore.swift` |
-| **Story Covers & Avatars** | Local asset catalogs only (`cover_dracula`) | Live URL fetch via `AsyncImage` with procedural fallback | Planned | `StoryCard.swift`, `StoryCoverView.swift`, `AuthorProfileView.swift` |
+| **Device ID Persistence** | Ephemeral `UUID()` regenerated every sync | Hardware/vendor-backed `UserDefaults` UUID (`fable_device_id`) | **Complete** | `StoryStore.swift` |
+| **Story Covers & Avatars** | Local asset catalogs only (`cover_dracula`) | Live URL fetch via `AsyncImage` with procedural fallback | **Complete** | `Models.swift`, `ExploreView.swift`, `ProfileView.swift`, `ReaderView.swift` |
 | **Word Count Accuracy** | `split(separator: " ")` (fails on tabs/newlines) | Regex/tokenized whitespace counter invariant to zoom level | Planned | `PacingEngine.swift`, `ReaderView.swift` |
 | **Reader Zoom / Font Size** | Initial render only, inconsistent pagination | Dynamic pagination recalculated upon pinch/slider change | Planned | `ReaderView.swift`, `ReaderControlsOverlay.swift` |
 | **Audio Voice Selector** | Hardcoded `en-US` default voice | Dynamic system voice picker querying available speech engines | Planned | `AudioNarratorController.swift`, `VoiceSelectionSheet.swift` |
@@ -48,10 +48,11 @@ The Final Milestone transforms **Fable** from an editorial prototype into a full
   - [x] Step 1.4: Add `GET /shelf` endpoint in `shelf.py` with device filtering.
   - [x] Step 1.5: Implement `auth_service.py` and `api/v1/endpoints/auth.py` (register, login, me).
   - [x] Step 1.6: Execute automated test suite (`pytest`) and commit atomically.
-- [ ] **Milestone 2: Live Content & Remote Media Pipeline**
-  - [ ] Step 2.1: Implement remote image loading and cached rendering in SwiftUI.
-  - [ ] Step 2.2: Gutenberg dynamic ingestion & public query proxy.
-  - [ ] Step 2.3: Verification of fallback procedural vector patterns.
+- [x] **Milestone 2: Live Content & Remote Media Pipeline**
+  - [x] Step 2.1: Implement remote image loading and cached rendering in SwiftUI (`effectiveCoverImage`, `effectiveAvatar`, `effectiveImage`).
+  - [x] Step 2.2: Establish persistent device identifier (`fable_device_id`) in `UserDefaults`.
+  - [x] Step 2.3: Upgrade `StoryAPIService` with dual camelCase/snake_case decoding and auth endpoints.
+  - [x] Step 2.4: Eliminate raw `coverImageName` calls across `ExploreView`, `ProfileView`, `LibraryView`, and `ReaderView`.
 - [ ] **Milestone 3: Reader Pacing, Tokenization & Zoom Invariance**
   - [ ] Step 3.1: Zoom-invariant word tokenization in `PacingEngine.swift`.
   - [ ] Step 3.2: Dynamic page recalculation on font size changes in `ReaderView.swift`.

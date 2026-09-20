@@ -368,14 +368,23 @@ public struct GenreCategory: Identifiable, Hashable, Codable {
     public var readersCount: String
     public var description: String
     public var imageName: String
+    public var imageUrl: String?
     
-    public init(id: UUID = UUID(), name: String, storyCount: Int, readersCount: String, description: String, imageName: String) {
+    public var effectiveImage: String {
+        if let url = imageUrl, !url.isEmpty {
+            return url
+        }
+        return imageName
+    }
+    
+    public init(id: UUID = UUID(), name: String, storyCount: Int, readersCount: String, description: String, imageName: String, imageUrl: String? = nil) {
         self.id = id
         self.name = name
         self.storyCount = storyCount
         self.readersCount = readersCount
         self.description = description
         self.imageName = imageName
+        self.imageUrl = imageUrl
     }
 }
 
@@ -383,13 +392,22 @@ public struct Writer: Identifiable, Hashable, Codable {
     public let id: UUID
     public var name: String
     public var avatarImageName: String
+    public var avatarImageUrl: String?
     public var storyCount: Int
     public var rating: Double
     
-    public init(id: UUID = UUID(), name: String, avatarImageName: String, storyCount: Int, rating: Double) {
+    public var effectiveAvatar: String {
+        if let url = avatarImageUrl, !url.isEmpty {
+            return url
+        }
+        return avatarImageName
+    }
+    
+    public init(id: UUID = UUID(), name: String, avatarImageName: String, avatarImageUrl: String? = nil, storyCount: Int, rating: Double) {
         self.id = id
         self.name = name
         self.avatarImageName = avatarImageName
+        self.avatarImageUrl = avatarImageUrl
         self.storyCount = storyCount
         self.rating = rating
     }

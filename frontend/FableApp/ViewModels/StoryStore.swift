@@ -39,6 +39,16 @@ public final class StoryStore: ObservableObject {
     @Published var isBackendReachable: Bool = false
     private let apiService: StoryAPIServiceProtocol = StoryAPIService()
     
+    public var persistentDeviceId: UUID {
+        let key = "fable_device_id"
+        if let saved = UserDefaults.standard.string(forKey: key), let uuid = UUID(uuidString: saved) {
+            return uuid
+        }
+        let newId = UUID()
+        UserDefaults.standard.set(newId.uuidString, forKey: key)
+        return newId
+    }
+    
     // Marginalia & Quotes (Plan 02)
     @Published var activeStoryAnnotations: [Annotation] = []
     @Published var pinnedQuotes: [Annotation] = []
@@ -266,15 +276,15 @@ public final class StoryStore: ObservableObject {
             
             // 5. Bidirectional shelf sync using Last-Write-Wins
             let shelfItems = stories.map { story in
-                ShelfSyncItem(
-                    storyId: story.id,
-                    readingProgress: Double(story.progressPercent) / 100.0,
-                    isBookmarked: story.isBookmarked,
-                    isCompleted: story.isCompleted,
-                    updatedAtUtc: story.createdAtUtc
-                )
-            }
-            let reconciled = try await apiService.syncShelf(deviceId: UUID(), items: shelfItems)
+        ShelfSyncItem(
+            storyId: story.id,
+            readingProgress: Double(story.progressPercent) / 100.0,
+            isBookmarked: story.isBookmarked,
+            isCompleted: story.isCompleted,
+            updatedAtUtc: story.createdAtUtc
+        )
+    }
+    let reconciled = try await apiService.syncShelf(deviceId: persistentDeviceId, items: shelfItems)
             for item in reconciled {
                 if let idx = stories.firstIndex(where: { $0.id == item.storyId }) {
                     stories[idx].isBookmarked = item.isBookmarked

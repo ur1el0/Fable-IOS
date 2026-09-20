@@ -258,7 +258,7 @@ public struct ExploreView: View {
                                         selectedGenreForDetail = genre
                                     }) {
                                         ZStack(alignment: .bottomLeading) {
-                                            FableImageView(name: genre.imageName, placeholderIcon: "books.vertical.fill")
+                                            FableImageView(name: genre.effectiveImage, placeholderIcon: "books.vertical.fill")
                                                 .frame(height: 150)
                                                 .clipped()
                                             
@@ -310,7 +310,7 @@ public struct ExploreView: View {
                                             selectedWriter = writer
                                         }) {
                                             VStack(spacing: 8) {
-                                                FableImageView(name: writer.avatarImageName, placeholderIcon: "person.circle.fill")
+                                                FableImageView(name: writer.effectiveAvatar, placeholderIcon: "person.circle.fill")
                                                     .frame(width: 68, height: 68)
                                                     .clipShape(Circle())
                                                     .shadow(color: Color.black.opacity(0.06), radius: 4, y: 2)
@@ -362,7 +362,7 @@ public struct ExploreView: View {
             }
             .sheet(item: $selectedWriter) { writer in
                 VStack(spacing: 20) {
-                    FableImageView(name: writer.avatarImageName, placeholderIcon: "person.circle.fill")
+                    FableImageView(name: writer.effectiveAvatar, placeholderIcon: "person.circle.fill")
                         .frame(width: 84, height: 84)
                         .clipShape(Circle())
                         .padding(.top, 24)

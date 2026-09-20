@@ -2,6 +2,7 @@ import SwiftUI
 
 public struct LibraryView: View {
     @EnvironmentObject var store: StoryStore
+    @ObservedObject private var auth = AuthManager.shared
     
     @State private var selectedFilter: String = "All"
     @State private var selectedStoryToRead: Story?
@@ -48,7 +49,7 @@ public struct LibraryView: View {
                             Button(action: {
                                 isShowingProfileSheet = true
                             }) {
-                                FableImageView(name: "avatar_roosc", placeholderIcon: "person.crop.circle")
+                                FableImageView(name: auth.currentSession?.avatarName ?? "avatar_roosc", placeholderIcon: "person.crop.circle")
                                     .frame(width: 40, height: 40)
                                     .clipShape(Circle())
                                     .overlay(Circle().stroke(FableTheme.divider, lineWidth: 1.5))
