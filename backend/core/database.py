@@ -60,13 +60,29 @@ def init_db():
         """)
         conn.execute("""
             CREATE TABLE IF NOT EXISTS shelf_items (
-                story_id TEXT PRIMARY KEY,
+                device_id TEXT NOT NULL,
+                story_id TEXT NOT NULL,
                 reading_progress REAL NOT NULL,
                 is_bookmarked INTEGER NOT NULL DEFAULT 0,
                 is_completed INTEGER NOT NULL DEFAULT 0,
+                updated_at_utc TEXT NOT NULL,
+                PRIMARY KEY (device_id, story_id)
+            );
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_shelf_items_device ON shelf_items (device_id);")
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id TEXT PRIMARY KEY,
+                email TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                name TEXT NOT NULL,
+                avatar_image_name TEXT DEFAULT 'avatar_roosc',
+                avatar_image_url TEXT,
+                created_at_utc TEXT NOT NULL,
                 updated_at_utc TEXT NOT NULL
             );
         """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_chapters_story_id ON chapters (story_id);")
 
         cursor = conn.execute("SELECT COUNT(*) as count FROM stories")
