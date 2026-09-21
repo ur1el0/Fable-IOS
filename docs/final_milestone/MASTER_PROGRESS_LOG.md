@@ -28,14 +28,15 @@ The Final Milestone transforms **Fable** from an editorial prototype into a full
 | :--- | :--- | :--- | :--- | :--- |
 | **Shelf Sync API** | Single-tenant overwrite (`story_id` PK) | Multi-tenant isolation `(device_id, story_id)` with UTC normalization | **Complete** | `backend/services/shelf_sync.py`, `backend/core/database.py` |
 | **User Authentication** | Hardcoded profile data | PBKDF2 hash, JWT/Bearer token, register & login endpoints | **Complete** | `backend/services/auth_service.py`, `backend/api/v1/endpoints/auth.py` |
-| **Device ID Persistence** | Ephemeral `UUID()` regenerated every sync | Hardware/vendor-backed `UserDefaults` UUID (`fable_device_id`) | **Complete** | `StoryStore.swift` |
-| **Story Covers & Avatars** | Local asset catalogs only (`cover_dracula`) | Live URL fetch via `AsyncImage` with procedural fallback | **Complete** | `Models.swift`, `ExploreView.swift`, `ProfileView.swift`, `ReaderView.swift` |
-| **Word Count Accuracy** | `split(separator: " ")` (fails on tabs/newlines) | Regex/tokenized whitespace counter invariant to zoom level | Planned | `PacingEngine.swift`, `ReaderView.swift` |
-| **Reader Zoom / Font Size** | Initial render only, inconsistent pagination | Dynamic pagination recalculated upon pinch/slider change | Planned | `ReaderView.swift`, `ReaderControlsOverlay.swift` |
-| **Audio Voice Selector** | Hardcoded `en-US` default voice | Dynamic system voice picker querying available speech engines | Planned | `AudioNarratorController.swift`, `VoiceSelectionSheet.swift` |
-| **Audio Narrator Target** | Always read Chapter 1 | Narration dynamically bound to active displayed chapter | Planned | `AudioNarratorController.swift`, `ReaderView.swift` |
-| **Shelf Remove Button** | Visual only or local array remove | Synchronized removal / bookmark toggle synced to backend | Planned | `ShelfView.swift`, `StoryStore.swift` |
-| **Profile Stats & Edit** | Dummy text | Live stats calculated from SwiftData/backend shelf items | Planned | `ProfileView.swift`, `AuthViewModel.swift` |
+| **Device ID Persistence** | Ephemeral `UUID()` regenerated every sync | Hardware/vendor-backed `UserDefaults` UUID (`fable_device_id`) | **Complete** | `Features/Library/ViewModels/StoryStore.swift` |
+| **Story Covers & Avatars** | Local asset catalogs only (`cover_dracula`) | Live URL fetch via `AsyncImage` with procedural fallback + offline asset catalog | **Complete** | `Features/Library/Models/Story.swift`, `Features/Library/Views/ExploreView.swift`, `Features/Shelf/Views/ProfileView.swift`, `Features/Reader/Views/ReaderView.swift` |
+| **Frontend Topology** | Flat technical layering (`Views/`, `ViewModels/`) | Feature-driven vertical slices (`App/`, `Core/`, `Features/{Auth,Library,Reader,Shelf,Write}`) | **Complete** | `frontend/FableApp/Features/`, `frontend/FableApp/Core/`, `frontend/FableApp/App/` |
+| **Word Count Accuracy** | `split(separator: " ")` (fails on tabs/newlines) | Regex/tokenized whitespace counter invariant to zoom level | Planned | `Features/Reader/Services/PacingEngine.swift`, `Features/Reader/Views/ReaderView.swift` |
+| **Reader Zoom / Font Size** | Initial render only, inconsistent pagination | Dynamic pagination recalculated upon pinch/slider change | Planned | `Features/Reader/Views/ReaderView.swift`, `Features/Reader/Views/DisplayOptionsSheet.swift` |
+| **Audio Voice Selector** | Hardcoded `en-US` default voice | Dynamic system voice picker querying available speech engines | Planned | `Features/Reader/Services/AudioNarratorController.swift`, `VoiceSelectionSheet.swift` |
+| **Audio Narrator Target** | Always read Chapter 1 | Narration dynamically bound to active displayed chapter | Planned | `Features/Reader/Services/AudioNarratorController.swift`, `Features/Reader/Views/ReaderView.swift` |
+| **Shelf Remove Button** | Visual only or local array remove | Synchronized removal / bookmark toggle synced to backend | Planned | `Features/Shelf/Views/ShelfView.swift`, `Features/Library/ViewModels/StoryStore.swift` |
+| **Profile Stats & Edit** | Dummy text | Live stats calculated from SwiftData/backend shelf items | Planned | `Features/Shelf/Views/ProfileView.swift`, `Features/Auth/ViewModels/AuthViewModel.swift` |
 
 ---
 
@@ -48,11 +49,12 @@ The Final Milestone transforms **Fable** from an editorial prototype into a full
   - [x] Step 1.4: Add `GET /shelf` endpoint in `shelf.py` with device filtering.
   - [x] Step 1.5: Implement `auth_service.py` and `api/v1/endpoints/auth.py` (register, login, me).
   - [x] Step 1.6: Execute automated test suite (`pytest`) and commit atomically.
-- [x] **Milestone 2: Live Content & Remote Media Pipeline**
+- [x] **Milestone 2: Live Content, Remote Media & Vertical Slice Architecture**
   - [x] Step 2.1: Implement remote image loading and cached rendering in SwiftUI (`effectiveCoverImage`, `effectiveAvatar`, `effectiveImage`).
   - [x] Step 2.2: Establish persistent device identifier (`fable_device_id`) in `UserDefaults`.
   - [x] Step 2.3: Upgrade `StoryAPIService` with dual camelCase/snake_case decoding and auth endpoints.
   - [x] Step 2.4: Eliminate raw `coverImageName` calls across `ExploreView`, `ProfileView`, `LibraryView`, and `ReaderView`.
+  - [x] Step 2.5: Realign frontend into feature-driven vertical slices (`App`, `Core`, `Features/{Auth,Library,Reader,Shelf,Write}`) and integrate authentic asset catalog from `main`.
 - [ ] **Milestone 3: Reader Pacing, Tokenization & Zoom Invariance**
   - [ ] Step 3.1: Zoom-invariant word tokenization in `PacingEngine.swift`.
   - [ ] Step 3.2: Dynamic page recalculation on font size changes in `ReaderView.swift`.
