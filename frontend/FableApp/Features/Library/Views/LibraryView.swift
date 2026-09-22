@@ -34,10 +34,26 @@ public struct LibraryView: View {
                         // Header Date, Title & Profile Avatar
                         HStack(alignment: .center) {
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("TUESDAY, OCT 14")
-                                    .font(.system(size: 11, weight: .bold))
-                                    .tracking(1.2)
-                                    .foregroundColor(FableTheme.textMuted)
+                                HStack(spacing: 8) {
+                                    Text("TUESDAY, OCT 14")
+                                        .font(.system(size: 11, weight: .bold))
+                                        .tracking(1.2)
+                                        .foregroundColor(FableTheme.textMuted)
+                                    
+                                    // Live Cloud Connectivity Pill
+                                    HStack(spacing: 4) {
+                                        Circle()
+                                            .fill(store.isBackendReachable ? Color.green : Color.orange)
+                                            .frame(width: 6, height: 6)
+                                        Text(store.isBackendReachable ? "Live Cloud" : "Offline Cache")
+                                            .font(.system(size: 9, weight: .bold))
+                                            .foregroundColor(store.isBackendReachable ? Color.green : Color.orange)
+                                    }
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background((store.isBackendReachable ? Color.green : Color.orange).opacity(0.12))
+                                    .clipShape(Capsule())
+                                }
                                 
                                 Text("Library")
                                     .font(.system(size: 34, weight: .bold, design: .serif))
