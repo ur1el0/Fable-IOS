@@ -19,6 +19,7 @@ The Final Milestone transforms **Fable** from an editorial prototype into a full
 | **2. Live Media & Content Pipelines** | [`02_LIVE_MEDIA_AND_CONTENT.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/02_LIVE_MEDIA_AND_CONTENT.md) | **Complete** | Async remote image loading for covers and author avatars, Gutendex live ingestion, resilient vector fallbacks, persistent device identity. |
 | **3. Reader Pacing & Word Tokenization** | [`03_READER_PACING_AND_WORD_TOKENIZATION.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/03_READER_PACING_AND_WORD_TOKENIZATION.md) | **Complete** | Zoom-invariant word counting, multi-whitespace tokenization, dynamic page chunking responsive to font scale. |
 | **4. UI Interactions & Voice Accessibility** | [`04_UI_INTERACTIONS_AND_AUDIO_ACCESSIBILITY.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/04_UI_INTERACTIONS_AND_AUDIO_ACCESSIBILITY.md) | **Complete** | 100% interactive button bindings, `AVSpeechSynthesizer` voice selector sheet, active chapter narration state machine. |
+| **5. Live Metadata & Pure User-State Isolation** | [`03_LIVE_METADATA_AND_USER_STATE_PURGING.md`](file:///Users/maclab/Documents/roosc/Fable-IOS/docs/final_milestone/03_LIVE_METADATA_AND_USER_STATE_PURGING.md) | **Handover Ready** | Elimination of artificial seed bookmarks & stat floors; live official author portraits, high-res genre banners, Gutenberg covers, and authentic empty states. |
 
 ---
 
@@ -63,4 +64,11 @@ The Final Milestone transforms **Fable** from an editorial prototype into a full
   - [x] Step 4.1: System voice picker for `AVSpeechSynthesizer`.
   - [x] Step 4.2: Dynamic chapter narration binding in `AudioNarratorController`.
   - [x] Step 4.3: Full interactive button pass across all views.
+- [ ] **Milestone 5: Live Metadata & Pure User-State Isolation** (See [`03_LIVE_METADATA_AND_USER_STATE_PURGING.md`](file:///Users/maclab/Documents/roosc/Fable-IOS/docs/final_milestone/03_LIVE_METADATA_AND_USER_STATE_PURGING.md))
+  - [ ] Step 5.1: Backend live metadata enrichment (`avatar_image_url`, `image_url`, and Maria Makiling cover URL in `story_service.py` & `seed_catalog.py`).
+  - [ ] Step 5.2: Domain & Persistence zero-baseline calibration (`isSaved = false`, `progressPercent = 0` in `Story.swift`; removal of `max(12, ...)` stat floors in `PersistenceService.swift`).
+  - [ ] Step 5.3: Frontend Shelf & Profile empty state views (removal of `prefix(3)` and `prefix(2)` fallbacks; branded empty state cards).
+  - [ ] Step 5.4: LibraryView "Continue Reading" fallback purge (only show card when an actual tale is in progress).
+  - [ ] Step 5.5: Multi-user session reset and device ID isolation (`AuthViewModel.shared.logout()`, `clearUserStateOnSignOut()`).
+  - [ ] Step 5.6: Verification pass (17/17 pytest pass, clean iOS Simulator run with fresh account registration).
 
