@@ -72,7 +72,7 @@ public struct ReaderView: View {
             remainingWords = (activeChapter?.wordCount ?? (story.readTimeMinutes * 180))
         } else {
             let unreadPages = pages.dropFirst(max(0, currentPage - 1))
-            remainingWords = unreadPages.reduce(0) { $0 + $1.split(separator: " ").count }
+            remainingWords = unreadPages.reduce(0) { $0 + PacingEngine.countWords(in: $1) }
         }
         return pacingEngine.estimatedMinutesRemaining(remainingWords: max(40, remainingWords))
     }
@@ -290,7 +290,7 @@ public struct ReaderView: View {
                     }
                     .tabViewStyle(.page(indexDisplayMode: .never))
                     .onChange(of: currentPage) { oldPage, newPage in
-                        let wordCount = pages.indices.contains(newPage - 1) ? pages[newPage - 1].split(separator: " ").count : 180
+                        let wordCount = pages.indices.contains(newPage - 1) ? PacingEngine.countWords(in: pages[newPage - 1]) : 180
                         pacingEngine.recordPageTurn(wordsOnPage: wordCount)
                         store.updateProgress(for: story.id, page: newPage, totalPages: totalPages)
                     }
@@ -579,6 +579,9 @@ public struct ReaderView: View {
             DisplayOptionsSheet()
                 .environmentObject(store)
         }
+        .onChange(of: store.readerFontSize) { _, _ in
+            loadCurrentChapterPages(preserveCurrentPage: true)
+        }
         .sheet(isPresented: $isShowingAnnotationSheet) {
             annotationSheetView
                 .presentationDetents([.fraction(0.48), .medium])
@@ -786,12 +789,16 @@ public struct ReaderView: View {
     }
     
     // Multi-Chapter Synchronization Helpers
-    private func loadCurrentChapterPages() {
+    private func loadCurrentChapterPages(preserveCurrentPage: Bool = false) {
         let text = activeChapterText
-        let chunked = PacingEngine.chunkIntoPages(text: text)
+        let chunked = PacingEngine.chunkIntoPages(text: text, fontSizePercentage: store.readerFontSize)
         self.pages = chunked
         self.totalPages = max(1, chunked.count)
-        self.currentPage = 1
+        if preserveCurrentPage {
+            self.currentPage = min(max(1, self.currentPage), self.totalPages)
+        } else {
+            self.currentPage = 1
+        }
         store.loadAnnotations(for: story.id)
     }
     
