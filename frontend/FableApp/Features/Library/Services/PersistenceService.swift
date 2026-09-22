@@ -343,7 +343,6 @@ public final class PersistenceService {
             }
             
             // Calculate active streak days from unique reading days
-            let calendar = Calendar.current
             var uniqueDaySet = Set<String>()
             let formatter = DateFormatter()
             formatter.dateFormat = "yyyy-MM-dd"

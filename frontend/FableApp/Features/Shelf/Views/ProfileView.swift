@@ -254,7 +254,8 @@ public struct ProfileView: View {
                                             Text("Total Reading")
                                                 .font(.system(size: 12))
                                                 .foregroundColor(FableTheme.textMuted)
-                                            Text("28.5 hrs")
+                                            let hours = Double(store.readingStats.totalMinutesRead) / 60.0
+                                            Text(String(format: "%.1f hrs", hours))
                                                 .font(.system(size: 22, weight: .bold, design: .serif))
                                                 .foregroundColor(FableTheme.brandPrimary)
                                         }
@@ -267,7 +268,7 @@ public struct ProfileView: View {
                                             Text("Stories Finished")
                                                 .font(.system(size: 12))
                                                 .foregroundColor(FableTheme.textMuted)
-                                            Text("42")
+                                            Text("\(store.readingStats.storiesReadCount)")
                                                 .font(.system(size: 22, weight: .bold, design: .serif))
                                                 .foregroundColor(FableTheme.brandPrimary)
                                         }
@@ -308,6 +309,11 @@ public struct ProfileView: View {
                     .toolbar {
                         ToolbarItem(placement: .topBarTrailing) {
                             Button("Save") {
+                                auth.updateProfile(
+                                    name: userName,
+                                    handle: userHandle,
+                                    bio: userBio
+                                )
                                 isShowingEditProfile = false
                             }
                             .font(.system(size: 15, weight: .semibold))
@@ -318,6 +324,7 @@ public struct ProfileView: View {
                 .presentationDetents([.medium])
             }
             .onAppear {
+                store.reloadReadingStats()
                 if let session = auth.currentSession {
                     self.userName = session.name
                     self.userHandle = session.handle

@@ -148,6 +148,18 @@ public final class AuthManager: ObservableObject {
         persistSession(guest)
     }
 
+    public func updateProfile(name: String, handle: String, bio: String, avatarName: String? = nil) {
+        guard var session = currentSession else { return }
+        session.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanHandle = handle.trimmingCharacters(in: .whitespacesAndNewlines)
+        session.handle = cleanHandle.hasPrefix("@") ? cleanHandle : "@\(cleanHandle)"
+        session.bio = bio.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let avatarName = avatarName {
+            session.avatarName = avatarName
+        }
+        persistSession(session)
+    }
+
     public func signOut() {
         KeychainStore.shared.deleteData(key: "userSession")
         KeychainStore.shared.deleteAccessToken()

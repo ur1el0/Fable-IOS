@@ -378,7 +378,7 @@ public final class StoryStore: ObservableObject {
                     isCompleted: pct >= 100,
                     updatedAtUtc: Date()
                 )
-                _ = try? await self.apiService.syncShelf(deviceId: UUID(), items: [item])
+                _ = try? await self.apiService.syncShelf(deviceId: self.persistentDeviceId, items: [item])
             }
         }
     }
@@ -406,6 +406,18 @@ public final class StoryStore: ObservableObject {
                 totalPages: pages
             )
             reloadReadingStats()
+            
+            Task { [weak self] in
+                guard let self = self else { return }
+                let item = ShelfSyncItem(
+                    storyId: storyId,
+                    readingProgress: 1.0,
+                    isBookmarked: self.stories[idx].isBookmarked,
+                    isCompleted: true,
+                    updatedAtUtc: Date()
+                )
+                _ = try? await self.apiService.syncShelf(deviceId: self.persistentDeviceId, items: [item])
+            }
         }
     }
     
@@ -413,6 +425,18 @@ public final class StoryStore: ObservableObject {
         if let idx = stories.firstIndex(where: { $0.id == storyId }) {
             stories[idx].isBookmarked = false
             _ = PersistenceService.shared.toggleBookmark(storyId: storyId)
+            
+            Task { [weak self] in
+                guard let self = self else { return }
+                let item = ShelfSyncItem(
+                    storyId: storyId,
+                    readingProgress: Double(self.stories[idx].progressPercent) / 100.0,
+                    isBookmarked: false,
+                    isCompleted: self.stories[idx].isCompleted,
+                    updatedAtUtc: Date()
+                )
+                _ = try? await self.apiService.syncShelf(deviceId: self.persistentDeviceId, items: [item])
+            }
         }
     }
     
