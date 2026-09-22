@@ -395,3 +395,8 @@ public struct ExploreView: View {
         }
     }
 }
+
+#Preview {
+    ExploreView()
+        .environmentObject(StoryStore())
+}

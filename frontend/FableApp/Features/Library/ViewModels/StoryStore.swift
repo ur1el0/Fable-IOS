@@ -63,11 +63,11 @@ public final class StoryStore: ObservableObject {
     @Published var draftSynopsis: String = ""
     @Published var draftManuscript: String = ""
     
-    // Live Server-Driven Genres
-    @Published var genres: [GenreCategory] = []
+    // Live Server-Driven Genres (with bundled defaults)
+    @Published var genres: [GenreCategory] = GenreCategory.defaultCategories
     
-    // Live Server-Driven Trending Writers
-    @Published var writers: [Writer] = []
+    // Live Server-Driven Trending Writers (with bundled defaults)
+    @Published var writers: [Writer] = Writer.defaultWriters
     
     // User Profile Stories
     @Published var profileStories: [Story] = []
@@ -156,7 +156,7 @@ public final class StoryStore: ObservableObject {
     
     private func syncWithPersistence() {
         // Seed default stories if SQLite is empty
-        PersistenceService.shared.seedInitialDataIfNeeded(seedStories: self.stories)
+        PersistenceService.shared.seedInitialDataIfNeeded(seedStories: Story.defaultSeedStories)
         
         // Hydrate and reconcile from SQLite
         let persisted = PersistenceService.shared.fetchAllStories()
@@ -190,6 +190,26 @@ public final class StoryStore: ObservableObject {
                     profileStories.insert(userStory, at: 0)
                 }
             }
+        }
+        
+        if stories.isEmpty {
+            self.stories = Story.defaultSeedStories
+        }
+        
+        if profileStories.isEmpty {
+            self.profileStories = [
+                Story(
+                    title: "The Clockmaker of Prague",
+                    author: AuthManager.shared.currentSession?.name ?? "Roosc Zaño",
+                    genre: "Folklore",
+                    excerpt: "In the shadowed alleys behind the Astronomical Clock, Master Hanuš polished cogs that measured not minutes, but heartbeats.",
+                    coverImageName: "thumb_metamorphosis",
+                    readingTimeMinutes: 4,
+                    rating: 4.9,
+                    readsCount: "1.2k reads",
+                    badgeText: "FOLKLORE • 4 min read"
+                )
+            ]
         }
         
         reloadPinnedQuotes()

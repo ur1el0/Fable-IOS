@@ -352,3 +352,8 @@ public struct WriteView: View {
         }
     }
 }
+
+#Preview {
+    WriteView()
+        .environmentObject(StoryStore())
+}

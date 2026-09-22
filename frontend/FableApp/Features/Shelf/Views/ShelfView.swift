@@ -336,3 +336,8 @@ public struct ShelfView: View {
         }
     }
 }
+
+#Preview {
+    ShelfView()
+        .environmentObject(StoryStore())
+}

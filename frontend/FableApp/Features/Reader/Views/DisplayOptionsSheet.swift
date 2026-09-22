@@ -1,5 +1,6 @@
 import SwiftUI
 import AVFoundation
+import AVFAudio
 
 struct DisplayOptionsSheet: View {
     @EnvironmentObject var store: StoryStore

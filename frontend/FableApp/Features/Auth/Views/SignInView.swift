@@ -204,3 +204,7 @@ public struct SignInView: View {
         email.trimmingCharacters(in: .whitespaces).isEmpty || password.isEmpty
     }
 }
+
+#Preview {
+    SignInView()
+}

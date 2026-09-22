@@ -338,3 +338,8 @@ public struct LibraryView: View {
         }
     }
 }
+
+#Preview {
+    LibraryView()
+        .environmentObject(StoryStore())
+}

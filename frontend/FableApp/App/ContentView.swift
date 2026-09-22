@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 enum FableTab: Int, CaseIterable {
     case library = 0
@@ -113,4 +114,5 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
+        .modelContainer(PersistenceService.shared.container)
 }

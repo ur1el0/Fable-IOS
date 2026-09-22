@@ -312,3 +312,7 @@ public struct SignUpView: View {
         }
     }
 }
+
+#Preview {
+    SignUpView()
+}
