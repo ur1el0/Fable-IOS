@@ -145,7 +145,7 @@ public struct ReaderView: View {
                         // Oral Folklore Audio Synthesizer Toggle (Plan 04)
                         Button(action: {
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                audioNarrator.togglePlayback(for: story)
+                                audioNarrator.togglePlayback(for: story, chapter: activeChapter)
                             }
                         }) {
                             Image(systemName: audioNarrator.isPlaying ? "speaker.wave.3.fill" : "speaker.wave.2")
@@ -808,7 +808,7 @@ public struct ReaderView: View {
             currentChapterIndex = index
             loadCurrentChapterPages()
             if audioNarrator.isPlaying {
-                audioNarrator.stop()
+                audioNarrator.speak(story: story, chapter: chapters[index])
             }
         }
     }
