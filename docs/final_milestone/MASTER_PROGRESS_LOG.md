@@ -17,8 +17,8 @@ The Final Milestone transforms **Fable** from an editorial prototype into a full
 | :--- | :--- | :--- | :--- |
 | **1. Backend Security, Data Isolation & Auth** | [`01_BACKEND_SECURITY_AND_DATA.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/01_BACKEND_SECURITY_AND_DATA.md) | **Complete** | Multi-tenant compound keys, UTC datetime normalization, PBKDF2 authentication, Swift-parity JSON serialization aliases. |
 | **2. Live Media & Content Pipelines** | [`02_LIVE_MEDIA_AND_CONTENT.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/02_LIVE_MEDIA_AND_CONTENT.md) | **Complete** | Async remote image loading for covers and author avatars, Gutendex live ingestion, resilient vector fallbacks, persistent device identity. |
-| **3. Reader Pacing & Word Tokenization** | [`03_READER_PACING_AND_WORD_TOKENIZATION.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/03_READER_PACING_AND_WORD_TOKENIZATION.md) | **In Progress** | Zoom-invariant word counting, multi-whitespace tokenization, dynamic page chunking responsive to font scale. |
-| **4. UI Interactions & Voice Accessibility** | [`04_UI_INTERACTIONS_AND_AUDIO_ACCESSIBILITY.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/04_UI_INTERACTIONS_AND_AUDIO_ACCESSIBILITY.md) | **Planned** | 100% interactive button bindings, `AVSpeechSynthesizer` voice selector sheet, active chapter narration state machine. |
+| **3. Reader Pacing & Word Tokenization** | [`03_READER_PACING_AND_WORD_TOKENIZATION.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/03_READER_PACING_AND_WORD_TOKENIZATION.md) | **Complete** | Zoom-invariant word counting, multi-whitespace tokenization, dynamic page chunking responsive to font scale. |
+| **4. UI Interactions & Voice Accessibility** | [`04_UI_INTERACTIONS_AND_AUDIO_ACCESSIBILITY.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/04_UI_INTERACTIONS_AND_AUDIO_ACCESSIBILITY.md) | **In Progress** | 100% interactive button bindings, `AVSpeechSynthesizer` voice selector sheet, active chapter narration state machine. |
 
 ---
 
@@ -31,8 +31,8 @@ The Final Milestone transforms **Fable** from an editorial prototype into a full
 | **Device ID Persistence** | Ephemeral `UUID()` regenerated every sync | Hardware/vendor-backed `UserDefaults` UUID (`fable_device_id`) | **Complete** | `Features/Library/ViewModels/StoryStore.swift` |
 | **Story Covers & Avatars** | Local asset catalogs only (`cover_dracula`) | Live URL fetch via `AsyncImage` with procedural fallback + offline asset catalog | **Complete** | `Features/Library/Models/Story.swift`, `Features/Library/Views/ExploreView.swift`, `Features/Shelf/Views/ProfileView.swift`, `Features/Reader/Views/ReaderView.swift` |
 | **Frontend Topology** | Flat technical layering (`Views/`, `ViewModels/`) | Feature-driven vertical slices (`App/`, `Core/`, `Features/{Auth,Library,Reader,Shelf,Write}`) | **Complete** | `frontend/FableApp/Features/`, `frontend/FableApp/Core/`, `frontend/FableApp/App/` |
-| **Word Count Accuracy** | `split(separator: " ")` (fails on tabs/newlines) | Regex/tokenized whitespace counter invariant to zoom level | Planned | `Features/Reader/Services/PacingEngine.swift`, `Features/Reader/Views/ReaderView.swift` |
-| **Reader Zoom / Font Size** | Initial render only, inconsistent pagination | Dynamic pagination recalculated upon pinch/slider change | Planned | `Features/Reader/Views/ReaderView.swift`, `Features/Reader/Views/DisplayOptionsSheet.swift` |
+| **Word Count Accuracy** | `split(separator: " ")` (fails on tabs/newlines) | Regex/tokenized whitespace counter invariant to zoom level | **Complete** | `Features/Reader/Services/PacingEngine.swift`, `Features/Reader/Views/ReaderView.swift` |
+| **Reader Zoom / Font Size** | Initial render only, inconsistent pagination | Dynamic pagination recalculated upon pinch/slider change | **Complete** | `Features/Reader/Views/ReaderView.swift`, `Features/Reader/Views/DisplayOptionsSheet.swift` |
 | **Audio Voice Selector** | Hardcoded `en-US` default voice | Dynamic system voice picker querying available speech engines | Planned | `Features/Reader/Services/AudioNarratorController.swift`, `VoiceSelectionSheet.swift` |
 | **Audio Narrator Target** | Always read Chapter 1 | Narration dynamically bound to active displayed chapter | Planned | `Features/Reader/Services/AudioNarratorController.swift`, `Features/Reader/Views/ReaderView.swift` |
 | **Shelf Remove Button** | Visual only or local array remove | Synchronized removal / bookmark toggle synced to backend | Planned | `Features/Shelf/Views/ShelfView.swift`, `Features/Library/ViewModels/StoryStore.swift` |
@@ -55,10 +55,10 @@ The Final Milestone transforms **Fable** from an editorial prototype into a full
   - [x] Step 2.3: Upgrade `StoryAPIService` with dual camelCase/snake_case decoding and auth endpoints.
   - [x] Step 2.4: Eliminate raw `coverImageName` calls across `ExploreView`, `ProfileView`, `LibraryView`, and `ReaderView`.
   - [x] Step 2.5: Realign frontend into feature-driven vertical slices (`App`, `Core`, `Features/{Auth,Library,Reader,Shelf,Write}`) and integrate authentic asset catalog from `main`.
-- [ ] **Milestone 3: Reader Pacing, Tokenization & Zoom Invariance**
-  - [ ] Step 3.1: Zoom-invariant word tokenization in `PacingEngine.swift`.
-  - [ ] Step 3.2: Dynamic page recalculation on font size changes in `ReaderView.swift`.
-  - [ ] Step 3.3: Unit test suite for pacing engine calculations.
+- [x] **Milestone 3: Reader Pacing, Tokenization & Zoom Invariance**
+  - [x] Step 3.1: Zoom-invariant word tokenization in `PacingEngine.swift`.
+  - [x] Step 3.2: Dynamic page recalculation on font size changes in `ReaderView.swift`.
+  - [x] Step 3.3: Unit test suite for pacing engine calculations.
 - [ ] **Milestone 4: Interactive UI Bindings & Audio Narration**
   - [ ] Step 4.1: System voice picker for `AVSpeechSynthesizer`.
   - [ ] Step 4.2: Dynamic chapter narration binding in `AudioNarratorController`.
