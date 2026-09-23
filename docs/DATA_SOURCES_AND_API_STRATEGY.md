@@ -81,11 +81,21 @@ If the goal is to access a vast, pre-existing library of real-world literature w
 - **Base Endpoint:** `https://openlibrary.org/subjects/folklore.json`
 - **What It Provides:** Real-time metadata for millions of published editions, author bibliographies, and ISBN cover lookups.
 
+### C. Standard Ebooks Integration
+- **Source:** Standard Ebooks Public Domain Catalog
+- **What It Provides:** Professionally formatted, typography-first public domain editions (e.g. *Frankenstein: The 1818 Text*, *The Metamorphosis*).
+- **Format:** Ingested as `ContentFormat.prose` with provenance `SourceProvider.standardEbooks`.
+
+### D. MangaDex Graphic Manga API
+- **Base Endpoint:** `https://api.mangadex.org`
+- **What It Provides:** High-resolution sequential panel art manifests for graphic novels and manga (e.g. *Chainsaw Devil: Special Edition*).
+- **Format:** Ingested as `ContentFormat.manga` with provenance `SourceProvider.mangadex`. Each chapter includes an ordered `pageUrls` array of image URLs consumed by `MangaReaderView`.
+
 ---
 
 ## 4. Source 3: The Enterprise Hybrid Gateway Pattern (Recommended)
 
-The most resilient and scalable architecture combines both models using an **API Gateway Pattern**:
+The most resilient and scalable architecture combines all providers using an **API Gateway Pattern**:
 
 ```
                        ┌───────────────────────────────┐
@@ -97,19 +107,19 @@ The most resilient and scalable architecture combines both models using an **API
                        │   FastAPI Gateway (backend/)  │
                        └──────┬─────────────────┬──────┘
                               │                 │
-               ┌──────────────┴──────┐   ┌──────┴──────────────┐
-               ▼                     │   ▼                     │
-    ┌──────────────────────┐         │ ┌─────────────────────┐ │
-    │ Internal Fable DB    │         │ │ Gutendex Public API │ │
-    │ - Editorial Shorts   │         │ │ - Infinite Classics │ │
-    │ - User Publications  │         │ │ - Public Domain Books││
-    │ - Shelf Progress     │         │ └─────────────────────┘ │
-    └──────────────────────┘         └─────────────────────────┘
+               ┌──────────────┴──────┐   ┌──────┴──────────────────────────┐
+               ▼                     │   ▼                                 ▼
+    ┌──────────────────────┐         │ ┌─────────────────────┐   ┌─────────────────────┐
+    │ Internal Fable DB    │         │ │ Gutendex Public API │   │ MangaDex Public API │
+    │ - Editorial Shorts   │         │ │ - Infinite Classics │   │ - Graphic Manga     │
+    │ - User Publications  │         │ │ - Standard Ebooks   │   │ - Sequential Panels │
+    │ - Multi-Tenant Shelf │         │ └─────────────────────┘   └─────────────────────┘
+    └──────────────────────┘         └─────────────────────────────────────────────────┘
 ```
 
 ### Why the Hybrid Pattern Wins:
-1. **Reliability & Caching:** The FastAPI service queries Gutendex or Open Library, normalizes the messy external data into Fable's clean `StoryDTO` format, and caches results in SQLite. The mobile app only talks to a single, predictable API.
-2. **Infinite Content + Community Publishing:** Readers get access to an endless catalog of classic literature while still being able to write, publish, and bookmark original community stories.
+1. **Multi-Format Normalization:** The FastAPI gateway standardizes text from Gutenberg/Standard Ebooks and panel URLs from MangaDex into unified `StoryDTO` and `ChapterDTO` models, eliminating client-side decoding fragmentation.
+2. **Infinite Content + Community Publishing:** Readers get access to an endless catalog of classic literature and graphic novels while still being able to write, publish, and bookmark original community stories.
 3. **Offline-First Resilience:** Even if external services or campus Wi-Fi fluctuate, cached stories and local SwiftData storage keep the app fully functional.
 
 ---
