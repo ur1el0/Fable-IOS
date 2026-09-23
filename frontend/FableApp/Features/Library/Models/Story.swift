@@ -844,6 +844,13 @@ extension Writer {
             avatarImageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/26/Franz_Kafka%2C_1923.jpg/440px-Franz_Kafka%2C_1923.jpg",
             storyCount: 14,
             rating: 4.8
+        ),
+        Writer(
+            name: "Tatsuki Fujimoto",
+            avatarImageName: "author_roosc",
+            avatarImageUrl: "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=800&auto=format&fit=crop",
+            storyCount: 22,
+            rating: 5.0
         )
     ]
 }
