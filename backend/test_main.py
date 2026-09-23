@@ -468,5 +468,36 @@ def test_create_manga_story_via_api():
     assert created["sourceProvider"] == "FABLE_ORIGINAL"
     assert created["title"] == "Cyber Scribe Manga"
 
+def test_internal_health_and_media_invariants():
+    # 1. Update feed contract
+    feed_res = client.get("/api/v1/updates")
+    assert feed_res.status_code == 200
+    feed = feed_res.json()
+    assert feed["totalStories"] > 0
+    assert "timestampUtc" in feed
+    if feed.get("taleOfTheDay"):
+        assert "title" in feed["taleOfTheDay"]
+        assert "coverImageUrl" in feed["taleOfTheDay"]
+
+    # 2. Genre image and metadata invariants
+    genre_res = client.get("/api/v1/genres")
+    assert genre_res.status_code == 200
+    genres = genre_res.json()
+    for g in genres:
+        assert g["storyCount"] >= 0
+        assert len(g["readersCount"]) > 0
+        assert g["imageUrl"].startswith("https://")
+
+    # 3. Author portrait and rating invariants
+    author_res = client.get("/api/v1/authors/top")
+    assert author_res.status_code == 200
+    authors = author_res.json()
+    for a in authors:
+        assert a["rating"] >= 4.0
+        assert a["storyCount"] >= 0
+        if a.get("avatarImageUrl"):
+            assert a["avatarImageUrl"].startswith("https://")
+
+
 
 
