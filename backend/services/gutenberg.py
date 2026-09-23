@@ -74,12 +74,12 @@ async def ingest_gutenberg_book(
             INSERT INTO stories (
                 id, title, author, genre, chapter, synopsis, content,
                 read_time_minutes, is_bookmarked, is_completed, created_at_utc, updated_at_utc,
-                cover_image_url, is_recent_submission, total_chapters
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                cover_image_url, is_recent_submission, total_chapters, content_format, source_provider
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             story_id, title[:120], author[:80], genre or "Folklore", first_chapter["title"],
             synopsis[:300], first_chapter["content"], read_mins, 0, 0,
-            now_iso, now_iso, cover_url, 1, len(chapters)
+            now_iso, now_iso, cover_url, 1, len(chapters), "PROSE", "GUTENBERG"
         ))
 
         for ch in chapters:
@@ -166,7 +166,9 @@ async def get_gutenberg_stories(
                         created_at_utc=now,
                         updated_at_utc=now,
                         cover_image_url=cover_url,
-                        total_chapters=1
+                        total_chapters=1,
+                        content_format="PROSE",
+                        source_provider="GUTENBERG"
                     ))
 
                 if gutenberg_stories:
