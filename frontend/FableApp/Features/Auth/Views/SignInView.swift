@@ -25,7 +25,7 @@ public struct SignInView: View {
                         // Header
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Sign In")
-                                .font(.system(size: 32, weight: .bold, design: .serif))
+                                .font(.system(size: 32, weight: .bold))
                                 .foregroundColor(FableTheme.textPrimary)
 
                             Text("Enter your credentials to continue.")

@@ -29,7 +29,7 @@ public struct SignUpView: View {
                         // Header
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Create Account")
-                                .font(.system(size: 32, weight: .bold, design: .serif))
+                                .font(.system(size: 32, weight: .bold))
                                 .foregroundColor(FableTheme.textPrimary)
 
                             Text("Sign up to start reading and writing.")

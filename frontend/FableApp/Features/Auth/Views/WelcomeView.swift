@@ -17,7 +17,7 @@ public struct WelcomeView: View {
             VStack(spacing: 0) {
                 Spacer()
 
-                // Editorial Brand Header
+                // Modern Brand Header
                 VStack(spacing: 16) {
                     ZStack {
                         RoundedRectangle(cornerRadius: 24)
@@ -29,23 +29,23 @@ public struct WelcomeView: View {
                             )
                             .shadow(color: Color.black.opacity(0.04), radius: 10, y: 4)
 
-                        Image(systemName: "book.pages.fill")
+                        Image(systemName: "square.stack.3d.up.fill")
                             .font(.system(size: 36))
                             .foregroundColor(FableTheme.brandPrimary)
                     }
 
                     VStack(spacing: 6) {
                         Text("Fable")
-                            .font(.system(size: 42, weight: .bold, design: .serif))
+                            .font(.system(size: 42, weight: .black))
                             .foregroundColor(FableTheme.textPrimary)
 
-                        Text("READ & WRITE STORIES")
+                        Text("STORIES & MANGA")
                             .font(.system(size: 11, weight: .bold))
                             .tracking(2.0)
                             .foregroundColor(FableTheme.brandPrimary)
                     }
 
-                    Text("A simple, distraction-free space for reading and writing stories.")
+                    Text("A modern, distraction-free platform for reading novels, manga, and original stories.")
                         .font(.system(size: 15, weight: .regular))
                         .foregroundColor(FableTheme.textSecondary)
                         .multilineTextAlignment(.center)
@@ -55,7 +55,7 @@ public struct WelcomeView: View {
 
                 Spacer()
 
-                // Hero Decorative Book filigree card
+                // Hero Feature Highlights Card
                 VStack(spacing: 10) {
                     HStack(spacing: 12) {
                         Circle()
@@ -69,9 +69,9 @@ public struct WelcomeView: View {
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Read Anywhere")
-                                .font(.system(size: 13, weight: .bold, design: .serif))
+                                .font(.system(size: 13, weight: .bold))
                                 .foregroundColor(FableTheme.textPrimary)
-                            Text("Offline reading • Custom typography • Audio narration")
+                            Text("Manga & Novels • Offline mode • Adaptive reader")
                                 .font(.system(size: 11))
                                 .foregroundColor(FableTheme.textMuted)
                         }

@@ -56,7 +56,7 @@ struct ContentView: View {
             FableTheme.background.ignoresSafeArea()
             VStack(spacing: 16) {
                 Text("Fable")
-                    .font(.system(size: 40, weight: .bold, design: .serif))
+                    .font(.system(size: 40, weight: .black))
                     .foregroundColor(FableTheme.brandPrimary)
 
                 ProgressView()
