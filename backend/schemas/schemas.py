@@ -8,9 +8,10 @@ class ChapterDTO(BaseModel):
     story_id: UUID = Field(..., serialization_alias="storyId")
     chapter_number: int = Field(..., ge=1, serialization_alias="chapterNumber")
     title: str
-    content: str
+    content: Optional[str] = ""
     word_count: int = Field(default=0, serialization_alias="wordCount")
     created_at_utc: datetime = Field(..., serialization_alias="createdAtUtc")
+    page_urls: list[str] = Field(default_factory=list, serialization_alias="pageUrls")
 
     model_config = {
         "populate_by_name": True
@@ -43,6 +44,8 @@ class StoryDTO(BaseModel):
     is_curator_spotlight: bool = Field(default=False, serialization_alias="isCuratorSpotlight")
     badge_text: Optional[str] = Field(default=None, serialization_alias="badgeText")
     total_chapters: int = Field(default=1, serialization_alias="totalChapters")
+    content_format: str = Field(default="PROSE", serialization_alias="contentFormat")
+    source_provider: str = Field(default="FABLE_ORIGINAL", serialization_alias="sourceProvider")
     chapters: Optional[list[ChapterDTO]] = None
 
     model_config = {
@@ -93,6 +96,8 @@ class CreateStoryRequest(BaseModel):
     synopsis: str
     content: str
     read_time_minutes: int = Field(default=4, ge=1, alias="readTimeMinutes")
+    content_format: Optional[str] = Field(default="PROSE", alias="contentFormat")
+    source_provider: Optional[str] = Field(default="FABLE_ORIGINAL", alias="sourceProvider")
 
     model_config = {
         "populate_by_name": True

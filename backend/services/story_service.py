@@ -1,4 +1,5 @@
 import sqlite3
+import json
 import httpx
 from datetime import datetime, timezone
 from uuid import UUID, uuid4
@@ -45,10 +46,17 @@ GENRE_METADATA = {
         "image_name": "genre_mystery",
         "image_url": "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?q=80&w=800&auto=format&fit=crop",
         "default_readers": "14.2k"
+    },
+    "Manga": {
+        "description": "Visual narratives, serialized graphic adventures, and dynamic panel-driven epics originating from contemporary Japanese and global studios.",
+        "image_name": "genre_folklore",
+        "image_url": "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=800&auto=format&fit=crop",
+        "default_readers": "34.8k"
     }
 }
 
 AUTHOR_PORTRAIT_URLS = {
+    "Tatsuki Fujimoto": "https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=800&auto=format&fit=crop",
     "Bram Stoker": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/34/Bram_Stoker_1906.jpg/440px-Bram_Stoker_1906.jpg",
     "Washington Irving": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Washington_Irving_by_John_Wesley_Jarvis%2C_1809.jpg/440px-Washington_Irving_by_John_Wesley_Jarvis%2C_1809.jpg",
     "Edgar Allan Poe": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/75/Edgar_Allan_Poe_2_edit.jpg/440px-Edgar_Allan_Poe_2_edit.jpg",
@@ -75,15 +83,18 @@ def row_to_story_dto(r: sqlite3.Row, include_chapters: bool = False, conn: Optio
                 story_id=story_id,
                 chapter_number=ch["chapter_number"],
                 title=ch["title"],
-                content=ch["content"],
-                word_count=ch["word_count"],
-                created_at_utc=datetime.fromisoformat(ch["created_at_utc"])
+                content=ch["content"] if "content" in ch.keys() else "",
+                word_count=ch["word_count"] if "word_count" in ch.keys() else 0,
+                created_at_utc=datetime.fromisoformat(ch["created_at_utc"]),
+                page_urls=json.loads(ch["page_urls"]) if "page_urls" in ch.keys() and ch["page_urls"] else []
             )
             for ch in ch_rows
         ]
 
     keys = r.keys()
     total_chapters = r["total_chapters"] if "total_chapters" in keys and r["total_chapters"] else 1
+    content_format = r["content_format"] if "content_format" in keys and r["content_format"] else "PROSE"
+    source_provider = r["source_provider"] if "source_provider" in keys and r["source_provider"] else "FABLE_ORIGINAL"
     return StoryDTO(
         id=story_id,
         title=r["title"],
@@ -111,6 +122,8 @@ def row_to_story_dto(r: sqlite3.Row, include_chapters: bool = False, conn: Optio
         is_curator_spotlight=bool(r["is_curator_spotlight"]) if "is_curator_spotlight" in keys else False,
         badge_text=r["badge_text"] if "badge_text" in keys else None,
         total_chapters=total_chapters,
+        content_format=content_format,
+        source_provider=source_provider,
         chapters=chapters
     )
 
@@ -169,9 +182,10 @@ def get_story_chapters(story_id: UUID) -> list[ChapterDTO]:
             story_id=story_id,
             chapter_number=r["chapter_number"],
             title=r["title"],
-            content=r["content"],
-            word_count=r["word_count"],
-            created_at_utc=datetime.fromisoformat(r["created_at_utc"])
+            content=r["content"] if "content" in r.keys() else "",
+            word_count=r["word_count"] if "word_count" in r.keys() else 0,
+            created_at_utc=datetime.fromisoformat(r["created_at_utc"]),
+            page_urls=json.loads(r["page_urls"]) if "page_urls" in r.keys() and r["page_urls"] else []
         )
         for r in rows
     ]
@@ -192,9 +206,10 @@ def get_story_chapter_by_number(story_id: UUID, chapter_number: int) -> ChapterD
         story_id=story_id,
         chapter_number=row["chapter_number"],
         title=row["title"],
-        content=row["content"],
-        word_count=row["word_count"],
-        created_at_utc=datetime.fromisoformat(row["created_at_utc"])
+        content=row["content"] if "content" in row.keys() else "",
+        word_count=row["word_count"] if "word_count" in row.keys() else 0,
+        created_at_utc=datetime.fromisoformat(row["created_at_utc"]),
+        page_urls=json.loads(row["page_urls"]) if "page_urls" in row.keys() and row["page_urls"] else []
     )
 
 def create_story(payload: CreateStoryRequest) -> StoryDTO:
@@ -204,14 +219,17 @@ def create_story(payload: CreateStoryRequest) -> StoryDTO:
     now_iso = now.isoformat()
     chapter_title = payload.chapter or "Chapter I"
 
+    format_val = payload.content_format or "PROSE"
+    provider_val = payload.source_provider or "FABLE_ORIGINAL"
+
     conn = get_db()
     with conn:
         conn.execute("""
             INSERT INTO stories (
                 id, title, author, genre, chapter, synopsis, content,
                 read_time_minutes, is_bookmarked, is_completed, created_at_utc, updated_at_utc,
-                is_recent_submission, total_chapters
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                is_recent_submission, total_chapters, content_format, source_provider
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             story_id,
             payload.title,
@@ -226,16 +244,18 @@ def create_story(payload: CreateStoryRequest) -> StoryDTO:
             now_iso,
             now_iso,
             1,
-            1
+            1,
+            format_val,
+            provider_val
         ))
 
-        words = len(payload.content.split())
+        words = len(payload.content.split()) if payload.content else 0
         conn.execute("""
             INSERT INTO chapters (
-                id, story_id, chapter_number, title, content, word_count, created_at_utc
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                id, story_id, chapter_number, title, content, word_count, created_at_utc, page_urls
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """, (
-            chapter_id, story_id, 1, chapter_title, payload.content, words, now_iso
+            chapter_id, story_id, 1, chapter_title, payload.content or "", words, now_iso, "[]"
         ))
 
     conn.close()
@@ -254,7 +274,9 @@ def create_story(payload: CreateStoryRequest) -> StoryDTO:
         created_at_utc=now,
         updated_at_utc=now,
         is_recent_submission=True,
-        total_chapters=1
+        total_chapters=1,
+        content_format=format_val,
+        source_provider=provider_val
     )
 
 def get_genres() -> list[GenreDTO]:

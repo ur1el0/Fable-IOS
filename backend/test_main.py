@@ -411,4 +411,62 @@ def test_auth_me_unauthorized():
     res2 = client.get("/api/v1/auth/me", headers={"Authorization": "Bearer non_existent_token_12345"})
     assert res2.status_code == 401
 
+def test_multi_format_content_and_provider_serialization():
+    response = client.get("/api/v1/stories")
+    assert response.status_code == 200
+    stories = response.json()
+    
+    # Check that stories have contentFormat and sourceProvider keys
+    for s in stories:
+        assert "contentFormat" in s
+        assert "sourceProvider" in s
+
+    # Verify Manga sample is present with MANGADEX provider
+    manga_story = next((s for s in stories if s["contentFormat"] == "MANGA"), None)
+    assert manga_story is not None
+    assert manga_story["sourceProvider"] == "MANGADEX"
+    assert manga_story["title"] == "Chainsaw Devil: Special Edition"
+    assert manga_story["badgeText"] == "MANGA"
+
+    # Verify Standard Ebooks sample is present
+    se_story = next((s for s in stories if s["sourceProvider"] == "STANDARD_EBOOKS"), None)
+    assert se_story is not None
+    assert se_story["contentFormat"] == "PROSE"
+    assert "standardebooks.org" in se_story["coverImageUrl"]
+
+def test_manga_chapter_page_urls_contract():
+    response = client.get("/api/v1/stories")
+    assert response.status_code == 200
+    stories = response.json()
+    manga_story = next(s for s in stories if s["contentFormat"] == "MANGA")
+    
+    ch_res = client.get(f"/api/v1/stories/{manga_story['id']}/chapters")
+    assert ch_res.status_code == 200
+    chapters = ch_res.json()
+    assert len(chapters) >= 1
+    ch1 = chapters[0]
+    assert "pageUrls" in ch1
+    assert len(ch1["pageUrls"]) >= 3
+    assert all(url.startswith("https://") for url in ch1["pageUrls"])
+
+def test_create_manga_story_via_api():
+    payload = {
+        "title": "Cyber Scribe Manga",
+        "author": "Fable Studios",
+        "genre": "Manga",
+        "chapter": "Issue #1",
+        "synopsis": "A cyberpunk illustrator discovers a quill that draws reality.",
+        "content": "",
+        "readTimeMinutes": 6,
+        "contentFormat": "MANGA",
+        "sourceProvider": "FABLE_ORIGINAL"
+    }
+    res = client.post("/api/v1/stories", json=payload)
+    assert res.status_code == 201
+    created = res.json()
+    assert created["contentFormat"] == "MANGA"
+    assert created["sourceProvider"] == "FABLE_ORIGINAL"
+    assert created["title"] == "Cyber Scribe Manga"
+
+
 
