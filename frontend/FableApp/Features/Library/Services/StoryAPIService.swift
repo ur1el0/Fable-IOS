@@ -7,14 +7,27 @@ public struct CreateStoryRequest: Codable {
     public let synopsis: String
     public let content: String
     public let readTimeMinutes: Int
+    public let contentFormat: String?
+    public let sourceProvider: String?
     
-    public init(title: String, author: String, genre: String, synopsis: String, content: String, readTimeMinutes: Int) {
+    public init(
+        title: String,
+        author: String,
+        genre: String,
+        synopsis: String,
+        content: String,
+        readTimeMinutes: Int,
+        contentFormat: String? = "PROSE",
+        sourceProvider: String? = "FABLE_ORIGINAL"
+    ) {
         self.title = title
         self.author = author
         self.genre = genre
         self.synopsis = synopsis
         self.content = content
         self.readTimeMinutes = readTimeMinutes
+        self.contentFormat = contentFormat
+        self.sourceProvider = sourceProvider
     }
 }
 

@@ -148,7 +148,9 @@ public final class StoryStore: ObservableObject {
                 genre: newStory.genre.rawValue,
                 synopsis: newStory.synopsis,
                 content: newStory.content,
-                readTimeMinutes: newStory.readTimeMinutes
+                readTimeMinutes: newStory.readTimeMinutes,
+                contentFormat: newStory.contentFormat.rawValue,
+                sourceProvider: newStory.sourceProvider.rawValue
             )
             _ = try? await self.apiService.createStory(req)
         }
@@ -261,6 +263,8 @@ public final class StoryStore: ObservableObject {
                         stories[idx].isBookmarked = stories[idx].isBookmarked || remote.isBookmarked
                         stories[idx].coverImageUrl = remote.coverImageUrl
                         stories[idx].totalChapters = remote.totalChapters
+                        stories[idx].contentFormat = remote.contentFormat
+                        stories[idx].sourceProvider = remote.sourceProvider
                         if remote.isTaleOfTheDay { stories[idx].isTaleOfTheDay = true }
                         if remote.isCuratorSpotlight { stories[idx].isCuratorSpotlight = true }
                     } else {

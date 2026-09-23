@@ -76,8 +76,39 @@ public enum ReaderLineSpacing: String, CaseIterable, Identifiable, Codable {
     }
 }
 
+public enum ContentFormat: String, Codable, CaseIterable, Identifiable {
+    case prose = "PROSE"
+    case manga = "MANGA"
+
+    public var id: String { rawValue }
+    public var displayName: String {
+        switch self {
+        case .prose: return "Novel"
+        case .manga: return "Manga"
+        }
+    }
+}
+
+public enum SourceProvider: String, Codable, CaseIterable, Identifiable {
+    case gutenberg = "GUTENBERG"
+    case standardEbooks = "STANDARD_EBOOKS"
+    case mangadex = "MANGADEX"
+    case fableOriginal = "FABLE_ORIGINAL"
+
+    public var id: String { rawValue }
+    public var displayName: String {
+        switch self {
+        case .gutenberg: return "Project Gutenberg"
+        case .standardEbooks: return "Standard Ebooks"
+        case .mangadex: return "MangaDex"
+        case .fableOriginal: return "Fable Original"
+        }
+    }
+}
+
 public enum Genre: String, Codable, CaseIterable, Identifiable {
     case all = "All"
+    case manga = "Manga"
     case folklore = "Folklore"
     case urbanLegend = "Urban Legend"
     case mythology = "Mythology"
@@ -98,7 +129,8 @@ public enum Genre: String, Codable, CaseIterable, Identifiable {
             self = match
         } else {
             let lower = raw.lowercased()
-            if lower.contains("folk") { self = .folklore }
+            if lower.contains("manga") || lower.contains("comic") { self = .manga }
+            else if lower.contains("folk") { self = .folklore }
             else if lower.contains("urban") { self = .urbanLegend }
             else if lower.contains("myth") { self = .mythology }
             else if lower.contains("horror") { self = .horror }
@@ -118,6 +150,7 @@ public struct Chapter: Identifiable, Hashable, Codable {
     public var content: String
     public var wordCount: Int
     public let createdAtUtc: Date
+    public var pageUrls: [String]
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -127,6 +160,7 @@ public struct Chapter: Identifiable, Hashable, Codable {
         case content
         case wordCount
         case createdAtUtc
+        case pageUrls
     }
 
     public init(
@@ -134,9 +168,10 @@ public struct Chapter: Identifiable, Hashable, Codable {
         storyId: UUID,
         chapterNumber: Int,
         title: String,
-        content: String,
+        content: String = "",
         wordCount: Int = 0,
-        createdAtUtc: Date = Date()
+        createdAtUtc: Date = Date(),
+        pageUrls: [String] = []
     ) {
         self.id = id
         self.storyId = storyId
@@ -145,6 +180,19 @@ public struct Chapter: Identifiable, Hashable, Codable {
         self.content = content
         self.wordCount = wordCount == 0 ? content.components(separatedBy: .whitespacesAndNewlines).filter({ !$0.isEmpty }).count : wordCount
         self.createdAtUtc = createdAtUtc
+        self.pageUrls = pageUrls
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        self.storyId = try container.decodeIfPresent(UUID.self, forKey: .storyId) ?? UUID()
+        self.chapterNumber = try container.decodeIfPresent(Int.self, forKey: .chapterNumber) ?? 1
+        self.title = try container.decodeIfPresent(String.self, forKey: .title) ?? ""
+        self.content = try container.decodeIfPresent(String.self, forKey: .content) ?? ""
+        self.wordCount = try container.decodeIfPresent(Int.self, forKey: .wordCount) ?? 0
+        self.createdAtUtc = try container.decodeIfPresent(Date.self, forKey: .createdAtUtc) ?? Date()
+        self.pageUrls = try container.decodeIfPresent([String].self, forKey: .pageUrls) ?? []
     }
 }
 
@@ -192,6 +240,8 @@ public struct Story: Identifiable, Hashable, Codable {
     public var badgeText: String?
     public var totalChapters: Int
     public var chapters: [Chapter]?
+    public var contentFormat: ContentFormat
+    public var sourceProvider: SourceProvider
 
     // Convenience accessors
     public var excerpt: String {
@@ -230,6 +280,7 @@ public struct Story: Identifiable, Hashable, Codable {
         case id, title, author, genre, synopsis, content, readTimeMinutes, isBookmarked, isCompleted, createdAtUtc
         case coverImageName, heroImageName, coverImageUrl, totalPages, currentPage, progressPercent, rating, savesCount, readsCount
         case isTaleOfTheDay, isRecentSubmission, isCuratorSpotlight, badgeText, totalChapters, chapters
+        case contentFormat, sourceProvider
     }
 
     public init(from decoder: Decoder) throws {
@@ -260,6 +311,8 @@ public struct Story: Identifiable, Hashable, Codable {
         self.badgeText = try container.decodeIfPresent(String.self, forKey: .badgeText)
         self.totalChapters = try container.decodeIfPresent(Int.self, forKey: .totalChapters) ?? 1
         self.chapters = try container.decodeIfPresent([Chapter].self, forKey: .chapters)
+        self.contentFormat = try container.decodeIfPresent(ContentFormat.self, forKey: .contentFormat) ?? .prose
+        self.sourceProvider = try container.decodeIfPresent(SourceProvider.self, forKey: .sourceProvider) ?? .fableOriginal
     }
 
     // Architecture Contract Initializer (ARCHITECTURE.md Section 3.1 & 7.2)
@@ -273,7 +326,9 @@ public struct Story: Identifiable, Hashable, Codable {
         readTimeMinutes: Int,
         isBookmarked: Bool = false,
         isCompleted: Bool = false,
-        createdAtUtc: Date = Date()
+        createdAtUtc: Date = Date(),
+        contentFormat: ContentFormat = .prose,
+        sourceProvider: SourceProvider = .fableOriginal
     ) {
         self.id = id
         self.title = title
@@ -300,6 +355,8 @@ public struct Story: Identifiable, Hashable, Codable {
         self.coverImageUrl = nil
         self.totalChapters = 1
         self.chapters = nil
+        self.contentFormat = contentFormat
+        self.sourceProvider = sourceProvider
     }
 
     // Full Prototype Initializer
@@ -325,13 +382,17 @@ public struct Story: Identifiable, Hashable, Codable {
         isSaved: Bool = false,
         isFinished: Bool = false,
         isCuratorSpotlight: Bool = false,
-        badgeText: String? = nil
+        badgeText: String? = nil,
+        contentFormat: ContentFormat = .prose,
+        sourceProvider: SourceProvider = .fableOriginal,
+        chapters: [Chapter]? = nil
     ) {
         self.id = id
         self.title = title
         self.author = author
         self.genre = Genre(rawValue: genre) ?? {
             let lower = genre.lowercased()
+            if lower.contains("manga") || lower.contains("comic") { return .manga }
             if lower.contains("folk") { return .folklore }
             if lower.contains("myth") { return .mythology }
             if lower.contains("horror") || lower.contains("gothic") { return .horror }
@@ -357,8 +418,10 @@ public struct Story: Identifiable, Hashable, Codable {
         self.isRecentSubmission = isRecentSubmission
         self.isCuratorSpotlight = isCuratorSpotlight
         self.badgeText = badgeText
-        self.totalChapters = 1
-        self.chapters = nil
+        self.totalChapters = max(1, chapters?.count ?? 1)
+        self.chapters = chapters
+        self.contentFormat = contentFormat
+        self.sourceProvider = sourceProvider
     }
 }
 
@@ -645,12 +708,78 @@ extension Story {
             progressPercent: 0,
             isRecentSubmission: true,
             isSaved: false
+        ),
+        Story(
+            id: UUID(uuidString: "10101010-1010-1010-1010-101010101010") ?? UUID(),
+            title: "Chainsaw Devil: Special Edition",
+            author: "Tatsuki Fujimoto",
+            genre: "Manga",
+            excerpt: "In a gritty neon metropolis where human fears manifest as living devils, an indebted hunter fights for survival alongside his faithful devil companion.",
+            paragraphs: [],
+            coverImageName: "cover_dracula",
+            heroImageName: "hero_dracula",
+            coverImageUrl: "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=800&auto=format&fit=crop",
+            readingTimeMinutes: 8,
+            totalPages: 4,
+            currentPage: 1,
+            progressPercent: 0,
+            rating: 4.95,
+            isRecentSubmission: true,
+            isSaved: false,
+            badgeText: "MANGA",
+            contentFormat: .manga,
+            sourceProvider: .mangadex,
+            chapters: [
+                Chapter(
+                    storyId: UUID(uuidString: "10101010-1010-1010-1010-101010101010") ?? UUID(),
+                    chapterNumber: 1,
+                    title: "Chapter 1: The Contract",
+                    content: "",
+                    wordCount: 0,
+                    pageUrls: [
+                        "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=800&auto=format&fit=crop",
+                        "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=800&auto=format&fit=crop",
+                        "https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=800&auto=format&fit=crop",
+                        "https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=800&auto=format&fit=crop"
+                    ]
+                )
+            ]
+        ),
+        Story(
+            id: UUID(uuidString: "20202020-2020-2020-2020-202020202020") ?? UUID(),
+            title: "The Metamorphosis",
+            author: "Franz Kafka",
+            genre: "Classic Fiction",
+            excerpt: "One morning, Gregor Samsa woke from uneasy dreams to find himself transformed into a monstrous insect.",
+            paragraphs: [
+                "One morning, when Gregor Samsa woke from troubled dreams, he found himself transformed in his bed into a horrible vermin."
+            ],
+            coverImageName: "cover_metamorphosis",
+            heroImageName: "cover_metamorphosis",
+            coverImageUrl: "https://standardebooks.org/ebooks/franz-kafka/the-metamorphosis/david-wyllie/downloads/cover.jpg",
+            readingTimeMinutes: 7,
+            totalPages: 8,
+            currentPage: 1,
+            progressPercent: 0,
+            rating: 4.9,
+            isCuratorSpotlight: true,
+            badgeText: "STANDARD EBOOKS",
+            contentFormat: .prose,
+            sourceProvider: .standardEbooks
         )
     ]
 }
 
 extension GenreCategory {
     public static let defaultCategories: [GenreCategory] = [
+        GenreCategory(
+            name: "Manga",
+            storyCount: 520,
+            readersCount: "34.8k",
+            description: "Visual graphic serialized narratives, high-contrast dynamic action panels, and modern serialized storytelling.",
+            imageName: "genre_folklore",
+            imageUrl: "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=800&auto=format&fit=crop"
+        ),
         GenreCategory(
             name: "Folklore",
             storyCount: 248,
