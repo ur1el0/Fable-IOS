@@ -17,29 +17,29 @@ struct StoryPublishedSheet: View {
             
             Spacer()
             
-            // Success Icon with Sparkles
+            // Success Icon with Modern Indigo Accent
             ZStack {
                 Circle()
-                    .fill(FableTheme.softPeach)
+                    .fill(FableTheme.brandPrimary.opacity(0.12))
                     .frame(width: 90, height: 90)
                 
                 Circle()
-                    .fill(Color(red: 0.98, green: 0.88, blue: 0.82))
+                    .fill(FableTheme.brandPrimary.opacity(0.20))
                     .frame(width: 68, height: 68)
                 
                 Image(systemName: "checkmark")
                     .font(.system(size: 26, weight: .bold))
-                    .foregroundColor(FableTheme.terracotta)
+                    .foregroundColor(FableTheme.brandPrimary)
                 
                 // Sparkle ornaments
                 Image(systemName: "sparkle")
                     .font(.system(size: 14))
-                    .foregroundColor(FableTheme.terracotta)
+                    .foregroundColor(FableTheme.brandPrimary)
                     .offset(x: 46, y: -34)
                 
                 Image(systemName: "sparkle")
                     .font(.system(size: 10))
-                    .foregroundColor(FableTheme.terracotta.opacity(0.7))
+                    .foregroundColor(FableTheme.brandPrimary.opacity(0.7))
                     .offset(x: -42, y: 30)
             }
             .padding(.top, 10)
@@ -47,12 +47,12 @@ struct StoryPublishedSheet: View {
             // Title & Subtitle
             VStack(spacing: 12) {
                 Text("Story Published!")
-                    .font(.system(size: 26, weight: .bold, design: .serif))
-                    .foregroundColor(FableTheme.deepCharcoal)
+                    .font(.system(size: 26, weight: .black))
+                    .foregroundColor(FableTheme.textPrimary)
                 
-                Text("Your fable is now live in the Community Library for fellow wanderers to read and reflect upon.")
+                Text("Your story is now live in the Community Library for readers to explore.")
                     .font(.system(size: 15, weight: .regular))
-                    .foregroundColor(FableTheme.subtleSlate)
+                    .foregroundColor(FableTheme.textSecondary)
                     .multilineTextAlignment(.center)
                     .lineSpacing(4)
                     .padding(.horizontal, 24)
@@ -62,28 +62,28 @@ struct StoryPublishedSheet: View {
             HStack(spacing: 8) {
                 HStack(spacing: 4) {
                     Circle()
-                        .fill(FableTheme.terracotta)
+                        .fill(FableTheme.brandPrimary)
                         .frame(width: 6, height: 6)
                     Text("Public")
                         .font(.system(size: 12, weight: .medium))
                 }
                 
                 Text("•")
-                    .foregroundColor(FableTheme.subtleSlate.opacity(0.4))
+                    .foregroundColor(FableTheme.textMuted.opacity(0.4))
                 
                 Text(store.draftGenre)
                     .font(.system(size: 12, weight: .medium))
                 
                 Text("•")
-                    .foregroundColor(FableTheme.subtleSlate.opacity(0.4))
+                    .foregroundColor(FableTheme.textMuted.opacity(0.4))
                 
                 Text("\(store.draftWordCount) words")
                     .font(.system(size: 12, weight: .medium))
             }
-            .foregroundColor(FableTheme.deepCharcoal)
+            .foregroundColor(FableTheme.textPrimary)
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
-            .background(Color.gray.opacity(0.08))
+            .background(FableTheme.surfaceVariant)
             .clipShape(Capsule())
             
             Spacer()
@@ -102,7 +102,7 @@ struct StoryPublishedSheet: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
-                    .background(FableTheme.terracotta)
+                    .background(FableTheme.brandPrimary)
                     .foregroundColor(.white)
                     .clipShape(RoundedRectangle(cornerRadius: 14))
                 }
@@ -113,7 +113,7 @@ struct StoryPublishedSheet: View {
                 }) {
                     Text("Return to Library")
                         .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(FableTheme.deepCharcoal)
+                        .foregroundColor(FableTheme.textPrimary)
                         .padding(.vertical, 8)
                 }
                 
@@ -126,7 +126,7 @@ struct StoryPublishedSheet: View {
                         Text("Share story link")
                             .font(.system(size: 14, weight: .medium))
                     }
-                    .foregroundColor(FableTheme.terracotta)
+                    .foregroundColor(FableTheme.brandPrimary)
                     .padding(.vertical, 6)
                 }
             }

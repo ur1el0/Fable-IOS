@@ -49,7 +49,7 @@ public struct ExploreView: View {
                         // Top Brand Header
                         HStack {
                             HStack(spacing: 8) {
-                                Image(systemName: "book.pages.fill")
+                                Image(systemName: "square.stack.3d.up.fill")
                                     .font(.system(size: 14))
                                     .foregroundColor(.white)
                                     .padding(7)
@@ -57,7 +57,7 @@ public struct ExploreView: View {
                                     .clipShape(RoundedRectangle(cornerRadius: 8))
                                 
                                 Text("Fable")
-                                    .font(.system(size: 20, weight: .bold, design: .serif))
+                                    .font(.system(size: 20, weight: .black))
                                     .foregroundColor(FableTheme.textPrimary)
                             }
                             
@@ -78,7 +78,7 @@ public struct ExploreView: View {
                                 .foregroundColor(FableTheme.brandPrimary)
                             
                             Text("Explore")
-                                .font(.system(size: 34, weight: .bold, design: .serif))
+                                .font(.system(size: 34, weight: .black))
                                 .foregroundColor(FableTheme.textPrimary)
                         }
                         .padding(.horizontal, 20)
@@ -89,7 +89,7 @@ public struct ExploreView: View {
                                 .font(.system(size: 16))
                                 .foregroundColor(FableTheme.textMuted)
                             
-                            TextField("Search stories, authors, or folklore...", text: $searchText)
+                            TextField("Search stories, manga, or authors...", text: $searchText)
                                 .font(.system(size: 15))
                                 .foregroundColor(FableTheme.textPrimary)
                             
@@ -114,7 +114,7 @@ public struct ExploreView: View {
                             VStack(alignment: .leading, spacing: 14) {
                                 HStack {
                                     Text("Search Results (\(searchResults.count))")
-                                        .font(.system(size: 18, weight: .bold, design: .serif))
+                                        .font(.system(size: 18, weight: .bold))
                                         .foregroundColor(FableTheme.textPrimary)
                                     Spacer()
                                 }
@@ -125,7 +125,7 @@ public struct ExploreView: View {
                                         Image(systemName: "magnifyingglass")
                                             .font(.system(size: 30))
                                             .foregroundColor(FableTheme.textMuted)
-                                        Text("No tales found matching \"\(searchText)\"")
+                                        Text("No titles found matching \"\(searchText)\"")
                                             .font(.system(size: 14))
                                             .foregroundColor(FableTheme.textMuted)
                                     }
@@ -144,11 +144,20 @@ public struct ExploreView: View {
                                                     
                                                     VStack(alignment: .leading, spacing: 4) {
                                                         Text(story.title)
-                                                            .font(.system(size: 15, weight: .bold, design: .serif))
+                                                            .font(.system(size: 15, weight: .bold))
                                                             .foregroundColor(FableTheme.textPrimary)
-                                                        Text("\(story.author) • \(story.genre.rawValue)")
-                                                            .font(.system(size: 12))
-                                                            .foregroundColor(FableTheme.textMuted)
+                                                        HStack(spacing: 6) {
+                                                            Text(story.contentFormat.displayName.uppercased())
+                                                                .font(.system(size: 9, weight: .bold))
+                                                                .padding(.horizontal, 6)
+                                                                .padding(.vertical, 2)
+                                                                .background(story.contentFormat == .manga ? FableTheme.brandPrimary.opacity(0.12) : FableTheme.surfaceVariant)
+                                                                .foregroundColor(story.contentFormat == .manga ? FableTheme.brandPrimary : FableTheme.textSecondary)
+                                                                .clipShape(Capsule())
+                                                            Text("\(story.author) • \(story.genre.rawValue)")
+                                                                .font(.system(size: 12))
+                                                                .foregroundColor(FableTheme.textMuted)
+                                                        }
                                                     }
                                                     
                                                     Spacer()
@@ -201,7 +210,7 @@ public struct ExploreView: View {
                         if selectedFilter != "All" {
                             VStack(alignment: .leading, spacing: 10) {
                                 Text("\(selectedFilter) (\(curatedStories.count))")
-                                    .font(.system(size: 18, weight: .bold, design: .serif))
+                                    .font(.system(size: 18, weight: .bold))
                                     .foregroundColor(FableTheme.textPrimary)
                                     .padding(.horizontal, 20)
                                 
@@ -217,7 +226,7 @@ public struct ExploreView: View {
                                                         .clipShape(RoundedRectangle(cornerRadius: 12))
                                                     
                                                     Text(story.title)
-                                                        .font(.system(size: 13, weight: .bold, design: .serif))
+                                                        .font(.system(size: 13, weight: .bold))
                                                         .foregroundColor(FableTheme.textPrimary)
                                                         .lineLimit(1)
                                                     
@@ -240,7 +249,7 @@ public struct ExploreView: View {
                         VStack(alignment: .leading, spacing: 14) {
                             HStack {
                                 Text("Popular Genres")
-                                    .font(.system(size: 20, weight: .bold, design: .serif))
+                                    .font(.system(size: 20, weight: .bold))
                                     .foregroundColor(FableTheme.textPrimary)
                                 
                                 Spacer()
@@ -271,7 +280,7 @@ public struct ExploreView: View {
                                             
                                             VStack(alignment: .leading, spacing: 2) {
                                                 Text(genre.name)
-                                                    .font(.system(size: 18, weight: .bold, design: .serif))
+                                                    .font(.system(size: 18, weight: .bold))
                                                     .foregroundColor(.white)
                                                 
                                                 Text("\(genre.storyCount) stories")
@@ -288,11 +297,11 @@ public struct ExploreView: View {
                             .padding(.horizontal, 20)
                         }
                         
-                        // Trending Writers Section
+                        // Trending Creators Section
                         VStack(alignment: .leading, spacing: 14) {
                             HStack(spacing: 6) {
-                                Text("Trending Writers")
-                                    .font(.system(size: 20, weight: .bold, design: .serif))
+                                Text("Trending Creators")
+                                    .font(.system(size: 20, weight: .bold))
                                     .foregroundColor(FableTheme.textPrimary)
                                 
                                 Image(systemName: "chart.line.uptrend.xyaxis")
@@ -349,7 +358,7 @@ public struct ExploreView: View {
                 }
                 .refreshable {
                     await store.syncWithCloudBackend()
-                    await store.fetchGutenbergPublicStories(topic: "folklore", search: nil)
+                    await store.fetchGutenbergPublicStories(topic: "fiction", search: nil)
                 }
             }
             .navigationDestination(item: $selectedGenreForDetail) { genre in
@@ -368,14 +377,14 @@ public struct ExploreView: View {
                         .padding(.top, 24)
                     
                     Text(writer.name)
-                        .font(.system(size: 22, weight: .bold, design: .serif))
+                        .font(.system(size: 22, weight: .bold))
                         .foregroundColor(FableTheme.textPrimary)
                     
-                    Text("Featured Author • \(writer.storyCount) published fables")
+                    Text("Featured Creator • \(writer.storyCount) published titles")
                         .font(.system(size: 14))
                         .foregroundColor(FableTheme.textMuted)
                     
-                    Button("Read Top Tale") {
+                    Button("Read Top Title") {
                         selectedWriter = nil
                         if let first = store.stories.first {
                             selectedStoryToRead = first

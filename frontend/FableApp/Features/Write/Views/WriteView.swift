@@ -9,7 +9,7 @@ public struct WriteView: View {
     @FocusState private var isManuscriptFocused: Bool
     
     let availableGenres = [
-        "Folklore", "Mythology", "Gothic", "Classic Fiction",
+        "Manga", "Folklore", "Mythology", "Gothic", "Classic Fiction",
         "Classic Mystery", "Dark Fantasy", "Speculative", "Urban Legend"
     ]
     
@@ -104,7 +104,7 @@ public struct WriteView: View {
                                         .frame(width: 44, alignment: .leading)
                                     
                                     TextField("Story Title", text: $store.draftTitle)
-                                        .font(.system(size: 20, weight: .bold, design: .serif))
+                                        .font(.system(size: 20, weight: .bold))
                                         .foregroundColor(FableTheme.textPrimary)
                                 }
                                 
@@ -183,7 +183,7 @@ public struct WriteView: View {
                                 
                                 TextEditor(text: $store.draftSynopsis)
                                     .frame(minHeight: 75)
-                                    .font(.system(size: 14, weight: .regular, design: .serif))
+                                    .font(.system(size: 14, weight: .regular))
                                     .foregroundColor(FableTheme.textPrimary)
                                     .scrollContentBackground(.hidden)
                                     .lineSpacing(4)
@@ -237,7 +237,7 @@ public struct WriteView: View {
                                             store.draftManuscript += " *italic text* "
                                         }) {
                                             Text("I")
-                                                .font(.system(size: 12, weight: .semibold, design: .serif))
+                                                .font(.system(size: 12, weight: .semibold))
                                                 .italic()
                                                 .frame(width: 24, height: 24)
                                                 .background(FableTheme.surface)
@@ -271,7 +271,7 @@ public struct WriteView: View {
                                 
                                 TextEditor(text: $store.draftManuscript)
                                     .frame(minHeight: 280)
-                                    .font(.system(size: 16, weight: .regular, design: .serif))
+                                    .font(.system(size: 16, weight: .regular))
                                     .foregroundColor(FableTheme.textPrimary)
                                     .lineSpacing(6)
                                     .scrollContentBackground(.hidden)
@@ -305,7 +305,7 @@ public struct WriteView: View {
                     HStack(spacing: 4) {
                         Image(systemName: "clock")
                             .font(.system(size: 11))
-                        Text("~\(max(1, store.draftWordCount / 150)) min fable")
+                        Text("~\(max(1, store.draftWordCount / 150)) min read")
                             .font(.system(size: 12, weight: .medium))
                     }
                     .foregroundColor(FableTheme.textMuted)

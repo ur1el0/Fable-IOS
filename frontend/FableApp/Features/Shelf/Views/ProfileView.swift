@@ -38,14 +38,14 @@ public struct ProfileView: View {
                         
                         Spacer()
                         
-                        Text("Author Profile")
-                            .font(.system(size: 16, weight: .bold, design: .serif))
+                        Text("Profile")
+                            .font(.system(size: 16, weight: .bold))
                             .foregroundColor(FableTheme.textPrimary)
                         
                         Spacer()
                         
                         // Native Share Profile
-                        ShareLink(item: "Read tales by \(userName) (\(userHandle)) on Fable.") {
+                        ShareLink(item: "Check out \(userName)'s profile on Fable.") {
                             Image(systemName: "square.and.arrow.up")
                                 .font(.system(size: 15))
                                 .foregroundColor(FableTheme.textPrimary)
@@ -85,7 +85,7 @@ public struct ProfileView: View {
                             VStack(spacing: 6) {
                                 HStack(spacing: 6) {
                                     Text(userName)
-                                        .font(.system(size: 24, weight: .bold, design: .serif))
+                                        .font(.system(size: 24, weight: .black))
                                         .foregroundColor(FableTheme.textPrimary)
                                     
                                     Image(systemName: "checkmark.seal.fill")
@@ -124,7 +124,7 @@ public struct ProfileView: View {
                                     .clipShape(RoundedRectangle(cornerRadius: 12))
                                 }
                                 
-                                ShareLink(item: "Read tales by \(userName) on Fable.") {
+                                ShareLink(item: "Check out \(userName)'s profile on Fable.") {
                                     HStack(spacing: 6) {
                                         Image(systemName: "square.and.arrow.up")
                                             .font(.system(size: 13))
@@ -173,8 +173,8 @@ public struct ProfileView: View {
                                             .font(.system(size: 32))
                                             .foregroundColor(FableTheme.textMuted.opacity(0.5))
                                         
-                                        Text("No published tales")
-                                            .font(.system(size: 16, weight: .semibold, design: .serif))
+                                        Text("No published stories")
+                                            .font(.system(size: 16, weight: .bold))
                                             .foregroundColor(FableTheme.textPrimary)
                                         
                                         Text("When you publish a story, it will appear here for everyone to read.")
@@ -198,7 +198,7 @@ public struct ProfileView: View {
                                                 
                                                 VStack(alignment: .leading, spacing: 4) {
                                                     Text(story.title)
-                                                        .font(.system(size: 15, weight: .bold, design: .serif))
+                                                        .font(.system(size: 15, weight: .bold))
                                                         .foregroundColor(FableTheme.textPrimary)
                                                     
                                                     Text("\(story.genre.rawValue) • \(story.readingTimeMinutes)m read")
@@ -239,8 +239,8 @@ public struct ProfileView: View {
                                             .font(.system(size: 32))
                                             .foregroundColor(FableTheme.textMuted.opacity(0.5))
                                         
-                                        Text("No saved tales")
-                                            .font(.system(size: 16, weight: .semibold, design: .serif))
+                                        Text("No saved stories")
+                                            .font(.system(size: 16, weight: .bold))
                                             .foregroundColor(FableTheme.textPrimary)
                                         
                                         Text("Bookmark stories to easily find them later.")
@@ -264,7 +264,7 @@ public struct ProfileView: View {
                                                 
                                                 VStack(alignment: .leading, spacing: 4) {
                                                     Text(story.title)
-                                                        .font(.system(size: 15, weight: .bold, design: .serif))
+                                                        .font(.system(size: 15, weight: .bold))
                                                         .foregroundColor(FableTheme.textPrimary)
                                                     Text(story.author)
                                                         .font(.system(size: 12))
@@ -296,7 +296,7 @@ public struct ProfileView: View {
                                                 .foregroundColor(FableTheme.textMuted)
                                             let hours = Double(store.readingStats.totalMinutesRead) / 60.0
                                             Text(String(format: "%.1f hrs", hours))
-                                                .font(.system(size: 22, weight: .bold, design: .serif))
+                                                .font(.system(size: 22, weight: .black))
                                                 .foregroundColor(FableTheme.brandPrimary)
                                         }
                                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -309,7 +309,7 @@ public struct ProfileView: View {
                                                 .font(.system(size: 12))
                                                 .foregroundColor(FableTheme.textMuted)
                                             Text("\(store.readingStats.storiesReadCount)")
-                                                .font(.system(size: 22, weight: .bold, design: .serif))
+                                                .font(.system(size: 22, weight: .black))
                                                 .foregroundColor(FableTheme.brandPrimary)
                                         }
                                         .frame(maxWidth: .infinity, alignment: .leading)
