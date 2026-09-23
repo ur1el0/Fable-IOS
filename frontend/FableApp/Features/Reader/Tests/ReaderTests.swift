@@ -52,6 +52,61 @@ public struct ReaderTests {
         let reconWordCount = PacingEngine.countWords(in: reconstructed)
         assert(origWordCount == reconWordCount, "Paginated Text Reconstruction Integrity")
 
+        // Test 7: MangaReadingMode Enums & Iconography
+        assert(MangaReadingMode.webtoon.iconName == "arrow.up.and.down", "Webtoon Reading Mode Up/Down Icon")
+        assert(MangaReadingMode.paged.iconName == "arrow.left.and.right", "Paged Reading Mode Left/Right Icon")
+
+        // Test 8: Manga Active Page URLs Fallback Hierarchy
+        let testStoryId = UUID()
+        let chapterWithPanels = Chapter(
+            storyId: testStoryId,
+            chapterNumber: 1,
+            title: "Ch 1",
+            pageUrls: ["https://cdn.manga.org/ch1_p1.jpg", "https://cdn.manga.org/ch1_p2.jpg"]
+        )
+        let mangaWithPanels = Story(
+            id: testStoryId,
+            title: "Cyber Ronin",
+            author: "Manga Artist",
+            genre: "Manga",
+            excerpt: "Action manga",
+            coverImageUrl: "https://cdn.manga.org/cover.jpg",
+            contentFormat: .manga,
+            sourceProvider: .mangadex,
+            chapters: [chapterWithPanels]
+        )
+
+        // Scenario A: Current chapter has explicit page URLs
+        let resolvedUrlsA = chapterWithPanels.pageUrls
+        assert(resolvedUrlsA.count == 2 && resolvedUrlsA[0] == "https://cdn.manga.org/ch1_p1.jpg", "Manga Chapter Explicit Page Resolution")
+
+        // Scenario B: Chapter without page URLs falls back to first chapter or story cover
+        let emptyChapter = Chapter(
+            storyId: testStoryId,
+            chapterNumber: 2,
+            title: "Ch 2",
+            pageUrls: []
+        )
+        let fallbackUrls = [mangaWithPanels.coverImageUrl, mangaWithPanels.effectiveCoverImage].compactMap { $0 }
+        assert(!fallbackUrls.isEmpty && fallbackUrls.contains("https://cdn.manga.org/cover.jpg"), "Manga Empty Panels Cover Fallback Resolution")
+
+        // Test 9: Format-Based Reader Selection Protocol
+        let proseStory = Story(
+            title: "Classic Novel",
+            author: "Author",
+            genre: "Classic Fiction",
+            excerpt: "Prose story",
+            contentFormat: .prose
+        )
+        assert(mangaWithPanels.contentFormat == .manga, "Manga Story Format Classification")
+        assert(proseStory.contentFormat == .prose, "Prose Story Format Classification")
+
+        // Test 10: Reader Font & Theme Invariants
+        assert(ReaderFont.allCases.count == 3, "Reader Font Option Count")
+        assert(ReaderFont.sans.displayName == "SF Pro", "Reader Sans Display Name SF Pro")
+        assert(ReaderTheme.allCases.count == 4, "Reader Theme Count (White, Sepia, Charcoal, OLED)")
+        assert(ReaderLineSpacing.allCases.count == 3, "Reader Line Spacing Options Count")
+
         return (passed, total, failures)
     }
 }

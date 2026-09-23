@@ -616,7 +616,8 @@ extension Story {
             progressPercent: 0,
             rating: 4.95,
             isTaleOfTheDay: true,
-            isSaved: false
+            isSaved: false,
+            sourceProvider: .gutenberg
         ),
         Story(
             title: "The Legend of Sleepy Hollow",
@@ -636,7 +637,8 @@ extension Story {
             progressPercent: 0,
             rating: 4.95,
             isSaved: false,
-            isCuratorSpotlight: true
+            isCuratorSpotlight: true,
+            sourceProvider: .gutenberg
         ),
         Story(
             title: "The Metamorphosis",
@@ -654,7 +656,8 @@ extension Story {
             currentPage: 1,
             progressPercent: 0,
             isRecentSubmission: true,
-            isSaved: false
+            isSaved: false,
+            sourceProvider: .gutenberg
         ),
         Story(
             title: "The Tell-Tale Heart",
@@ -672,7 +675,8 @@ extension Story {
             currentPage: 1,
             progressPercent: 0,
             isRecentSubmission: true,
-            isSaved: false
+            isSaved: false,
+            sourceProvider: .gutenberg
         ),
         Story(
             title: "The Legend of Maria Makiling",
@@ -690,7 +694,8 @@ extension Story {
             currentPage: 1,
             progressPercent: 0,
             isRecentSubmission: true,
-            isSaved: false
+            isSaved: false,
+            sourceProvider: .gutenberg
         ),
         Story(
             title: "Rip Van Winkle",
@@ -707,7 +712,8 @@ extension Story {
             currentPage: 1,
             progressPercent: 0,
             isRecentSubmission: true,
-            isSaved: false
+            isSaved: false,
+            sourceProvider: .gutenberg
         ),
         Story(
             id: UUID(uuidString: "10101010-1010-1010-1010-101010101010") ?? UUID(),
