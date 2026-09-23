@@ -17,11 +17,6 @@ public struct ProfileView: View {
     
     public init() {}
     
-    private var savedStories: [Story] {
-        let saved = store.stories.filter { $0.isBookmarked }
-        return saved.isEmpty ? Array(store.stories.prefix(3)) : saved
-    }
-    
     public var body: some View {
         NavigationStack {
             ZStack {
@@ -43,14 +38,14 @@ public struct ProfileView: View {
                         
                         Spacer()
                         
-                        Text("Author Profile")
-                            .font(.system(size: 16, weight: .bold, design: .serif))
+                        Text("Profile")
+                            .font(.system(size: 16, weight: .bold))
                             .foregroundColor(FableTheme.textPrimary)
                         
                         Spacer()
                         
                         // Native Share Profile
-                        ShareLink(item: "Read tales by \(userName) (\(userHandle)) on Fable.") {
+                        ShareLink(item: "Check out \(userName)'s profile on Fable.") {
                             Image(systemName: "square.and.arrow.up")
                                 .font(.system(size: 15))
                                 .foregroundColor(FableTheme.textPrimary)
@@ -66,7 +61,7 @@ public struct ProfileView: View {
                         VStack(spacing: 20) {
                             // Avatar with Edit Badge
                             ZStack(alignment: .bottomTrailing) {
-                                FableImageView(name: "avatar_roosc", placeholderIcon: "person.crop.circle.fill")
+                                FableImageView(name: auth.currentSession?.avatarName ?? "avatar_roosc", placeholderIcon: "person.crop.circle.fill")
                                     .frame(width: 96, height: 96)
                                     .clipShape(Circle())
                                     .overlay(Circle().stroke(Color.white, lineWidth: 3))
@@ -90,7 +85,7 @@ public struct ProfileView: View {
                             VStack(spacing: 6) {
                                 HStack(spacing: 6) {
                                     Text(userName)
-                                        .font(.system(size: 24, weight: .bold, design: .serif))
+                                        .font(.system(size: 24, weight: .black))
                                         .foregroundColor(FableTheme.textPrimary)
                                     
                                     Image(systemName: "checkmark.seal.fill")
@@ -129,7 +124,7 @@ public struct ProfileView: View {
                                     .clipShape(RoundedRectangle(cornerRadius: 12))
                                 }
                                 
-                                ShareLink(item: "Read tales by \(userName) on Fable.") {
+                                ShareLink(item: "Check out \(userName)'s profile on Fable.") {
                                     HStack(spacing: 6) {
                                         Image(systemName: "square.and.arrow.up")
                                             .font(.system(size: 13))
@@ -172,19 +167,38 @@ public struct ProfileView: View {
                             
                             // Tab Content
                             if selectedTab == "Published" {
-                                VStack(spacing: 12) {
-                                    ForEach(store.profileStories) { story in
+                                if store.profileStories.isEmpty {
+                                    VStack(spacing: 12) {
+                                        Image(systemName: "pencil.and.outline")
+                                            .font(.system(size: 32))
+                                            .foregroundColor(FableTheme.textMuted.opacity(0.5))
+                                        
+                                        Text("No published stories")
+                                            .font(.system(size: 16, weight: .bold))
+                                            .foregroundColor(FableTheme.textPrimary)
+                                        
+                                        Text("When you publish a story, it will appear here for everyone to read.")
+                                            .font(.system(size: 13))
+                                            .foregroundColor(FableTheme.textMuted)
+                                            .multilineTextAlignment(.center)
+                                            .padding(.horizontal, 32)
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 40)
+                                } else {
+                                    VStack(spacing: 12) {
+                                        ForEach(store.profileStories) { story in
                                         Button(action: {
                                             selectedStoryToRead = story
                                         }) {
                                             HStack(spacing: 14) {
-                                                FableImageView(name: story.coverImageName, placeholderIcon: "book")
+                                                FableImageView(name: story.effectiveCoverImage, placeholderIcon: "book")
                                                     .frame(width: 54, height: 68)
                                                     .clipShape(RoundedRectangle(cornerRadius: 8))
                                                 
                                                 VStack(alignment: .leading, spacing: 4) {
                                                     Text(story.title)
-                                                        .font(.system(size: 15, weight: .bold, design: .serif))
+                                                        .font(.system(size: 15, weight: .bold))
                                                         .foregroundColor(FableTheme.textPrimary)
                                                     
                                                     Text("\(story.genre.rawValue) • \(story.readingTimeMinutes)m read")
@@ -216,20 +230,41 @@ public struct ProfileView: View {
                                         .buttonStyle(.plain)
                                     }
                                 }
+                                }
                             } else if selectedTab == "Saved" {
-                                VStack(spacing: 12) {
-                                    ForEach(savedStories) { story in
+                                let saved = store.stories.filter { $0.isBookmarked }
+                                if saved.isEmpty {
+                                    VStack(spacing: 12) {
+                                        Image(systemName: "bookmark")
+                                            .font(.system(size: 32))
+                                            .foregroundColor(FableTheme.textMuted.opacity(0.5))
+                                        
+                                        Text("No saved stories")
+                                            .font(.system(size: 16, weight: .bold))
+                                            .foregroundColor(FableTheme.textPrimary)
+                                        
+                                        Text("Bookmark stories to easily find them later.")
+                                            .font(.system(size: 13))
+                                            .foregroundColor(FableTheme.textMuted)
+                                            .multilineTextAlignment(.center)
+                                            .padding(.horizontal, 32)
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 40)
+                                } else {
+                                    VStack(spacing: 12) {
+                                        ForEach(saved) { story in
                                         Button(action: {
                                             selectedStoryToRead = story
                                         }) {
                                             HStack(spacing: 14) {
-                                                FableImageView(name: story.coverImageName, placeholderIcon: "bookmark.fill")
+                                                FableImageView(name: story.effectiveCoverImage, placeholderIcon: "bookmark.fill")
                                                     .frame(width: 54, height: 68)
                                                     .clipShape(RoundedRectangle(cornerRadius: 8))
                                                 
                                                 VStack(alignment: .leading, spacing: 4) {
                                                     Text(story.title)
-                                                        .font(.system(size: 15, weight: .bold, design: .serif))
+                                                        .font(.system(size: 15, weight: .bold))
                                                         .foregroundColor(FableTheme.textPrimary)
                                                     Text(story.author)
                                                         .font(.system(size: 12))
@@ -250,6 +285,7 @@ public struct ProfileView: View {
                                         .buttonStyle(.plain)
                                     }
                                 }
+                                }
                             } else {
                                 // Reading Stats Tab
                                 VStack(alignment: .leading, spacing: 14) {
@@ -258,8 +294,9 @@ public struct ProfileView: View {
                                             Text("Total Reading")
                                                 .font(.system(size: 12))
                                                 .foregroundColor(FableTheme.textMuted)
-                                            Text("28.5 hrs")
-                                                .font(.system(size: 22, weight: .bold, design: .serif))
+                                            let hours = Double(store.readingStats.totalMinutesRead) / 60.0
+                                            Text(String(format: "%.1f hrs", hours))
+                                                .font(.system(size: 22, weight: .black))
                                                 .foregroundColor(FableTheme.brandPrimary)
                                         }
                                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -271,8 +308,8 @@ public struct ProfileView: View {
                                             Text("Stories Finished")
                                                 .font(.system(size: 12))
                                                 .foregroundColor(FableTheme.textMuted)
-                                            Text("42")
-                                                .font(.system(size: 22, weight: .bold, design: .serif))
+                                            Text("\(store.readingStats.storiesReadCount)")
+                                                .font(.system(size: 22, weight: .black))
                                                 .foregroundColor(FableTheme.brandPrimary)
                                         }
                                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -312,6 +349,11 @@ public struct ProfileView: View {
                     .toolbar {
                         ToolbarItem(placement: .topBarTrailing) {
                             Button("Save") {
+                                auth.updateProfile(
+                                    name: userName,
+                                    handle: userHandle,
+                                    bio: userBio
+                                )
                                 isShowingEditProfile = false
                             }
                             .font(.system(size: 15, weight: .semibold))
@@ -322,6 +364,7 @@ public struct ProfileView: View {
                 .presentationDetents([.medium])
             }
             .onAppear {
+                store.reloadReadingStats()
                 if let session = auth.currentSession {
                     self.userName = session.name
                     self.userHandle = session.handle

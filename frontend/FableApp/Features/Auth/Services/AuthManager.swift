@@ -19,6 +19,14 @@ public final class AuthManager: ObservableObject {
 
     // MARK: - Session Restoration
     private func restoreSession() {
+        if let sessionData = KeychainStore.shared.readData(key: "userSession"),
+           let session = try? JSONDecoder().decode(UserSession.self, from: sessionData) {
+            self.currentSession = session
+            self.isAuthenticated = true
+            self.isGuestMode = session.isGuest
+            return
+        }
+
         guard let data = UserDefaults.standard.data(forKey: sessionStorageKey) else {
             return
         }
@@ -27,6 +35,11 @@ public final class AuthManager: ObservableObject {
             self.currentSession = session
             self.isAuthenticated = true
             self.isGuestMode = session.isGuest
+            // Migrate to Keychain
+            if let encoded = try? JSONEncoder().encode(session) {
+                KeychainStore.shared.saveData(key: "userSession", data: encoded)
+            }
+            UserDefaults.standard.removeObject(forKey: sessionStorageKey)
         } catch {
             UserDefaults.standard.removeObject(forKey: sessionStorageKey)
         }
@@ -35,6 +48,8 @@ public final class AuthManager: ObservableObject {
     private func persistSession(_ session: UserSession) {
         do {
             let data = try JSONEncoder().encode(session)
+            KeychainStore.shared.saveData(key: "userSession", data: data)
+            KeychainStore.shared.saveAccessToken("fable_token_\(UUID().uuidString)")
             UserDefaults.standard.set(data, forKey: sessionStorageKey)
             self.currentSession = session
             self.isAuthenticated = true
@@ -133,7 +148,21 @@ public final class AuthManager: ObservableObject {
         persistSession(guest)
     }
 
+    public func updateProfile(name: String, handle: String, bio: String, avatarName: String? = nil) {
+        guard var session = currentSession else { return }
+        session.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanHandle = handle.trimmingCharacters(in: .whitespacesAndNewlines)
+        session.handle = cleanHandle.hasPrefix("@") ? cleanHandle : "@\(cleanHandle)"
+        session.bio = bio.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let avatarName = avatarName {
+            session.avatarName = avatarName
+        }
+        persistSession(session)
+    }
+
     public func signOut() {
+        KeychainStore.shared.deleteData(key: "userSession")
+        KeychainStore.shared.deleteAccessToken()
         UserDefaults.standard.removeObject(forKey: sessionStorageKey)
         self.currentSession = nil
         self.isAuthenticated = false

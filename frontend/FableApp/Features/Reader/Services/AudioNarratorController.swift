@@ -1,5 +1,6 @@
 import Foundation
 import AVFoundation
+import AVFAudio
 import MediaPlayer
 import Combine
 
@@ -12,14 +13,30 @@ public final class AudioNarratorController: NSObject, ObservableObject, AVSpeech
     @Published public private(set) var currentSpokenRange: NSRange?
     @Published public var playbackRateMultiplier: Float = 1.0 // 0.75x to 1.5x
     @Published public private(set) var activeStoryId: UUID?
+    @Published public private(set) var activeChapterNumber: Int?
+    @Published public var selectedVoiceIdentifier: String?
     
     private let synthesizer = AVSpeechSynthesizer()
     private var activeStory: Story?
+    private var activeChapter: Chapter?
+    private let voiceStorageKey = "fable_narrator_voice_id"
     
     public override init() {
         super.init()
         synthesizer.delegate = self
+        self.selectedVoiceIdentifier = UserDefaults.standard.string(forKey: voiceStorageKey)
         configureAudioSession()
+    }
+    
+    public var availableVoices: [AVSpeechSynthesisVoice] {
+        let all = AVSpeechSynthesisVoice.speechVoices()
+        let english = all.filter { $0.language.hasPrefix("en") }
+        return english.isEmpty ? all : english
+    }
+    
+    public func setVoice(identifier: String) {
+        self.selectedVoiceIdentifier = identifier
+        UserDefaults.standard.set(identifier, forKey: voiceStorageKey)
     }
     
     private func configureAudioSession() {
@@ -32,8 +49,11 @@ public final class AudioNarratorController: NSObject, ObservableObject, AVSpeech
         }
     }
     
-    public func speak(story: Story) {
-        if activeStoryId == story.id && isPaused {
+    public func speak(story: Story, chapter: Chapter? = nil) {
+        let sameStory = (activeStoryId == story.id)
+        let sameChapter = (activeChapterNumber == chapter?.chapterNumber)
+        
+        if sameStory && sameChapter && isPaused {
             synthesizer.continueSpeaking()
             isPlaying = true
             isPaused = false
@@ -46,9 +66,25 @@ public final class AudioNarratorController: NSObject, ObservableObject, AVSpeech
         
         self.activeStory = story
         self.activeStoryId = story.id
-        let utteranceText = story.content.isEmpty ? story.synopsis : story.content
+        self.activeChapter = chapter
+        self.activeChapterNumber = chapter?.chapterNumber
+        
+        let utteranceText: String
+        if let chap = chapter, !chap.content.isEmpty {
+            utteranceText = chap.content
+        } else if !story.content.isEmpty {
+            utteranceText = story.content
+        } else {
+            utteranceText = story.synopsis
+        }
+        
         let utterance = AVSpeechUtterance(string: utteranceText)
-        utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
+        if let voiceId = selectedVoiceIdentifier, let voice = AVSpeechSynthesisVoice(identifier: voiceId) {
+            utterance.voice = voice
+        } else {
+            utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
+        }
+        
         let clampedMultiplier = max(0.5, min(2.0, playbackRateMultiplier))
         utterance.rate = AVSpeechUtteranceDefaultSpeechRate * clampedMultiplier
         utterance.pitchMultiplier = 0.95 // Deep, warm storytelling tone
@@ -56,13 +92,17 @@ public final class AudioNarratorController: NSObject, ObservableObject, AVSpeech
         synthesizer.speak(utterance)
         isPlaying = true
         isPaused = false
-        updateNowPlayingMetadata(story: story)
+        updateNowPlayingMetadata(story: story, chapter: chapter)
     }
     
-    public func togglePlayback(for story: Story? = nil) {
-        if let story = story, activeStoryId != story.id {
-            speak(story: story)
-            return
+    public func togglePlayback(for story: Story? = nil, chapter: Chapter? = nil) {
+        if let story = story {
+            let isDifferentStory = (activeStoryId != story.id)
+            let isDifferentChapter = (activeChapterNumber != chapter?.chapterNumber)
+            if isDifferentStory || isDifferentChapter {
+                speak(story: story, chapter: chapter)
+                return
+            }
         }
         
         if synthesizer.isSpeaking && !synthesizer.isPaused {
@@ -74,7 +114,7 @@ public final class AudioNarratorController: NSObject, ObservableObject, AVSpeech
             isPlaying = true
             isPaused = false
         } else if let story = story ?? activeStory {
-            speak(story: story)
+            speak(story: story, chapter: chapter ?? activeChapter)
         }
     }
     
@@ -84,7 +124,9 @@ public final class AudioNarratorController: NSObject, ObservableObject, AVSpeech
         isPaused = false
         currentSpokenRange = nil
         activeStoryId = nil
+        activeChapterNumber = nil
         activeStory = nil
+        activeChapter = nil
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
     }
     
@@ -112,6 +154,7 @@ public final class AudioNarratorController: NSObject, ObservableObject, AVSpeech
             self.isPaused = false
             self.currentSpokenRange = nil
             self.activeStoryId = nil
+            self.activeChapterNumber = nil
             MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
         }
     }
@@ -125,15 +168,21 @@ public final class AudioNarratorController: NSObject, ObservableObject, AVSpeech
             self.isPaused = false
             self.currentSpokenRange = nil
             self.activeStoryId = nil
+            self.activeChapterNumber = nil
             MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
         }
     }
     
-    private func updateNowPlayingMetadata(story: Story) {
+    private func updateNowPlayingMetadata(story: Story, chapter: Chapter? = nil) {
         var info = [String: Any]()
-        info[MPMediaItemPropertyTitle] = story.title
+        if let chap = chapter {
+            info[MPMediaItemPropertyTitle] = "\(story.title) • Ch. \(chap.chapterNumber)"
+            info[MPMediaItemPropertyAlbumTitle] = chap.title
+        } else {
+            info[MPMediaItemPropertyTitle] = story.title
+            info[MPMediaItemPropertyAlbumTitle] = story.genre.rawValue
+        }
         info[MPMediaItemPropertyArtist] = story.author
-        info[MPMediaItemPropertyAlbumTitle] = story.genre.rawValue
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
     }
 }

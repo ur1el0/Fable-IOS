@@ -1,8 +1,12 @@
 import SwiftUI
+import AVFoundation
+import AVFAudio
 
 struct DisplayOptionsSheet: View {
     @EnvironmentObject var store: StoryStore
     @Environment(\.dismiss) var dismiss
+    @ObservedObject private var narrator = AudioNarratorController.shared
+    @State private var isShowingVoiceSheet: Bool = false
     
     var body: some View {
         VStack(spacing: 24) {
@@ -237,12 +241,51 @@ struct DisplayOptionsSheet: View {
                 }
             }
             .padding(.horizontal, 20)
+
+            // Oral Folklore Narrator Voice Section
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Text("NARRATOR VOICE")
+                        .font(.system(size: 11, weight: .bold))
+                        .tracking(1.0)
+                        .foregroundColor(FableTheme.subtleSlate)
+                    
+                    Spacer()
+                    
+                    Button(action: {
+                        isShowingVoiceSheet = true
+                    }) {
+                        HStack(spacing: 4) {
+                            Text(currentVoiceDisplayName)
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(FableTheme.terracotta)
+                            
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(FableTheme.terracotta)
+                        }
+                    }
+                }
+                .padding(.vertical, 6)
+            }
+            .padding(.horizontal, 20)
             
             Spacer()
         }
-        .presentationDetents([.fraction(0.82), .large])
+        .presentationDetents([.fraction(0.88), .large])
         .presentationDragIndicator(.hidden)
         .background(Color.white)
+        .sheet(isPresented: $isShowingVoiceSheet) {
+            VoiceSelectionSheet()
+        }
+    }
+    
+    private var currentVoiceDisplayName: String {
+        if let id = narrator.selectedVoiceIdentifier,
+           let voice = narrator.availableVoices.first(where: { $0.identifier == id }) {
+            return "\(voice.name)"
+        }
+        return "System Default (en-US)"
     }
     
     private func spacingIcon(for spacing: ReaderLineSpacing) -> String {

@@ -141,7 +141,7 @@ SEED_CATALOG = [
         "read_time_minutes": 5,
         "cover_image_name": "cover_maria",
         "hero_image_name": "cover_maria",
-        "cover_image_url": None,
+        "cover_image_url": "https://www.gutenberg.org/cache/epub/38269/pg38269.cover.medium.jpg",
         "is_tale_of_the_day": 0,
         "is_recent_submission": 1,
         "is_curator_spotlight": 0,
@@ -271,6 +271,64 @@ SEED_CATALOG = [
                 "number": 1,
                 "title": "Chapter I: The Frog Prince",
                 "content": "One fine evening a young princess put on her bonnet and clogs, and went out to take a walk by herself in a wood; and when she came to a cool spring of water, that rose in the midst of it, she sat herself down to rest a while. Now she had a golden ball in her hand, which was her favourite plaything; and she was always tossing it up into the air, and catching it again as it fell.\n\nAfter a time she threw it up so high that she missed catching it as it fell; and the ball bounced away, and rolled along upon the ground, till at last it fell down into the spring. The water was very deep, so deep that she could not see the bottom of it. Then she began to bewail her loss, and said, 'Alas! if I could only get my ball again, I would give all my clothes and jewels, and everything that I have in the world.'"
+            }
+        ]
+    },
+    {
+        "id": "10101010-1010-1010-1010-101010101010",
+        "title": "Chainsaw Devil: Special Edition",
+        "author": "Tatsuki Fujimoto",
+        "genre": "Manga",
+        "chapter": "Chapter 1",
+        "synopsis": "In a gritty neon metropolis where human fears manifest as living devils, an indebted hunter fights for survival alongside his faithful devil companion.",
+        "content": "",
+        "read_time_minutes": 8,
+        "cover_image_name": "cover_dracula",
+        "hero_image_name": "hero_dracula",
+        "cover_image_url": "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=800&auto=format&fit=crop",
+        "is_tale_of_the_day": 0,
+        "is_recent_submission": 1,
+        "is_curator_spotlight": 0,
+        "badge_text": "MANGA",
+        "content_format": "MANGA",
+        "source_provider": "MANGADEX",
+        "chapters": [
+            {
+                "number": 1,
+                "title": "Chapter 1: The Contract",
+                "content": "",
+                "page_urls": [
+                    "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=800&auto=format&fit=crop",
+                    "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=800&auto=format&fit=crop",
+                    "https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=800&auto=format&fit=crop",
+                    "https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=800&auto=format&fit=crop"
+                ]
+            }
+        ]
+    },
+    {
+        "id": "20202020-2020-2020-2020-202020202020",
+        "title": "The Metamorphosis",
+        "author": "Franz Kafka",
+        "genre": "Classic Fiction",
+        "chapter": "Part I",
+        "synopsis": "One morning, Gregor Samsa woke from uneasy dreams to find himself transformed into a monstrous insect.",
+        "content": "One morning, when Gregor Samsa woke from troubled dreams, he found himself transformed in his bed into a horrible vermin.",
+        "read_time_minutes": 7,
+        "cover_image_name": "cover_metamorphosis",
+        "hero_image_name": "cover_metamorphosis",
+        "cover_image_url": "https://standardebooks.org/ebooks/franz-kafka/the-metamorphosis/david-wyllie/downloads/cover.jpg",
+        "is_tale_of_the_day": 0,
+        "is_recent_submission": 1,
+        "is_curator_spotlight": 1,
+        "badge_text": "STANDARD EBOOKS",
+        "content_format": "PROSE",
+        "source_provider": "STANDARD_EBOOKS",
+        "chapters": [
+            {
+                "number": 1,
+                "title": "Part I: The Awakening",
+                "content": "One morning, when Gregor Samsa woke from troubled dreams, he found himself transformed in his bed into a horrible vermin. He lay on his armour-like back, and if he lifted his head a little he could see his brown belly, slightly domed and divided by arches into stiff sections."
             }
         ]
     }

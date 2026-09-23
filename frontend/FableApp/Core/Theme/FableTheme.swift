@@ -1,22 +1,23 @@
 import SwiftUI
 
 public enum FableTheme {
-    // MARK: - Figma Global Design Tokens (FIGMA.md Section 2.1)
-    public static let brandPrimary = Color(red: 0.624, green: 0.235, blue: 0.086) // #9F3C16 Primary brand accent, active tabs, buttons
-    public static let brandSecondary = Color(red: 0.341, green: 0.259, blue: 0.231) // #57423B Deep chestnut, subheadings, author names
-    public static let brandAccent = Color(red: 0.871, green: 0.753, blue: 0.718) // #DEC0B7 Soft muted blush, border highlights
-    public static let background = Color(red: 0.988, green: 0.973, blue: 0.984) // #FCF8FB Global canvas background
-    public static let surface = Color(red: 0.925, green: 0.878, blue: 0.859) // #ECE0DB Container surface, badge fills
-    public static let surfaceVariant = Color(red: 0.941, green: 0.929, blue: 0.937) // #F0EDEF Filter chips, search bar background
-    public static let textPrimary = Color(red: 0.106, green: 0.106, blue: 0.114) // #1B1B1D High contrast body and title text
-    public static let textSecondary = Color(red: 0.341, green: 0.259, blue: 0.231) // #57423B Warm brown synopses text
-    public static let textMuted = Color(red: 0.549, green: 0.451, blue: 0.420) // #8C736B Timestamps, read times, placeholders
-    public static let cardBackground = Color.white // #FFFFFF Elevated cards
-    public static let divider = Color(red: 0.880, green: 0.840, blue: 0.820) // #E0D7D2 Subtle hairline borders
+    // MARK: - Modern Format-Agnostic Design Tokens
+    // Electric Indigo accent for vibrant, media-neutral focus
+    public static let brandPrimary = Color(red: 0.23, green: 0.35, blue: 0.96) // #3B59F6 Modern Electric Indigo
+    public static let brandSecondary = Color(red: 0.12, green: 0.16, blue: 0.24) // #1E293B Slate Navy
+    public static let brandAccent = Color(red: 0.49, green: 0.55, blue: 0.98) // #7D8CFA Soft Indigo Tint
+    public static let background = Color(red: 0.968, green: 0.972, blue: 0.980) // #F7F8FA Clean neutral canvas
+    public static let surface = Color(red: 0.933, green: 0.941, blue: 0.957) // #EEF0F4 Neutral container surface
+    public static let surfaceVariant = Color(red: 0.910, green: 0.922, blue: 0.941) // #E8EBF0 Clean interactive pill background
+    public static let textPrimary = Color(red: 0.07, green: 0.09, blue: 0.13) // #111721 Sharp high-contrast text
+    public static let textSecondary = Color(red: 0.30, green: 0.35, blue: 0.43) // #4D596E Clean slate secondary
+    public static let textMuted = Color(red: 0.58, green: 0.62, blue: 0.70) // #949EB2 Crisp metadata text
+    public static let cardBackground = Color.white // #FFFFFF Clean surface
+    public static let divider = Color(red: 0.89, green: 0.91, blue: 0.93) // #E3E8ED Fine hairline divider
 
     // MARK: - Prototype Aliases & Visual Palette
     public static let terracotta = brandPrimary
-    public static let terracottaDark = Color(red: 0.50, green: 0.18, blue: 0.07)
+    public static let terracottaDark = Color(red: 0.15, green: 0.25, blue: 0.85)
     public static let warmCream = background
     public static let softPeach = surface
     public static let deepCharcoal = textPrimary
@@ -25,14 +26,14 @@ public enum FableTheme {
     public static let tagBackground = surfaceVariant
     
     // Background themes for Reader
-    public static let sepiaBackground = Color(red: 0.957, green: 0.925, blue: 0.847) // #F4ECE0
-    public static let sepiaText = Color(red: 0.28, green: 0.22, blue: 0.18)
+    public static let sepiaBackground = Color(red: 0.96, green: 0.95, blue: 0.93)
+    public static let sepiaText = Color(red: 0.15, green: 0.15, blue: 0.18)
     
-    public static let charcoalBackground = Color(red: 0.17, green: 0.17, blue: 0.17) // #2B2B2B
-    public static let charcoalText = Color(red: 0.88, green: 0.88, blue: 0.88)
+    public static let charcoalBackground = Color(red: 0.12, green: 0.13, blue: 0.15)
+    public static let charcoalText = Color(red: 0.92, green: 0.93, blue: 0.95)
     
     public static let oledBackground = Color.black
-    public static let oledText = Color(red: 0.85, green: 0.85, blue: 0.85)
+    public static let oledText = Color(red: 0.92, green: 0.92, blue: 0.92)
 }
 
 public struct FableTagStyle: ViewModifier {
@@ -49,8 +50,33 @@ public struct FableTagStyle: ViewModifier {
     }
 }
 
+public struct FableCardStyle: ViewModifier {
+    var backgroundColor: Color = FableTheme.cardBackground
+    var cornerRadius: CGFloat = 16
+    var borderColor: Color = FableTheme.lightBorder.opacity(0.8)
+
+    public func body(content: Content) -> some View {
+        content
+            .background(backgroundColor)
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .stroke(borderColor, lineWidth: 1)
+            )
+            .shadow(color: Color.black.opacity(0.04), radius: 8, x: 0, y: 3)
+    }
+}
+
 public extension View {
     func fableTag(isSelected: Bool = false) -> some View {
         self.modifier(FableTagStyle(isSelected: isSelected))
+    }
+
+    func fableCard(
+        backgroundColor: Color = FableTheme.cardBackground,
+        cornerRadius: CGFloat = 16,
+        borderColor: Color = FableTheme.lightBorder.opacity(0.8)
+    ) -> some View {
+        self.modifier(FableCardStyle(backgroundColor: backgroundColor, cornerRadius: cornerRadius, borderColor: borderColor))
     }
 }

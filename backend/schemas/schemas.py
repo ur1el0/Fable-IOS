@@ -8,9 +8,10 @@ class ChapterDTO(BaseModel):
     story_id: UUID = Field(..., serialization_alias="storyId")
     chapter_number: int = Field(..., ge=1, serialization_alias="chapterNumber")
     title: str
-    content: str
+    content: Optional[str] = ""
     word_count: int = Field(default=0, serialization_alias="wordCount")
     created_at_utc: datetime = Field(..., serialization_alias="createdAtUtc")
+    page_urls: list[str] = Field(default_factory=list, serialization_alias="pageUrls")
 
     model_config = {
         "populate_by_name": True
@@ -43,6 +44,8 @@ class StoryDTO(BaseModel):
     is_curator_spotlight: bool = Field(default=False, serialization_alias="isCuratorSpotlight")
     badge_text: Optional[str] = Field(default=None, serialization_alias="badgeText")
     total_chapters: int = Field(default=1, serialization_alias="totalChapters")
+    content_format: str = Field(default="PROSE", serialization_alias="contentFormat")
+    source_provider: str = Field(default="FABLE_ORIGINAL", serialization_alias="sourceProvider")
     chapters: Optional[list[ChapterDTO]] = None
 
     model_config = {
@@ -56,6 +59,7 @@ class GenreDTO(BaseModel):
     readers_count: str = Field(default="10k", serialization_alias="readersCount")
     description: str
     image_name: str = Field(default="genre_folklore", serialization_alias="imageName")
+    image_url: Optional[str] = Field(default=None, serialization_alias="imageUrl")
 
     model_config = {
         "populate_by_name": True
@@ -65,6 +69,7 @@ class WriterDTO(BaseModel):
     id: UUID
     name: str
     avatar_image_name: str = Field(default="author_kuang", serialization_alias="avatarImageName")
+    avatar_image_url: Optional[str] = Field(default=None, serialization_alias="avatarImageUrl")
     story_count: int = Field(default=1, serialization_alias="storyCount")
     rating: float = Field(default=4.9, serialization_alias="rating")
 
@@ -91,26 +96,70 @@ class CreateStoryRequest(BaseModel):
     synopsis: str
     content: str
     read_time_minutes: int = Field(default=4, ge=1, alias="readTimeMinutes")
+    content_format: Optional[str] = Field(default="PROSE", alias="contentFormat")
+    source_provider: Optional[str] = Field(default="FABLE_ORIGINAL", alias="sourceProvider")
 
     model_config = {
         "populate_by_name": True
     }
 
 class ShelfSyncItemDTO(BaseModel):
-    story_id: UUID
-    reading_progress: float = Field(..., ge=0.0, le=1.0)
-    is_bookmarked: bool
-    is_completed: bool
-    updated_at_utc: datetime
+    story_id: UUID = Field(..., alias="storyId", serialization_alias="storyId")
+    reading_progress: float = Field(..., ge=0.0, le=1.0, alias="readingProgress", serialization_alias="readingProgress")
+    is_bookmarked: bool = Field(..., alias="isBookmarked", serialization_alias="isBookmarked")
+    is_completed: bool = Field(..., alias="isCompleted", serialization_alias="isCompleted")
+    updated_at_utc: datetime = Field(..., alias="updatedAtUtc", serialization_alias="updatedAtUtc")
+
+    model_config = {
+        "populate_by_name": True
+    }
 
 class ShelfSyncPayload(BaseModel):
-    device_id: UUID
+    device_id: UUID = Field(..., alias="deviceId", serialization_alias="deviceId")
     items: list[ShelfSyncItemDTO]
+
+    model_config = {
+        "populate_by_name": True
+    }
 
 class ShelfSyncResponse(BaseModel):
     status: str = "ok"
-    reconciled_items: list[ShelfSyncItemDTO]
-    server_time_utc: datetime
+    reconciled_items: list[ShelfSyncItemDTO] = Field(..., serialization_alias="reconciledItems")
+    server_time_utc: datetime = Field(..., serialization_alias="serverTimeUtc")
+
+    model_config = {
+        "populate_by_name": True
+    }
+
+class UserDTO(BaseModel):
+    id: UUID
+    email: str
+    name: str
+    avatar_image_name: str = Field(default="avatar_roosc", serialization_alias="avatarImageName")
+    avatar_image_url: Optional[str] = Field(default=None, serialization_alias="avatarImageUrl")
+    created_at_utc: datetime = Field(..., serialization_alias="createdAtUtc")
+
+    model_config = {
+        "populate_by_name": True
+    }
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+class RegisterRequest(BaseModel):
+    email: str
+    password: str = Field(..., min_length=6)
+    name: str = Field(..., min_length=1)
+
+class AuthResponse(BaseModel):
+    access_token: str = Field(..., serialization_alias="accessToken")
+    token_type: str = Field(default="bearer", serialization_alias="tokenType")
+    user: UserDTO
+
+    model_config = {
+        "populate_by_name": True
+    }
 
 class HealthResponse(BaseModel):
     status: str = "healthy"

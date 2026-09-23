@@ -43,21 +43,21 @@ xcuserdata/
 *.log
 scratch/
 
-.agents/
+# Python & Backend
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
 .venv/
 venv/
 *.sqlite3
-reference/
-# Python
-__pycache__/
-*.py[cod]
-*.so
-.pytest_cache/
 
+.agents/
+reference/
 
 # Context Reference (Local Only)
 context/
 
 # Temporary Office Lock Files
 ~$*
-

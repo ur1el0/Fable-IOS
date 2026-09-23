@@ -34,6 +34,21 @@ public final class StoryStore: ObservableObject {
         didSet { UserDefaults.standard.set(isPaginatedMode, forKey: "fable_pref_reader_paginated") }
     }
     
+    // Cloud Synchronization Pipeline (Plan 05)
+    @Published var isCloudSyncActive: Bool = false
+    @Published var isBackendReachable: Bool = false
+    private let apiService: StoryAPIServiceProtocol = StoryAPIService()
+    
+    public var persistentDeviceId: UUID {
+        let key = "fable_device_id"
+        if let saved = UserDefaults.standard.string(forKey: key), let uuid = UUID(uuidString: saved) {
+            return uuid
+        }
+        let newId = UUID()
+        UserDefaults.standard.set(newId.uuidString, forKey: key)
+        return newId
+    }
+    
     // Marginalia & Quotes (Plan 02)
     @Published var activeStoryAnnotations: [Annotation] = []
     @Published var pinnedQuotes: [Annotation] = []
@@ -42,63 +57,27 @@ public final class StoryStore: ObservableObject {
     @Published var readingStats: PersistenceService.ReadingStatsSummary = PersistenceService.ReadingStatsSummary(storiesReadCount: 12, totalMinutesRead: 48, streakDays: 3)
     
     // Writing Draft
-    @Published var draftTitle: String = "The Metamorphosis"
-    @Published var draftGenre: String = "Classic Fiction"
+    @Published var draftTitle: String = ""
+    @Published var draftGenre: String = "Folklore"
     @Published var draftChapter: String = "Chapter I"
-    @Published var draftSynopsis: String = "Gregor Samsa wakes one morning to discover he has transformed into a monstrous insect, forcing his family to confront their dependency and disgust."
-    @Published var draftManuscript: String = """
-One morning, when Gregor Samsa woke from troubled dreams, he found himself transformed in his bed into a horrible vermin. He lay on his armour-like back, and if he lifted his head a little he could see his brown belly, slightly domed and divided by arches into stiff sections. The bedding was hardly able to cover it and seemed ready to slide off any moment. His many legs, pitifully thin compared with the size of the rest of him, waved about helplessly as he looked.
-
-"What's happened to me?" he thought. It wasn't a dream. His room, a proper human room although a little too small, lay peacefully between its four familiar walls. A collection of textile samples lay spread out on the table — Samsa was a travelling salesman — and above it there hung a picture that he had recently cut out of an illustrated magazine and housed in a nice, gilded frame.
-"""
+    @Published var draftSynopsis: String = ""
+    @Published var draftManuscript: String = ""
     
-    // Genres
-    @Published var genres: [GenreCategory] = [
-        GenreCategory(
-            name: "Folklore",
-            storyCount: 340,
-            readersCount: "18.4k",
-            description: "Traditional tales passed down through generations, reimagined by contemporary scribes—from fireside Slavic forest myths to maritime legends whispered across coastal tides.",
-            imageName: "genre_folklore"
-        ),
-        GenreCategory(
-            name: "Mythology",
-            storyCount: 218,
-            readersCount: "12.1k",
-            description: "Epic sagas of deities, ancient heroes, and cosmic origins spanning classical traditions to obscure forgotten pantheons.",
-            imageName: "genre_mythology"
-        ),
-        GenreCategory(
-            name: "Gothic",
-            storyCount: 185,
-            readersCount: "9.8k",
-            description: "Atmospheric hauntings, crumbling estates, and romantic dread exploring the psychological depths of human melancholy.",
-            imageName: "genre_gothic"
-        ),
-        GenreCategory(
-            name: "Classic Mystery",
-            storyCount: 185,
-            readersCount: "14.2k",
-            description: "Whodunits, deductive puzzles, and atmospheric investigations through gaslit cobblestones and locked rooms.",
-            imageName: "genre_mystery"
-        )
-    ]
+    // Live Server-Driven Genres (with bundled defaults)
+    @Published var genres: [GenreCategory] = GenreCategory.defaultCategories
     
-    // Trending Writers
-    @Published var writers: [Writer] = [
-        Writer(name: "R.F. Kuang", avatarImageName: "author_kuang", storyCount: 14, rating: 4.9),
-        Writer(name: "Rebecca Yarros", avatarImageName: "author_yarros", storyCount: 9, rating: 4.8),
-        Writer(name: "T.J. Klune", avatarImageName: "author_klune", storyCount: 16, rating: 4.9),
-        Writer(name: "Silvia Moreno", avatarImageName: "author_moreno", storyCount: 14, rating: 4.8)
-    ]
+    // Live Server-Driven Trending Writers (with bundled defaults)
+    @Published var writers: [Writer] = Writer.defaultWriters
     
     // User Profile Stories
     @Published var profileStories: [Story] = []
     
     init() {
         loadReaderPreferences()
-        setupInitialStories()
         syncWithPersistence()
+        Task { [weak self] in
+            await self?.syncWithCloudBackend()
+        }
     }
     
     private func loadReaderPreferences() {
@@ -125,194 +104,7 @@ One morning, when Gregor Samsa woke from troubled dreams, he found himself trans
             self.isPaginatedMode = UserDefaults.standard.bool(forKey: "fable_pref_reader_paginated")
         }
     }
-    
-    private func setupInitialStories() {
-        let draculaParagraphs = [
-            "Before the sun had set, we reached the Bistritz pass. The grey of the evening had begun to fall, and the shadows of the mountains seemed to close in around us with every mile. The horses began to strain against the harness as the road turned sharply upward into the deep pine forests of Transylvania.",
-            "\"The castle is on the very edge of a terrible precipice,\" the driver whispered, crossing himself as the wolves began their low, distant howling down in the valley below. \"A stone falling from the window would fall a thousand feet without touching anything.\"",
-            "The wind grew colder, piercing through my woollen mantle with icy teeth. Far above, perched jaggedly upon a fang of rock, the black battlements rose against a sky bruised with indigo and blood orange.",
-            "I could hear the wolves getting closer. Their choruses echoed through the gorge like a choir of starved spirits. And then, at the crest of the winding road, a tall figure in a heavy cape stepped into the lantern light..."
-        ]
-        
-        let dracula = Story(
-            title: "Dracula",
-            author: "Bram Stoker",
-            genre: "Gothic",
-            excerpt: "The castle is on the very edge of a terrible precipice. A stone falling from the window would fall a thousand feet without touching anything.",
-            paragraphs: draculaParagraphs,
-            coverImageName: "cover_dracula",
-            heroImageName: "hero_castle",
-            readingTimeMinutes: 4,
-            totalPages: 5,
-            currentPage: 2,
-            progressPercent: 35,
-            rating: 4.95,
-            isTaleOfTheDay: true,
-            isSaved: true
-        )
-        
-        let sleepyHollow = Story(
-            title: "The Legend of Sleepy Hollow",
-            author: "Washington Irving",
-            genre: "Folklore",
-            excerpt: "A drowsy, dreamy influence seems to hang over the land, and to pervade the very atmosphere.",
-            paragraphs: [
-                "A drowsy, dreamy influence seems to hang over the land, and to pervade the very atmosphere. Some say that the place was bewitched by a High German doctor, during the early days of the settlement; others, that an old Indian chief, the prophet or wizard of his tribe, held his powwows there before the country was discovered by Master Hendrick Hudson.",
-                "Certain it is, the place still continues under the sway of some bewitching power, that holds a spell over the minds of the good people, causing them to walk in a continual reverie. They are given to all kinds of marvelous beliefs, are subject to trances and visions, and frequently see strange sights, and hear music and voices in the air."
-            ],
-            coverImageName: "thumb_sleepy",
-            heroImageName: "cover_sleepy_featured",
-            readingTimeMinutes: 4,
-            totalPages: 24,
-            currentPage: 14,
-            progressPercent: 60,
-            rating: 4.95,
-            isSaved: true,
-            isCuratorSpotlight: true
-        )
-        
-        let metamorphosis = Story(
-            title: "The Metamorphosis",
-            author: "Franz Kafka",
-            genre: "Classic Fiction",
-            excerpt: "“One morning, when Gregor Samsa woke from troubled dreams, he found himself transformed in his bed into a monstrous vermin.”",
-            paragraphs: [
-                "One morning, when Gregor Samsa woke from troubled dreams, he found himself transformed in his bed into a monstrous vermin.",
-                "He lay on his armour-like back, and if he lifted his head a little he could see his brown belly, slightly domed and divided by arches into stiff sections."
-            ],
-            coverImageName: "thumb_metamorphosis",
-            readingTimeMinutes: 5,
-            totalPages: 8,
-            currentPage: 6,
-            progressPercent: 80,
-            isRecentSubmission: true,
-            isSaved: true
-        )
-        
-        let tellTale = Story(
-            title: "The Tell-Tale Heart",
-            author: "Edgar Allan Poe",
-            genre: "Gothic",
-            excerpt: "\"True! — nervous — very, very dreadfully nervous I had been and am; but why will you say that I am mad?\"",
-            paragraphs: [
-                "True! — nervous — very, very dreadfully nervous I had been and am; but why will you say that I am mad? The disease had sharpened my senses — not destroyed — not dulled them.",
-                "Above all was the sense of hearing acute. I heard all things in the heaven and in the earth. I heard many things in hell. How, then, am I mad? Hearken! and observe how healthily — how calmly I can tell you the whole story."
-            ],
-            coverImageName: "thumb_tell_tale",
-            readingTimeMinutes: 3,
-            totalPages: 4,
-            currentPage: 1,
-            progressPercent: 15,
-            isRecentSubmission: true,
-            isSaved: true
-        )
-        
-        let mariaMakiling = Story(
-            title: "The Legend of Maria Makiling",
-            author: "Jose Rizal",
-            genre: "Folklore",
-            excerpt: "\"She was a fantastic creature, half nymph, half sylph, born under the moonbeams in the mystery of ancient woods...\"",
-            paragraphs: [
-                "She was a fantastic creature, half nymph, half sylph, born under the moonbeams in the mystery of ancient woods...",
-                "Her voice was like the murmur of crystal water over white pebbles, and her step was as light as the dewdrop falling upon a leaf at dawn."
-            ],
-            coverImageName: "thumb_maria_makiling",
-            readingTimeMinutes: 4,
-            totalPages: 6,
-            currentPage: 1,
-            progressPercent: 0,
-            isRecentSubmission: true,
-            isSaved: true
-        )
-        
-        // Genre Detail stories (Folklore)
-        let ripVanWinkle = Story(
-            title: "Rip Van Winkle",
-            author: "Washington Irving",
-            genre: "American Tale",
-            excerpt: "\"Whoever has made a voyage up the Hudson must remember the Kaatskill mountains, rising in lordly height above the rolling river.\"",
-            coverImageName: "thumb_rip_van_winkle",
-            readingTimeMinutes: 4,
-            rating: 4.9,
-            savesCount: "1.2k saves",
-            badgeText: "AMERICAN TALE"
-        )
-        
-        let monkeysPaw = Story(
-            title: "The Monkey's Paw",
-            author: "W.W. Jacobs",
-            genre: "Gothic Fable",
-            excerpt: "\"Without, the night was cold and wet, but in the small parlour the blinds were drawn and the fire burned brightly before the hearth.\"",
-            coverImageName: "thumb_monkeys_paw",
-            readingTimeMinutes: 5,
-            rating: 4.8,
-            savesCount: "890 saves",
-            badgeText: "GOTHIC FABLE"
-        )
-        
-        let fisherman = Story(
-            title: "The Fisherman and His Wife",
-            author: "Brothers Grimm",
-            genre: "Grimm's Fairy Tale",
-            excerpt: "\"There once was a fisherman and his wife who lived together in a little cottage close by the sea, until one day a magic flounder spoke.\"",
-            coverImageName: "thumb_fisherman",
-            readingTimeMinutes: 4,
-            rating: 4.8,
-            savesCount: "670 saves",
-            badgeText: "GRIMM'S FAIRY TALE"
-        )
-        
-        let sandman = Story(
-            title: "The Sandman",
-            author: "E.T.A. Hoffmann",
-            genre: "Dark Romanticism",
-            excerpt: "\"Nathaniel sat across from the silent Olimpia, whose crystal-clear eyes rested upon him with strange and motionless intensity.\"",
-            coverImageName: "thumb_sandman",
-            readingTimeMinutes: 2,
-            rating: 4.7,
-            savesCount: "410 saves",
-            badgeText: "DARK ROMANTICISM"
-        )
-        
-        self.stories = [dracula, sleepyHollow, metamorphosis, tellTale, mariaMakiling, ripVanWinkle, monkeysPaw, fisherman, sandman]
-        
-        // Profile Stories (Roosc Zaño)
-        self.profileStories = [
-            Story(
-                title: "The Clockmaker of Prague",
-                author: "Roosc Zaño",
-                genre: "Folklore",
-                excerpt: "In the shadowed alleys behind the Astronomical Clock, Master Hanuš polished cogs that measured not minutes, but heartbeats.",
-                coverImageName: "thumb_clockmaker",
-                readingTimeMinutes: 4,
-                rating: 4.9,
-                readsCount: "1.2k reads",
-                badgeText: "FOLKLORE • 4 min read"
-            ),
-            Story(
-                title: "The Whispering Pines",
-                author: "Roosc Zaño",
-                genre: "Nature Myth",
-                excerpt: "The woods speak in root-taps and resin-fall. If you lean your ear to the moss before dusk, you may hear the oldest branch sigh.",
-                coverImageName: "thumb_pines",
-                readingTimeMinutes: 2,
-                rating: 4.8,
-                readsCount: "840 reads",
-                badgeText: "NATURE MYTH • 2 min read"
-            ),
-            Story(
-                title: "The Starlit Loom",
-                author: "Roosc Zaño",
-                genre: "Fable",
-                excerpt: "Woven from silver comet strands, the cloak was meant for travelers crossing the edge of dreams into the waking sky.",
-                coverImageName: "thumb_loom",
-                readingTimeMinutes: 3,
-                rating: 5.0,
-                readsCount: "620 reads",
-                badgeText: "FABLE • Completed"
-            )
-        ]
-    }
+
     
     var draftWordCount: Int {
         draftManuscript.split { $0.isWhitespace || $0.isNewline }.count
@@ -327,8 +119,8 @@ One morning, when Gregor Samsa woke from troubled dreams, he found himself trans
     
     func publishStory() {
         let newStory = Story(
-            title: draftTitle,
-            author: "Roosc Zaño",
+            title: draftTitle.isEmpty ? "Untitled Tale" : draftTitle,
+            author: AuthManager.shared.currentSession?.name ?? "Independent Author",
             genre: draftGenre,
             excerpt: draftSynopsis,
             paragraphs: [draftManuscript],
@@ -346,11 +138,27 @@ One morning, when Gregor Samsa woke from troubled dreams, he found himself trans
         
         // Persist to SwiftData SQLite
         PersistenceService.shared.saveStory(newStory)
+        
+        // Asynchronously sync newly published manuscript with cloud backend
+        Task { [weak self] in
+            guard let self = self else { return }
+            let req = CreateStoryRequest(
+                title: newStory.title,
+                author: newStory.author,
+                genre: newStory.genre.rawValue,
+                synopsis: newStory.synopsis,
+                content: newStory.content,
+                readTimeMinutes: newStory.readTimeMinutes,
+                contentFormat: newStory.contentFormat.rawValue,
+                sourceProvider: newStory.sourceProvider.rawValue
+            )
+            _ = try? await self.apiService.createStory(req)
+        }
     }
     
     private func syncWithPersistence() {
         // Seed default stories if SQLite is empty
-        PersistenceService.shared.seedInitialDataIfNeeded(seedStories: self.stories)
+        PersistenceService.shared.seedInitialDataIfNeeded(seedStories: Story.defaultSeedStories)
         
         // Hydrate and reconcile from SQLite
         let persisted = PersistenceService.shared.fetchAllStories()
@@ -386,6 +194,26 @@ One morning, when Gregor Samsa woke from troubled dreams, he found himself trans
             }
         }
         
+        if stories.isEmpty {
+            self.stories = Story.defaultSeedStories
+        }
+        
+        if profileStories.isEmpty {
+            self.profileStories = [
+                Story(
+                    title: "The Clockmaker of Prague",
+                    author: AuthManager.shared.currentSession?.name ?? "Roosc Zaño",
+                    genre: "Folklore",
+                    excerpt: "In the shadowed alleys behind the Astronomical Clock, Master Hanuš polished cogs that measured not minutes, but heartbeats.",
+                    coverImageName: "thumb_metamorphosis",
+                    readingTimeMinutes: 4,
+                    rating: 4.9,
+                    readsCount: "1.2k reads",
+                    badgeText: "FOLKLORE • 4 min read"
+                )
+            ]
+        }
+        
         reloadPinnedQuotes()
         reloadReadingStats()
     }
@@ -414,6 +242,122 @@ One morning, when Gregor Samsa woke from troubled dreams, he found himself trans
         }
     }
     
+    // MARK: - Cloud Synchronization Pipeline (Plan 05)
+    func syncWithCloudBackend() async {
+        isCloudSyncActive = true
+        defer { isCloudSyncActive = false }
+        
+        do {
+            // 1. Fetch live remote stories from FastAPI
+            let remoteStories = try await apiService.fetchStories(genre: nil, search: nil)
+            self.isBackendReachable = true
+            
+            if self.stories.isEmpty {
+                self.stories = remoteStories
+                for story in remoteStories {
+                    PersistenceService.shared.saveStory(story)
+                }
+            } else {
+                for remote in remoteStories {
+                    if let idx = stories.firstIndex(where: { $0.id == remote.id }) {
+                        stories[idx].isBookmarked = stories[idx].isBookmarked || remote.isBookmarked
+                        stories[idx].coverImageUrl = remote.coverImageUrl
+                        stories[idx].totalChapters = remote.totalChapters
+                        stories[idx].contentFormat = remote.contentFormat
+                        stories[idx].sourceProvider = remote.sourceProvider
+                        if remote.isTaleOfTheDay { stories[idx].isTaleOfTheDay = true }
+                        if remote.isCuratorSpotlight { stories[idx].isCuratorSpotlight = true }
+                    } else {
+                        stories.append(remote)
+                        PersistenceService.shared.saveStory(remote)
+                    }
+                }
+            }
+            
+            // 2. Fetch live dynamic categories/genres from backend
+            if let liveGenres = try? await apiService.fetchGenres(), !liveGenres.isEmpty {
+                self.genres = liveGenres
+            }
+            
+            // 3. Fetch live trending authors from backend/Open Library
+            if let liveWriters = try? await apiService.fetchTopAuthors(), !liveWriters.isEmpty {
+                self.writers = liveWriters
+            }
+            
+            // 4. Fetch live update feed (Tale of the Day, Curator Spotlight)
+            if let feed = try? await apiService.fetchUpdateFeed() {
+                if let totd = feed.taleOfTheDay {
+                    for i in 0..<stories.count {
+                        stories[i].isTaleOfTheDay = (stories[i].id == totd.id)
+                    }
+                }
+                if let curator = feed.curatorSpotlight {
+                    for i in 0..<stories.count {
+                        stories[i].isCuratorSpotlight = (stories[i].id == curator.id)
+                    }
+                }
+            }
+            
+            // 5. Bidirectional shelf sync using Last-Write-Wins
+            let shelfItems = stories.map { story in
+        ShelfSyncItem(
+            storyId: story.id,
+            readingProgress: Double(story.progressPercent) / 100.0,
+            isBookmarked: story.isBookmarked,
+            isCompleted: story.isCompleted,
+            updatedAtUtc: story.createdAtUtc
+        )
+    }
+    let reconciled = try await apiService.syncShelf(deviceId: persistentDeviceId, items: shelfItems)
+            for item in reconciled {
+                if let idx = stories.firstIndex(where: { $0.id == item.storyId }) {
+                    stories[idx].isBookmarked = item.isBookmarked
+                    stories[idx].isCompleted = item.isCompleted
+                    stories[idx].progressPercent = Int(item.readingProgress * 100.0)
+                }
+            }
+        } catch {
+            // Offline-First Invariant: Operates seamlessly on local SwiftData/SQLite
+            self.isBackendReachable = false
+        }
+    }
+    
+    /// Loads authentic chapters on demand for the active reading story
+    func fetchChapters(for story: Story) async -> [Chapter] {
+        if let existing = story.chapters, !existing.isEmpty {
+            return existing
+        }
+        do {
+            let fetched = try await apiService.fetchChapters(for: story.id)
+            if let idx = stories.firstIndex(where: { $0.id == story.id }) {
+                stories[idx].chapters = fetched
+                stories[idx].totalChapters = max(1, fetched.count)
+            }
+            if activeReaderStory?.id == story.id {
+                activeReaderStory?.chapters = fetched
+                activeReaderStory?.totalChapters = max(1, fetched.count)
+            }
+            return fetched
+        } catch {
+            return story.chapters ?? []
+        }
+    }
+
+    
+    func fetchGutenbergPublicStories(topic: String? = nil, search: String? = nil) async {
+        do {
+            let fetched = try await apiService.fetchGutenbergStories(topic: topic, search: search)
+            for book in fetched {
+                if !stories.contains(where: { $0.id == book.id }) {
+                    stories.append(book)
+                    PersistenceService.shared.saveStory(book)
+                }
+            }
+        } catch {
+            // Graceful fallback to offline local stories
+        }
+    }
+    
     // MARK: - Actions
     func toggleBookmark(for story: Story) {
         if let idx = stories.firstIndex(where: { $0.id == story.id }) {
@@ -423,6 +367,11 @@ One morning, when Gregor Samsa woke from troubled dreams, he found himself trans
             profileStories[idx].isBookmarked.toggle()
         }
         _ = PersistenceService.shared.toggleBookmark(storyId: story.id)
+        
+        Task { [weak self] in
+            guard let self = self else { return }
+            _ = try? await self.apiService.toggleBookmark(storyId: story.id)
+        }
     }
     
     func updateProgress(for storyId: UUID, page: Int, totalPages: Int) {
@@ -442,6 +391,19 @@ One morning, when Gregor Samsa woke from troubled dreams, he found himself trans
                 totalPages: totalPages
             )
             reloadReadingStats()
+            
+            let currentBookmarked = stories[idx].isBookmarked
+            Task { [weak self] in
+                guard let self = self else { return }
+                let item = ShelfSyncItem(
+                    storyId: storyId,
+                    readingProgress: Double(pct) / 100.0,
+                    isBookmarked: currentBookmarked,
+                    isCompleted: pct >= 100,
+                    updatedAtUtc: Date()
+                )
+                _ = try? await self.apiService.syncShelf(deviceId: self.persistentDeviceId, items: [item])
+            }
         }
     }
     
@@ -468,6 +430,18 @@ One morning, when Gregor Samsa woke from troubled dreams, he found himself trans
                 totalPages: pages
             )
             reloadReadingStats()
+            
+            Task { [weak self] in
+                guard let self = self else { return }
+                let item = ShelfSyncItem(
+                    storyId: storyId,
+                    readingProgress: 1.0,
+                    isBookmarked: self.stories[idx].isBookmarked,
+                    isCompleted: true,
+                    updatedAtUtc: Date()
+                )
+                _ = try? await self.apiService.syncShelf(deviceId: self.persistentDeviceId, items: [item])
+            }
         }
     }
     
@@ -475,6 +449,18 @@ One morning, when Gregor Samsa woke from troubled dreams, he found himself trans
         if let idx = stories.firstIndex(where: { $0.id == storyId }) {
             stories[idx].isBookmarked = false
             _ = PersistenceService.shared.toggleBookmark(storyId: storyId)
+            
+            Task { [weak self] in
+                guard let self = self else { return }
+                let item = ShelfSyncItem(
+                    storyId: storyId,
+                    readingProgress: Double(self.stories[idx].progressPercent) / 100.0,
+                    isBookmarked: false,
+                    isCompleted: self.stories[idx].isCompleted,
+                    updatedAtUtc: Date()
+                )
+                _ = try? await self.apiService.syncShelf(deviceId: self.persistentDeviceId, items: [item])
+            }
         }
     }
     
@@ -524,5 +510,14 @@ One morning, when Gregor Samsa woke from troubled dreams, he found himself trans
             activeStoryAnnotations[idx] = updated
         }
         reloadPinnedQuotes()
+    }
+    
+    func clearUserStateOnSignOut() {
+        UserDefaults.standard.removeObject(forKey: "fable_device_id")
+        self.stories = []
+        self.profileStories = []
+        self.pinnedQuotes = []
+        self.readingStats = PersistenceService.ReadingStatsSummary(storiesReadCount: 0, totalMinutesRead: 0, streakDays: 0)
+        self.syncWithPersistence()
     }
 }

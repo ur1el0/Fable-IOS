@@ -1,5 +1,5 @@
-from dataclasses import dataclass
-from typing import Optional
+from dataclasses import dataclass, field
+from typing import Optional, List
 from datetime import datetime
 from uuid import UUID
 
@@ -9,9 +9,10 @@ class Chapter:
     story_id: UUID
     chapter_number: int
     title: str
-    content: str
-    word_count: int
-    created_at_utc: datetime
+    content: Optional[str] = ""
+    word_count: int = 0
+    created_at_utc: datetime = datetime.now()
+    page_urls: List[str] = field(default_factory=list)
 
 @dataclass
 class Story:
@@ -41,6 +42,8 @@ class Story:
     is_curator_spotlight: bool = False
     badge_text: Optional[str] = None
     total_chapters: int = 1
+    content_format: str = "PROSE"
+    source_provider: str = "FABLE_ORIGINAL"
 
 @dataclass
 class ShelfItem:

@@ -118,6 +118,9 @@ def test_get_genres_endpoint():
     assert "readersCount" in first
     assert "description" in first
     assert "imageName" in first
+    assert "imageUrl" in first
+    assert first["imageUrl"] is not None
+    assert first["imageUrl"].startswith("https://images.unsplash.com")
 
 def test_get_top_authors_endpoint():
     response = client.get("/api/v1/authors/top")
@@ -129,6 +132,18 @@ def test_get_top_authors_endpoint():
     assert "storyCount" in first
     assert "avatarImageName" in first
     assert "rating" in first
+    assert "avatarImageUrl" in first
+    portrait_urls = [w["avatarImageUrl"] for w in writers if w.get("avatarImageUrl")]
+    assert len(portrait_urls) > 0
+    assert portrait_urls[0].startswith("https://upload.wikimedia.org")
+
+def test_maria_makiling_has_live_gutenberg_cover():
+    response = client.get("/api/v1/stories")
+    assert response.status_code == 200
+    stories = response.json()
+    maria = next((s for s in stories if "Maria Makiling" in s["title"]), None)
+    assert maria is not None
+    assert maria["coverImageUrl"] == "https://www.gutenberg.org/cache/epub/38269/pg38269.cover.medium.jpg"
 
 def test_get_update_feed_endpoint():
     response = client.get("/api/v1/updates")
@@ -160,71 +175,134 @@ def test_create_story():
 
 def test_last_write_wins_resolution():
     story_id = str(uuid4())
+    device_id = str(uuid4())
     now = datetime.now(timezone.utc)
     older_time = (now - timedelta(minutes=10)).isoformat()
     newer_time = (now + timedelta(minutes=5)).isoformat()
     
     # 1. Initial client sync
     initial_sync = {
-        "device_id": str(uuid4()),
+        "deviceId": device_id,
         "items": [
             {
-                "story_id": story_id,
-                "reading_progress": 0.4,
-                "is_bookmarked": True,
-                "is_completed": False,
-                "updated_at_utc": now.isoformat()
+                "storyId": story_id,
+                "readingProgress": 0.4,
+                "isBookmarked": True,
+                "isCompleted": False,
+                "updatedAtUtc": now.isoformat()
             }
         ]
     }
     res1 = client.post("/api/v1/shelf/sync", json=initial_sync)
     assert res1.status_code == 200
-    assert res1.json()["reconciled_items"][0]["reading_progress"] == 0.4
+    reconciled = res1.json()["reconciledItems"]
+    assert len(reconciled) == 1
+    assert reconciled[0]["readingProgress"] == 0.4
 
     # 2. Second client sync with OLDER timestamp -> Server should reject client progress and preserve server's 0.4
     stale_sync = {
-        "device_id": str(uuid4()),
+        "deviceId": device_id,
         "items": [
             {
-                "story_id": story_id,
-                "reading_progress": 0.1,
-                "is_bookmarked": False,
-                "is_completed": False,
-                "updated_at_utc": older_time
+                "storyId": story_id,
+                "readingProgress": 0.1,
+                "isBookmarked": False,
+                "isCompleted": False,
+                "updatedAtUtc": older_time
             }
         ]
     }
     res2 = client.post("/api/v1/shelf/sync", json=stale_sync)
     assert res2.status_code == 200
-    assert res2.json()["reconciled_items"][0]["reading_progress"] == 0.4
+    assert res2.json()["reconciledItems"][0]["readingProgress"] == 0.4
 
     # 3. Third client sync with NEWER timestamp -> Server should accept client update
     fresh_sync = {
-        "device_id": str(uuid4()),
+        "deviceId": device_id,
         "items": [
             {
-                "story_id": story_id,
-                "reading_progress": 0.9,
-                "is_bookmarked": True,
-                "is_completed": False,
-                "updated_at_utc": newer_time
+                "storyId": story_id,
+                "readingProgress": 0.9,
+                "isBookmarked": True,
+                "isCompleted": False,
+                "updatedAtUtc": newer_time
             }
         ]
     }
     res3 = client.post("/api/v1/shelf/sync", json=fresh_sync)
     assert res3.status_code == 200
-    assert res3.json()["reconciled_items"][0]["reading_progress"] == 0.9
+    assert res3.json()["reconciledItems"][0]["readingProgress"] == 0.9
+
+def test_multi_tenant_device_shelf_isolation():
+    story_id = str(uuid4())
+    device_a = str(uuid4())
+    device_b = str(uuid4())
+    now = datetime.now(timezone.utc)
+
+    # Device A syncs progress 0.75
+    payload_a = {
+        "deviceId": device_a,
+        "items": [{
+            "storyId": story_id,
+            "readingProgress": 0.75,
+            "isBookmarked": True,
+            "isCompleted": False,
+            "updatedAtUtc": now.isoformat()
+        }]
+    }
+    res_a = client.post("/api/v1/shelf/sync", json=payload_a)
+    assert res_a.status_code == 200
+
+    # Device B syncs progress 0.20 for the exact same story
+    payload_b = {
+        "deviceId": device_b,
+        "items": [{
+            "storyId": story_id,
+            "readingProgress": 0.20,
+            "isBookmarked": False,
+            "isCompleted": False,
+            "updatedAtUtc": now.isoformat()
+        }]
+    }
+    res_b = client.post("/api/v1/shelf/sync", json=payload_b)
+    assert res_b.status_code == 200
+
+    # Query shelf for Device A via GET /api/v1/shelf
+    get_a = client.get(f"/api/v1/shelf?deviceId={device_a}")
+    assert get_a.status_code == 200
+    items_a = get_a.json()
+    assert len(items_a) == 1
+    assert items_a[0]["readingProgress"] == 0.75
+    assert items_a[0]["isBookmarked"] is True
+
+    # Query shelf for Device B via GET /api/v1/shelf
+    get_b = client.get(f"/api/v1/shelf?deviceId={device_b}")
+    assert get_b.status_code == 200
+    items_b = get_b.json()
+    assert len(items_b) == 1
+    assert items_b[0]["readingProgress"] == 0.20
+    assert items_b[0]["isBookmarked"] is False
+
 
 def test_package_modularity_imports():
     from core import get_db, init_db, SEED_STORIES
     from models import Story, Chapter, ShelfItem
-    from schemas import StoryDTO, ChapterDTO, ShelfSyncPayload
+    from schemas import (
+        StoryDTO,
+        ChapterDTO,
+        ShelfSyncPayload,
+        UserDTO,
+        RegisterRequest,
+        LoginRequest,
+        AuthResponse
+    )
     from services import (
         story_service,
         shelf_sync,
         extract_chapters_from_text,
         ingest_gutenberg_book,
-        get_gutenberg_stories
+        get_gutenberg_stories,
+        auth_service
     )
     from api.v1.api import api_router
 
@@ -237,11 +315,19 @@ def test_package_modularity_imports():
     assert StoryDTO is not None
     assert ChapterDTO is not None
     assert ShelfSyncPayload is not None
+    assert UserDTO is not None
+    assert RegisterRequest is not None
+    assert LoginRequest is not None
+    assert AuthResponse is not None
     assert callable(story_service.get_stories)
     assert callable(shelf_sync.sync_shelf)
+    assert callable(shelf_sync.get_shelf)
     assert callable(extract_chapters_from_text)
     assert callable(ingest_gutenberg_book)
     assert callable(get_gutenberg_stories)
+    assert callable(auth_service.register_user)
+    assert callable(auth_service.login_user)
+    assert callable(auth_service.get_current_user)
     assert api_router is not None
 
 def test_get_gutenberg_public_stories():
@@ -250,4 +336,137 @@ def test_get_gutenberg_public_stories():
     data = response.json()
     assert isinstance(data, list)
     assert len(data) > 0
+
+def test_register_and_login_auth_flow():
+    reg_payload = {
+        "email": "reader.roosc@fable.app",
+        "password": "SecurePassword123!",
+        "name": "Roosc Zaño"
+    }
+    # 1. Register
+    reg_res = client.post("/api/v1/auth/register", json=reg_payload)
+    assert reg_res.status_code == 201
+    reg_data = reg_res.json()
+    assert "accessToken" in reg_data
+    assert reg_data["tokenType"] == "bearer"
+    assert reg_data["user"]["email"] == "reader.roosc@fable.app"
+    assert reg_data["user"]["name"] == "Roosc Zaño"
+    token = reg_data["accessToken"]
+
+    # 2. Get /auth/me with Bearer token
+    me_res = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert me_res.status_code == 200
+    me_data = me_res.json()
+    assert me_data["email"] == "reader.roosc@fable.app"
+    assert me_data["name"] == "Roosc Zaño"
+
+    # 3. Login
+    login_payload = {
+        "email": "reader.roosc@fable.app",
+        "password": "SecurePassword123!"
+    }
+    login_res = client.post("/api/v1/auth/login", json=login_payload)
+    assert login_res.status_code == 200
+    login_data = login_res.json()
+    assert "accessToken" in login_data
+    assert login_data["user"]["email"] == "reader.roosc@fable.app"
+
+def test_register_duplicate_email_conflict():
+    payload = {
+        "email": "duplicate@fable.app",
+        "password": "Password123!",
+        "name": "Original User"
+    }
+    res1 = client.post("/api/v1/auth/register", json=payload)
+    assert res1.status_code == 201
+
+    # Second attempt with same email
+    res2 = client.post("/api/v1/auth/register", json=payload)
+    assert res2.status_code == 409
+    assert "already registered" in res2.json()["detail"].lower()
+
+def test_login_invalid_password():
+    payload = {
+        "email": "invalid_login@fable.app",
+        "password": "CorrectPassword123!",
+        "name": "Test Login"
+    }
+    client.post("/api/v1/auth/register", json=payload)
+
+    # Wrong password
+    bad_login = {
+        "email": "invalid_login@fable.app",
+        "password": "WrongPassword999!"
+    }
+    res = client.post("/api/v1/auth/login", json=bad_login)
+    assert res.status_code == 401
+    assert "Invalid email or password" in res.json()["detail"]
+
+def test_auth_me_unauthorized():
+    # Missing header
+    res1 = client.get("/api/v1/auth/me")
+    assert res1.status_code == 401
+
+    # Invalid token
+    res2 = client.get("/api/v1/auth/me", headers={"Authorization": "Bearer non_existent_token_12345"})
+    assert res2.status_code == 401
+
+def test_multi_format_content_and_provider_serialization():
+    response = client.get("/api/v1/stories")
+    assert response.status_code == 200
+    stories = response.json()
+    
+    # Check that stories have contentFormat and sourceProvider keys
+    for s in stories:
+        assert "contentFormat" in s
+        assert "sourceProvider" in s
+
+    # Verify Manga sample is present with MANGADEX provider
+    manga_story = next((s for s in stories if s["contentFormat"] == "MANGA"), None)
+    assert manga_story is not None
+    assert manga_story["sourceProvider"] == "MANGADEX"
+    assert manga_story["title"] == "Chainsaw Devil: Special Edition"
+    assert manga_story["badgeText"] == "MANGA"
+
+    # Verify Standard Ebooks sample is present
+    se_story = next((s for s in stories if s["sourceProvider"] == "STANDARD_EBOOKS"), None)
+    assert se_story is not None
+    assert se_story["contentFormat"] == "PROSE"
+    assert "standardebooks.org" in se_story["coverImageUrl"]
+
+def test_manga_chapter_page_urls_contract():
+    response = client.get("/api/v1/stories")
+    assert response.status_code == 200
+    stories = response.json()
+    manga_story = next(s for s in stories if s["contentFormat"] == "MANGA")
+    
+    ch_res = client.get(f"/api/v1/stories/{manga_story['id']}/chapters")
+    assert ch_res.status_code == 200
+    chapters = ch_res.json()
+    assert len(chapters) >= 1
+    ch1 = chapters[0]
+    assert "pageUrls" in ch1
+    assert len(ch1["pageUrls"]) >= 3
+    assert all(url.startswith("https://") for url in ch1["pageUrls"])
+
+def test_create_manga_story_via_api():
+    payload = {
+        "title": "Cyber Scribe Manga",
+        "author": "Fable Studios",
+        "genre": "Manga",
+        "chapter": "Issue #1",
+        "synopsis": "A cyberpunk illustrator discovers a quill that draws reality.",
+        "content": "",
+        "readTimeMinutes": 6,
+        "contentFormat": "MANGA",
+        "sourceProvider": "FABLE_ORIGINAL"
+    }
+    res = client.post("/api/v1/stories", json=payload)
+    assert res.status_code == 201
+    created = res.json()
+    assert created["contentFormat"] == "MANGA"
+    assert created["sourceProvider"] == "FABLE_ORIGINAL"
+    assert created["title"] == "Cyber Scribe Manga"
+
+
 

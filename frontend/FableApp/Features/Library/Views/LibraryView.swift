@@ -2,17 +2,20 @@ import SwiftUI
 
 public struct LibraryView: View {
     @EnvironmentObject var store: StoryStore
+    @ObservedObject private var auth = AuthManager.shared
     
     @State private var selectedFilter: String = "All"
     @State private var selectedStoryToRead: Story?
     @State private var isShowingProfileSheet: Bool = false
     
-    let filterCategories = ["All", "Folklore", "Mythology", "Gothic", "Speculative", "Classic"]
+    let filterCategories = ["All", "Manga", "Folklore", "Mythology", "Gothic", "Speculative", "Classic"]
     
     var filteredRecentStories: [Story] {
         let recents = store.stories.filter { $0.isRecentSubmission }
         if selectedFilter == "All" {
             return recents
+        } else if selectedFilter == "Manga" {
+            return recents.filter { $0.contentFormat == .manga || $0.genre == .manga }
         } else {
             return recents.filter {
                 $0.genre.rawValue.localizedCaseInsensitiveContains(selectedFilter) ||
@@ -33,13 +36,29 @@ public struct LibraryView: View {
                         // Header Date, Title & Profile Avatar
                         HStack(alignment: .center) {
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("TUESDAY, OCT 14")
-                                    .font(.system(size: 11, weight: .bold))
-                                    .tracking(1.2)
-                                    .foregroundColor(FableTheme.textMuted)
+                                HStack(spacing: 8) {
+                                    Text("DISCOVER")
+                                        .font(.system(size: 11, weight: .bold))
+                                        .tracking(1.4)
+                                        .foregroundColor(FableTheme.brandPrimary)
+                                    
+                                    // Live Cloud Connectivity Pill
+                                    HStack(spacing: 4) {
+                                        Circle()
+                                            .fill(store.isBackendReachable ? Color.green : Color.orange)
+                                            .frame(width: 6, height: 6)
+                                        Text(store.isBackendReachable ? "Live Cloud" : "Offline Cache")
+                                            .font(.system(size: 9, weight: .bold))
+                                            .foregroundColor(store.isBackendReachable ? Color.green : Color.orange)
+                                    }
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background((store.isBackendReachable ? Color.green : Color.orange).opacity(0.12))
+                                    .clipShape(Capsule())
+                                }
                                 
                                 Text("Library")
-                                    .font(.system(size: 34, weight: .bold, design: .serif))
+                                    .font(.system(size: 32, weight: .black, design: .default))
                                     .foregroundColor(FableTheme.textPrimary)
                             }
                             
@@ -48,7 +67,7 @@ public struct LibraryView: View {
                             Button(action: {
                                 isShowingProfileSheet = true
                             }) {
-                                FableImageView(name: "avatar_roosc", placeholderIcon: "person.crop.circle")
+                                FableImageView(name: auth.currentSession?.avatarName ?? "avatar_roosc", placeholderIcon: "person.crop.circle")
                                     .frame(width: 40, height: 40)
                                     .clipShape(Circle())
                                     .overlay(Circle().stroke(FableTheme.divider, lineWidth: 1.5))
@@ -80,22 +99,22 @@ public struct LibraryView: View {
                             .padding(.horizontal, 20)
                         }
                         
-                        // Tale of the Day Featured Hero Card (Figma Frame 1:2)
-                        if let taleOfTheDay = store.stories.first(where: { $0.isTaleOfTheDay }) {
+                        // Featured Hero Card
+                        if let featuredStory = store.stories.first(where: { $0.isTaleOfTheDay }) ?? store.stories.first {
                             Button(action: {
-                                selectedStoryToRead = taleOfTheDay
+                                selectedStoryToRead = featuredStory
                             }) {
                                 VStack(alignment: .leading, spacing: 0) {
-                                    // Book Cover with Badge & Bookmark
+                                    // Media Cover with Dynamic Format Badge
                                     ZStack(alignment: .top) {
-                                        FableImageView(name: taleOfTheDay.coverImageName ?? "cover_dracula", placeholderIcon: "book.closed")
+                                        FableImageView(name: featuredStory.effectiveCoverImage ?? "cover_dracula", placeholderIcon: "square.stack")
                                             .frame(maxWidth: .infinity)
-                                            .frame(height: 210)
+                                            .frame(height: 220)
                                             .clipped()
                                         
                                         HStack {
-                                            Text("TALE OF THE DAY")
-                                                .font(.system(size: 10, weight: .bold))
+                                            Text(featuredStory.contentFormat == .manga ? "FEATURED MANGA" : "FEATURED TITLE")
+                                                .font(.system(size: 10, weight: .heavy))
                                                 .tracking(1.0)
                                                 .foregroundColor(FableTheme.brandPrimary)
                                                 .padding(.horizontal, 10)
@@ -107,10 +126,10 @@ public struct LibraryView: View {
                                             
                                             Button(action: {
                                                 withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                                                    store.toggleBookmark(for: taleOfTheDay)
+                                                    store.toggleBookmark(for: featuredStory)
                                                 }
                                             }) {
-                                                Image(systemName: taleOfTheDay.isBookmarked ? "bookmark.fill" : "bookmark")
+                                                Image(systemName: featuredStory.isBookmarked ? "bookmark.fill" : "bookmark")
                                                     .font(.system(size: 13, weight: .semibold))
                                                     .foregroundColor(taleOfTheDay.isBookmarked ? FableTheme.brandPrimary : FableTheme.textPrimary)
                                                     .padding(8)
@@ -124,43 +143,43 @@ public struct LibraryView: View {
                                     
                                     // Description Area
                                     VStack(alignment: .leading, spacing: 8) {
-                                        HStack(spacing: 4) {
-                                            Text(taleOfTheDay.author)
-                                                .font(.system(size: 13, weight: .medium))
-                                                .foregroundColor(FableTheme.textSecondary)
+                                        HStack(spacing: 6) {
+                                            Text(featuredStory.author)
+                                                .font(.system(size: 13, weight: .semibold))
+                                                .foregroundColor(FableTheme.brandPrimary)
                                             Text("•")
                                                 .foregroundColor(FableTheme.textMuted)
-                                            Text("\(taleOfTheDay.readingTimeMinutes) min read")
+                                            Text(featuredStory.contentFormat == .manga ? "\(featuredStory.readingTimeMinutes)m read" : "\(featuredStory.readingTimeMinutes) min read")
                                                 .font(.system(size: 13, weight: .regular))
                                                 .foregroundColor(FableTheme.textMuted)
                                         }
                                         
-                                        Text(taleOfTheDay.title)
-                                            .font(.system(size: 24, weight: .bold, design: .serif))
+                                        Text(featuredStory.title)
+                                            .font(.system(size: 22, weight: .bold, design: .default))
                                             .foregroundColor(FableTheme.textPrimary)
                                         
-                                        Text(taleOfTheDay.excerpt)
-                                            .font(.system(size: 14, weight: .regular, design: .serif))
-                                            .foregroundColor(FableTheme.textPrimary.opacity(0.85))
-                                            .lineSpacing(4)
+                                        Text(featuredStory.excerpt)
+                                            .font(.system(size: 14, weight: .regular, design: .default))
+                                            .foregroundColor(FableTheme.textSecondary)
+                                            .lineSpacing(3)
                                     }
                                     .padding(20)
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .background(FableTheme.cardBackground)
                                 }
-                                .clipShape(RoundedRectangle(cornerRadius: 20))
-                                .shadow(color: Color.black.opacity(0.06), radius: 10, y: 3)
+                                .clipShape(RoundedRectangle(cornerRadius: 18))
+                                .shadow(color: Color.black.opacity(0.04), radius: 8, y: 2)
                                 .padding(.horizontal, 20)
                             }
                             .buttonStyle(.plain)
                         }
                         
                         // Continue Reading Section
-                        if let inProgressStory = store.stories.first(where: { $0.progressPercent > 0 && !$0.isCompleted }) ?? store.stories.first(where: { $0.title.contains("Sleepy Hollow") }) {
+                        if let inProgressStory = store.stories.first(where: { $0.progressPercent > 0 && !$0.isCompleted }) {
                             VStack(alignment: .leading, spacing: 12) {
                                 HStack {
                                     Text("Continue Reading")
-                                        .font(.system(size: 18, weight: .bold, design: .serif))
+                                        .font(.system(size: 18, weight: .bold, design: .default))
                                         .foregroundColor(FableTheme.textPrimary)
                                     
                                     Spacer()
@@ -177,19 +196,29 @@ public struct LibraryView: View {
                                     selectedStoryToRead = inProgressStory
                                 }) {
                                     HStack(spacing: 14) {
-                                        FableImageView(name: inProgressStory.coverImageName ?? inProgressStory.heroImageName, placeholderIcon: "book.pages")
+                                        FableImageView(name: inProgressStory.effectiveCoverImage ?? inProgressStory.heroImageName, placeholderIcon: "square.stack")
                                             .frame(width: 64, height: 80)
                                             .clipShape(RoundedRectangle(cornerRadius: 10))
                                         
                                         VStack(alignment: .leading, spacing: 5) {
+                                            HStack(spacing: 6) {
+                                                Text(inProgressStory.contentFormat == .manga ? "MANGA" : "NOVEL")
+                                                    .font(.system(size: 9, weight: .heavy))
+                                                    .foregroundColor(FableTheme.brandPrimary)
+                                                    .padding(.horizontal, 6)
+                                                    .padding(.vertical, 2)
+                                                    .background(FableTheme.surface)
+                                                    .clipShape(Capsule())
+                                                
+                                                Text(inProgressStory.author)
+                                                    .font(.system(size: 12))
+                                                    .foregroundColor(FableTheme.textMuted)
+                                            }
+                                            
                                             Text(inProgressStory.title)
-                                                .font(.system(size: 16, weight: .bold, design: .serif))
+                                                .font(.system(size: 15, weight: .bold, design: .default))
                                                 .foregroundColor(FableTheme.textPrimary)
                                                 .lineLimit(1)
-                                            
-                                            Text(inProgressStory.author)
-                                                .font(.system(size: 13))
-                                                .foregroundColor(FableTheme.textMuted)
                                             
                                             // Progress Bar
                                             GeometryReader { geo in
@@ -231,16 +260,16 @@ public struct LibraryView: View {
                             .padding(.top, 6)
                         }
                         
-                        // Recent Submissions Section
+                        // Latest Releases Section
                         VStack(alignment: .leading, spacing: 12) {
                             HStack {
-                                Text("Recent Submissions")
-                                    .font(.system(size: 18, weight: .bold, design: .serif))
+                                Text("Latest Releases")
+                                    .font(.system(size: 18, weight: .bold, design: .default))
                                     .foregroundColor(FableTheme.textPrimary)
-                                
+                                    
                                 Spacer()
                                 
-                                Text("\(filteredRecentStories.count) new stories")
+                                Text("\(filteredRecentStories.count) titles")
                                     .font(.system(size: 12, weight: .medium))
                                     .foregroundColor(FableTheme.textMuted)
                             }
@@ -252,17 +281,18 @@ public struct LibraryView: View {
                                         selectedStoryToRead = story
                                     }) {
                                         HStack(alignment: .top, spacing: 14) {
-                                            FableImageView(name: story.coverImageName, placeholderIcon: "book.closed")
-                                                .frame(width: 72, height: 90)
-                                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                                            FableImageView(name: story.effectiveCoverImage, placeholderIcon: "square.stack")
+                                                .frame(width: 72, height: 96)
+                                                .clipShape(RoundedRectangle(cornerRadius: 10))
                                             
                                             VStack(alignment: .leading, spacing: 5) {
                                                 HStack {
-                                                    Text(story.author)
-                                                        .font(.system(size: 10, weight: .bold))
-                                                        .tracking(0.6)
+                                                    // Dynamic Format Pill
+                                                    Text(story.contentFormat == .manga ? "MANGA" : (story.sourceProvider == .standardEbooks ? "STANDARD EBOOKS" : story.genre.rawValue.uppercased()))
+                                                        .font(.system(size: 9, weight: .heavy))
+                                                        .tracking(0.5)
                                                         .foregroundColor(FableTheme.brandPrimary)
-                                                        .padding(.horizontal, 8)
+                                                        .padding(.horizontal, 7)
                                                         .padding(.vertical, 3)
                                                         .background(FableTheme.surface)
                                                         .clipShape(Capsule())
@@ -281,12 +311,17 @@ public struct LibraryView: View {
                                                 }
                                                 
                                                 Text(story.title)
-                                                    .font(.system(size: 17, weight: .bold, design: .serif))
+                                                    .font(.system(size: 16, weight: .bold, design: .default))
                                                     .foregroundColor(FableTheme.textPrimary)
+                                                    .lineLimit(1)
+                                                
+                                                Text(story.author)
+                                                    .font(.system(size: 12, weight: .medium))
+                                                    .foregroundColor(FableTheme.textMuted)
                                                 
                                                 Text(story.excerpt)
-                                                    .font(.system(size: 12, weight: .regular, design: .serif))
-                                                    .foregroundColor(FableTheme.textPrimary.opacity(0.75))
+                                                    .font(.system(size: 12, weight: .regular))
+                                                    .foregroundColor(FableTheme.textSecondary)
                                                     .lineLimit(2)
                                                     .lineSpacing(2)
                                             }
@@ -306,6 +341,9 @@ public struct LibraryView: View {
                         .padding(.bottom, 90) // spacing for custom tab bar
                     }
                 }
+                .refreshable {
+                    await store.syncWithCloudBackend()
+                }
             }
             .fullScreenCover(item: $selectedStoryToRead) { story in
                 ReaderView(story: story)
@@ -317,4 +355,9 @@ public struct LibraryView: View {
             }
         }
     }
+}
+
+#Preview {
+    LibraryView()
+        .environmentObject(StoryStore())
 }

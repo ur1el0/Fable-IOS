@@ -56,8 +56,26 @@ public final class PacingEngine: ObservableObject {
         return max(1, Int(ceil(minutes)))
     }
     
-    /// Chunks a continuous manuscript into structured pages based on paragraphs and target word thresholds.
-    public static func chunkIntoPages(text: String, targetWordsPerPage: Int = 180) -> [String] {
+    /// Zoom-invariant, Unicode-compliant word counter.
+    /// Accurately counts words across irregular whitespaces, tabs, newlines, and punctuation.
+    public static func countWords(in text: String) -> Int {
+        var count = 0
+        text.enumerateSubstrings(in: text.startIndex..<text.endIndex, options: [.byWords, .substringNotRequired]) { _, _, _, _ in
+            count += 1
+        }
+        return count
+    }
+    
+    /// Chunks a continuous manuscript into structured pages based on paragraphs,
+    /// dynamic viewport font scaling, and target word thresholds.
+    public static func chunkIntoPages(
+        text: String,
+        fontSizePercentage: Double = 100.0,
+        baseWordsPerPage: Int = 180
+    ) -> [String] {
+        let scale = max(0.5, fontSizePercentage / 100.0)
+        let effectiveTargetWords = max(50, Int(round(Double(baseWordsPerPage) / scale)))
+        
         let paragraphs = text.components(separatedBy: "\n\n")
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
@@ -71,9 +89,9 @@ public final class PacingEngine: ObservableObject {
         var currentWordCount = 0
         
         for paragraph in paragraphs {
-            let wordsInPara = paragraph.split(separator: " ").count
+            let wordsInPara = countWords(in: paragraph)
             
-            if currentWordCount + wordsInPara > targetWordsPerPage && !currentPageParagraphs.isEmpty {
+            if currentWordCount + wordsInPara > effectiveTargetWords && !currentPageParagraphs.isEmpty {
                 pages.append(currentPageParagraphs.joined(separator: "\n\n"))
                 currentPageParagraphs = [paragraph]
                 currentWordCount = wordsInPara

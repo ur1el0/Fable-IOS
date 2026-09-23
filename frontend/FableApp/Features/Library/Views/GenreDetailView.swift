@@ -10,16 +10,10 @@ public struct GenreDetailView: View {
     @State private var isFollowing: Bool = false
     @State private var selectedStoryToRead: Story?
     
-    let subcategories = ["All", "Popular", "Editor's Pick", "Short Tales"]
+    let subcategories = ["All", "Popular", "Editor's Pick", "Quick Reads"]
     
-    public init(genre: GenreCategory? = nil) {
-        self.genre = genre ?? GenreCategory(
-            name: "Folklore",
-            storyCount: 340,
-            readersCount: "18.4k",
-            description: "Traditional tales passed down through generations, reimagined by contemporary scribes—from fireside Slavic forest myths to maritime legends whispered across coastal tides.",
-            imageName: "genre_folklore"
-        )
+    public init(genre: GenreCategory) {
+        self.genre = genre
     }
     
     var genreStories: [Story] {
@@ -34,7 +28,7 @@ public struct GenreDetailView: View {
             return list.filter { $0.rating >= 4.8 }
         case "Editor's Pick":
             return list.filter { $0.isSaved || $0.isCuratorSpotlight }
-        case "Short Tales":
+        case "Quick Reads":
             return list.filter { $0.readingTimeMinutes <= 4 }
         default:
             return list
@@ -62,7 +56,7 @@ public struct GenreDetailView: View {
                     Spacer()
                     
                     Text(genre.name)
-                        .font(.system(size: 17, weight: .bold, design: .serif))
+                        .font(.system(size: 17, weight: .bold))
                         .foregroundColor(FableTheme.textPrimary)
                     
                     Spacer()
@@ -87,12 +81,12 @@ public struct GenreDetailView: View {
                 
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 20) {
-                        // Archive Edition Header Card
+                        // Curated Collection Header Card
                         VStack(alignment: .leading, spacing: 14) {
                             HStack(spacing: 6) {
-                                Image(systemName: "book.closed")
+                                Image(systemName: "square.stack.3d.up.fill")
                                     .font(.system(size: 11))
-                                Text("ARCHIVE EDITION")
+                                Text("CURATED COLLECTION")
                                     .font(.system(size: 11, weight: .bold))
                                     .tracking(1.0)
                             }
@@ -103,15 +97,15 @@ public struct GenreDetailView: View {
                             .clipShape(Capsule())
                             
                             Text(genre.name)
-                                .font(.system(size: 28, weight: .bold, design: .serif))
+                                .font(.system(size: 28, weight: .black))
                                 .foregroundColor(FableTheme.textPrimary)
                             
-                            Text("\(genre.storyCount) Tales  •  \(genre.readersCount) Readers  •  Curated Weekly")
+                            Text("\(genre.storyCount) Titles  •  \(genre.readersCount) Readers  •  Curated Weekly")
                                 .font(.system(size: 12, weight: .medium))
                                 .foregroundColor(FableTheme.textMuted)
                             
                             Text(genre.description)
-                                .font(.system(size: 14, weight: .regular, design: .serif))
+                                .font(.system(size: 14, weight: .regular))
                                 .foregroundColor(FableTheme.textPrimary.opacity(0.85))
                                 .lineSpacing(4)
                             
@@ -166,7 +160,7 @@ public struct GenreDetailView: View {
                         // Stories Section
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Featured in \(genre.name)")
-                                .font(.system(size: 18, weight: .bold, design: .serif))
+                                .font(.system(size: 18, weight: .bold))
                                 .foregroundColor(FableTheme.textPrimary)
                                 .padding(.horizontal, 20)
                             
@@ -176,20 +170,30 @@ public struct GenreDetailView: View {
                                         selectedStoryToRead = story
                                     }) {
                                         HStack(alignment: .top, spacing: 14) {
-                                            FableImageView(name: story.coverImageName, placeholderIcon: "book")
+                                            FableImageView(name: story.effectiveCoverImage, placeholderIcon: "book")
                                                 .frame(width: 72, height: 90)
                                                 .clipShape(RoundedRectangle(cornerRadius: 12))
                                             
                                             VStack(alignment: .leading, spacing: 5) {
                                                 HStack {
-                                                    Text(story.badgeText ?? story.genre.rawValue.uppercased())
-                                                        .font(.system(size: 9, weight: .bold))
-                                                        .tracking(0.6)
-                                                        .foregroundColor(FableTheme.brandPrimary)
-                                                        .padding(.horizontal, 6)
-                                                        .padding(.vertical, 3)
-                                                        .background(FableTheme.surface)
-                                                        .clipShape(Capsule())
+                                                    HStack(spacing: 4) {
+                                                        Text(story.contentFormat.displayName.uppercased())
+                                                            .font(.system(size: 8, weight: .bold))
+                                                            .padding(.horizontal, 5)
+                                                            .padding(.vertical, 2)
+                                                            .background(story.contentFormat == .manga ? FableTheme.brandPrimary.opacity(0.12) : FableTheme.surfaceVariant)
+                                                            .foregroundColor(story.contentFormat == .manga ? FableTheme.brandPrimary : FableTheme.textSecondary)
+                                                            .clipShape(Capsule())
+                                                        
+                                                        Text(story.badgeText ?? story.genre.rawValue.uppercased())
+                                                            .font(.system(size: 9, weight: .bold))
+                                                            .tracking(0.6)
+                                                            .foregroundColor(FableTheme.brandPrimary)
+                                                            .padding(.horizontal, 6)
+                                                            .padding(.vertical, 2)
+                                                            .background(FableTheme.surface)
+                                                            .clipShape(Capsule())
+                                                    }
                                                     
                                                     Spacer()
                                                     
@@ -203,12 +207,12 @@ public struct GenreDetailView: View {
                                                 }
                                                 
                                                 Text(story.title)
-                                                    .font(.system(size: 16, weight: .bold, design: .serif))
+                                                    .font(.system(size: 16, weight: .bold))
                                                     .foregroundColor(FableTheme.textPrimary)
                                                     .lineLimit(1)
                                                 
                                                 Text(story.excerpt)
-                                                    .font(.system(size: 12, weight: .regular, design: .serif))
+                                                    .font(.system(size: 12, weight: .regular))
                                                     .foregroundColor(FableTheme.textPrimary.opacity(0.75))
                                                     .lineLimit(2)
                                                     .lineSpacing(2)

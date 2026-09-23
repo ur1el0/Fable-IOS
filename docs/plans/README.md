@@ -75,8 +75,8 @@ All plans are formulated under **strict critical system design tenets**:
 
 To ensure manageable, incremental progress aligned with our technical instructor pacing protocol:
 
-1. **Phase 1: Local Persistence (Plan 01)** — Replace ephemeral in-memory variables with persistent SwiftData/SQLite storage so authored stories, progress, and bookmarks survive app restarts.
-2. **Phase 2: Marginalia & Quotes (Plan 02)** — Allow readers to select manuscript text, assign highlights, and populate the Shelf reading quote card.
-3. **Phase 3: Pagination & Pacing (Plan 03)** — Implement viewport-based page segmentation and the live WPM velocity tracker for remaining chapter reading time.
-4. **Phase 4: Oral Folklore Audio (Plan 04)** — Integrate `AVSpeechSynthesizer` for native voice narration, speech progress tracking, and accessibility audio.
-5. **Phase 5: Cloud Synchronization (Plan 05)** — Wire up the optional FastAPI backend for multi-device sync and remote backup.
+1. **Phase 1: Local Persistence (Plan 01)** — [COMPLETE] Replaced ephemeral in-memory variables with persistent SwiftData/SQLite storage so authored stories, progress, and bookmarks survive app restarts.
+2. **Phase 2: Marginalia & Quotes (Plan 02)** — [COMPLETE] Allows readers to select manuscript text, assign highlights, and populate the Shelf reading quote card.
+3. **Phase 3: Pagination & Pacing (Plan 03)** — [COMPLETE] Implemented viewport-based page segmentation and the live WPM velocity tracker for remaining chapter reading time.
+4. **Phase 4: Oral Folklore Audio (Plan 04)** — [COMPLETE] Integrated `AVSpeechSynthesizer` for native voice narration, speech progress tracking, and accessibility audio.
+5. **Phase 5: Cloud Synchronization (Plan 05)** — [COMPLETE] Wired up the FastAPI backend and Gutenberg gateway for multi-device sync, Last-Write-Wins conflict resolution, and remote backup.

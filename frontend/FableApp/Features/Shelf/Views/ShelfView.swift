@@ -13,13 +13,11 @@ public struct ShelfView: View {
     var displayedStories: [Story] {
         switch selectedTab {
         case "Finished":
-            let finished = store.stories.filter { $0.isCompleted || $0.progressPercent >= 100 }
-            return finished.isEmpty ? store.stories.prefix(2).map { $0 } : finished
+            return store.stories.filter { $0.isCompleted || $0.progressPercent >= 100 }
         case "My Drafts":
             return store.profileStories
         default: // "Saved"
-            let saved = store.stories.filter { $0.isBookmarked }
-            return saved.isEmpty ? store.stories.prefix(3).map { $0 } : saved
+            return store.stories.filter { $0.isBookmarked }
         }
     }
     
@@ -34,7 +32,7 @@ public struct ShelfView: View {
                     VStack(alignment: .leading, spacing: 20) {
                         // Brand Logo Header
                         HStack(spacing: 8) {
-                            Image(systemName: "book.pages.fill")
+                            Image(systemName: "square.stack.3d.up.fill")
                                 .font(.system(size: 14))
                                 .foregroundColor(.white)
                                 .padding(7)
@@ -42,7 +40,7 @@ public struct ShelfView: View {
                                 .clipShape(RoundedRectangle(cornerRadius: 8))
                             
                             Text("Fable")
-                                .font(.system(size: 20, weight: .bold, design: .serif))
+                                .font(.system(size: 20, weight: .bold, design: .default))
                                 .foregroundColor(FableTheme.textPrimary)
                         }
                         .padding(.horizontal, 20)
@@ -51,7 +49,7 @@ public struct ShelfView: View {
                         // Title Row with Stats & Settings
                         HStack {
                             Text("My Shelf")
-                                .font(.system(size: 34, weight: .bold, design: .serif))
+                                .font(.system(size: 32, weight: .black, design: .default))
                                 .foregroundColor(FableTheme.textPrimary)
                             
                             Spacer()
@@ -103,8 +101,8 @@ public struct ShelfView: View {
                         // Monthly Reading Stats Card (FIGMA.md Frame 7: 1:1058)
                         VStack(alignment: .leading, spacing: 14) {
                             HStack {
-                                Text("October Reading Stats")
-                                    .font(.system(size: 16, weight: .bold, design: .serif))
+                                Text("Reading Stats")
+                                    .font(.system(size: 16, weight: .bold, design: .default))
                                     .foregroundColor(FableTheme.textPrimary)
                                 Spacer()
                                 Image(systemName: "flame.fill")
@@ -114,9 +112,9 @@ public struct ShelfView: View {
                             HStack(spacing: 0) {
                                 VStack(spacing: 2) {
                                     Text("\(store.readingStats.storiesReadCount)")
-                                        .font(.system(size: 22, weight: .bold, design: .serif))
+                                        .font(.system(size: 22, weight: .bold, design: .default))
                                         .foregroundColor(FableTheme.brandPrimary)
-                                    Text("Stories Read")
+                                    Text("Completed")
                                         .font(.system(size: 11, weight: .medium))
                                         .foregroundColor(FableTheme.textMuted)
                                 }
@@ -128,7 +126,7 @@ public struct ShelfView: View {
                                     let mins = store.readingStats.totalMinutesRead
                                     let formattedTime = mins >= 60 ? "\(mins / 60)h \(mins % 60)m" : "\(mins)m"
                                     Text(formattedTime)
-                                        .font(.system(size: 22, weight: .bold, design: .serif))
+                                        .font(.system(size: 22, weight: .bold, design: .default))
                                         .foregroundColor(FableTheme.brandPrimary)
                                     Text("Logged Time")
                                         .font(.system(size: 11, weight: .medium))
@@ -140,7 +138,7 @@ public struct ShelfView: View {
                                 
                                 VStack(spacing: 2) {
                                     Text("\(store.readingStats.streakDays)")
-                                        .font(.system(size: 22, weight: .bold, design: .serif))
+                                        .font(.system(size: 22, weight: .bold, design: .default))
                                         .foregroundColor(FableTheme.brandPrimary)
                                     Text("Days Streak")
                                         .font(.system(size: 11, weight: .medium))
@@ -161,26 +159,25 @@ public struct ShelfView: View {
                                             VStack(alignment: .leading, spacing: 6) {
                                                 HStack(alignment: .top, spacing: 6) {
                                                     Text("“")
-                                                        .font(.system(size: 36, weight: .bold, design: .serif))
+                                                        .font(.system(size: 32, weight: .bold, design: .default))
                                                         .foregroundColor(quote.color.displayColor.opacity(1.0))
                                                         .offset(y: -4)
                                                     
                                                     Text(quote.selectedText)
-                                                        .font(.system(size: 13, weight: .regular, design: .serif))
-                                                        .italic()
+                                                        .font(.system(size: 13, weight: .medium, design: .default))
                                                         .foregroundColor(FableTheme.textPrimary)
                                                         .lineLimit(3)
                                                         .multilineTextAlignment(.leading)
                                                 }
                                                 
                                                 HStack {
-                                                    Text("— \(quote.storyTitle.isEmpty ? "Fable Manuscript" : quote.storyTitle) • \(quote.storyAuthor.isEmpty ? "Anonymous" : quote.storyAuthor)")
+                                                    Text("— \(quote.storyTitle.isEmpty ? "Fable Scribe" : quote.storyTitle) • \(quote.storyAuthor.isEmpty ? "Anonymous" : quote.storyAuthor)")
                                                         .font(.system(size: 11, weight: .medium))
                                                         .foregroundColor(FableTheme.textMuted)
                                                     
                                                     Spacer()
                                                     
-                                                    Text("TAP TO READ")
+                                                    Text("OPEN TITLE")
                                                         .font(.system(size: 9, weight: .bold))
                                                         .tracking(1.0)
                                                         .foregroundColor(FableTheme.brandPrimary)
@@ -196,9 +193,8 @@ public struct ShelfView: View {
                                 .frame(height: 100)
                                 .tabViewStyle(.page(indexDisplayMode: .automatic))
                             } else {
-                                Text("“A room without books is like a body without a soul.” — Cicero")
-                                    .font(.system(size: 12, weight: .regular, design: .serif))
-                                    .italic()
+                                Text("“A journey of a thousand panels begins with a single line.”")
+                                    .font(.system(size: 12, weight: .medium, design: .default))
                                     .foregroundColor(FableTheme.textSecondary)
                                     .padding(.top, 4)
                             }
@@ -212,7 +208,7 @@ public struct ShelfView: View {
                         // Active Stories Collection
                         VStack(alignment: .leading, spacing: 12) {
                             HStack {
-                                Text("\(selectedTab.uppercased()) TALES (\(displayedStories.count))")
+                                Text("\(selectedTab.uppercased()) TITLES (\(displayedStories.count))")
                                     .font(.system(size: 11, weight: .bold))
                                     .tracking(1.0)
                                     .foregroundColor(FableTheme.textMuted)
@@ -221,18 +217,47 @@ public struct ShelfView: View {
                             .padding(.horizontal, 20)
                             
                             VStack(spacing: 0) {
-                                ForEach(Array(displayedStories.enumerated()), id: \.element.id) { index, story in
+                                if displayedStories.isEmpty {
+                                    VStack(spacing: 12) {
+                                        Image(systemName: selectedTab == "Finished" ? "checkmark.circle" : "square.stack")
+                                            .font(.system(size: 36))
+                                            .foregroundColor(FableTheme.textMuted.opacity(0.5))
+                                        
+                                        Text(selectedTab == "My Drafts" ? "No drafts yet" : "Nothing here yet")
+                                            .font(.system(size: 16, weight: .semibold, design: .default))
+                                            .foregroundColor(FableTheme.textPrimary)
+                                        
+                                        Text(selectedTab == "My Drafts" ? "Start writing your first story." : "Head to the library to find your next favorite read.")
+                                            .font(.system(size: 13))
+                                            .foregroundColor(FableTheme.textMuted)
+                                            .multilineTextAlignment(.center)
+                                            .padding(.horizontal, 32)
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 40)
+                                } else {
+                                    ForEach(Array(displayedStories.enumerated()), id: \.element.id) { index, story in
                                     Button(action: {
                                         selectedStoryToRead = story
                                     }) {
                                         HStack(spacing: 14) {
-                                            FableImageView(name: story.coverImageName, placeholderIcon: "book.closed")
-                                                .frame(width: 50, height: 64)
+                                            FableImageView(name: story.effectiveCoverImage, placeholderIcon: "square.stack")
+                                                .frame(width: 52, height: 68)
                                                 .clipShape(RoundedRectangle(cornerRadius: 8))
                                             
                                             VStack(alignment: .leading, spacing: 4) {
+                                                HStack(spacing: 6) {
+                                                    Text(story.contentFormat == .manga ? "MANGA" : (story.sourceProvider == .standardEbooks ? "STANDARD EBOOKS" : story.genre.rawValue.uppercased()))
+                                                        .font(.system(size: 8, weight: .heavy))
+                                                        .foregroundColor(FableTheme.brandPrimary)
+                                                        .padding(.horizontal, 5)
+                                                        .padding(.vertical, 2)
+                                                        .background(FableTheme.surface)
+                                                        .clipShape(Capsule())
+                                                }
+                                                
                                                 Text(story.title)
-                                                    .font(.system(size: 15, weight: .bold, design: .serif))
+                                                    .font(.system(size: 15, weight: .bold, design: .default))
                                                     .foregroundColor(FableTheme.textPrimary)
                                                     .lineLimit(1)
                                                 
@@ -240,7 +265,7 @@ public struct ShelfView: View {
                                                     .font(.system(size: 12))
                                                     .foregroundColor(FableTheme.textMuted)
                                                 
-                                                Text(story.isCompleted ? "Completed" : "\(story.readingTimeMinutes)m left • \(story.genre.rawValue)")
+                                                Text(story.isCompleted ? "Completed" : "\(story.readingTimeMinutes)m left")
                                                     .font(.system(size: 11, weight: .medium))
                                                     .foregroundColor(story.isCompleted ? Color.green.opacity(0.8) : FableTheme.brandPrimary)
                                             }
@@ -304,6 +329,7 @@ public struct ShelfView: View {
                                             .padding(.horizontal, 16)
                                     }
                                 }
+                                }
                             }
                             .background(FableTheme.cardBackground)
                             .clipShape(RoundedRectangle(cornerRadius: 16))
@@ -313,6 +339,9 @@ public struct ShelfView: View {
                         
                         Spacer().frame(height: 90) // spacing for custom tab bar
                     }
+                }
+                .refreshable {
+                    await store.syncWithCloudBackend()
                 }
             }
             .fullScreenCover(item: $selectedStoryToRead) { story in
@@ -332,4 +361,9 @@ public struct ShelfView: View {
             }
         }
     }
+}
+
+#Preview {
+    ShelfView()
+        .environmentObject(StoryStore())
 }

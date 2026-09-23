@@ -274,6 +274,7 @@ public struct SettingsView: View {
                                 Button(auth.isGuestMode ? "Exit" : "Sign Out", role: .destructive) {
                                     dismiss()
                                     auth.signOut()
+                                    store.clearUserStateOnSignOut()
                                 }
                                 Button("Cancel", role: .cancel) {}
                             } message: {

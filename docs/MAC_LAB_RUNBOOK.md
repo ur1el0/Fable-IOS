@@ -51,40 +51,41 @@ Before running, clear any potential cache conflicts from previous students:
 
 ---
 
-## 3. Grading & Demonstration Runbook ("The Hero Path")
+## 3. Final Capstone Grading & Demonstration Runbook ("The Hero Path")
 
-When demonstrating the application to your professor or teaching assistant in the lab, follow this sequence to showcase **>50% working implementation**:
+When demonstrating the complete application to your professor or grading committee in the lab, follow this sequence to showcase **100% completed enterprise architecture**:
 
 | Step | Action on Simulator | What It Proves to the Grader |
 |---|---|---|
-| **1. Cold Launch** | App opens to `LibraryView` | Proves UI compiles cleanly, loads warm parchment theme, and renders seed data. |
-| **2. Category Filter** | Tap the **"Folklore"** pill chip | Proves reactive state filtering; feed instantly updates to folklore stories. |
-| **3. Hero Story Read** | Tap the **"The Clockmaker of Prague"** Hero Card | Proves modal navigation into `ReaderView`, displaying author metadata and chapter filigree. |
-| **4. Typography Engine** | Tap the **"Display Options"** button (bottom right) | Opens `DisplayOptionsSheet`. Switching fonts (*SF Mono*) and themes (*Sepia*) updates text in real-time. |
-| **5. Reading Progress** | Scroll down through the story manuscript | Demonstrates dynamic scroll progress tracking and completion threshold logic. |
-| **6. Bookmark Toggle** | Tap the **Heart / Bookmark** icon | Proves mutable state updates across views; bookmark status persists. |
-| **7. Story Composer** | Tap the **"Write"** tab in the bottom bar | Opens `WriteView`. Enter Title, select Genre, type a synopsis and body text. |
-| **8. Dynamic Counter** | Observe the live word counter and read time estimate | Proves mathematical logic (200 WPM) updating reactively as you type. |
-| **9. Publish Story** | Tap the **"Publish"** CTA button | Proves input validation, prepends story to collection, and displays `StoryPublishedSheet`. |
-| **10. Reading Journal** | Tap the **"Shelf"** tab | Shows newly added story under "Bookmarked", renders 60% and 100% circular progress rings, and displays October reading metrics. |
+| **1. Cold Launch & Auth** | App opens to `WelcomeView` with modern typography; register a new student account (`evaluator@university.edu`). | Proves secure multi-tenant authentication pipeline, BCrypt password hashing, and device token isolation. |
+| **2. Pure Zero-Baseline State** | Switch to **"Shelf"** tab immediately upon registration. | Proves zero ghost data: authentic empty states render with 0 saved, 0 finished, and 0 reading streak days. |
+| **3. Multi-Format Library Feed** | Switch to **"Library"** tab. Observe mix of prose novels and graphic manga. | Demonstrates multi-format ingestion architecture (`ContentFormat`: `PROSE`, `MANGA`; `SourceProvider`: `GUTENBERG`, `STANDARD_EBOOKS`, `MANGADEX`). |
+| **4. Format Filter Pills** | Tap the **"Manga"** chip, then **"Novels"**, then **"All"**. | Proves reactive format filtering and clean sans-serif UI tag architecture. |
+| **5. Graphic Manga Reader** | Tap **"Chainsaw Devil: Special Edition"**. | Opens cinema black `MangaReaderView` with vertical continuous Webtoon scrolling and high-resolution sequential panel art. |
+| **6. Manga Reading Mode Switch** | Tap the mode toggle in top-right chrome to switch to **"Paging"**. | Demonstrates dual reading engine: transitions effortlessly from vertical continuous scroll to horizontal swipe paging. |
+| **7. Prose Reader & Typography** | Return to Library and open **"Dracula"** or **"The Legend of Sleepy Hollow"**. | Demonstrates adaptive typography engine (`ReaderFont`, `ReaderTheme`, `ReaderLineSpacing`) and pacing estimation. |
+| **8. Auditory Narration & Voice Picker** | Tap the **Audio Play** button in Reader toolbar; tap **Voice Selector**. | Activates `AVSpeechSynthesizer` narration state machine. Displays `VoiceSelectionSheet` with live voice audition across regional accents (`en-US`, `en-GB`, `en-AU`). |
+| **9. Community Publishing** | Tap **"Write"** tab; author a title and manuscript; tap **"Publish"**. | Validates manuscript, calculates word count, prepends to store catalog, and displays interactive `StoryPublishedSheet`. |
+| **10. Sign-Out & Isolation** | Tap **"Profile"** ➔ **Settings** icon ➔ **"Sign Out"**. | Purges reactive session, resets root view state, and returns to authentication screen without data leakage. |
 
 ---
 
-## 4. Capturing High-Res Screenshots for the PDF Report
+## 4. Capturing High-Res Screenshots for the Final Capstone Report
 
-The midterm instructions require clear screenshots showing the actual SwiftUI application:
+The final capstone report requires clear, uncompressed retina screenshots of the completed SwiftUI application:
 
 1. In the iOS Simulator window, navigate to each target screen:
-   - **Screen 1:** `LibraryView` (Filter set to "All")
-   - **Screen 2:** `LibraryView` (Filter set to "Folklore" showing Hero card)
-   - **Screen 3:** `ReaderView` (Reading manuscript on parchment)
-   - **Screen 4:** `DisplayOptionsSheet` (Font & Theme customization modal)
-   - **Screen 5:** `WriteView` (Draft with word count active)
-   - **Screen 6:** `StoryPublishedSheet` (Publish celebration modal)
-   - **Screen 7:** `ShelfView` (Progress rings and October Reading Stats)
+   - **Screen 1:** `WelcomeView` / `SignInView` (Modern sans-serif auth branding)
+   - **Screen 2:** `LibraryView` (Multi-format catalog showing both Novels and Manga)
+   - **Screen 3:** `MangaReaderView` (High-contrast cinema black manga reader in Webtoon mode)
+   - **Screen 4:** `ReaderView` with `VoiceSelectionSheet` (AVSpeech voice selection modal)
+   - **Screen 5:** `ReaderView` with `DisplayOptionsSheet` (Font & Theme customization modal)
+   - **Screen 6:** `WriteView` (Manuscript draft with live reactive word counter)
+   - **Screen 7:** `StoryPublishedSheet` (Story celebration modal with return CTA)
+   - **Screen 8:** `ShelfView` (Living reading analytics and zero-baseline shelf)
 2. Press **`Cmd + S`** in the Simulator for each screen.
    - *Result:* The Simulator automatically saves a pixel-perfect Retina PNG directly to the Mac's `~/Desktop`.
-3. Drag these PNGs into your submission document (e.g. Apple Pages, Microsoft Word, or Google Docs) to export your final single PDF.
+3. Drag these PNGs into your submission document (e.g. Apple Pages, Microsoft Word, or LaTeX) to export your final Capstone PDF.
 
 ---
 
