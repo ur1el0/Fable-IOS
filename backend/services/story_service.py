@@ -19,28 +19,46 @@ GENRE_METADATA = {
     "Folklore": {
         "description": "Traditional tales passed down through generations, reimagined by contemporary scribes—from fireside Slavic forest myths to maritime legends whispered across coastal tides.",
         "image_name": "genre_folklore",
+        "image_url": "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=800&auto=format&fit=crop",
         "default_readers": "18.4k"
     },
     "Mythology": {
         "description": "Epic sagas of deities, ancient heroes, and cosmic origins spanning classical traditions to obscure forgotten pantheons.",
         "image_name": "genre_mythology",
+        "image_url": "https://images.unsplash.com/photo-1579783902614-a3fb3927b675?q=80&w=800&auto=format&fit=crop",
         "default_readers": "12.1k"
     },
     "Gothic": {
         "description": "Atmospheric hauntings, crumbling estates, and romantic dread exploring the psychological depths of human melancholy.",
         "image_name": "genre_gothic",
+        "image_url": "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=800&auto=format&fit=crop",
         "default_readers": "9.8k"
     },
     "Classic Fiction": {
         "description": "Enduring literary cornerstones, psychological inquiries, and philosophical journeys across the centuries.",
         "image_name": "genre_folklore",
+        "image_url": "https://images.unsplash.com/photo-1457369804613-52c61a468e7d?q=80&w=800&auto=format&fit=crop",
         "default_readers": "16.5k"
     },
     "Classic Mystery": {
         "description": "Whodunits, deductive puzzles, and atmospheric investigations through gaslit cobblestones and locked rooms.",
         "image_name": "genre_mystery",
+        "image_url": "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?q=80&w=800&auto=format&fit=crop",
         "default_readers": "14.2k"
     }
+}
+
+AUTHOR_PORTRAIT_URLS = {
+    "Bram Stoker": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/34/Bram_Stoker_1906.jpg/440px-Bram_Stoker_1906.jpg",
+    "Washington Irving": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Washington_Irving_by_John_Wesley_Jarvis%2C_1809.jpg/440px-Washington_Irving_by_John_Wesley_Jarvis%2C_1809.jpg",
+    "Edgar Allan Poe": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/75/Edgar_Allan_Poe_2_edit.jpg/440px-Edgar_Allan_Poe_2_edit.jpg",
+    "Franz Kafka": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/26/Franz_Kafka%2C_1923.jpg/440px-Franz_Kafka%2C_1923.jpg",
+    "Mary Shelley": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/65/RothwellMaryShelley.jpg/440px-RothwellMaryShelley.jpg",
+    "Oscar Wilde": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/Oscar_Wilde_by_Napoleon_Sarony_-_1882.jpg/440px-Oscar_Wilde_by_Napoleon_Sarony_-_1882.jpg",
+    "Homer": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1c/Homer_British_Museum.jpg/440px-Homer_British_Museum.jpg",
+    "Brothers Grimm": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/59/Grimm.jpg/440px-Grimm.jpg",
+    "Jose Rizal": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b0/Jose_rizal_01.jpg/440px-Jose_rizal_01.jpg",
+    "Lewis Carroll": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/LewisCarrollSelfPhoto.jpg/440px-LewisCarrollSelfPhoto.jpg"
 }
 
 def row_to_story_dto(r: sqlite3.Row, include_chapters: bool = False, conn: Optional[sqlite3.Connection] = None) -> StoryDTO:
@@ -271,7 +289,8 @@ def get_genres() -> list[GenreDTO]:
             story_count=count,
             readers_count=meta["default_readers"],
             description=meta["description"],
-            image_name=meta["image_name"]
+            image_name=meta["image_name"],
+            image_url=meta.get("image_url")
         ))
 
     return genres
@@ -305,6 +324,7 @@ async def get_top_authors() -> list[WriterDTO]:
                             id=writer_id,
                             name=author_name,
                             avatar_image_name=avatar_slug,
+                            avatar_image_url=AUTHOR_PORTRAIT_URLS.get(author_name),
                             story_count=max(2, work_count * 3),
                             rating=rating
                         ))
@@ -332,6 +352,7 @@ async def get_top_authors() -> list[WriterDTO]:
             id=writer_id,
             name=author_name,
             avatar_image_name=avatar_slug,
+            avatar_image_url=AUTHOR_PORTRAIT_URLS.get(author_name),
             story_count=r["story_count"],
             rating=rating
         ))

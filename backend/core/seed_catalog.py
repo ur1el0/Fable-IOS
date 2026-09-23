@@ -141,7 +141,7 @@ SEED_CATALOG = [
         "read_time_minutes": 5,
         "cover_image_name": "cover_maria",
         "hero_image_name": "cover_maria",
-        "cover_image_url": None,
+        "cover_image_url": "https://www.gutenberg.org/cache/epub/38269/pg38269.cover.medium.jpg",
         "is_tale_of_the_day": 0,
         "is_recent_submission": 1,
         "is_curator_spotlight": 0,

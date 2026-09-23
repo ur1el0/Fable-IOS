@@ -118,6 +118,9 @@ def test_get_genres_endpoint():
     assert "readersCount" in first
     assert "description" in first
     assert "imageName" in first
+    assert "imageUrl" in first
+    assert first["imageUrl"] is not None
+    assert first["imageUrl"].startswith("https://images.unsplash.com")
 
 def test_get_top_authors_endpoint():
     response = client.get("/api/v1/authors/top")
@@ -129,6 +132,18 @@ def test_get_top_authors_endpoint():
     assert "storyCount" in first
     assert "avatarImageName" in first
     assert "rating" in first
+    assert "avatarImageUrl" in first
+    portrait_urls = [w["avatarImageUrl"] for w in writers if w.get("avatarImageUrl")]
+    assert len(portrait_urls) > 0
+    assert portrait_urls[0].startswith("https://upload.wikimedia.org")
+
+def test_maria_makiling_has_live_gutenberg_cover():
+    response = client.get("/api/v1/stories")
+    assert response.status_code == 200
+    stories = response.json()
+    maria = next((s for s in stories if "Maria Makiling" in s["title"]), None)
+    assert maria is not None
+    assert maria["coverImageUrl"] == "https://www.gutenberg.org/cache/epub/38269/pg38269.cover.medium.jpg"
 
 def test_get_update_feed_endpoint():
     response = client.get("/api/v1/updates")
