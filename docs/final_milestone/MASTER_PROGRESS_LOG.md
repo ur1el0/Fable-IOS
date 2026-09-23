@@ -87,3 +87,11 @@ The Final Milestone transforms **Fable** from an editorial prototype into a full
   - [x] Step 7.4: Architectural documentation and ADR for multi-format content and manga architecture (`05_MULTI_FORMAT_AND_MANGA_ARCHITECTURE.md`).
   - [x] Step 7.5: Academic Mac lab runbook updated with Final Capstone Grading Demo Path (`MAC_LAB_RUNBOOK.md`).
 
+- [x] **Milestone 8: App Health Diagnostics, Anti-Overlap Invariants & On-Device Verification**
+  - [x] Step 8.1: Strict boundary clipping enforcement in `FableImageView.swift` across all image phases and root container.
+  - [x] Step 8.2: Creation of `AppHealthTests.swift` validating chapter updates, feed ingestion, live genres, top creators, accurate living analytics, and media bounding invariants.
+  - [x] Step 8.3: Interactive `SystemDiagnosticsSheet.swift` and Settings trigger for on-device and simulator verification.
+  - [x] Step 8.4: Integration of `AppHealthTests` into `LibraryTests.swift` (Test 9).
+  - [x] Step 8.5: Backend test suite expansion in `test_main.py` verifying live contracts and image URLs (22/22 pytest passing).
+
+
