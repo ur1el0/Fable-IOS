@@ -80,3 +80,10 @@ The Final Milestone transforms **Fable** from an editorial prototype into a full
   - [x] Step 6.5: End-to-end view modernization pass across `ExploreView`, `GenreDetailView`, `WriteView`, `StoryPublishedSheet`, `ProfileView`, `WelcomeView`, `SignInView`, `SignUpView`, and `ContentView`.
   - [x] Step 6.6: Backend provider parity in `gutenberg.py` and automated test verification (21/21 pytest passing).
 
+- [x] **Milestone 7: Architectural Verification, Testing Suite & ADR Documentation**
+  - [x] Step 7.1: Multi-format Swift unit tests in `LibraryTests.swift` (legacy payload fallback decoding, manga and source provider decoding, chapter `pageUrls` array extraction, catalog diversity).
+  - [x] Step 7.2: Reader engine tests in `ReaderTests.swift` (`MangaReadingMode` icons, panel resolution hierarchy, reader format dispatch, font/theme invariants).
+  - [x] Step 7.3: Architectural documentation and ADR for UI interactions and audio accessibility (`04_UI_INTERACTIONS_AND_AUDIO_ACCESSIBILITY.md`).
+  - [x] Step 7.4: Architectural documentation and ADR for multi-format content and manga architecture (`05_MULTI_FORMAT_AND_MANGA_ARCHITECTURE.md`).
+  - [x] Step 7.5: Academic Mac lab runbook updated with Final Capstone Grading Demo Path (`MAC_LAB_RUNBOOK.md`).
+
