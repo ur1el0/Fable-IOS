@@ -1,4 +1,4 @@
-# Fable iOS: Curated Editorial E-Reader & Micro-Fiction Platform
+# Fable iOS: Curated Multi-Format Literature & Graphic Manga Platform
 
 [![Swift 5.10](https://img.shields.io/badge/Swift-5.10-orange.svg)](https://swift.org)
 [![iOS 17.0+](https://img.shields.io/badge/iOS-17.0+-blue.svg)](https://developer.apple.com/ios/)
@@ -7,9 +7,11 @@
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI%200.110+-009688.svg)](https://fastapi.tiangolo.com)
 [![Pydantic v2](https://img.shields.io/badge/Contract-Pydantic%20v2-e92063.svg)](https://docs.pydantic.dev/)
 [![Database](https://img.shields.io/badge/Database-SQLite%20%7C%20PostgreSQL-4169E1.svg)](https://www.sqlite.org/)
+[![Pytest](https://img.shields.io/badge/Tests-22%2F22%20Passing-brightgreen.svg)](https://pytest.org)
+[![Multi-Format](https://img.shields.io/badge/Format-Prose%20%7C%20Manga-indigo.svg)](https://developer.apple.com)
 [![Figma Prototype](https://img.shields.io/badge/Figma-100%25%20Prototype-pink.svg)](https://www.figma.com/proto/fable-ios-prototype-midterm)
 
-**Fable** is a bespoke, native iOS editorial platform and companion REST backend engineered as a distraction-free sanctuary for classic literature, mythology, and world folklore. In contrast to commercial reading platforms diluted with aggressive ads, social feeds, and micro-transactions, Fable couples an antique European bookmaking aesthetic with an enterprise-grade, offline-first, contract-first system architecture.
+**Fable** is a bespoke, native iOS multi-format reading platform and companion REST backend engineered as a distraction-free sanctuary for classic literature, folklore, and serialized graphic novels/manga. In contrast to commercial reading platforms diluted with aggressive ads, social feeds, and micro-transactions, Fable couples an Electric Indigo modern aesthetic with an enterprise-grade, offline-first, contract-first system architecture.
 
 ---
 
@@ -19,21 +21,26 @@
 * **Language & Runtime:** Swift 5.10 / Swift 6 Concurrency (`@MainActor`, `Sendable`, `async/await`)
 * **Target Operating System:** iOS 17.0+ (iPhone & iPad responsive layouts)
 * **User Interface:** SwiftUI (Declarative state-driven UI, custom geometry readers, safe-area insets, dynamic typography)
+* **Reading Engines:**
+  * *Prose Engine:* Typographical customizer (font family, theme, line spacing), Table of Contents modal, pacing velocity estimator.
+  * *Graphic Manga Engine:* Cinema-black `MangaReaderView` with continuous vertical Webtoon scrolling and horizontal swipe pagination.
 * **Reactive State Management:** Combine framework (`@Published`, `ObservableObject`, `PassthroughSubject`)
 * **Local Persistence & Caching:** SwiftData & CoreData SQLite engine (`ModelContainer`, `ModelContext`, `FetchDescriptor`)
-* **Audio Speech Engine:** `AVFoundation` (`AVSpeechSynthesizer`, `AVSpeechUtterance`, `AVAudioSession`, voice picker)
+* **Audio Speech Engine:** `AVFoundation` (`AVSpeechSynthesizer`, `AVSpeechUtterance`, regional `AVSpeechSynthesisVoice` audition sheet)
 * **Security & Credential Vault:** Apple `Security` framework (`KeychainStore` for encrypted token and session storage)
+* **Diagnostics Suite:** Built-in `AppHealthTests` and on-device `SystemDiagnosticsSheet` verifying layout clipping and live ingestion contracts.
 * **Networking & HTTP:** Native `URLSession` with ATS (App Transport Security) local development exceptions
 
 ### Server-Side (Backend API)
 * **Runtime & Framework:** Python 3.11+ / FastAPI (High-performance asynchronous REST API)
 * **Data Validation & Contracts:** Pydantic v2 with `serialization_alias` (Strict camelCase client / snake_case server parity)
 * **Database & Persistence:**
-  * *Development / Lab:* SQLite 3 with connection pooling (zero-config, portable)
+  * *Development / Lab:* SQLite 3 with multi-tenant compound keys `(device_id, story_id)`
   * *Production:* PostgreSQL 16+ via SQLAlchemy ORM (Connection pooling, ACID compliance)
-* **HTTP Client:** HTTPX (Asynchronous fetching for external APIs such as Project Gutenberg / Gutendex)
+* **HTTP Client:** HTTPX (Asynchronous fetching for external APIs such as Project Gutenberg, Standard Ebooks, and MangaDex)
+* **Security:** Passlib PBKDF2/BCrypt password hashing and persistent bearer token authentication
 * **ASGI Web Server:** Uvicorn (Lightning-fast asynchronous server gateway)
-* **Automated Testing:** Pytest with FastAPI `TestClient`
+* **Automated Testing:** Pytest with FastAPI `TestClient` (22/22 unit and contract integration tests passing)
 
 ---
 
@@ -44,7 +51,7 @@ Fable is architected around **Feature-Driven Vertical Slices** combined with **M
 ```
 ┌───────────────────────────────────────────────────────────────────────────┐
 │                           SwiftUI View Layer                              │
-│   (LibraryView, ReaderView, ExploreView, ShelfView, WriteView, Sheets)    │
+│   (LibraryView, ReaderView, MangaReaderView, ExploreView, ShelfView)      │
 └─────────────────────────────────────┬─────────────────────────────────────┘
                                       │ User Gestures & Property Bindings
                                       ▼
@@ -58,18 +65,19 @@ Fable is architected around **Feature-Driven Vertical Slices** combined with **M
 │        Local Persistence Layer       │ │      Service Abstraction         │
 │   (SwiftData / PersistenceService)   │ │    (StoryAPIServiceProtocol)     │
 │   - In-memory cache fallback         │ │   - StoryAPIService Client       │
-│   - Offline reading progress & stats │ │   - KeychainStore (Auth Tokens)  │
+│   - Pure zero-baseline analytics     │ │   - KeychainStore (Auth Tokens)  │
 │   - Pinned annotations & journal     │ │   - AudioNarratorController      │
 └──────────────────────────────────────┘ └──────────────────┬───────────────┘
                                                             │ REST JSON Calls
                                                             ▼
 ┌───────────────────────────────────────────────────────────────────────────┐
 │                      FastAPI Backend Engine (v1)                          │
-│   - /api/v1/stories    (Editorial catalog, multi-chapter manuscripts)     │
+│   - /api/v1/auth       (BCrypt user registration, login, token profile)   │
+│   - /api/v1/stories    (Multi-format catalog, prose & manga chapters)     │
 │   - /api/v1/genres     (Live taxonomy & reader metrics)                   │
-│   - /api/v1/authors    (Verified top writers & bibliographies)            │
-│   - /api/v1/shelf/sync (Bidirectional LWW progress reconciliation)        │
-│   - /api/v1/gutenberg  (Public-domain live folklore gateway)              │
+│   - /api/v1/authors/top(Verified top creators & avatar URLs)              │
+│   - /api/v1/updates    (Live chapter updates & editorial highlights)      │
+│   - /api/v1/shelf/sync (Multi-tenant bidirectional LWW reconciliation)    │
 │   - /api/v1/health     (System diagnostics & DB status)                   │
 └─────────────────────────────────────┬─────────────────────────────────────┘
                                       │ Relational Queries
@@ -164,14 +172,14 @@ Fable-IOS/
 ├── Package.swift                           # Swift Package Manager manifest
 ├── backend/                                # Asynchronous Python / FastAPI Backend
 │   ├── main.py                             # Application entrypoint & middleware configuration
-│   ├── requirements.txt                    # Python dependencies (fastapi, uvicorn, pydantic, httpx)
-│   ├── test_main.py                        # Automated pytest test suite
+│   ├── requirements.txt                    # Python dependencies (fastapi, uvicorn, pydantic, httpx, passlib)
+│   ├── test_main.py                        # Automated pytest test suite (22/22 tests passing)
 │   ├── api/v1/
 │   │   ├── api.py                          # Unified API router mounting
-│   │   └── endpoints/                      # Route controllers (stories, shelf, gutenberg, health)
+│   │   └── endpoints/                      # Route controllers (auth, stories, shelf, gutenberg, health)
 │   ├── core/
 │   │   ├── database.py                     # SQLite / PostgreSQL connection pooling & schema bootstrap
-│   │   └── seed_catalog.py                 # Multi-chapter historical literary catalog
+│   │   └── seed_catalog.py                 # Multi-chapter literary & graphic catalog
 │   ├── models/                             # Relational database models
 │   ├── schemas/                            # Pydantic v2 DTOs with serialization aliases
 │   └── services/                           # Business logic (story service, shelf sync, gutenberg parser)
@@ -179,17 +187,18 @@ Fable-IOS/
 │   ├── FableApp.xcodeproj/                 # Xcode 16 project file (Synchronized Root Group)
 │   └── FableApp/
 │       ├── App/                            # Lifecycle bootstrap (FableApp.swift, ContentView.swift)
-│       ├── Core/                           # Foundation tokens, Theme.swift, FableImageView, KeychainStore
+│       ├── Core/                           # Foundation tokens, FableTheme, FableImageView, KeychainStore
 │       ├── Features/                       # Domain-Driven Vertical Slices
 │       │   ├── Auth/                       # Welcome, SignIn, SignUp, AuthManager, AuthTests
-│       │   ├── Library/                    # LibraryView, ExploreView, GenreDetail, StoryStore, APIService
-│       │   ├── Reader/                     # ReaderView, DisplayOptionsSheet, PacingEngine, AudioNarrator
-│       │   ├── Shelf/                      # ShelfView, ProfileView, SettingsView, ShelfTests
+│       │   ├── Library/                    # LibraryView, ExploreView, GenreDetail, StoryStore, APIService, AppHealthTests
+│       │   ├── Reader/                     # ReaderView, MangaReaderView, DisplayOptionsSheet, VoiceSelectionSheet, AudioNarrator
+│       │   ├── Shelf/                      # ShelfView, ProfileView, SettingsView, SystemDiagnosticsSheet, ShelfTests
 │       │   └── Write/                      # WriteView, StoryComposer, StoryPublishedSheet, WriteTests
 │       └── Assets.xcassets/                # Retina covers, thumbnails, author portraits, and genre artwork
 ├── docs/                                   # Architectural specifications & academic documentation
-│   ├── MIDTERM_PROJECT_DOCUMENTATION.pdf   # Publication-grade single-file submission PDF report
-│   ├── MIDTERM_PROJECT_DOCUMENTATION.md    # Markdown documentation companion
+│   ├── final_milestone/                    # Capstone ADRs, multi-format architecture, master progress log
+│   ├── FINAL_MILESTONE_PROGRESS.md         # Comprehensive milestone progression audit
+│   ├── DATA_SOURCES_AND_API_STRATEGY.md    # Multi-format gateway pattern & API contracts
 │   ├── ARCHITECTURE.md                     # System architecture & vertical slice design
 │   ├── SYSTEM_DESIGN.md                    # Critical system design & 5 pillars specification
 │   ├── FIGMA.md                            # Complete Figma frame inventory & interaction matrix
