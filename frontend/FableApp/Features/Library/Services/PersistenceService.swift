@@ -350,10 +350,10 @@ public final class PersistenceService {
                 uniqueDaySet.insert(formatter.string(from: log.date))
             }
             
-            // Baseline preserved for midterm consistency (12 stories, 48m, 3-day streak)
-            let finalStories = max(12, 12 + completedCount)
-            let finalMinutes = max(48, 48 + additionalMinutes)
-            let finalStreak = max(3, 3 + max(0, uniqueDaySet.count - 1))
+            // Pure calculated stats based on authentic user activity
+            let finalStories = completedCount
+            let finalMinutes = additionalMinutes
+            let finalStreak = uniqueDaySet.count
             
             return ReadingStatsSummary(
                 storiesReadCount: finalStories,
@@ -361,7 +361,7 @@ public final class PersistenceService {
                 streakDays: finalStreak
             )
         } catch {
-            return ReadingStatsSummary(storiesReadCount: 12, totalMinutesRead: 48, streakDays: 3)
+            return ReadingStatsSummary(storiesReadCount: 0, totalMinutesRead: 0, streakDays: 0)
         }
     }
 }

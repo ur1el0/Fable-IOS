@@ -312,6 +312,7 @@ public struct Story: Identifiable, Hashable, Codable {
         paragraphs: [String] = [],
         coverImageName: String? = nil,
         heroImageName: String? = nil,
+        coverImageUrl: String? = nil,
         readingTimeMinutes: Int = 4,
         totalPages: Int = 5,
         currentPage: Int = 1,
@@ -321,7 +322,7 @@ public struct Story: Identifiable, Hashable, Codable {
         readsCount: String = "1.2k",
         isTaleOfTheDay: Bool = false,
         isRecentSubmission: Bool = false,
-        isSaved: Bool = true,
+        isSaved: Bool = false,
         isFinished: Bool = false,
         isCuratorSpotlight: Bool = false,
         badgeText: String? = nil
@@ -345,7 +346,7 @@ public struct Story: Identifiable, Hashable, Codable {
         self.createdAtUtc = Date()
         self.coverImageName = coverImageName
         self.heroImageName = heroImageName
-        self.coverImageUrl = nil
+        self.coverImageUrl = coverImageUrl
         self.totalPages = totalPages
         self.currentPage = currentPage
         self.progressPercent = progressPercent
@@ -545,13 +546,14 @@ extension Story {
             ],
             coverImageName: "cover_dracula",
             heroImageName: "hero_castle",
+            coverImageUrl: "https://www.gutenberg.org/cache/epub/345/pg345.cover.medium.jpg",
             readingTimeMinutes: 4,
             totalPages: 5,
-            currentPage: 2,
-            progressPercent: 35,
+            currentPage: 1,
+            progressPercent: 0,
             rating: 4.95,
             isTaleOfTheDay: true,
-            isSaved: true
+            isSaved: false
         ),
         Story(
             title: "The Legend of Sleepy Hollow",
@@ -564,12 +566,13 @@ extension Story {
             ],
             coverImageName: "thumb_sleepy",
             heroImageName: "cover_sleepy_featured",
+            coverImageUrl: "https://www.gutenberg.org/cache/epub/41/pg41.cover.medium.jpg",
             readingTimeMinutes: 4,
             totalPages: 24,
-            currentPage: 14,
-            progressPercent: 60,
+            currentPage: 1,
+            progressPercent: 0,
             rating: 4.95,
-            isSaved: true,
+            isSaved: false,
             isCuratorSpotlight: true
         ),
         Story(
@@ -582,12 +585,13 @@ extension Story {
                 "He lay on his armour-like back, and if he lifted his head a little he could see his brown belly, slightly domed and divided by arches into stiff sections."
             ],
             coverImageName: "thumb_metamorphosis",
+            coverImageUrl: "https://www.gutenberg.org/cache/epub/5200/pg5200.cover.medium.jpg",
             readingTimeMinutes: 5,
             totalPages: 8,
-            currentPage: 6,
-            progressPercent: 80,
+            currentPage: 1,
+            progressPercent: 0,
             isRecentSubmission: true,
-            isSaved: true
+            isSaved: false
         ),
         Story(
             title: "The Tell-Tale Heart",
@@ -599,12 +603,13 @@ extension Story {
                 "Above all was the sense of hearing acute. I heard all things in the heaven and in the earth. I heard many things in hell. How, then, am I mad? Hearken! and observe how healthily — how calmly I can tell you the whole story."
             ],
             coverImageName: "thumb_tell_tale",
+            coverImageUrl: "https://www.gutenberg.org/cache/epub/2148/pg2148.cover.medium.jpg",
             readingTimeMinutes: 3,
             totalPages: 4,
             currentPage: 1,
-            progressPercent: 15,
+            progressPercent: 0,
             isRecentSubmission: true,
-            isSaved: true
+            isSaved: false
         ),
         Story(
             title: "The Legend of Maria Makiling",
@@ -616,12 +621,13 @@ extension Story {
                 "Her voice was like the murmur of crystal water over white pebbles, and her step was as light as the dewdrop falling upon a leaf at dawn."
             ],
             coverImageName: "thumb_maria_makiling",
+            coverImageUrl: "https://www.gutenberg.org/cache/epub/38269/pg38269.cover.medium.jpg",
             readingTimeMinutes: 4,
             totalPages: 6,
             currentPage: 1,
             progressPercent: 0,
             isRecentSubmission: true,
-            isSaved: true
+            isSaved: false
         ),
         Story(
             title: "Rip Van Winkle",
@@ -632,12 +638,13 @@ extension Story {
                 "Whoever has made a voyage up the Hudson must remember the Kaatskill mountains. They are a dismembered branch of the great Appalachian family, and are seen away to the west of the river, swelling up to a noble height, and lording it over the surrounding country."
             ],
             coverImageName: "thumb_rip_van_winkle",
+            coverImageUrl: "https://www.gutenberg.org/cache/epub/2048/pg2048.cover.medium.jpg",
             readingTimeMinutes: 4,
             totalPages: 6,
             currentPage: 1,
             progressPercent: 0,
             isRecentSubmission: true,
-            isSaved: true
+            isSaved: false
         )
     ]
 }
@@ -649,38 +656,66 @@ extension GenreCategory {
             storyCount: 248,
             readersCount: "18.4k",
             description: "Timeless fables, oral legends, and cultural allegories passed through generations of oral history and regional myth.",
-            imageName: "genre_folklore"
+            imageName: "genre_folklore",
+            imageUrl: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=800&auto=format&fit=crop"
         ),
         GenreCategory(
             name: "Mythology",
             storyCount: 312,
             readersCount: "22.1k",
             description: "Ancient pantheons, cosmic sagas, and heroic epic narratives from classical civilizations across the globe.",
-            imageName: "genre_mythology"
+            imageName: "genre_mythology",
+            imageUrl: "https://images.unsplash.com/photo-1579783902614-a3fb3927b675?q=80&w=800&auto=format&fit=crop"
         ),
         GenreCategory(
             name: "Gothic",
             storyCount: 185,
             readersCount: "9.8k",
             description: "Atmospheric hauntings, crumbling estates, and romantic dread exploring the psychological depths of human melancholy.",
-            imageName: "genre_gothic"
+            imageName: "genre_gothic",
+            imageUrl: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=800&auto=format&fit=crop"
         ),
         GenreCategory(
             name: "Classic Mystery",
             storyCount: 185,
             readersCount: "14.2k",
             description: "Whodunits, deductive puzzles, and atmospheric investigations through gaslit cobblestones and locked rooms.",
-            imageName: "genre_mystery"
+            imageName: "genre_mystery",
+            imageUrl: "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?q=80&w=800&auto=format&fit=crop"
         )
     ]
 }
 
 extension Writer {
     public static let defaultWriters: [Writer] = [
-        Writer(name: "R.F. Kuang", avatarImageName: "author_kuang", storyCount: 14, rating: 4.9),
-        Writer(name: "Rebecca Yarros", avatarImageName: "author_yarros", storyCount: 9, rating: 4.8),
-        Writer(name: "T.J. Klune", avatarImageName: "author_klune", storyCount: 16, rating: 4.9),
-        Writer(name: "Silvia Moreno", avatarImageName: "author_kuang", storyCount: 14, rating: 4.8)
+        Writer(
+            name: "Bram Stoker",
+            avatarImageName: "author_kuang",
+            avatarImageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/34/Bram_Stoker_1906.jpg/440px-Bram_Stoker_1906.jpg",
+            storyCount: 14,
+            rating: 4.9
+        ),
+        Writer(
+            name: "Washington Irving",
+            avatarImageName: "author_yarros",
+            avatarImageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Washington_Irving_by_John_Wesley_Jarvis%2C_1809.jpg/440px-Washington_Irving_by_John_Wesley_Jarvis%2C_1809.jpg",
+            storyCount: 9,
+            rating: 4.8
+        ),
+        Writer(
+            name: "Edgar Allan Poe",
+            avatarImageName: "author_klune",
+            avatarImageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/75/Edgar_Allan_Poe_2_edit.jpg/440px-Edgar_Allan_Poe_2_edit.jpg",
+            storyCount: 16,
+            rating: 4.9
+        ),
+        Writer(
+            name: "Franz Kafka",
+            avatarImageName: "author_kuang",
+            avatarImageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/26/Franz_Kafka%2C_1923.jpg/440px-Franz_Kafka%2C_1923.jpg",
+            storyCount: 14,
+            rating: 4.8
+        )
     ]
 }
 
