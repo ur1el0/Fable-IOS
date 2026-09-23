@@ -78,6 +78,14 @@ public struct ReaderView: View {
     }
     
     public var body: some View {
+        if story.contentFormat == .manga {
+            MangaReaderView(story: story)
+        } else {
+            proseReaderBody
+        }
+    }
+
+    private var proseReaderBody: some View {
         ZStack(alignment: .bottom) {
             // Background according to selected theme
             store.readerTheme.backgroundColor
