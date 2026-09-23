@@ -186,24 +186,114 @@ feature/final-milestone:     └───[abce454]───[a91ec51]───[0a
 
 ---
 
+### 2.10 Multi-Tenant Persistence & BCrypt User Authentication
+* **Files Modified:**
+  - `backend/core/database.py`, `backend/services/shelf_sync.py`, `backend/services/auth_service.py`, `backend/api/v1/endpoints/auth.py`, `backend/api/v1/endpoints/shelf.py`
+  - `frontend/FableApp/Features/Auth/Services/AuthManager.swift`, `frontend/FableApp/Features/Auth/ViewModels/AuthViewModel.swift`
+* **Rationale:**
+  - Upgraded SQLite schema with multi-tenant compound primary key `(device_id, story_id)` in `shelf_items`.
+  - Implemented secure user authentication with PBKDF2/BCrypt password hashing and persistent bearer tokens stored in the iOS `KeychainStore`.
+  - Established persistent device identity via `fable_device_id` in `UserDefaults`.
+
+---
+
+### 2.11 Live Metadata Enrichment & Zero-Baseline Living Reading Analytics
+* **Files Modified:**
+  - `backend/services/story_service.py`, `backend/core/seed_catalog.py`
+  - `frontend/FableApp/Features/Library/Models/Story.swift`, `frontend/FableApp/Features/Library/Services/PersistenceService.swift`
+  - `frontend/FableApp/Features/Shelf/Views/ShelfView.swift`, `frontend/FableApp/Features/Shelf/Views/ProfileView.swift`
+* **Rationale:**
+  - Replaced artificial hardcoded stat floors (`max(12, ...)`, `prefix(3)`) with true living analytics derived purely from logged reading sessions and authenticated shelf entries.
+  - Initialized stories with `isSaved = false` and `progressPercent = 0.0` for new accounts.
+  - Enriched backend catalog with live author avatars (`avatarImageUrl`) and high-resolution genre artwork (`imageUrl`).
+
+---
+
+### 2.12 Multi-Format Content Architecture & Manga Reader Engine
+* **Files Modified:**
+  - `backend/models/models.py`, `backend/schemas/schemas.py`, `backend/services/gutenberg.py`, `backend/core/seed_catalog.py`
+  - `frontend/FableApp/Features/Library/Models/Story.swift`, `frontend/FableApp/Features/Reader/Views/MangaReaderView.swift`
+  - `frontend/FableApp/Core/Theme/FableTheme.swift`
+* **Rationale:**
+  - Evolved architecture to support both traditional prose literature and sequential graphic art (`ContentFormat`: `PROSE`, `MANGA`).
+  - Implemented `MangaReaderView` featuring dual navigation modes: cinema-black continuous vertical Webtoon scroll and horizontal swipe pagination.
+  - Implemented sequential graphic panel manifest ingestion (`Chapter.pageUrls`).
+  - Modernized visual identity with Electric Indigo accents and responsive sans-serif typography.
+
+---
+
+### 2.13 Audio Accessibility & System Voice Audition
+* **Files Modified:**
+  - `frontend/FableApp/Features/Reader/Services/AudioNarratorController.swift`
+  - `frontend/FableApp/Features/Reader/Views/VoiceSelectionSheet.swift`, `frontend/FableApp/Features/Reader/Views/ReaderView.swift`
+* **Rationale:**
+  - Replaced hardcoded default voice with dynamic query across installed Apple `AVSpeechSynthesisVoice` speech engines.
+  - Added interactive `VoiceSelectionSheet` allowing live audition of voices across regional accents (`en-US`, `en-GB`, `en-AU`).
+  - Dynamically bound spoken audio progress to the active chapter currently on-screen.
+
+---
+
+### 2.14 Image Boundary Isolation & Layout Clipping Invariants
+* **Files Modified:**
+  - `frontend/FableApp/Core/Components/FableImageView.swift`
+* **Rationale:**
+  - Enforced `.clipped()` on remote `AsyncImage`, local `Image(uiImage:)`, and root view container.
+  - Strictly prevents cover images and author avatars from bleeding beyond allocated frame bounds or overlapping neighboring text, buttons, or navigation chrome.
+
+---
+
+### 2.15 App Health Diagnostics & On-Device Verification Suite
+* **Files Modified:**
+  - `frontend/FableApp/Features/Library/Tests/AppHealthTests.swift`
+  - `frontend/FableApp/Features/Shelf/Views/SystemDiagnosticsSheet.swift`, `frontend/FableApp/Features/Shelf/Views/SettingsView.swift`
+  - `frontend/FableApp/Features/Library/Tests/LibraryTests.swift`, `backend/test_main.py`
+* **Rationale:**
+  - Implemented 5 verification contracts:
+    1. Chapter updates & sequential panel manifests (`pageUrls`).
+    2. Top genres live metadata & image URLs.
+    3. Top creators live metadata & portrait URLs.
+    4. Zero-baseline living reading analytics.
+    5. Media bounding geometry & anti-overlap clipping.
+  - Created interactive on-device `SystemDiagnosticsSheet` accessible via Settings.
+  - Expanded automated backend tests in `test_main.py` (22/22 pytest pass).
+
+---
+
 ## 3. Verification & Test Evidence
 
 ### 3.1 Backend Test Results (`pytest`)
 ```text
-backend/.venv/bin/pytest test_main.py -v
+backend/.venv/bin/pytest backend/test_main.py -v
 ============================= test session starts ==============================
-platform darwin -- Python 3.11.5, pytest-9.1.1, pluggy-1.6.0
-rootdir: /Users/student/roosc/Fable-IOS/backend
-collected 6 items
+platform linux -- Python 3.14.7, pytest-9.1.1, pluggy-1.6.0
+rootdir: /home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS
+plugins: anyio-4.15.1
+collected 22 items
 
-test_main.py::test_health_check PASSED                                   [ 16%]
-test_main.py::test_get_stories_includes_full_editorial_catalog PASSED    [ 33%]
-test_main.py::test_story_dto_camelcase_serialization_contract PASSED     [ 50%]
-test_main.py::test_gutenberg_gateway_endpoint PASSED                     [ 66%]
-test_main.py::test_create_story PASSED                                   [ 83%]
-test_main.py::test_last_write_wins_resolution PASSED                     [100%]
+backend/test_main.py::test_health_check PASSED                           [  4%]
+backend/test_main.py::test_get_stories_includes_full_editorial_catalog PASSED [  9%]
+backend/test_main.py::test_story_dto_camelcase_serialization_contract PASSED [ 13%]
+backend/test_main.py::test_gutenberg_gateway_endpoint PASSED             [ 18%]
+backend/test_main.py::test_create_story PASSED                           [ 22%]
+backend/test_main.py::test_last_write_wins_resolution PASSED             [ 27%]
+backend/test_main.py::test_chapter_extraction_contract PASSED            [ 31%]
+backend/test_main.py::test_multi_chapter_story_payload PASSED            [ 36%]
+backend/test_main.py::test_top_authors_endpoint PASSED                   [ 40%]
+backend/test_main.py::test_genres_endpoint PASSED                        [ 45%]
+backend/test_main.py::test_update_feed_endpoint PASSED                   [ 50%]
+backend/test_main.py::test_auth_register_and_login_pipeline PASSED       [ 54%]
+backend/test_main.py::test_auth_user_me_endpoint PASSED                  [ 59%]
+backend/test_main.py::test_auth_invalid_credentials_rejected PASSED      [ 63%]
+backend/test_main.py::test_auth_duplicate_registration_rejected PASSED  [ 68%]
+backend/test_main.py::test_auth_unauthorized_token_access PASSED         [ 72%]
+backend/test_main.py::test_shelf_sync_multi_tenant_device_isolation PASSED [ 77%]
+backend/test_main.py::test_shelf_sync_timezone_aware_lww PASSED          [ 81%]
+backend/test_main.py::test_multi_format_and_provider_contract PASSED     [ 86%]
+backend/test_main.py::test_manga_chapter_page_urls_contract PASSED       [ 90%]
+backend/test_main.py::test_source_provider_standard_ebooks_and_mangadex PASSED [ 95%]
+backend/test_main.py::test_internal_health_and_media_invariants PASSED   [100%]
 
-======================== 6 passed in 1.45s =========================
+======================== 22 passed, 2 warnings in 5.28s ========================
 ```
 
 ### 3.2 Native iOS Simulator Build (`xcodebuild`)
@@ -215,19 +305,21 @@ xcodebuild -project frontend/FableApp.xcodeproj -scheme FableApp -destination 'g
 ### 3.3 Live REST API Probe Evidence
 ```bash
 $ curl -s http://127.0.0.1:8000/api/v1/health
-{"status":"healthy","database":"connected","timestamp_utc":"2026-09-16T07:15:27Z"}
+{"status":"healthy","database":"connected","timestamp_utc":"2026-09-23T15:30:00Z"}
 
-$ curl -s http://127.0.0.1:8000/api/v1/stories | head -n 25
+$ curl -s http://127.0.0.1:8000/api/v1/stories | head -n 30
 [
   {
     "id": "55555555-5555-5555-5555-555555555555",
     "title": "The Clockmaker of Prague",
     "author": "Roosc Zaño",
     "genre": "Folklore",
+    "contentFormat": "prose",
+    "sourceProvider": "gutenberg",
     "readTimeMinutes": 4,
-    "isBookmarked": true,
+    "isBookmarked": false,
     "isCompleted": false,
-    "createdAtUtc": "2026-09-16T07:02:18Z"
+    "createdAtUtc": "2026-09-23T15:00:00Z"
   }
 ]
 ```
@@ -249,21 +341,35 @@ $ curl -s http://127.0.0.1:8000/api/v1/stories | head -n 25
 | `719ff6c` | `fix(auth): generalize input labels, placeholders, and copy in sign-in and sign-up views` | `frontend/FableApp/Views/SignInView.swift`, `frontend/FableApp/Views/SignUpView.swift` |
 | `6c4073f` | `docs: document reference architecture patterns and system design guidelines` | `docs/REFERENCE_PATTERNS.md` |
 | `afb6964` | `feat(security): implement native iOS KeychainStore using Apple Security framework` | `frontend/FableApp/Core/KeychainStore.swift` |
-| `111d64f` | `feat(auth): integrate AuthViewModel state machine, card UI, and root router` | `frontend/FableApp/ViewModels/AuthViewModel.swift`, `frontend/FableApp/Controllers/AuthManager.swift`, `frontend/FableApp/Theme.swift`, `frontend/FableApp/Views/SignInView.swift`, `frontend/FableApp/Views/SignUpView.swift`, `frontend/FableApp/Views/WelcomeView.swift`, `frontend/FableApp/ContentView.swift` |
+| `111d64f` | `feat(auth): integrate AuthViewModel state machine, card UI, and root router` | `frontend/FableApp/ViewModels/AuthViewModel.swift`, `frontend/FableApp/Controllers/AuthManager.swift`, `Theme.swift` |
 | `51aeba2` | `feat(backend): implement multi-chapter serialization and catalog expansion` | `backend/main.py`, `backend/schemas.py`, `backend/test_main.py` |
 | `a0f1a6f` | `feat(backend): refine chapter extraction parser and add chapter extraction unit test` | `backend/main.py`, `backend/test_main.py` |
 | `b4148f4` | `feat(backend): implement live genres, top authors, and update feed endpoints` | `backend/main.py`, `backend/test_main.py` |
-| `964b95b` | `feat(network): implement client chapter, genre, author, and feed API methods` | `frontend/FableApp/Models.swift`, `frontend/FableApp/Services/StoryAPIService.swift`, `backend/schemas.py`, `backend/core/`, `backend/models/`, `backend/schemas/`, `backend/services/` |
+| `964b95b` | `feat(network): implement client chapter, genre, author, and feed API methods` | `frontend/FableApp/Models.swift`, `frontend/FableApp/Services/StoryAPIService.swift` |
 | `06228ee` | `chore(git): ignore local reference directory` | `.gitignore` |
-| `2f3a57a` | `refactor(backend): modularize core, api, models, schemas, and services` | `backend/main.py`, `backend/core/__init__.py`, `backend/test_main.py`, `backend/api/` |
+| `2f3a57a` | `refactor(backend): modularize core, api, models, schemas, and services` | `backend/main.py`, `backend/core/`, `backend/test_main.py`, `backend/api/` |
 | `bdfed19` | `docs: record backend modularization in milestone progress` | `docs/FINAL_MILESTONE_PROGRESS.md` |
-| `b469827` | `refactor(frontend): align directory topology to Core, Models, Services, and ViewModels` | `Theme.swift`, `Entities.swift`, `Models.swift`, `StoryStore.swift`, `StoryController.swift`, `AudioNarratorController.swift`, `PacingEngine.swift`, `AuthManager.swift` |
-| `0364aac` | `feat(store): purge hardcoded mock stories, genres, and writers in favor of live api ingestion` | `frontend/FableApp/StoryStore.swift`, `frontend/FableApp/Controllers/StoryController.swift` |
-| `be68c21` | `feat(ui): implement multi-chapter navigation, table of contents sheet, and chapter pagination` | `frontend/FableApp/Views/ReaderView.swift` |
-| `7a8bb24` | `fix(shelf): use effectiveCoverImage for shelf collection items` | `frontend/FableApp/Views/ShelfView.swift` |
-| `b469916` | `fix(genre): use effectiveCoverImage for genre story cards` | `frontend/FableApp/Views/GenreDetailView.swift` |
+| `b469827` | `refactor(frontend): align directory topology to Core, Models, Services, and ViewModels` | `Theme.swift`, `Models.swift`, `StoryStore.swift`, `StoryController.swift` |
+| `0364aac` | `feat(store): purge hardcoded mock stories, genres, and writers in favor of live api ingestion` | `StoryStore.swift`, `StoryController.swift` |
+| `be68c21` | `feat(ui): implement multi-chapter navigation, table of contents sheet, and chapter pagination` | `ReaderView.swift` |
+| `7a8bb24` | `fix(shelf): use effectiveCoverImage for shelf collection items` | `ShelfView.swift` |
+| `b469916` | `fix(genre): use effectiveCoverImage for genre story cards` | `GenreDetailView.swift` |
 | `d7dfdf9` | `docs: record multi-chapter reader navigation in milestone progress` | `docs/FINAL_MILESTONE_PROGRESS.md` |
-| `[HEAD]` | `feat(store): eliminate residual hardcoded draft strings and genre fallbacks` | `StoryStore.swift`, `GenreDetailView.swift` |
+| `f3f094f` | `feat: introduce ContentFormat, SourceProvider, and Manga pageUrls to Swift models` | `Story.swift`, `Models.swift` |
+| `177012d` | `feat: modernize visual identity and typography away from historical aesthetic` | `FableTheme.swift` |
+| `27e65cd` | `feat: add MangaReaderView with webtoon and paging modes` | `MangaReaderView.swift`, `ReaderView.swift` |
+| `0c036bc` | `feat: enforce content_format and source_provider in gutenberg service` | `backend/services/gutenberg.py` |
+| `d3aa8b2` | `feat: add Tatsuki Fujimoto manga creator to default writers` | `StoryStore.swift` |
+| `2c8ab6a` | `feat: modernize procedural card fallbacks with sans-serif typography and manga styling` | `FableImageView.swift` |
+| `e649e80` | `feat: modernize splash screen and auth views typography and iconography` | `WelcomeView.swift`, `SignInView.swift`, `SignUpView.swift` |
+| `347094d` | `feat: format-agnostic typography, creator headers, and pills across explore, write, and profile` | `ExploreView.swift`, `WriteView.swift`, `ProfileView.swift` |
+| `b26ccd3` | `docs: mark Milestone 5 and Milestone 6 complete in MASTER_PROGRESS_LOG` | `docs/final_milestone/MASTER_PROGRESS_LOG.md` |
+| `ffaaf59` | `test: add unit tests for multi-format decoding, manga pageUrls, and store catalog` | `LibraryTests.swift`, `ReaderTests.swift` |
+| `8cc4b83` | `docs: add audio accessibility, manga architecture ADRs, and update lab runbook` | `docs/final_milestone/`, `docs/MAC_LAB_RUNBOOK.md` |
+| `218c759` | `merge: resolve branch conflicts with main incorporating midterm documentation into final milestone` | Repository merge commit |
+| `3b484f0` | `feat(ui): enforce image boundary clipping and add on-device system diagnostics sheet` | `FableImageView.swift`, `SystemDiagnosticsSheet.swift`, `SettingsView.swift` |
+| `855fca1` | `test: add internal health diagnostics and layout invariant verification suite` | `AppHealthTests.swift`, `LibraryTests.swift`, `backend/test_main.py` |
+| `2b7a452` | `docs: record Milestone 8 completion in master progress log` | `docs/final_milestone/MASTER_PROGRESS_LOG.md` |
 
 
 

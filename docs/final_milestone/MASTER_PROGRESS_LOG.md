@@ -11,7 +11,7 @@
 
 The Final Milestone transforms **Fable** from an editorial prototype into a fully production-grade, end-to-end integrated micro-fiction reading platform. All cosmetic dummy actions, hardcoded placeholders, and static assumptions are systematically replaced with live contracts, multi-tenant persistence, resilient media pipelines, and accessible audio engines.
 
-### The 4 Core Architectural Domains
+### The 8 Core Architectural Domains
 
 | Domain | Document Reference | Status | Scope Description |
 | :--- | :--- | :--- | :--- |
@@ -19,7 +19,10 @@ The Final Milestone transforms **Fable** from an editorial prototype into a full
 | **2. Live Media & Content Pipelines** | [`02_LIVE_MEDIA_AND_CONTENT.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/02_LIVE_MEDIA_AND_CONTENT.md) | **Complete** | Async remote image loading for covers and author avatars, Gutendex live ingestion, resilient vector fallbacks, persistent device identity. |
 | **3. Reader Pacing & Word Tokenization** | [`03_READER_PACING_AND_WORD_TOKENIZATION.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/03_READER_PACING_AND_WORD_TOKENIZATION.md) | **Complete** | Zoom-invariant word counting, multi-whitespace tokenization, dynamic page chunking responsive to font scale. |
 | **4. UI Interactions & Voice Accessibility** | [`04_UI_INTERACTIONS_AND_AUDIO_ACCESSIBILITY.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/04_UI_INTERACTIONS_AND_AUDIO_ACCESSIBILITY.md) | **Complete** | 100% interactive button bindings, `AVSpeechSynthesizer` voice selector sheet, active chapter narration state machine. |
-| **5. Live Metadata & Pure User-State Isolation** | [`03_LIVE_METADATA_AND_USER_STATE_PURGING.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/03_LIVE_METADATA_AND_USER_STATE_PURGING.md) | **In Progress** | Elimination of artificial seed bookmarks & stat floors; live official author portraits, high-res genre banners, Gutenberg covers, and authentic empty states. |
+| **5. Live Metadata & Pure User-State Isolation** | [`03_LIVE_METADATA_AND_USER_STATE_PURGING.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/03_LIVE_METADATA_AND_USER_STATE_PURGING.md) | **Complete** | Elimination of artificial seed bookmarks & stat floors; live official author portraits, high-res genre banners, Gutenberg covers, and authentic empty states. |
+| **6. Multi-Format & Manga Architecture** | [`05_MULTI_FORMAT_AND_MANGA_ARCHITECTURE.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/05_MULTI_FORMAT_AND_MANGA_ARCHITECTURE.md) | **Complete** | Polymorphic reader dispatch, continuous vertical Webtoon scroll, horizontal swipe paging, manga panel ingestion pipeline. |
+| **7. Testing Suites & ADR Baseline** | [`04_UI_INTERACTIONS_AND_AUDIO_ACCESSIBILITY.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/04_UI_INTERACTIONS_AND_AUDIO_ACCESSIBILITY.md) | **Complete** | 22/22 pytest automated backend suite, Swift unit tests, ADR documentation, and academic lab reproducibility. |
+| **8. App Health Diagnostics & Anti-Overlap Invariants** | [`MASTER_PROGRESS_LOG.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/MASTER_PROGRESS_LOG.md) | **Complete** | Image boundary clipping guarantees, on-device `SystemDiagnosticsSheet`, and `AppHealthTests` automated verification contract. |
 
 ---
 
@@ -86,4 +89,12 @@ The Final Milestone transforms **Fable** from an editorial prototype into a full
   - [x] Step 7.3: Architectural documentation and ADR for UI interactions and audio accessibility (`04_UI_INTERACTIONS_AND_AUDIO_ACCESSIBILITY.md`).
   - [x] Step 7.4: Architectural documentation and ADR for multi-format content and manga architecture (`05_MULTI_FORMAT_AND_MANGA_ARCHITECTURE.md`).
   - [x] Step 7.5: Academic Mac lab runbook updated with Final Capstone Grading Demo Path (`MAC_LAB_RUNBOOK.md`).
+
+- [x] **Milestone 8: App Health Diagnostics, Anti-Overlap Invariants & On-Device Verification**
+  - [x] Step 8.1: Strict boundary clipping enforcement in `FableImageView.swift` across all image phases and root container.
+  - [x] Step 8.2: Creation of `AppHealthTests.swift` validating chapter updates, feed ingestion, live genres, top creators, accurate living analytics, and media bounding invariants.
+  - [x] Step 8.3: Interactive `SystemDiagnosticsSheet.swift` and Settings trigger for on-device and simulator verification.
+  - [x] Step 8.4: Integration of `AppHealthTests` into `LibraryTests.swift` (Test 9).
+  - [x] Step 8.5: Backend test suite expansion in `test_main.py` verifying live contracts and image URLs (22/22 pytest passing).
+
 

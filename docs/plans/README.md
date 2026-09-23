@@ -80,3 +80,8 @@ To ensure manageable, incremental progress aligned with our technical instructor
 3. **Phase 3: Pagination & Pacing (Plan 03)** — [COMPLETE] Implemented viewport-based page segmentation and the live WPM velocity tracker for remaining chapter reading time.
 4. **Phase 4: Oral Folklore Audio (Plan 04)** — [COMPLETE] Integrated `AVSpeechSynthesizer` for native voice narration, speech progress tracking, and accessibility audio.
 5. **Phase 5: Cloud Synchronization (Plan 05)** — [COMPLETE] Wired up the FastAPI backend and Gutenberg gateway for multi-device sync, Last-Write-Wins conflict resolution, and remote backup.
+6. **Phase 6: Live Metadata & User State Purging** — [COMPLETE] Replaced artificial static mocks and clamping with live dynamic DB/API queries, authentic zero-baseline reading metrics, and session reset.
+7. **Phase 7: Multi-Format Architecture & Manga Engine** — [COMPLETE] Evolved data contracts (`ContentFormat`, `SourceProvider`) and built `MangaReaderView` supporting cinema-black continuous Webtoon vertical scroll and horizontal swipe paging.
+8. **Phase 8: Enterprise Security, Automated Tests & ADR Baseline** — [COMPLETE] Implemented BCrypt/PBKDF2 auth, token keychain storage, 22-case pytest suite, and formal Architecture Decision Records.
+9. **Phase 9: App Health Diagnostics & Media Layout Invariants** — [COMPLETE] Enforced strict `.clipped()` anti-overlap geometry, built `AppHealthTests`, and wired interactive on-device `SystemDiagnosticsSheet`.
+

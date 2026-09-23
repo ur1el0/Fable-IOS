@@ -118,6 +118,10 @@ public struct LibraryTests {
         assert(hasGutenberg, "Catalog Contains Project Gutenberg Ingested Titles")
         assert(hasMangaDex, "Catalog Contains MangaDex Ingested Titles")
 
+        // Test 9: Internal App Health & Subsystem Diagnostics Suite
+        let healthResult = AppHealthTests.runAllTests()
+        assert(healthResult.failures.isEmpty && healthResult.passed == healthResult.total, "Internal App Health Diagnostics Verification (\(healthResult.passed)/\(healthResult.total) Passed)")
+
         return (passed, total, failures)
     }
 }
