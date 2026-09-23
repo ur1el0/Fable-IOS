@@ -507,4 +507,13 @@ public final class StoryStore: ObservableObject {
         }
         reloadPinnedQuotes()
     }
+    
+    func clearUserStateOnSignOut() {
+        UserDefaults.standard.removeObject(forKey: "fable_device_id")
+        self.stories = []
+        self.profileStories = []
+        self.pinnedQuotes = []
+        self.readingStats = PersistenceService.ReadingStatsSummary(storiesReadCount: 0, totalMinutesRead: 0, streakDays: 0)
+        self.syncWithPersistence()
+    }
 }

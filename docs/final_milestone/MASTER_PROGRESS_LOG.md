@@ -67,8 +67,8 @@ The Final Milestone transforms **Fable** from an editorial prototype into a full
 - [ ] **Milestone 5: Live Metadata & Pure User-State Isolation** (See [`03_LIVE_METADATA_AND_USER_STATE_PURGING.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/03_LIVE_METADATA_AND_USER_STATE_PURGING.md))
   - [x] Step 5.1: Backend live metadata enrichment (`avatar_image_url`, `image_url`, and Maria Makiling cover URL in `story_service.py` & `seed_catalog.py`).
   - [x] Step 5.2: Domain & Persistence zero-baseline calibration (`isSaved = false`, `progressPercent = 0` in `Story.swift`; removal of `max(12, ...)` stat floors in `PersistenceService.swift`).
-  - [ ] Step 5.3: Frontend Shelf & Profile empty state views (removal of `prefix(3)` and `prefix(2)` fallbacks; branded empty state cards).
-  - [ ] Step 5.4: LibraryView "Continue Reading" fallback purge (only show card when an actual tale is in progress).
-  - [ ] Step 5.5: Multi-user session reset and device ID isolation (`AuthViewModel.shared.logout()`, `clearUserStateOnSignOut()`).
+  - [x] Step 5.3: Frontend Shelf & Profile empty state views (removal of `prefix(3)` and `prefix(2)` fallbacks; branded empty state cards).
+  - [x] Step 5.4: LibraryView "Continue Reading" fallback purge (only show card when an actual tale is in progress).
+  - [x] Step 5.5: Multi-user session reset and device ID isolation (`AuthViewModel.shared.logout()`, `clearUserStateOnSignOut()`).
   - [ ] Step 5.6: Verification pass (18/18 pytest pass, clean iOS Simulator run with fresh account registration).
 

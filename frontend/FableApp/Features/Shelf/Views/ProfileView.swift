@@ -167,8 +167,27 @@ public struct ProfileView: View {
                             
                             // Tab Content
                             if selectedTab == "Published" {
-                                VStack(spacing: 12) {
-                                    ForEach(store.profileStories) { story in
+                                if store.profileStories.isEmpty {
+                                    VStack(spacing: 12) {
+                                        Image(systemName: "pencil.and.outline")
+                                            .font(.system(size: 32))
+                                            .foregroundColor(FableTheme.textMuted.opacity(0.5))
+                                        
+                                        Text("No published tales")
+                                            .font(.system(size: 16, weight: .semibold, design: .serif))
+                                            .foregroundColor(FableTheme.textPrimary)
+                                        
+                                        Text("When you publish a story, it will appear here for everyone to read.")
+                                            .font(.system(size: 13))
+                                            .foregroundColor(FableTheme.textMuted)
+                                            .multilineTextAlignment(.center)
+                                            .padding(.horizontal, 32)
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 40)
+                                } else {
+                                    VStack(spacing: 12) {
+                                        ForEach(store.profileStories) { story in
                                         Button(action: {
                                             selectedStoryToRead = story
                                         }) {
@@ -211,10 +230,30 @@ public struct ProfileView: View {
                                         .buttonStyle(.plain)
                                     }
                                 }
+                                }
                             } else if selectedTab == "Saved" {
                                 let saved = store.stories.filter { $0.isBookmarked }
-                                VStack(spacing: 12) {
-                                    ForEach(saved.isEmpty ? store.stories.prefix(3).map { $0 } : saved) { story in
+                                if saved.isEmpty {
+                                    VStack(spacing: 12) {
+                                        Image(systemName: "bookmark")
+                                            .font(.system(size: 32))
+                                            .foregroundColor(FableTheme.textMuted.opacity(0.5))
+                                        
+                                        Text("No saved tales")
+                                            .font(.system(size: 16, weight: .semibold, design: .serif))
+                                            .foregroundColor(FableTheme.textPrimary)
+                                        
+                                        Text("Bookmark stories to easily find them later.")
+                                            .font(.system(size: 13))
+                                            .foregroundColor(FableTheme.textMuted)
+                                            .multilineTextAlignment(.center)
+                                            .padding(.horizontal, 32)
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 40)
+                                } else {
+                                    VStack(spacing: 12) {
+                                        ForEach(saved) { story in
                                         Button(action: {
                                             selectedStoryToRead = story
                                         }) {
@@ -245,6 +284,7 @@ public struct ProfileView: View {
                                         }
                                         .buttonStyle(.plain)
                                     }
+                                }
                                 }
                             } else {
                                 // Reading Stats Tab

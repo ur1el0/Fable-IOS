@@ -173,7 +173,7 @@ public struct LibraryView: View {
                         }
                         
                         // Continue Reading Section
-                        if let inProgressStory = store.stories.first(where: { $0.progressPercent > 0 && !$0.isCompleted }) ?? store.stories.first(where: { $0.title.contains("Sleepy Hollow") }) {
+                        if let inProgressStory = store.stories.first(where: { $0.progressPercent > 0 && !$0.isCompleted }) {
                             VStack(alignment: .leading, spacing: 12) {
                                 HStack {
                                     Text("Continue Reading")

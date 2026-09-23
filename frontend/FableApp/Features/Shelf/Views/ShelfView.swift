@@ -13,13 +13,11 @@ public struct ShelfView: View {
     var displayedStories: [Story] {
         switch selectedTab {
         case "Finished":
-            let finished = store.stories.filter { $0.isCompleted || $0.progressPercent >= 100 }
-            return finished.isEmpty ? store.stories.prefix(2).map { $0 } : finished
+            return store.stories.filter { $0.isCompleted || $0.progressPercent >= 100 }
         case "My Drafts":
             return store.profileStories
         default: // "Saved"
-            let saved = store.stories.filter { $0.isBookmarked }
-            return saved.isEmpty ? store.stories.prefix(3).map { $0 } : saved
+            return store.stories.filter { $0.isBookmarked }
         }
     }
     
@@ -221,7 +219,26 @@ public struct ShelfView: View {
                             .padding(.horizontal, 20)
                             
                             VStack(spacing: 0) {
-                                ForEach(Array(displayedStories.enumerated()), id: \.element.id) { index, story in
+                                if displayedStories.isEmpty {
+                                    VStack(spacing: 12) {
+                                        Image(systemName: selectedTab == "Finished" ? "checkmark.circle" : "books.vertical")
+                                            .font(.system(size: 36))
+                                            .foregroundColor(FableTheme.textMuted.opacity(0.5))
+                                        
+                                        Text(selectedTab == "My Drafts" ? "No drafts yet" : "Nothing here yet")
+                                            .font(.system(size: 16, weight: .semibold, design: .serif))
+                                            .foregroundColor(FableTheme.textPrimary)
+                                        
+                                        Text(selectedTab == "My Drafts" ? "Start writing your first tale." : "Head to the library to find your next favorite story.")
+                                            .font(.system(size: 13))
+                                            .foregroundColor(FableTheme.textMuted)
+                                            .multilineTextAlignment(.center)
+                                            .padding(.horizontal, 32)
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 40)
+                                } else {
+                                    ForEach(Array(displayedStories.enumerated()), id: \.element.id) { index, story in
                                     Button(action: {
                                         selectedStoryToRead = story
                                     }) {
@@ -303,6 +320,7 @@ public struct ShelfView: View {
                                         Divider()
                                             .padding(.horizontal, 16)
                                     }
+                                }
                                 }
                             }
                             .background(FableTheme.cardBackground)
