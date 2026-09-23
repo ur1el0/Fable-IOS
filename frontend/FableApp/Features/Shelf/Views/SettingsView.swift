@@ -9,6 +9,7 @@ public struct SettingsView: View {
     @State private var cacheCleared: Bool = false
     @State private var navigateToProfile: Bool = false
     @State private var isShowingSignOutAlert: Bool = false
+    @State private var isShowingDiagnostics: Bool = false
     
     public init() {}
     
@@ -238,6 +239,51 @@ public struct SettingsView: View {
                                 .shadow(color: Color.black.opacity(0.03), radius: 6, y: 2)
                             }
                             
+                            // System Diagnostics & Verification Section
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text("SYSTEM DIAGNOSTICS & VERIFICATION")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .tracking(1.0)
+                                    .foregroundColor(FableTheme.textMuted)
+                                    .padding(.leading, 8)
+                                
+                                VStack(spacing: 0) {
+                                    Button(action: {
+                                        isShowingDiagnostics = true
+                                    }) {
+                                        HStack(spacing: 12) {
+                                            Image(systemName: "checkmark.shield")
+                                                .font(.system(size: 16))
+                                                .foregroundColor(FableTheme.brandPrimary)
+                                                .frame(width: 32, height: 32)
+                                                .background(FableTheme.brandPrimary.opacity(0.12))
+                                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                                            
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text("System Diagnostics & Health")
+                                                    .font(.system(size: 15, weight: .medium))
+                                                    .foregroundColor(FableTheme.textPrimary)
+                                                
+                                                Text("Verify chapter updates, genres, artists, and analytics")
+                                                    .font(.system(size: 11))
+                                                    .foregroundColor(FableTheme.textMuted)
+                                            }
+                                            
+                                            Spacer()
+                                            
+                                            Image(systemName: "chevron.right")
+                                                .font(.system(size: 13, weight: .semibold))
+                                                .foregroundColor(Color.gray.opacity(0.4))
+                                        }
+                                        .padding(.horizontal, 16)
+                                        .padding(.vertical, 12)
+                                    }
+                                }
+                                .background(FableTheme.cardBackground)
+                                .clipShape(RoundedRectangle(cornerRadius: 16))
+                                .shadow(color: Color.black.opacity(0.03), radius: 6, y: 2)
+                            }
+                            
                             // Account & Session Section
                             VStack(alignment: .leading, spacing: 10) {
                                 Text("ACCOUNT & SESSION")
@@ -312,6 +358,9 @@ public struct SettingsView: View {
             .sheet(isPresented: $navigateToProfile) {
                 ProfileView()
                     .environmentObject(store)
+            }
+            .sheet(isPresented: $isShowingDiagnostics) {
+                SystemDiagnosticsSheet()
             }
         }
     }

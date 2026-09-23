@@ -22,6 +22,7 @@ public struct FableImageView: View {
                             image
                                 .resizable()
                                 .aspectRatio(contentMode: contentMode)
+                                .clipped()
                         case .failure:
                             proceduralGraphicView
                         case .empty:
@@ -39,6 +40,7 @@ public struct FableImageView: View {
                     Image(uiImage: localImage)
                         .resizable()
                         .aspectRatio(contentMode: contentMode)
+                        .clipped()
                 } else {
                     // Procedural editorial fallback
                     proceduralGraphicView
@@ -47,6 +49,7 @@ public struct FableImageView: View {
                 proceduralGraphicView
             }
         }
+        .clipped()
     }
 
     @ViewBuilder
