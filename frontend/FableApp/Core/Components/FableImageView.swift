@@ -87,7 +87,7 @@ public struct FableImageView: View {
                 .strokeBorder(Color.white.opacity(0.35), lineWidth: 1.5)
             
             Text(initials)
-                .font(.system(size: 15, weight: .bold, design: .serif))
+                .font(.system(size: 15, weight: .bold))
                 .foregroundColor(.white)
                 .shadow(color: Color.black.opacity(0.2), radius: 1, y: 1)
         }
@@ -114,7 +114,7 @@ public struct FableImageView: View {
         return ZStack {
             LinearGradient(colors: gradientColors, startPoint: .topLeading, endPoint: .bottomTrailing)
             
-            // Subtle parchment filigree border
+            // Clean modern edge border
             RoundedRectangle(cornerRadius: 12)
                 .strokeBorder(Color.white.opacity(0.2), lineWidth: 1)
                 .padding(6)
@@ -134,7 +134,9 @@ public struct FableImageView: View {
     }
 
     private func genreMetadata(for key: String) -> (String, [Color], String) {
-        if key.contains("folklore") {
+        if key.contains("manga") {
+            return ("photo.on.rectangle.angled", [Color(red: 0.23, green: 0.35, blue: 0.96), Color(red: 0.45, green: 0.15, blue: 0.70)], "Manga")
+        } else if key.contains("folklore") {
             return ("tree.fill", [Color(red: 0.60, green: 0.30, blue: 0.15), Color(red: 0.35, green: 0.18, blue: 0.08)], "Folklore")
         } else if key.contains("mythology") {
             return ("sparkles", [Color(red: 0.25, green: 0.28, blue: 0.48), Color(red: 0.14, green: 0.16, blue: 0.30)], "Mythology")
@@ -145,21 +147,21 @@ public struct FableImageView: View {
         }
     }
 
-    // MARK: - Procedural Physical Book Covers
+    // MARK: - Procedural Media Covers
     private func bookCoverView(key: String) -> some View {
         let palette = bookPalette(for: key)
         
         return GeometryReader { geo in
             ZStack {
-                // Leather / Linen Background Gradient
+                // Background Gradient
                 LinearGradient(colors: palette.colors, startPoint: .topLeading, endPoint: .bottomTrailing)
                 
-                // Spine crease highlight (physical book volume effect)
+                // Clean edge highlight
                 HStack(spacing: 0) {
                     Rectangle()
                         .fill(
                             LinearGradient(
-                                colors: [Color.black.opacity(0.35), Color.black.opacity(0.05), Color.white.opacity(0.12), Color.clear],
+                                colors: [Color.black.opacity(0.25), Color.black.opacity(0.04), Color.white.opacity(0.12), Color.clear],
                                 startPoint: .leading,
                                 endPoint: .trailing
                             )
@@ -169,39 +171,31 @@ public struct FableImageView: View {
                     Spacer()
                 }
                 
-                // Double Gold/Foil Hairline Border
+                // Fine Hairline Border
                 RoundedRectangle(cornerRadius: 8)
-                    .strokeBorder(palette.foilColor.opacity(0.55), lineWidth: 1)
+                    .strokeBorder(palette.foilColor.opacity(0.40), lineWidth: 1)
                     .padding(max(4, geo.size.width * 0.05))
                 
-                RoundedRectangle(cornerRadius: 6)
-                    .strokeBorder(palette.foilColor.opacity(0.25), lineWidth: 0.5)
-                    .padding(max(7, geo.size.width * 0.08))
-                
-                // Center Ornamental Medallion
+                // Center Presentation
                 VStack(spacing: max(2, geo.size.height * 0.02)) {
-                    // Top filigree emblem
                     Image(systemName: palette.symbol)
                         .font(.system(size: min(22, max(12, geo.size.width * 0.18)), weight: .medium))
                         .foregroundColor(palette.foilColor)
                         .shadow(color: Color.black.opacity(0.35), radius: 2, y: 1)
                     
-                    // Center Title Monogram
                     Text(palette.monogram)
-                        .font(.system(size: min(34, max(18, geo.size.width * 0.26)), weight: .bold, design: .serif))
+                        .font(.system(size: min(34, max(18, geo.size.width * 0.26)), weight: .black))
                         .foregroundColor(palette.foilColor)
                         .shadow(color: Color.black.opacity(0.4), radius: 3, y: 2)
                     
-                    // Foil Divider
                     Rectangle()
                         .fill(palette.foilColor.opacity(0.6))
                         .frame(width: max(16, geo.size.width * 0.25), height: 1)
                     
-                    // Micro Folio Stamp
                     Text(palette.tagText.uppercased())
                         .font(.system(size: min(9, max(6, geo.size.width * 0.07)), weight: .bold))
                         .tracking(1.4)
-                        .foregroundColor(palette.foilColor.opacity(0.8))
+                        .foregroundColor(palette.foilColor.opacity(0.85))
                         .lineLimit(1)
                 }
                 .padding(.horizontal, 6)
@@ -286,11 +280,19 @@ public struct FableImageView: View {
                 monogram: "P",
                 tagText: "Poe"
             )
+        } else if key.contains("manga") || key.contains("chainsaw") || key.contains("fujimoto") {
+            return BookPalette(
+                colors: [Color(red: 0.23, green: 0.35, blue: 0.96), Color(red: 0.45, green: 0.15, blue: 0.70)],
+                foilColor: .white,
+                symbol: "flame.circle.fill",
+                monogram: "M",
+                tagText: "Manga"
+            )
         } else {
             return BookPalette(
                 colors: [FableTheme.brandPrimary, FableTheme.brandSecondary],
-                foilColor: gold,
-                symbol: "book.closed.fill",
+                foilColor: silver,
+                symbol: "square.stack.3d.up.fill",
                 monogram: "F",
                 tagText: "Fable"
             )
