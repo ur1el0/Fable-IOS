@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import UIKit
 
 @MainActor
 public struct AppHealthTests {
@@ -221,6 +222,37 @@ public struct AppHealthTests {
             description: "Strict frame bounds, 3:4 card aspect ratio, and circular avatars prevent layout overlap",
             passed: coverPriorityValid && geometryIsolated,
             details: "Cover priority: Gutenberg URL verified. Card: \(Int(coverWidth))x\(Int(coverHeight)) (3:4 ratio). Avatar: \(Int(avatarWidth))x\(Int(avatarHeight)) (1:1 circular)."
+        )
+
+        // =================================================================
+        // Test 6: Manuscript Formatting Controls
+        // =================================================================
+        func applyFormatting(
+            _ style: ManuscriptFormattingStyle,
+            to source: String,
+            selection: NSRange
+        ) -> String {
+            let textView = UITextView()
+            textView.text = source
+            textView.selectedRange = selection
+            let coordinator = ManuscriptEditor.Coordinator(text: .constant(source))
+            coordinator.apply(style, to: textView)
+            return textView.text
+        }
+
+        let boldResult = applyFormatting(.bold, to: "draft", selection: NSRange(location: 0, length: 5))
+        let italicResult = applyFormatting(.italic, to: "draft", selection: NSRange(location: 0, length: 5))
+        let quoteResult = applyFormatting(.quote, to: "first\nsecond", selection: NSRange(location: 0, length: 12))
+        let sceneBreakResult = applyFormatting(.sceneBreak, to: "keep", selection: NSRange(location: 0, length: 4))
+        let formattingControlsValid = boldResult == "**draft**"
+            && italicResult == "*draft*"
+            && quoteResult == "> first\n> second"
+            && sceneBreakResult == "keep\n\n---\n\n"
+        record(
+            name: "Manuscript Formatting Controls",
+            description: "Bold, italic, quote, and scene-break actions preserve and transform manuscript text",
+            passed: formattingControlsValid,
+            details: "Bold: \(boldResult); italic: \(italicResult); quote and scene-break preserve selected text."
         )
 
         return (passed, total, failures, reports)

@@ -112,7 +112,7 @@ public struct LibraryTests {
         """.data(using: .utf8)!
 
         if let liveStatsStory = try? JSONDecoder().decode(Story.self, from: liveStatsJSON) {
-            assert(liveStatsStory.rating == 0, "Missing Provider Rating Does Not Invent a Score")
+            assert(liveStatsStory.rating == nil, "Missing Provider Rating Stays Unavailable")
             assert(liveStatsStory.savesCount == "3" && liveStatsStory.readsCount == "8", "Story Counts Decode")
             assert(liveStatsStory.providerDownloadCount == 940, "Provider Downloads Decode")
         } else {
@@ -188,6 +188,18 @@ public struct LibraryTests {
 
         // Test 9: Provider identities survive decoding and can address live chapter endpoints.
         assert(liveBook.providerId == "1342" && mangaStory.sourceProvider == .mangadex, "Live Provider Identity Decodes")
+
+        let createRequest = CreateStoryRequest(
+            title: "Authored Story",
+            genre: "Historical Fiction",
+            chapter: "Opening",
+            synopsis: "A writer supplied synopsis.",
+            content: "Writer supplied manuscript.",
+            readTimeMinutes: 1
+        )
+        let createRequestObject = try? JSONSerialization.jsonObject(with: JSONEncoder().encode(createRequest)) as? [String: Any]
+        assert(createRequestObject?["author"] == nil && createRequestObject?["sourceProvider"] == nil, "Story Create Payload Omits Server-Owned Fields")
+        assert(createRequestObject?["readTimeMinutes"] as? Int == 1, "Story Create Payload Uses Camel Case Contract")
 
         // Test 10: Internal App Health & Subsystem Diagnostics Suite
         let healthResult = AppHealthTests.runAllTests()

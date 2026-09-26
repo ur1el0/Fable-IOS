@@ -29,7 +29,7 @@ public struct AuthTests {
 
         // Test 3: Guest session generation
         auth.continueAsGuest()
-        assert(auth.isAuthenticated && auth.isGuestMode && auth.currentSession?.name == "Guest Reader", "Guest Session Generation")
+        assert(auth.isAuthenticated && auth.isGuestMode && auth.currentSession?.name == "Guest", "Guest Session Generation")
 
         // Test 4: Sign-out state cleanup
         auth.signOut()

@@ -2,6 +2,7 @@ import Foundation
 import Observation
 
 @Observable
+@MainActor
 public final class StoryController {
     public var stories: [Story] = []
     public var selectedGenre: Genre = .all
@@ -54,51 +55,57 @@ public final class StoryController {
     public func toggleBookmark(for story: Story) {
         guard let index = stories.firstIndex(where: { $0.id == story.id }) else { return }
         stories[index].isBookmarked.toggle()
+        PersistenceService.shared.setBookmark(storyId: story.id, isBookmarked: stories[index].isBookmarked)
 
-        if isLiveBackendEnabled {
+        if isLiveBackendEnabled,
+           let session = AuthManager.shared.currentSession,
+           !session.isGuest,
+           let token = KeychainStore.shared.readAccessToken() {
+            let deviceId: UUID = {
+                let key = "fable_device_id_\(session.id.uuidString)"
+                if let saved = UserDefaults.standard.string(forKey: key), let uuid = UUID(uuidString: saved) {
+                    return uuid
+                }
+                let newId = UUID()
+                UserDefaults.standard.set(newId.uuidString, forKey: key)
+                return newId
+            }()
+            let item = ShelfSyncItem(
+                storyId: story.id,
+                readingProgress: Double(story.progressPercent) / 100.0,
+                isBookmarked: stories[index].isBookmarked,
+                isCompleted: story.isCompleted,
+                updatedAtUtc: Date()
+            )
             Task {
-                _ = try? await apiService.toggleBookmark(storyId: story.id)
+                _ = try? await apiService.syncShelf(deviceId: deviceId, token: token, items: [item])
             }
         }
     }
 
     public func addStory(
         title: String,
-        author: String,
         genre: Genre,
         synopsis: String,
         content: String,
         readTimeMinutes: Int
-    ) {
-        let newStory = Story(
-            id: UUID(),
+    ) async throws -> Story {
+        guard let session = AuthManager.shared.currentSession, !session.isGuest,
+              let token = KeychainStore.shared.readAccessToken() else {
+            throw APIRequestError(message: "Sign in to publish a story.")
+        }
+
+        let request = CreateStoryRequest(
             title: title,
-            author: author.isEmpty ? "Anonymous" : author,
-            genre: genre,
+            genre: genre.rawValue,
             synopsis: synopsis,
             content: content,
-            readTimeMinutes: max(1, readTimeMinutes),
-            isBookmarked: false,
-            isCompleted: false,
-            createdAtUtc: Date()
+            readTimeMinutes: max(1, readTimeMinutes)
         )
-
-        // Optimistic local insertion
-        stories.insert(newStory, at: 0)
-
-        if isLiveBackendEnabled {
-            Task {
-                let req = CreateStoryRequest(
-                    title: title,
-                    author: author,
-                    genre: genre.rawValue,
-                    synopsis: synopsis,
-                    content: content,
-                    readTimeMinutes: readTimeMinutes
-                )
-                _ = try? await apiService.createStory(req)
-            }
-        }
+        let createdStory = try await apiService.createStory(request, token: token)
+        stories.insert(createdStory, at: 0)
+        PersistenceService.shared.saveStory(createdStory)
+        return createdStory
     }
 
     public func refreshStories() async {

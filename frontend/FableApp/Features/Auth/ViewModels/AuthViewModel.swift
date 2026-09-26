@@ -34,10 +34,12 @@ public final class AuthViewModel: ObservableObject {
     @Published public var errorMessage: String? = nil
 
     private let keychain: KeychainStore
+    private let apiService: StoryAPIServiceProtocol
     private let sessionKeychainKey = "userSession"
 
-    public init(keychain: KeychainStore = .shared) {
+    public init(keychain: KeychainStore = .shared, apiService: StoryAPIServiceProtocol = StoryAPIService()) {
         self.keychain = keychain
+        self.apiService = apiService
     }
 
     /// Verifies existing credentials stored securely in the iOS Keychain.
@@ -49,10 +51,17 @@ public final class AuthViewModel: ObservableObject {
             // Check legacy fallback from UserDefaults if transitioning
             if let legacyData = UserDefaults.standard.data(forKey: "fable_persisted_session_v1"),
                let legacySession = try? JSONDecoder().decode(UserSession.self, from: legacyData) {
+                guard legacySession.isGuest || hasServerAccessToken else {
+                    UserDefaults.standard.removeObject(forKey: "fable_persisted_session_v1")
+                    keychain.deleteData(key: sessionKeychainKey)
+                    keychain.deleteAccessToken()
+                    self.currentUser = nil
+                    self.authState = .signedOut
+                    return
+                }
                 // Migrate immediately to hardware Keychain
                 if let encoded = try? JSONEncoder().encode(legacySession) {
                     keychain.saveData(key: sessionKeychainKey, data: encoded)
-                    keychain.saveAccessToken("token_\(UUID().uuidString)")
                 }
                 UserDefaults.standard.removeObject(forKey: "fable_persisted_session_v1")
                 self.currentUser = legacySession
@@ -68,6 +77,16 @@ public final class AuthViewModel: ObservableObject {
 
         do {
             let session = try JSONDecoder().decode(UserSession.self, from: sessionData)
+            guard session.isGuest || hasServerAccessToken else {
+                keychain.deleteData(key: sessionKeychainKey)
+                keychain.deleteAccessToken()
+                self.currentUser = nil
+                self.authState = .signedOut
+                return
+            }
+            if session.isGuest {
+                keychain.deleteAccessToken()
+            }
             self.currentUser = session
             self.authState = .signedIn(session)
             syncToAuthManager(session: session)
@@ -81,91 +100,69 @@ public final class AuthViewModel: ObservableObject {
 
     /// Authenticates user credentials and stores session securely in Keychain.
     public func login(email: String, password: String) async -> Bool {
-        self.isLoading = true
-        self.errorMessage = nil
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
 
         let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmedEmail.contains("@") && trimmedEmail.contains(".") else {
-            self.errorMessage = "Please enter a valid email address."
-            self.isLoading = false
+        guard trimmedEmail.contains("@"), trimmedEmail.contains(".") else {
+            errorMessage = "Please enter a valid email address."
             return false
         }
-
         guard password.count >= 6 else {
-            self.errorMessage = "Password must be at least 6 characters."
-            self.isLoading = false
+            errorMessage = "Password must be at least 6 characters."
             return false
         }
 
-        // Brief delay to simulate authentic verification
-        try? await Task.sleep(nanoseconds: 300_000_000)
-
-        let authorName = trimmedEmail.components(separatedBy: "@").first?.capitalized ?? ""
-        let handle = "@\(trimmedEmail.components(separatedBy: "@").first?.lowercased() ?? "author")"
-
-        let session = UserSession(
-            name: authorName,
-            handle: handle,
-            email: trimmedEmail,
-            bio: "",
-            avatarName: nil,
-            isGuest: false
-        )
-
-        persistSession(session)
-        self.isLoading = false
-        return true
+        do {
+            let response = try await apiService.login(email: trimmedEmail, password: password)
+            let session = makeSession(from: response.user)
+            return persistSession(session, accessToken: response.accessToken)
+        } catch let error as APIRequestError {
+            errorMessage = error.message
+            return false
+        } catch {
+            errorMessage = "Sign in failed. Check your connection."
+            return false
+        }
     }
 
-    /// Registers a new user account, stores credentials, and auto-signs in.
     public func register(name: String, handle: String, email: String, password: String) async -> Bool {
-        self.isLoading = true
-        self.errorMessage = nil
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
 
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedHandle = handle.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
-
         guard !trimmedName.isEmpty else {
-            self.errorMessage = "Full name cannot be blank."
-            self.isLoading = false
+            errorMessage = "Full name cannot be blank."
             return false
         }
-
-        guard trimmedEmail.contains("@") && trimmedEmail.contains(".") else {
-            self.errorMessage = "Please enter a valid email address."
-            self.isLoading = false
+        guard trimmedEmail.contains("@"), trimmedEmail.contains(".") else {
+            errorMessage = "Please enter a valid email address."
             return false
         }
-
         guard password.count >= 6 else {
-            self.errorMessage = "Password must be at least 6 characters."
-            self.isLoading = false
+            errorMessage = "Password must be at least 6 characters."
             return false
         }
 
-        let formattedHandle = trimmedHandle.hasPrefix("@") ? trimmedHandle : "@\(trimmedHandle)"
-
-        try? await Task.sleep(nanoseconds: 350_000_000)
-
-        let session = UserSession(
-            name: trimmedName,
-            handle: formattedHandle,
-            email: trimmedEmail,
-            bio: "",
-            avatarName: nil,
-            isGuest: false
-        )
-
-        persistSession(session)
-        self.isLoading = false
-        return true
+        do {
+            let response = try await apiService.register(email: trimmedEmail, password: password, name: trimmedName, handle: handle)
+            let session = makeSession(from: response.user)
+            return persistSession(session, accessToken: response.accessToken)
+        } catch let error as APIRequestError {
+            errorMessage = error.message
+            return false
+        } catch {
+            errorMessage = "Account creation failed. Check your connection."
+            return false
+        }
     }
 
-    /// Initiates an offline guest session.
     public func continueAsGuest() {
         let guest = UserSession.guest()
-        persistSession(guest)
+        _ = persistSession(guest, accessToken: nil)
     }
 
     /// Clears Keychain credentials and returns state to signedOut.
@@ -180,23 +177,64 @@ public final class AuthViewModel: ObservableObject {
 
     // MARK: - Private Helpers
 
-    private func persistSession(_ session: UserSession) {
-        do {
-            let data = try JSONEncoder().encode(session)
-            keychain.saveData(key: sessionKeychainKey, data: data)
-            keychain.saveAccessToken("fable_token_\(UUID().uuidString)")
-            self.currentUser = session
-            self.authState = .signedIn(session)
-            self.errorMessage = nil
-            syncToAuthManager(session: session)
-        } catch {
-            self.errorMessage = "Failed to store credentials in hardware Keychain."
-        }
+    func adoptSession(_ session: UserSession) {
+        currentUser = session
+        authState = .signedIn(session)
+    }
+
+    func adoptSignedOutState() {
+        currentUser = nil
+        authState = .signedOut
+        errorMessage = nil
+    }
+
+    private var hasServerAccessToken: Bool {
+        guard let token = keychain.readAccessToken() else { return false }
+        return !token.hasPrefix("fable_token_") && !token.hasPrefix("token_")
+    }
+
+    private func makeSession(from user: AuthUserDTO) -> UserSession {
+        UserSession(
+            id: user.id,
+            name: user.name,
+            handle: user.handle,
+            email: user.email,
+            bio: user.bio,
+            avatarName: user.avatarImageUrl ?? user.avatarImageName,
+            joinedDate: user.createdAtUtc
+        )
     }
 
     private func syncToAuthManager(session: UserSession) {
-        if let data = try? JSONEncoder().encode(session) {
-            UserDefaults.standard.set(data, forKey: "fable_persisted_session_v1")
+        AuthManager.shared.acceptSession(session)
+    }
+
+    @discardableResult
+    private func persistSession(_ session: UserSession, accessToken: String?) -> Bool {
+        do {
+            let data = try JSONEncoder().encode(session)
+            guard keychain.saveData(key: sessionKeychainKey, data: data) else {
+                errorMessage = "Failed to store the local session securely."
+                return false
+            }
+            if let accessToken {
+                guard keychain.saveAccessToken(accessToken) else {
+                    keychain.deleteData(key: sessionKeychainKey)
+                    errorMessage = "Failed to store the access token securely."
+                    return false
+                }
+            } else {
+                keychain.deleteAccessToken()
+            }
+            currentUser = session
+            authState = .signedIn(session)
+            errorMessage = nil
+            AuthManager.shared.acceptSession(session)
+            return true
+        } catch {
+            errorMessage = "Failed to store the local session securely."
+            return false
         }
     }
+
 }

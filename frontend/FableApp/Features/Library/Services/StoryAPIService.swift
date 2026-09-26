@@ -2,32 +2,29 @@ import Foundation
 
 public struct CreateStoryRequest: Codable {
     public let title: String
-    public let author: String
     public let genre: String
+    public let chapter: String?
     public let synopsis: String
     public let content: String
     public let readTimeMinutes: Int
     public let contentFormat: String?
-    public let sourceProvider: String?
-    
+
     public init(
         title: String,
-        author: String,
         genre: String,
+        chapter: String? = nil,
         synopsis: String,
         content: String,
         readTimeMinutes: Int,
-        contentFormat: String? = "PROSE",
-        sourceProvider: String? = "FABLE_ORIGINAL"
+        contentFormat: String? = "PROSE"
     ) {
         self.title = title
-        self.author = author
         self.genre = genre
+        self.chapter = chapter
         self.synopsis = synopsis
         self.content = content
         self.readTimeMinutes = readTimeMinutes
         self.contentFormat = contentFormat
-        self.sourceProvider = sourceProvider
     }
 }
 
@@ -137,13 +134,55 @@ public struct ShelfSyncResponse: Codable {
     }
 }
 
+public struct APIRequestError: Error, LocalizedError {
+    public let message: String
+
+    public var errorDescription: String? { message }
+}
+
 public struct AuthUserDTO: Codable {
     public let id: UUID
     public let email: String
     public let name: String
+    public let handle: String
+    public let bio: String
     public let avatarImageName: String?
     public let avatarImageUrl: String?
     public let createdAtUtc: Date
+}
+
+public struct ReadingSessionRequest: Codable, Sendable {
+    public let id: UUID
+    public let storyId: UUID
+    public let secondsRead: Int
+    public let readAtUtc: Date
+    public let isCompleted: Bool
+
+    public init(id: UUID = UUID(), storyId: UUID, secondsRead: Int, readAtUtc: Date = Date(), isCompleted: Bool) {
+        self.id = id
+        self.storyId = storyId
+        self.secondsRead = secondsRead
+        self.readAtUtc = readAtUtc
+        self.isCompleted = isCompleted
+    }
+}
+
+public struct ReadingStatsDTO: Codable, Sendable {
+    public let storiesReadCount: Int
+    public let totalMinutesRead: Int
+    public let streakDays: Int
+}
+
+public struct ProfileUpdateRequest: Codable {
+    public let name: String
+    public let handle: String
+    public let bio: String
+
+    public init(name: String, handle: String, bio: String) {
+        self.name = name
+        self.handle = handle
+        self.bio = bio
+    }
 }
 
 public struct AuthTokenResponse: Codable {
@@ -154,18 +193,23 @@ public struct AuthTokenResponse: Codable {
 
 public protocol StoryAPIServiceProtocol: Sendable {
     func fetchStories(genre: String?, search: String?, since: Date?) async throws -> [Story]
-    func createStory(_ request: CreateStoryRequest) async throws -> Story
-    func syncShelf(deviceId: UUID, items: [ShelfSyncItem]) async throws -> [ShelfSyncItem]
-    func fetchShelf(deviceId: UUID) async throws -> [ShelfSyncItem]
-    func toggleBookmark(storyId: UUID) async throws -> Bool
+    func createStory(_ request: CreateStoryRequest, token: String) async throws -> Story
+    func fetchMyStories(token: String) async throws -> [Story]
+    func syncShelf(deviceId: UUID, token: String, items: [ShelfSyncItem]) async throws -> [ShelfSyncItem]
+    func fetchShelf(deviceId: UUID, token: String) async throws -> [ShelfSyncItem]
     func fetchGutenbergStories(topic: String?, search: String?) async throws -> [Story]
+    func fetchGutenbergStory(providerId: String) async throws -> Story
     func fetchChapters(for storyId: UUID, sourceProvider: String, providerId: String?) async throws -> [Chapter]
     func fetchGenres() async throws -> [GenreCategory]
     func fetchTopAuthors() async throws -> [Writer]
     func fetchUpdateFeed() async throws -> UpdateFeed
-    func register(email: String, password: String, name: String) async throws -> AuthTokenResponse
+    func register(email: String, password: String, name: String, handle: String) async throws -> AuthTokenResponse
     func login(email: String, password: String) async throws -> AuthTokenResponse
     func fetchCurrentUser(token: String) async throws -> AuthUserDTO
+    func updateProfile(_ request: ProfileUpdateRequest, token: String) async throws -> AuthUserDTO
+    func recordReadingSession(_ request: ReadingSessionRequest, token: String) async throws
+    func fetchReadingStats(token: String) async throws -> ReadingStatsDTO
+    func logout(token: String) async throws
 }
 
 public extension StoryAPIServiceProtocol {
@@ -186,11 +230,24 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
     private let baseURL: URL
     private let session: URLSession
 
-    public init(baseURL: URL = URL(string: "http://127.0.0.1:8000/api/v1")!) {
+    public init(baseURL: URL? = nil) {
+        let infoBaseURL = Bundle.main.object(forInfoDictionaryKey: "FABLE_API_BASE_URL") as? String
+        let configuredBaseURL = ProcessInfo.processInfo.environment["FABLE_API_BASE_URL"] ?? infoBaseURL
         self.baseURL = baseURL
+            ?? configuredBaseURL.flatMap { URL(string: $0) }
+            ?? URL(string: "http://127.0.0.1:8000/api/v1")!
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 5.0
         self.session = URLSession(configuration: config)
+    }
+
+    private func validateResponse(_ response: URLResponse, data: Data) throws {
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200...299).contains(httpResponse.statusCode) else {
+            let payload = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+            let detail = payload?["detail"] as? String
+            throw APIRequestError(message: detail ?? "The server could not complete the request.")
+        }
     }
 
     public func fetchStories(genre: String? = nil, search: String? = nil, since: Date? = nil) async throws -> [Story] {
@@ -228,31 +285,43 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
         return try decoder.decode([Story].self, from: data)
     }
 
-    public func createStory(_ request: CreateStoryRequest) async throws -> Story {
+    public func createStory(_ request: CreateStoryRequest, token: String) async throws -> Story {
         let url = baseURL.appendingPathComponent("stories")
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         urlRequest.httpBody = try encoder.encode(request)
 
         let (data, response) = try await session.data(for: urlRequest)
-        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
-            throw URLError(.badServerResponse)
-        }
+        try validateResponse(response, data: data)
 
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         return try decoder.decode(Story.self, from: data)
     }
 
-    public func syncShelf(deviceId: UUID, items: [ShelfSyncItem]) async throws -> [ShelfSyncItem] {
+    public func fetchMyStories(token: String) async throws -> [Story] {
+        let url = baseURL.appendingPathComponent("auth").appendingPathComponent("me").appendingPathComponent("stories")
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        let (data, response) = try await session.data(for: request)
+        try validateResponse(response, data: data)
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try decoder.decode([Story].self, from: data)
+    }
+
+    public func syncShelf(deviceId: UUID, token: String, items: [ShelfSyncItem]) async throws -> [ShelfSyncItem] {
         let url = baseURL.appendingPathComponent("shelf").appendingPathComponent("sync")
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         
         let payload = ShelfSyncPayload(deviceId: deviceId, items: items)
         let encoder = JSONEncoder()
@@ -268,21 +337,6 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
         decoder.dateDecodingStrategy = .iso8601
         let result = try decoder.decode(ShelfSyncResponse.self, from: data)
         return result.reconciledItems
-    }
-
-    public func toggleBookmark(storyId: UUID) async throws -> Bool {
-        let deviceId: UUID = {
-            let key = "fable_device_id"
-            if let saved = UserDefaults.standard.string(forKey: key), let uuid = UUID(uuidString: saved) {
-                return uuid
-            }
-            let newId = UUID()
-            UserDefaults.standard.set(newId.uuidString, forKey: key)
-            return newId
-        }()
-        let item = ShelfSyncItem(storyId: storyId, readingProgress: 0.0, isBookmarked: true, isCompleted: false, updatedAtUtc: Date())
-        let reconciled = try await syncShelf(deviceId: deviceId, items: [item])
-        return reconciled.first?.isBookmarked ?? true
     }
 
     public func fetchGutenbergStories(topic: String? = nil, search: String? = nil) async throws -> [Story] {
@@ -301,6 +355,21 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         return try decoder.decode([Story].self, from: data)
+    }
+
+    public func fetchGutenbergStory(providerId: String) async throws -> Story {
+        guard let gutenbergId = Int(providerId), gutenbergId > 0 else { throw URLError(.badURL) }
+        let url = baseURL
+            .appendingPathComponent("public")
+            .appendingPathComponent("gutenberg")
+            .appendingPathComponent(String(gutenbergId))
+        let (data, response) = try await session.data(from: url)
+        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try decoder.decode(Story.self, from: data)
     }
 
     public func fetchChapters(for storyId: UUID, sourceProvider: String = "", providerId: String? = nil) async throws -> [Chapter] {
@@ -364,12 +433,14 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
         return try decoder.decode(UpdateFeed.self, from: data)
     }
 
-    public func fetchShelf(deviceId: UUID) async throws -> [ShelfSyncItem] {
+    public func fetchShelf(deviceId: UUID, token: String) async throws -> [ShelfSyncItem] {
         var components = URLComponents(url: baseURL.appendingPathComponent("shelf"), resolvingAgainstBaseURL: true)!
         components.queryItems = [URLQueryItem(name: "deviceId", value: deviceId.uuidString)]
         guard let targetURL = components.url else { throw URLError(.badURL) }
+        var request = URLRequest(url: targetURL)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         
-        let (data, response) = try await session.data(from: targetURL)
+        let (data, response) = try await session.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
             throw URLError(.badServerResponse)
         }
@@ -379,7 +450,7 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
         return try decoder.decode([ShelfSyncItem].self, from: data)
     }
 
-    public func register(email: String, password: String, name: String) async throws -> AuthTokenResponse {
+    public func register(email: String, password: String, name: String, handle: String = "") async throws -> AuthTokenResponse {
         let url = baseURL.appendingPathComponent("auth").appendingPathComponent("register")
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -388,14 +459,13 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
         let body: [String: String] = [
             "email": email,
             "password": password,
-            "name": name
+            "name": name,
+            "handle": handle
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
         
         let (data, response) = try await session.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
-            throw URLError(.badServerResponse)
-        }
+        try validateResponse(response, data: data)
         
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
@@ -415,13 +485,57 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
         
         let (data, response) = try await session.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
-            throw URLError(.badServerResponse)
-        }
+        try validateResponse(response, data: data)
         
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         return try decoder.decode(AuthTokenResponse.self, from: data)
+    }
+
+    public func recordReadingSession(_ request: ReadingSessionRequest, token: String) async throws {
+        let url = baseURL.appendingPathComponent("auth").appendingPathComponent("me").appendingPathComponent("reading-sessions")
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        urlRequest.httpBody = try encoder.encode(request)
+        let (data, response) = try await session.data(for: urlRequest)
+        try validateResponse(response, data: data)
+    }
+
+    public func fetchReadingStats(token: String) async throws -> ReadingStatsDTO {
+        let url = baseURL.appendingPathComponent("auth").appendingPathComponent("me").appendingPathComponent("stats")
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        let (data, response) = try await session.data(for: request)
+        try validateResponse(response, data: data)
+        return try JSONDecoder().decode(ReadingStatsDTO.self, from: data)
+    }
+
+    public func logout(token: String) async throws {
+        let url = baseURL.appendingPathComponent("auth").appendingPathComponent("logout")
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        let (data, response) = try await session.data(for: request)
+        try validateResponse(response, data: data)
+    }
+
+    public func updateProfile(_ request: ProfileUpdateRequest, token: String) async throws -> AuthUserDTO {
+        let url = baseURL.appendingPathComponent("auth").appendingPathComponent("me")
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "PATCH"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        urlRequest.httpBody = try JSONEncoder().encode(request)
+
+        let (data, response) = try await session.data(for: urlRequest)
+        try validateResponse(response, data: data)
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try decoder.decode(AuthUserDTO.self, from: data)
     }
 
     public func fetchCurrentUser(token: String) async throws -> AuthUserDTO {
@@ -431,9 +545,7 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         
         let (data, response) = try await session.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
-            throw URLError(.badServerResponse)
-        }
+        try validateResponse(response, data: data)
         
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601

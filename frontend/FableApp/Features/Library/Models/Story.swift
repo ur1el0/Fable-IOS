@@ -229,7 +229,7 @@ public struct Story: Identifiable, Hashable, Codable {
     public var totalPages: Int
     public var currentPage: Int
     public var progressPercent: Int
-    public var rating: Double
+    public var rating: Double?
     public var providerDownloadCount: Int?
     public var savesCount: String
     public var readsCount: String
@@ -302,7 +302,7 @@ public struct Story: Identifiable, Hashable, Codable {
         self.totalPages = try container.decodeIfPresent(Int.self, forKey: .totalPages) ?? 0
         self.currentPage = try container.decodeIfPresent(Int.self, forKey: .currentPage) ?? 1
         self.progressPercent = try container.decodeIfPresent(Int.self, forKey: .progressPercent) ?? 0
-        self.rating = try container.decodeIfPresent(Double.self, forKey: .rating) ?? 0
+        self.rating = try container.decodeIfPresent(Double.self, forKey: .rating)
         self.providerDownloadCount = try container.decodeIfPresent(Int.self, forKey: .providerDownloadCount)
         self.savesCount = try container.decodeIfPresent(String.self, forKey: .savesCount) ?? "0"
         self.readsCount = try container.decodeIfPresent(String.self, forKey: .readsCount) ?? "0"
@@ -350,7 +350,7 @@ public struct Story: Identifiable, Hashable, Codable {
         self.totalPages = max(0, readTimeMinutes)
         self.currentPage = 1
         self.progressPercent = isCompleted ? 100 : 0
-        self.rating = 0
+        self.rating = nil
         self.providerDownloadCount = nil
         self.savesCount = "0"
         self.readsCount = "0"
@@ -385,7 +385,7 @@ public struct Story: Identifiable, Hashable, Codable {
         totalPages: Int = 0,
         currentPage: Int = 1,
         progressPercent: Int = 0,
-        rating: Double = 0,
+        rating: Double? = nil,
         providerDownloadCount: Int? = nil,
         savesCount: String = "0",
         readsCount: String = "0",

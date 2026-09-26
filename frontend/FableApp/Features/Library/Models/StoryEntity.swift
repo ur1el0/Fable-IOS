@@ -96,6 +96,7 @@ public final class AnnotationEntity {
     public var note: String?
     public var styleRaw: String
     public var isPinnedToJournal: Bool
+    public var ownerUserId: UUID?
     public var createdAtUtc: Date
     
     public var story: StoryEntity?
@@ -108,6 +109,7 @@ public final class AnnotationEntity {
         note: String? = nil,
         styleRaw: String = "terracotta",
         isPinnedToJournal: Bool = false,
+        ownerUserId: UUID? = nil,
         createdAtUtc: Date = Date(),
         story: StoryEntity? = nil
     ) {
@@ -118,6 +120,7 @@ public final class AnnotationEntity {
         self.note = note
         self.styleRaw = styleRaw
         self.isPinnedToJournal = isPinnedToJournal
+        self.ownerUserId = ownerUserId
         self.createdAtUtc = createdAtUtc
         self.story = story
     }
@@ -128,6 +131,7 @@ public final class ReadingLogEntity {
     @Attribute(.unique) public var id: UUID
     public var storyId: UUID
     public var storyTitle: String
+    public var ownerUserId: UUID?
     public var secondsRead: Int
     public var date: Date
     public var isCompleted: Bool
@@ -138,11 +142,13 @@ public final class ReadingLogEntity {
         storyTitle: String,
         secondsRead: Int,
         date: Date = Date(),
+        ownerUserId: UUID? = nil,
         isCompleted: Bool = false
     ) {
         self.id = id
         self.storyId = storyId
         self.storyTitle = storyTitle
+        self.ownerUserId = ownerUserId
         self.secondsRead = secondsRead
         self.date = date
         self.isCompleted = isCompleted
