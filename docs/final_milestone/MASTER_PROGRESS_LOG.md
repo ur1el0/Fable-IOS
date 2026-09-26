@@ -3,26 +3,26 @@
 **Course:** ITWM101 (Integrative Programming & Technologies 2)  
 **Developer:** Roosc Zaño  
 **Role:** Lead Systems Engineer & Solutions Architect  
-**Active Feature Branch:** `feature/production-hardening`
+**Active Feature Branch:** `feature/live-data-and-button-wiring`
 
 ---
 
 ## Executive Summary & System Objectives
 
-The Final Milestone transforms **Fable** from an editorial prototype into a fully production-grade, end-to-end integrated micro-fiction reading platform. All cosmetic dummy actions, hardcoded placeholders, and static assumptions are systematically replaced with live contracts, multi-tenant persistence, resilient media pipelines, and accessible audio engines.
+This progress log tracks the transition of **Fable** from an editorial prototype to a provider-backed, offline-first reading platform. The backend has 35 passing container tests covering content contracts, account isolation, live statistics, and persistent sessions. The iOS changes are implemented but cannot be compiled or run in this Fedora workspace because Swift and Xcode are unavailable. Twelve legacy demo stories remain in existing backend databases pending explicit approval for their removal.
 
 ### The 8 Core Architectural Domains
 
 | Domain | Document Reference | Status | Scope Description |
 | :--- | :--- | :--- | :--- |
-| **1. Backend Security, Data Isolation & Auth** | [`01_BACKEND_SECURITY_AND_DATA.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/01_BACKEND_SECURITY_AND_DATA.md) | **Complete** | Multi-tenant compound keys, UTC datetime normalization, PBKDF2 authentication, Swift-parity JSON serialization aliases. |
-| **2. Live Media & Content Pipelines** | [`02_LIVE_MEDIA_AND_CONTENT.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/02_LIVE_MEDIA_AND_CONTENT.md) | **Complete** | Async remote image loading for covers and author avatars, Gutendex live ingestion, resilient vector fallbacks, persistent device identity. |
+| **1. Backend Security, Data Isolation & Auth** | [`01_BACKEND_SECURITY_AND_DATA.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/01_BACKEND_SECURITY_AND_DATA.md) | **Complete** | Account/device/story shelf isolation, expiring persisted bearer sessions, PBKDF2 authentication, reading-event statistics, and camelCase response aliases. |
+| **2. Live Media & Content Pipelines** | [`02_LIVE_MEDIA_AND_CONTENT.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/02_LIVE_MEDIA_AND_CONTENT.md) | **Complete** | Provider cover URLs, on-demand Gutenberg chapters, clipped remote images, offline media cache, and per-account device identity. |
 | **3. Reader Pacing & Word Tokenization** | [`03_READER_PACING_AND_WORD_TOKENIZATION.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/03_READER_PACING_AND_WORD_TOKENIZATION.md) | **Complete** | Zoom-invariant word counting, multi-whitespace tokenization, dynamic page chunking responsive to font scale. |
-| **4. UI Interactions & Voice Accessibility** | [`04_UI_INTERACTIONS_AND_AUDIO_ACCESSIBILITY.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/04_UI_INTERACTIONS_AND_AUDIO_ACCESSIBILITY.md) | **Complete** | 100% interactive button bindings, `AVSpeechSynthesizer` voice selector sheet, active chapter narration state machine. |
-| **5. Live Metadata & Pure User-State Isolation** | [`03_LIVE_METADATA_AND_USER_STATE_PURGING.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/03_LIVE_METADATA_AND_USER_STATE_PURGING.md) | **Complete** | Elimination of artificial seed bookmarks & stat floors; live official author portraits, high-res genre banners, Gutenberg covers, and authentic empty states. |
+| **4. UI Interactions & Voice Accessibility** | [`04_UI_INTERACTIONS_AND_AUDIO_ACCESSIBILITY.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/04_UI_INTERACTIONS_AND_AUDIO_ACCESSIBILITY.md) | **Implemented; device check pending** | Actions are wired across writing, profile, library, reader, shelf, and settings; `AVSpeechSynthesizer` uses installed OS voices. |
+| **5. Live Metadata & Pure User-State Isolation** | [`03_LIVE_METADATA_AND_USER_STATE_PURGING.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/03_LIVE_METADATA_AND_USER_STATE_PURGING.md) | **Code complete; legacy DB rows pending approval** | Fresh installs have no bundled story catalog; provider and authored content uses live metadata and account-owned shelf/profile state. |
 | **6. Multi-Format & Manga Architecture** | [`05_MULTI_FORMAT_AND_MANGA_ARCHITECTURE.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/05_MULTI_FORMAT_AND_MANGA_ARCHITECTURE.md) | **Complete** | Polymorphic reader dispatch, continuous vertical Webtoon scroll, horizontal swipe paging, manga panel ingestion pipeline. |
-| **7. Testing Suites & ADR Baseline** | [`04_UI_INTERACTIONS_AND_AUDIO_ACCESSIBILITY.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/04_UI_INTERACTIONS_AND_AUDIO_ACCESSIBILITY.md) | **Complete** | 22/22 pytest automated backend suite, Swift unit tests, ADR documentation, and academic lab reproducibility. |
-| **8. App Health Diagnostics & Anti-Overlap Invariants** | [`MASTER_PROGRESS_LOG.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/MASTER_PROGRESS_LOG.md) | **Complete** | Image boundary clipping guarantees, on-device `SystemDiagnosticsSheet`, and `AppHealthTests` automated verification contract. |
+| **7. Testing Suites & ADR Baseline** | [`04_UI_INTERACTIONS_AND_AUDIO_ACCESSIBILITY.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/04_UI_INTERACTIONS_AND_AUDIO_ACCESSIBILITY.md) | **Backend verified; iOS run pending** | 35/35 backend tests pass in Docker. Swift build, Swift tests, and device diagnostics require Xcode and remain unrun here. |
+| **8. App Health Diagnostics & Anti-Overlap Invariants** | [`MASTER_PROGRESS_LOG.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/MASTER_PROGRESS_LOG.md) | **Implemented; device check pending** | Image boundary clipping, `SystemDiagnosticsSheet`, and `AppHealthTests` are in source; execution requires Xcode. |
 
 ---
 
@@ -30,17 +30,17 @@ The Final Milestone transforms **Fable** from an editorial prototype into a full
 
 | Feature / UI Component | Original State (Midterm) | Final Milestone Target | Status | Implementation File(s) |
 | :--- | :--- | :--- | :--- | :--- |
-| **Shelf Sync API** | Single-tenant overwrite (`story_id` PK) | Multi-tenant isolation `(device_id, story_id)` with UTC normalization | **Complete** | `backend/services/shelf_sync.py`, `backend/core/database.py` |
-| **User Authentication** | Hardcoded profile data | PBKDF2 hash, JWT/Bearer token, register & login endpoints | **Complete** | `backend/services/auth_service.py`, `backend/api/v1/endpoints/auth.py` |
-| **Device ID Persistence** | Ephemeral `UUID()` regenerated every sync | Hardware/vendor-backed `UserDefaults` UUID (`fable_device_id`) | **Complete** | `Features/Library/ViewModels/StoryStore.swift` |
-| **Story Covers & Avatars** | Local asset catalogs only (`cover_dracula`) | Live URL fetch via `AsyncImage` with procedural fallback + offline asset catalog | **Complete** | `Features/Library/Models/Story.swift`, `Features/Library/Views/ExploreView.swift`, `Features/Shelf/Views/ProfileView.swift`, `Features/Reader/Views/ReaderView.swift` |
+| **Shelf Sync API** | Unauthenticated device-only records | Bearer-authenticated isolation `(owner_user_id, device_id, story_id)` with UTC LWW | **Complete** | `backend/services/shelf_sync.py`, `backend/core/database.py` |
+| **User Authentication** | Hardcoded profile data and process-local token lookup | PBKDF2 hashes, persisted hashed bearer sessions, 30-day expiry, logout revocation | **Complete** | `backend/services/auth_service.py`, `backend/api/v1/endpoints/auth.py` |
+| **Device ID Persistence** | Shared device identifier across accounts | Per-account `UserDefaults` device UUID and offline shelf snapshot | **Complete** | `Features/Library/ViewModels/StoryStore.swift` |
+| **Story Covers & Avatars** | Title-specific local art and duplicate demo images | Provider URLs, clipped remote rendering, neutral SF Symbol placeholders, URL-keyed offline image cache | **Complete** | `Features/Library/Models/Story.swift`, `Core/Components/FableImageView.swift`, `Core/Services/DiskImageCache.swift` |
 | **Frontend Topology** | Flat technical layering (`Views/`, `ViewModels/`) | Feature-driven vertical slices (`App/`, `Core/`, `Features/{Auth,Library,Reader,Shelf,Write}`) | **Complete** | `frontend/FableApp/Features/`, `frontend/FableApp/Core/`, `frontend/FableApp/App/` |
 | **Word Count Accuracy** | `split(separator: " ")` (fails on tabs/newlines) | Regex/tokenized whitespace counter invariant to zoom level | **Complete** | `Features/Reader/Services/PacingEngine.swift`, `Features/Reader/Views/ReaderView.swift` |
 | **Reader Zoom / Font Size** | Initial render only, inconsistent pagination | Dynamic pagination recalculated upon pinch/slider change | **Complete** | `Features/Reader/Views/ReaderView.swift`, `Features/Reader/Views/DisplayOptionsSheet.swift` |
 | **Audio Voice Selector** | Hardcoded `en-US` default voice | Dynamic system voice picker querying available speech engines | **Complete** | `Features/Reader/Services/AudioNarratorController.swift`, `VoiceSelectionSheet.swift` |
 | **Audio Narrator Target** | Always read Chapter 1 | Narration dynamically bound to active displayed chapter | **Complete** | `Features/Reader/Services/AudioNarratorController.swift`, `Features/Reader/Views/ReaderView.swift` |
 | **Shelf Remove Button** | Visual only or local array remove | Synchronized removal / bookmark toggle synced to backend | **Complete** | `Features/Shelf/Views/ShelfView.swift`, `Features/Library/ViewModels/StoryStore.swift` |
-| **Profile Stats & Edit** | Dummy text | Live stats calculated from SwiftData/backend shelf items | **Complete** | `Features/Shelf/Views/ProfileView.swift`, `Features/Auth/ViewModels/AuthViewModel.swift` |
+| **Profile Stats & Edit** | Device-wide totals and placeholder text | Account-scoped live completed, minutes, and streak statistics; profile updates sync with backend | **Complete** | `Features/Shelf/Views/ProfileView.swift`, `Features/Auth/ViewModels/AuthViewModel.swift` |
 
 ---
 
@@ -58,7 +58,7 @@ The Final Milestone transforms **Fable** from an editorial prototype into a full
   - [x] Step 2.2: Establish persistent device identifier (`fable_device_id`) in `UserDefaults`.
   - [x] Step 2.3: Upgrade `StoryAPIService` with dual camelCase/snake_case decoding and auth endpoints.
   - [x] Step 2.4: Eliminate raw `coverImageName` calls across `ExploreView`, `ProfileView`, `LibraryView`, and `ReaderView`.
-  - [x] Step 2.5: Realign frontend into feature-driven vertical slices (`App`, `Core`, `Features/{Auth,Library,Reader,Shelf,Write}`) and integrate authentic asset catalog from `main`.
+  - [x] Step 2.5: Realign frontend into feature-driven vertical slices and remove title-specific bundled artwork; the asset catalog retains only app icon and accent color.
 - [x] **Milestone 3: Reader Pacing, Tokenization & Zoom Invariance**
   - [x] Step 3.1: Zoom-invariant word tokenization in `PacingEngine.swift`.
   - [x] Step 3.2: Dynamic page recalculation on font size changes in `ReaderView.swift`.
@@ -68,7 +68,7 @@ The Final Milestone transforms **Fable** from an editorial prototype into a full
   - [x] Step 4.2: Dynamic chapter narration binding in `AudioNarratorController`.
   - [x] Step 4.3: Full interactive button pass across all views.
 - [x] **Milestone 5: Live Metadata & Pure User-State Isolation** (See [`03_LIVE_METADATA_AND_USER_STATE_PURGING.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/03_LIVE_METADATA_AND_USER_STATE_PURGING.md))
-  - [x] Step 5.1: Backend live metadata enrichment (`avatar_image_url`, `image_url`, and Maria Makiling cover URL in `story_service.py` & `seed_catalog.py`).
+  - [x] Step 5.1: Backend metadata enrichment from live provider responses; the embedded catalog module was subsequently removed.
   - [x] Step 5.2: Domain & Persistence zero-baseline calibration (`isSaved = false`, `progressPercent = 0` in `Story.swift`; removal of `max(12, ...)` stat floors in `PersistenceService.swift`).
   - [x] Step 5.3: Frontend Shelf & Profile empty state views (removal of `prefix(3)` and `prefix(2)` fallbacks; branded empty state cards).
   - [x] Step 5.4: LibraryView "Continue Reading" fallback purge (only show card when an actual tale is in progress).
@@ -95,7 +95,7 @@ The Final Milestone transforms **Fable** from an editorial prototype into a full
   - [x] Step 8.2: Creation of `AppHealthTests.swift` validating chapter updates, feed ingestion, live genres, top creators, accurate living analytics, and media bounding invariants.
   - [x] Step 8.3: Interactive `SystemDiagnosticsSheet.swift` and Settings trigger for on-device and simulator verification.
   - [x] Step 8.4: Integration of `AppHealthTests` into `LibraryTests.swift` (Test 9).
-  - [x] Step 8.5: Backend test suite expansion in `test_main.py` verifying live contracts and image URLs (22/22 pytest passing).
+  - [x] Step 8.5: Backend test suite expansion for that milestone; the current expanded suite has 35 passing tests.
 
 ## Production Hardening Enhancements (2026-09-26)
 
@@ -210,3 +210,28 @@ The Final Milestone transforms **Fable** from an editorial prototype into a full
 - [x] iOS now queues offline reading events per account, fetches the live totals, and scopes offline logs and shelf snapshots to each account.
 - [x] Writer toolbar actions apply formatting to selected manuscript text and have an on-device interaction diagnostic.
 - The iOS diagnostic and simulator/device build remain unrun in this Fedora workspace because Swift and Xcode are unavailable.
+
+
+## Persistent Bearer Sessions (2026-09-26)
+
+- [x] Replaced process-local bearer lookup with SHA-256 token digests stored in SQLite, 30-day expiry, and expired-session cleanup.
+- [x] Added authenticated logout revocation and connected iOS sign-out to the endpoint.
+- [x] Added restart-state and revocation coverage.
+- [x] Docker backend suite passed: 34 tests.
+
+
+## Restoring Saved Gutenberg Titles Across Devices (2026-09-26)
+
+- [x] Added a provider-ID metadata lookup so an authenticated shelf can resolve saved Gutenberg titles outside the first discovery page.
+- [x] Shelf restore applies account-owned progress to the live provider story; chapters and covers continue loading from Gutenberg metadata and source text.
+- [x] Added live metadata endpoint coverage. Docker backend suite passed: 35 tests.
+- iOS implementation still awaits an Xcode build and device diagnostics, unavailable in this Fedora workspace.
+
+
+## Account Isolation and Interaction Audit (2026-09-26)
+
+- [x] Local highlights and pinned quotes now carry an optional account owner and are filtered on read, update, and delete; switching accounts clears active annotations before loading that account's journal. Existing ownerless annotations remain available only to a signed-out local session.
+- [x] Scanned SwiftUI button closures for empty application actions. The remaining empty Cancel closures are system alert/sheet dismiss actions; the visible feature controls dispatch to navigation, persistence, API, editor, reader, or settings operations.
+- [x] `git diff --check` passes. Backend suite remains at 35 passing tests in Docker.
+- [ ] iOS build, Swift tests, and on-device `AppHealthTests` remain unverified because this workspace has no Swift or Xcode toolchain.
+- [ ] Removal of the 12 legacy demo story/chapter rows from persistent backend databases remains pending explicit approval; no rows were deleted.

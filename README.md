@@ -6,8 +6,8 @@
 [![Architecture](https://img.shields.io/badge/Architecture-Modular%20MVVM%2BS-green.svg)](https://developer.apple.com)
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI%200.110+-009688.svg)](https://fastapi.tiangolo.com)
 [![Pydantic v2](https://img.shields.io/badge/Contract-Pydantic%20v2-e92063.svg)](https://docs.pydantic.dev/)
-[![Database](https://img.shields.io/badge/Database-SQLite%20%7C%20PostgreSQL-4169E1.svg)](https://www.sqlite.org/)
-[![Pytest](https://img.shields.io/badge/Tests-22%2F22%20Passing-brightgreen.svg)](https://pytest.org)
+[![Database](https://img.shields.io/badge/Database-SQLite-4169E1.svg)](https://www.sqlite.org/)
+[![Pytest](https://img.shields.io/badge/Tests-35%2F35%20Passing-brightgreen.svg)](https://pytest.org)
 [![Multi-Format](https://img.shields.io/badge/Format-Prose%20%7C%20Manga-indigo.svg)](https://developer.apple.com)
 [![Figma Prototype](https://img.shields.io/badge/Figma-100%25%20Prototype-pink.svg)](https://www.figma.com/proto/fable-ios-prototype-midterm)
 
@@ -29,18 +29,16 @@
 * **Audio Speech Engine:** `AVFoundation` (`AVSpeechSynthesizer`, `AVSpeechUtterance`, regional `AVSpeechSynthesisVoice` audition sheet)
 * **Security & Credential Vault:** Apple `Security` framework (`KeychainStore` for encrypted token and session storage)
 * **Diagnostics Suite:** Built-in `AppHealthTests` and on-device `SystemDiagnosticsSheet` verifying layout clipping and live ingestion contracts.
-* **Networking & HTTP:** Native `URLSession` with ATS (App Transport Security) local development exceptions
+* **Networking & HTTP:** Native `URLSession` with ATS enabled; development API base URL is configurable
 
 ### Server-Side (Backend API)
 * **Runtime & Framework:** Python 3.11+ / FastAPI (High-performance asynchronous REST API)
 * **Data Validation & Contracts:** Pydantic v2 with `serialization_alias` (Strict camelCase client / snake_case server parity)
-* **Database & Persistence:**
-  * *Development / Lab:* SQLite 3 with multi-tenant compound keys `(device_id, story_id)`
-  * *Production:* PostgreSQL 16+ via SQLAlchemy ORM (Connection pooling, ACID compliance)
-* **HTTP Client:** HTTPX (Asynchronous fetching for external APIs such as Project Gutenberg, Standard Ebooks, and MangaDex)
-* **Security:** Passlib PBKDF2/BCrypt password hashing and persistent bearer token authentication
-* **ASGI Web Server:** Uvicorn (Lightning-fast asynchronous server gateway)
-* **Automated Testing:** Pytest with FastAPI `TestClient` (22/22 unit and contract integration tests passing)
+* **Database & Persistence:** SQLite 3 with additive schema initialization and account-scoped shelf, reading-session, and user records.
+* **HTTP Client:** HTTPX for live Gutendex/Project Gutenberg and Open Library requests.
+* **Security:** Salted PBKDF2-HMAC-SHA256 password hashes, SHA-256 digests of random bearer tokens, 30-day session expiry, and server-side logout revocation.
+* **ASGI Web Server:** Uvicorn.
+* **Automated Testing:** Pytest with FastAPI `TestClient` (35 backend tests passing in the container).
 
 ---
 
@@ -72,25 +70,27 @@ Fable is architected around **Feature-Driven Vertical Slices** combined with **M
                                                             ▼
 ┌───────────────────────────────────────────────────────────────────────────┐
 │                      FastAPI Backend Engine (v1)                          │
-│   - /api/v1/auth       (BCrypt user registration, login, token profile)   │
+│   - /api/v1/auth       (Registration, login, profile, logout, stats)     │
+│   - /api/v1/auth/me/stats (Account reading totals and active streak)     │
 │   - /api/v1/stories    (Multi-format catalog, prose & manga chapters)     │
 │   - /api/v1/genres     (Live taxonomy & reader metrics)                   │
 │   - /api/v1/authors/top(Verified top creators & avatar URLs)              │
 │   - /api/v1/updates    (Live chapter updates & editorial highlights)      │
-│   - /api/v1/shelf/sync (Multi-tenant bidirectional LWW reconciliation)    │
+│   - /api/v1/shelf      (Bearer-protected account shelf read and sync)    │
+│   - /api/v1/auth/me/reading-sessions (Idempotent reading events)          │
 │   - /api/v1/health     (System diagnostics & DB status)                   │
 └─────────────────────────────────────┬─────────────────────────────────────┘
                                       │ Relational Queries
                                       ▼
 ┌───────────────────────────────────────────────────────────────────────────┐
-│                    SQLite / PostgreSQL Storage Tier                       │
-│    (stories, chapters, shelf_items, user_credentials, annotations)        │
+│                       SQLite Storage Tier                                 │
+│ (stories, chapters, account_shelf_items, reading_sessions, user_sessions) │
 └───────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Architectural Principles
-1. **Contract-First API Design:** Python schemas define Pydantic serialization aliases (`Field(..., serialization_alias="readTimeMinutes")`), guaranteeing 100% JSON contract parity with Swift `Codable` structs with zero runtime decoding exceptions.
-2. **Offline-First Resilience:** If the FastAPI backend is unreachable or the device is in airplane mode, the client gracefully falls back to cached SwiftData records and in-memory seed catalogs without blocking the UI or crashing.
+1. **Contract-First API Design:** Python schemas define camelCase Pydantic serialization aliases that match Swift `Codable` contracts; backend tests cover the serialized response shapes.
+2. **Offline-First Resilience:** When the backend is unreachable, the client uses previously cached SwiftData stories, chapters, discovery metadata, images, shelf state, and queued reading sessions. A fresh install has no bundled story catalog.
 3. **Decoupled Service Boundary:** SwiftUI views never execute raw network requests. All data fetching, caching, and mutations flow through protocol-abstracted services.
 
 ---
@@ -153,13 +153,14 @@ Fable is architected around **Feature-Driven Vertical Slices** combined with **M
    * In the top Xcode toolbar, confirm the active scheme is set to **FableApp**.
    * Select an iOS Simulator running **iOS 17.0+** (e.g., **iPhone 16 Pro** or **iPhone 15 Pro**).
 
-3. **Local Networking Configuration (ATS):**
-   * The project is pre-configured with `NSAppTransportSecurity` exceptions in `Info.plist` allowing arbitrary loads to `127.0.0.1` and `localhost:8000` for simulator communication.
+3. **Configure the API URL:**
+   * The `FABLE_API_BASE_URL` Xcode build setting is exposed through the generated Info.plist. It defaults to `http://127.0.0.1:8000/api/v1` for the iOS Simulator.
+   * For a physical device, set it to the development machine's LAN address, such as `http://192.168.1.20:8000/api/v1`, and bind FastAPI to `0.0.0.0`. For release builds, use the deployed HTTPS API URL.
+   * ATS allows local networking for development and keeps arbitrary HTTP loads disabled.
 
 4. **Build & Launch:**
    * Press `Cmd + R` (or click the **Play** button).
-   * Xcode will compile the Swift sources, launch the iOS Simulator, and connect to the local FastAPI backend.
-   * **Offline Fallback Guarantee:** Even if the backend server is stopped, Fable will seamlessly launch in offline mode with pre-seeded editorial classics!
+   * With the backend reachable, Fable discovers provider catalog entries and user-published stories. When offline, it uses previously cached provider metadata, images, chapters, and account-specific drafts; a fresh install has no bundled story catalog.
 
 ---
 
@@ -172,15 +173,14 @@ Fable-IOS/
 ├── Package.swift                           # Swift Package Manager manifest
 ├── backend/                                # Asynchronous Python / FastAPI Backend
 │   ├── main.py                             # Application entrypoint & middleware configuration
-│   ├── requirements.txt                    # Python dependencies (fastapi, uvicorn, pydantic, httpx, passlib)
-│   ├── test_main.py                        # Automated pytest test suite (22/22 tests passing)
+│   ├── requirements.txt                    # Python dependencies (FastAPI, Uvicorn, Pydantic, HTTPX, pytest)
+│   ├── test_main.py                        # Backend contract and service tests (35 passing)
 │   ├── api/v1/
 │   │   ├── api.py                          # Unified API router mounting
 │   │   └── endpoints/                      # Route controllers (auth, stories, shelf, gutenberg, health)
 │   ├── core/
-│   │   ├── database.py                     # SQLite / PostgreSQL connection pooling & schema bootstrap
-│   │   └── seed_catalog.py                 # Multi-chapter literary & graphic catalog
-│   ├── models/                             # Relational database models
+│   │   └── database.py                     # SQLite connection and additive schema bootstrap
+│   ├── models/                             # Data models
 │   ├── schemas/                            # Pydantic v2 DTOs with serialization aliases
 │   └── services/                           # Business logic (story service, shelf sync, gutenberg parser)
 ├── frontend/                               # Native iOS Application
@@ -194,7 +194,7 @@ Fable-IOS/
 │       │   ├── Reader/                     # ReaderView, MangaReaderView, DisplayOptionsSheet, VoiceSelectionSheet, AudioNarrator
 │       │   ├── Shelf/                      # ShelfView, ProfileView, SettingsView, SystemDiagnosticsSheet, ShelfTests
 │       │   └── Write/                      # WriteView, StoryComposer, StoryPublishedSheet, WriteTests
-│       └── Assets.xcassets/                # Retina covers, thumbnails, author portraits, and genre artwork
+│       └── Assets.xcassets/                # App icon and accent color; editorial images come from providers
 ├── docs/                                   # Architectural specifications & academic documentation
 │   ├── final_milestone/                    # Capstone ADRs, multi-format architecture, master progress log
 │   ├── FINAL_MILESTONE_PROGRESS.md         # Comprehensive milestone progression audit
@@ -215,12 +215,12 @@ Fable-IOS/
 | **Xcode defaults to "My Mac" destination** | Xcode auto-selected Mac Catalyst or macOS destination | Click the target dropdown at the top of Xcode ➔ Choose `iOS Simulators` ➔ `iPhone 16 Pro`. |
 | **Simulator fails to connect to `127.0.0.1:8000`** | FastAPI server is not running in terminal | In terminal, ensure virtual environment is active and run `uvicorn main:app --reload --port 8000`. |
 | **Old cached build artifacts fail** | Previous user left stale build cache | Press `Shift + Cmd + K` (**Product** ➔ **Clean Build Folder**), then press `Cmd + B` to rebuild. |
-| **Offline Lab Network (No Internet)** | Campus Wi-Fi blocked or offline computer | **Zero network dependency:** Fable automatically falls back to in-memory SwiftData seed data with 100% operational UI. |
+| **Offline Lab Network (No Internet)** | Campus Wi-Fi blocked or offline computer | Fable reads previously cached stories, chapters, images, and per-account shelf data. A first launch without network has no catalog to display. |
 
 ---
 
 ## 6. Official Submission References
 
 * **Figma Interactive Prototype:** [https://www.figma.com/proto/fable-ios-prototype-midterm](https://www.figma.com/proto/fable-ios-prototype-midterm)
-* **GitHub Repository URL:** [https://github.com/ur1el0/Fable-IOS/tree/feature/final-milestone](https://github.com/ur1el0/Fable-IOS/tree/feature/final-milestone)
+* **GitHub Repository URL:** [Fable-IOS](https://github.com/ur1el0/Fable-IOS/tree/feature/live-data-and-button-wiring)
 * **Author / Developer:** Roosc Zaño (ITWM101 | M090)
