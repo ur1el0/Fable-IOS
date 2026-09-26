@@ -107,7 +107,8 @@ public final class StoryController {
         errorMessage = nil
 
         do {
-            let fetched = try await apiService.fetchStories(genre: selectedGenre.rawValue, search: searchText)
+            let genreFilter = selectedGenre == .all ? nil : selectedGenre.rawValue
+            let fetched = try await apiService.fetchStories(genre: genreFilter, search: searchText)
             self.stories = fetched
         } catch {
             self.errorMessage = "Failed to load stories: \(error.localizedDescription)"

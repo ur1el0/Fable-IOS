@@ -106,39 +106,37 @@ public enum SourceProvider: String, Codable, CaseIterable, Identifiable {
     }
 }
 
-public enum Genre: String, Codable, CaseIterable, Identifiable {
-    case all = "All"
-    case manga = "Manga"
-    case folklore = "Folklore"
-    case urbanLegend = "Urban Legend"
-    case mythology = "Mythology"
-    case horror = "Horror"
-    case speculative = "Speculative"
-    case gothic = "Gothic"
-    case classic = "Classic"
-    case classicFiction = "Classic Fiction"
-    case classicMystery = "Classic Mystery"
-    case darkFantasy = "Dark Fantasy"
+public struct Genre: RawRepresentable, Codable, Hashable, Identifiable {
+    public let rawValue: String
+
+    public init(rawValue: String) {
+        self.rawValue = rawValue
+    }
 
     public var id: String { rawValue }
 
+    public static let all = Genre(rawValue: "All")
+    public static let manga = Genre(rawValue: "Manga")
+    public static let folklore = Genre(rawValue: "Folklore")
+    public static let urbanLegend = Genre(rawValue: "Urban Legend")
+    public static let mythology = Genre(rawValue: "Mythology")
+    public static let horror = Genre(rawValue: "Horror")
+    public static let speculative = Genre(rawValue: "Speculative")
+    public static let gothic = Genre(rawValue: "Gothic")
+    public static let classic = Genre(rawValue: "Classic")
+    public static let classicFiction = Genre(rawValue: "Classic Fiction")
+    public static let classicMystery = Genre(rawValue: "Classic Mystery")
+    public static let darkFantasy = Genre(rawValue: "Dark Fantasy")
+    public static let unspecified = Genre(rawValue: "")
+
     public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
-        let raw = try container.decode(String.self)
-        if let match = Genre(rawValue: raw) {
-            self = match
-        } else {
-            let lower = raw.lowercased()
-            if lower.contains("manga") || lower.contains("comic") { self = .manga }
-            else if lower.contains("folk") { self = .folklore }
-            else if lower.contains("urban") { self = .urbanLegend }
-            else if lower.contains("myth") { self = .mythology }
-            else if lower.contains("horror") { self = .horror }
-            else if lower.contains("gothic") { self = .gothic }
-            else if lower.contains("speculative") || lower.contains("sci-fi") { self = .speculative }
-            else if lower.contains("fantasy") { self = .darkFantasy }
-            else { self = .all }
-        }
+        self.init(rawValue: try container.decode(String.self))
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(rawValue)
     }
 }
 
@@ -290,7 +288,7 @@ public struct Story: Identifiable, Hashable, Codable {
         self.id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
         self.title = try container.decode(String.self, forKey: .title)
         self.author = try container.decode(String.self, forKey: .author)
-        self.genre = try container.decodeIfPresent(Genre.self, forKey: .genre) ?? .folklore
+        self.genre = try container.decodeIfPresent(Genre.self, forKey: .genre) ?? .unspecified
         self.synopsis = try container.decodeIfPresent(String.self, forKey: .synopsis) ?? ""
         self.content = try container.decodeIfPresent(String.self, forKey: .content) ?? ""
         self.readTimeMinutes = try container.decodeIfPresent(Int.self, forKey: .readTimeMinutes) ?? 0
@@ -407,15 +405,7 @@ public struct Story: Identifiable, Hashable, Codable {
         self.id = id
         self.title = title
         self.author = author
-        self.genre = Genre(rawValue: genre) ?? {
-            let lower = genre.lowercased()
-            if lower.contains("manga") || lower.contains("comic") { return .manga }
-            if lower.contains("folk") { return .folklore }
-            if lower.contains("myth") { return .mythology }
-            if lower.contains("horror") || lower.contains("gothic") { return .horror }
-            if lower.contains("urban") { return .urbanLegend }
-            return .folklore
-        }()
+        self.genre = Genre(rawValue: genre)
         self.synopsis = excerpt
         self.content = paragraphs.joined(separator: "\n\n")
         self.readTimeMinutes = readingTimeMinutes

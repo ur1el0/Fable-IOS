@@ -58,7 +58,7 @@ public final class StoryStore: ObservableObject {
     
     // Writing Draft
     @Published var draftTitle: String = ""
-    @Published var draftGenre: String = "Folklore"
+    @Published var draftGenre: String = ""
     @Published var draftChapter: String = "Chapter I"
     @Published var draftSynopsis: String = ""
     @Published var draftManuscript: String = ""

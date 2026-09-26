@@ -55,6 +55,7 @@ public struct LibraryTests {
 
         if let legacyStory = try? JSONDecoder().decode(Story.self, from: legacyJSON) {
             assert(legacyStory.contentFormat == .prose, "Legacy Story ContentFormat Defaults to Prose")
+            assert(legacyStory.genre == .unspecified, "Missing Legacy Genre Stays Unspecified")
             assert(legacyStory.sourceProvider == .fableOriginal, "Legacy Story SourceProvider Defaults to FableOriginal")
             assert(legacyStory.lastReadChapterId == nil && legacyStory.lastReadChapterNumber == nil, "Legacy Story Chapter Progress Defaults to Empty")
         } else {
@@ -84,6 +85,7 @@ public struct LibraryTests {
             "id": "00000000-0000-0000-0000-00000000053E",
             "title": "Pride and Prejudice",
             "author": "Jane Austen",
+            "genre": "Historical Fiction",
             "sourceProvider": "GUTENBERG",
             "providerId": "1342"
         }
@@ -92,6 +94,7 @@ public struct LibraryTests {
         if let liveBook = try? JSONDecoder().decode(Story.self, from: liveProviderJSON) {
             assert(liveBook.sourceProvider == .gutenberg, "Live Book Decodes Gutenberg Source")
             assert(liveBook.providerId == "1342", "Live Book Decodes Provider ID")
+            assert(liveBook.genre.rawValue == "Historical Fiction", "Unknown Live Genre Is Preserved")
         } else {
             assert(false, "Live Provider Story JSON Decoding Failed")
         }

@@ -8,11 +8,8 @@ public struct WriteView: View {
     @State private var isShowingClearAlert: Bool = false
     @FocusState private var isManuscriptFocused: Bool
     
-    let availableGenres = [
-        "Manga", "Folklore", "Mythology", "Gothic", "Classic Fiction",
-        "Classic Mystery", "Dark Fantasy", "Speculative", "Urban Legend"
-    ]
-    
+    var availableGenres: [String] { store.genres.map(\.name) }
+
     let availableChapters = ["Prologue", "Chapter I", "Chapter II", "Chapter III", "Chapter IV", "Epilogue"]
     
     public init() {}
@@ -116,7 +113,14 @@ public struct WriteView: View {
                                         .foregroundColor(FableTheme.textMuted)
                                         .frame(width: 44, alignment: .leading)
                                     
-                                    // Interactive Genre Picker Menu
+                                    TextField("Genre", text: $store.draftGenre)
+                                        .font(.system(size: 13, weight: .medium))
+                                        .textInputAutocapitalization(.words)
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 7)
+                                        .background(FableTheme.surface)
+                                        .clipShape(Capsule())
+
                                     Menu {
                                         ForEach(availableGenres, id: \.self) { genre in
                                             Button(genre) {
@@ -124,19 +128,12 @@ public struct WriteView: View {
                                             }
                                         }
                                     } label: {
-                                        HStack(spacing: 6) {
-                                            Image(systemName: "book.closed")
-                                                .font(.system(size: 11))
-                                            Text(store.draftGenre)
-                                                .font(.system(size: 12, weight: .semibold))
-                                            Image(systemName: "chevron.down")
-                                                .font(.system(size: 9))
-                                        }
-                                        .foregroundColor(FableTheme.brandPrimary)
-                                        .padding(.horizontal, 10)
-                                        .padding(.vertical, 5)
-                                        .background(FableTheme.surface)
-                                        .clipShape(Capsule())
+                                        Image(systemName: "chevron.down")
+                                            .font(.system(size: 10, weight: .semibold))
+                                            .foregroundColor(FableTheme.brandPrimary)
+                                            .padding(8)
+                                            .background(FableTheme.surface)
+                                            .clipShape(Circle())
                                     }
                                     
                                     // Interactive Chapter Picker Menu

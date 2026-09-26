@@ -166,3 +166,10 @@ The Final Milestone transforms **Fable** from an editorial prototype into a full
 - [x] Removed fabricated default profile names, biographies, handles, and verification badges.
 - [ ] Legacy records already stored on backend instances are unchanged pending the requested approval for removing the 12 old demo rows.
 - Source diff passed whitespace checks. iOS compilation and on-device diagnostics remain unavailable here because Swift and Xcode are not installed.
+
+## Preserve Live Genre Contract (2026-09-26)
+
+- [x] Replaced the closed genre enum decoder with a raw-value Codable model so server-supplied genres remain intact.
+- [x] Missing legacy genre values remain unspecified instead of becoming a fabricated category.
+- [x] Explore filtering and authoring suggestions use live genre metadata; authors may enter a genre when offline metadata is unavailable.
+- Added diagnostic assertions for arbitrary genre decoding. Swift/Xcode compilation remains unavailable in this environment.
