@@ -183,6 +183,82 @@ async def ingest_gutenberg_book(
         conn.close()
 
 
+def _story_from_gutenberg_metadata(book: dict, fallback_genre: Optional[str] = None) -> Optional[StoryDTO]:
+    book_id = book.get("id")
+    title = str(book.get("title", "")).strip()
+    authors = book.get("authors", [])
+    author_name = str(authors[0].get("name", "")).strip() if authors else ""
+    if not book_id or not title or not author_name:
+        return None
+    if ", " in author_name:
+        family_name, given_names = author_name.split(", ", 1)
+        author_name = f"{given_names} {family_name}"
+
+    subjects = book.get("subjects", [])
+    genre = str(subjects[0]).strip() if subjects else (fallback_genre or "")
+    summaries = book.get("summaries", [])
+    synopsis = str(summaries[0]).strip() if summaries else ""
+    cover_url = book.get("formats", {}).get("image/jpeg")
+    if not cover_url:
+        return None
+    try:
+        provider_download_count = max(0, int(book.get("download_count", 0)))
+        book_id = int(book_id)
+        story_id = UUID(int=book_id)
+    except (TypeError, ValueError):
+        return None
+
+    now = datetime.now(timezone.utc)
+    return StoryDTO(
+        id=story_id,
+        title=title[:120],
+        author=author_name[:80],
+        genre=genre,
+        chapter="",
+        synopsis=synopsis,
+        content="",
+        read_time_minutes=0,
+        is_bookmarked=False,
+        is_completed=False,
+        created_at_utc=now,
+        updated_at_utc=now,
+        cover_image_url=cover_url,
+        total_pages=0,
+        rating=None,
+        saves_count="0",
+        reads_count="0",
+        total_chapters=0,
+        content_format="PROSE",
+        source_provider="GUTENBERG",
+        provider_id=str(book_id),
+        provider_download_count=provider_download_count,
+    )
+
+
+async def get_gutenberg_story_by_id(gutenberg_id: int) -> StoryDTO:
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            response = await client.get(
+                "https://gutendex.com/books/",
+                params={"ids": str(gutenberg_id)},
+                headers=PROVIDER_HEADERS,
+            )
+    except httpx.HTTPError as error:
+        raise HTTPException(status_code=502, detail="Gutenberg catalog service is unavailable") from error
+    if response.status_code != 200:
+        raise HTTPException(status_code=502, detail="Gutenberg catalog service returned an error")
+    book = next(
+        (item for item in response.json().get("results", []) if item.get("id") == gutenberg_id),
+        None,
+    )
+    if book is None:
+        raise HTTPException(status_code=404, detail="Gutenberg book was not found")
+    story = _story_from_gutenberg_metadata(book)
+    if story is None:
+        raise HTTPException(status_code=422, detail="Gutenberg metadata is incomplete")
+    return story
+
+
 async def get_gutenberg_stories(
     topic: Optional[str] = None,
     search: Optional[str] = None,
@@ -205,57 +281,9 @@ async def get_gutenberg_stories(
     if response.status_code != 200:
         raise HTTPException(status_code=502, detail="Gutenberg catalog service returned an error")
 
-    results = response.json().get("results", [])
-    now = datetime.now(timezone.utc)
-    stories: list[StoryDTO] = []
-    for book in results[:20]:
-        book_id = book.get("id")
-        title = str(book.get("title", "")).strip()
-        authors = book.get("authors", [])
-        author_name = str(authors[0].get("name", "")).strip() if authors else ""
-        if not book_id or not title or not author_name:
-            continue
-        if ", " in author_name:
-            family_name, given_names = author_name.split(", ", 1)
-            author_name = f"{given_names} {family_name}"
-
-        subjects = book.get("subjects", [])
-        genre = str(subjects[0]).strip() if subjects else (topic or "")
-        summaries = book.get("summaries", [])
-        synopsis = str(summaries[0]).strip() if summaries else ""
-        cover_url = book.get("formats", {}).get("image/jpeg")
-        if not cover_url:
-            continue
-        try:
-            provider_download_count = max(0, int(book.get("download_count", 0)))
-            story_id = UUID(int=int(book_id))
-        except (TypeError, ValueError):
-            continue
-
-        stories.append(
-            StoryDTO(
-                id=story_id,
-                title=title[:120],
-                author=author_name[:80],
-                genre=genre,
-                chapter="",
-                synopsis=synopsis,
-                content="",
-                read_time_minutes=0,
-                is_bookmarked=False,
-                is_completed=False,
-                created_at_utc=now,
-                updated_at_utc=now,
-                cover_image_url=cover_url,
-                total_pages=0,
-                rating=None,
-                saves_count="0",
-                reads_count="0",
-                total_chapters=0,
-                content_format="PROSE",
-                source_provider="GUTENBERG",
-                provider_id=str(book_id),
-                provider_download_count=provider_download_count,
-            )
-        )
+    stories = []
+    for book in response.json().get("results", [])[:20]:
+        story = _story_from_gutenberg_metadata(book, fallback_genre=topic)
+        if story is not None:
+            stories.append(story)
     return stories

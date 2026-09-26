@@ -21,6 +21,11 @@ async def get_gutenberg_stories(
     return await gutenberg_service.get_gutenberg_stories(topic=topic, search=search)
 
 
+@router.get("/public/gutenberg/{gutenberg_id}", response_model=StoryDTO)
+async def get_gutenberg_story(gutenberg_id: int = Path(ge=1)):
+    return await gutenberg_service.get_gutenberg_story_by_id(gutenberg_id)
+
+
 @router.get("/public/gutenberg/{gutenberg_id}/chapters", response_model=list[ChapterDTO])
 async def get_gutenberg_chapters(gutenberg_id: int = Path(ge=1)):
     return await gutenberg_service.get_gutenberg_chapters(gutenberg_id=gutenberg_id)

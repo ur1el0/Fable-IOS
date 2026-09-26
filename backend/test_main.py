@@ -875,3 +875,29 @@ def test_bearer_session_survives_process_cache_loss_and_logout_revokes_it():
     logout = client.post("/api/v1/auth/logout", headers=headers)
     assert logout.status_code == 204
     assert client.get("/api/v1/auth/me", headers=headers).status_code == 401
+
+
+@pytest.mark.anyio
+async def test_get_gutenberg_story_by_id_returns_live_metadata(monkeypatch):
+    import httpx
+    from services import gutenberg
+
+    async def mock_get(self, url, params=None, headers=None):
+        assert params == {"ids": "1342"}
+        return httpx.Response(200, json={"results": [{
+            "id": 1342,
+            "title": "Pride and Prejudice",
+            "authors": [{"name": "Austen, Jane"}],
+            "subjects": ["Fiction"],
+            "summaries": ["Provider synopsis."],
+            "formats": {"image/jpeg": "https://www.gutenberg.org/cover.jpg"},
+            "download_count": 500,
+        }]})
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", mock_get)
+    story = await gutenberg.get_gutenberg_story_by_id(1342)
+    assert story.id.int == 1342
+    assert story.title == "Pride and Prejudice"
+    assert story.author == "Jane Austen"
+    assert story.source_provider == "GUTENBERG"
+    assert story.cover_image_url == "https://www.gutenberg.org/cover.jpg"
