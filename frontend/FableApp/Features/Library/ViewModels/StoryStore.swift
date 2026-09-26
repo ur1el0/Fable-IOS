@@ -170,6 +170,8 @@ public final class StoryStore: ObservableObject {
                     stories[idx].progressPercent = Int(entity.readingProgress * 100.0)
                     stories[idx].currentPage = max(1, entity.currentPage)
                     stories[idx].totalPages = max(1, entity.totalPages)
+                    stories[idx].lastReadChapterId = entity.lastReadChapterId
+                    stories[idx].lastReadChapterNumber = entity.lastReadChapterNumber
                 } else {
                     let userStory = Story(
                         id: entity.id,
@@ -186,7 +188,9 @@ public final class StoryStore: ObservableObject {
                         rating: 5.0,
                         isRecentSubmission: true,
                         isSaved: entity.isBookmarked,
-                        isFinished: entity.isCompleted
+                        isFinished: entity.isCompleted,
+                        lastReadChapterId: entity.lastReadChapterId,
+                        lastReadChapterNumber: entity.lastReadChapterNumber
                     )
                     stories.insert(userStory, at: 0)
                     profileStories.insert(userStory, at: 0)
@@ -407,6 +411,24 @@ public final class StoryStore: ObservableObject {
         }
     }
     
+    func updateReadingProgress(for storyId: UUID, chapterId: String, chapterNumber: Int) {
+        if let index = stories.firstIndex(where: { $0.id == storyId }) {
+            stories[index].lastReadChapterId = chapterId
+            stories[index].lastReadChapterNumber = chapterNumber
+        }
+
+        if let profileIndex = profileStories.firstIndex(where: { $0.id == storyId }) {
+            profileStories[profileIndex].lastReadChapterId = chapterId
+            profileStories[profileIndex].lastReadChapterNumber = chapterNumber
+        }
+
+        PersistenceService.shared.updateReadingProgress(
+            storyId: storyId,
+            chapterId: chapterId,
+            chapterNumber: chapterNumber
+        )
+    }
+
     func logReadingSession(for story: Story, seconds: Int) {
         PersistenceService.shared.logReadingSession(
             storyId: story.id,

@@ -267,6 +267,7 @@ public struct MangaReaderView: View {
         }
         .onChange(of: currentChapterIndex) { _, newIndex in
             prefetchPanels(around: newIndex)
+            persistCurrentChapter(at: newIndex)
         }
         .sheet(isPresented: $isShowingChapterSheet) {
             NavigationStack {
@@ -303,6 +304,7 @@ public struct MangaReaderView: View {
     private func loadMangaChapters() async {
         if let existing = story.chapters, !existing.isEmpty {
             self.chapters = existing
+            restoreSavedChapter()
             prefetchPanels(around: currentChapterIndex)
             return
         }
@@ -327,7 +329,31 @@ public struct MangaReaderView: View {
             self.chapters = [single]
         }
         isLoading = false
+        restoreSavedChapter()
         prefetchPanels(around: currentChapterIndex)
+    }
+
+    @MainActor
+    private func restoreSavedChapter() {
+        let progress = store.stories.first(where: { $0.id == story.id }) ?? story
+        if let chapterId = progress.lastReadChapterId,
+           let savedIndex = chapters.firstIndex(where: { $0.id.uuidString == chapterId }) {
+            currentChapterIndex = savedIndex
+        } else if let chapterNumber = progress.lastReadChapterNumber,
+                  let savedIndex = chapters.firstIndex(where: { $0.chapterNumber == chapterNumber }) {
+            currentChapterIndex = savedIndex
+        }
+    }
+
+    @MainActor
+    private func persistCurrentChapter(at index: Int) {
+        guard chapters.indices.contains(index) else { return }
+        let chapter = chapters[index]
+        store.updateReadingProgress(
+            for: story.id,
+            chapterId: chapter.id.uuidString,
+            chapterNumber: chapter.chapterNumber
+        )
     }
 
     @MainActor

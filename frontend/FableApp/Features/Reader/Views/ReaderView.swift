@@ -562,6 +562,7 @@ public struct ReaderView: View {
             pacingEngine.startSession()
             if let existing = story.chapters, !existing.isEmpty {
                 self.chapters = existing
+                restoreSavedChapter()
                 loadCurrentChapterPages()
             } else {
                 loadCurrentChapterPages()
@@ -572,6 +573,7 @@ public struct ReaderView: View {
                         self.isLoadingChapters = false
                         if !fetched.isEmpty {
                             self.chapters = fetched
+                            restoreSavedChapter()
                             loadCurrentChapterPages()
                         }
                     }
@@ -814,10 +816,27 @@ public struct ReaderView: View {
         guard chapters.indices.contains(index) else { return }
         withAnimation(.easeInOut(duration: 0.25)) {
             currentChapterIndex = index
+            let chapter = chapters[index]
+            store.updateReadingProgress(
+                for: story.id,
+                chapterId: chapter.id.uuidString,
+                chapterNumber: chapter.chapterNumber
+            )
             loadCurrentChapterPages()
             if audioNarrator.isPlaying {
-                audioNarrator.speak(story: story, chapter: chapters[index])
+                audioNarrator.speak(story: story, chapter: chapter)
             }
+        }
+    }
+
+    private func restoreSavedChapter() {
+        let progress = store.stories.first(where: { $0.id == story.id }) ?? story
+        if let chapterId = progress.lastReadChapterId,
+           let savedIndex = chapters.firstIndex(where: { $0.id.uuidString == chapterId }) {
+            currentChapterIndex = savedIndex
+        } else if let chapterNumber = progress.lastReadChapterNumber,
+                  let savedIndex = chapters.firstIndex(where: { $0.chapterNumber == chapterNumber }) {
+            currentChapterIndex = savedIndex
         }
     }
     

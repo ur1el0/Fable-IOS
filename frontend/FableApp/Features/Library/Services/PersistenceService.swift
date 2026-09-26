@@ -53,6 +53,8 @@ public final class PersistenceService {
                         readingProgress: Double(story.progressPercent) / 100.0,
                         currentPage: story.currentPage,
                         totalPages: story.totalPages,
+                        lastReadChapterId: story.lastReadChapterId,
+                        lastReadChapterNumber: story.lastReadChapterNumber,
                         isBookmarked: story.isBookmarked,
                         isCompleted: story.isCompleted,
                         createdAtUtc: story.createdAtUtc,
@@ -100,6 +102,8 @@ public final class PersistenceService {
                 existing.readingProgress = Double(story.progressPercent) / 100.0
                 existing.currentPage = story.currentPage
                 existing.totalPages = story.totalPages
+                existing.lastReadChapterId = story.lastReadChapterId
+                existing.lastReadChapterNumber = story.lastReadChapterNumber
                 existing.isBookmarked = story.isBookmarked
                 existing.isCompleted = story.isCompleted
                 existing.updatedAtUtc = Date()
@@ -116,6 +120,8 @@ public final class PersistenceService {
                     readingProgress: Double(story.progressPercent) / 100.0,
                     currentPage: story.currentPage,
                     totalPages: story.totalPages,
+                    lastReadChapterId: story.lastReadChapterId,
+                    lastReadChapterNumber: story.lastReadChapterNumber,
                     isBookmarked: story.isBookmarked,
                     isCompleted: story.isCompleted,
                     createdAtUtc: story.createdAtUtc,
@@ -150,6 +156,23 @@ public final class PersistenceService {
         }
     }
     
+    public func updateReadingProgress(storyId: UUID, chapterId: String, chapterNumber: Int) {
+        var descriptor = FetchDescriptor<StoryEntity>(
+            predicate: #Predicate { $0.id == storyId }
+        )
+        descriptor.fetchLimit = 1
+
+        do {
+            guard let entity = try context.fetch(descriptor).first else { return }
+            entity.lastReadChapterId = chapterId
+            entity.lastReadChapterNumber = chapterNumber
+            entity.updatedAtUtc = Date()
+            try context.save()
+        } catch {
+            print("Failed to update chapter progress: \(error)")
+        }
+    }
+
     // Toggle bookmark
     public func toggleBookmark(storyId: UUID) -> Bool {
         var descriptor = FetchDescriptor<StoryEntity>(

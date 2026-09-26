@@ -242,6 +242,8 @@ public struct Story: Identifiable, Hashable, Codable {
     public var chapters: [Chapter]?
     public var contentFormat: ContentFormat
     public var sourceProvider: SourceProvider
+    public var lastReadChapterId: String?
+    public var lastReadChapterNumber: Int?
 
     // Convenience accessors
     public var excerpt: String {
@@ -280,7 +282,7 @@ public struct Story: Identifiable, Hashable, Codable {
         case id, title, author, genre, synopsis, content, readTimeMinutes, isBookmarked, isCompleted, createdAtUtc
         case coverImageName, heroImageName, coverImageUrl, totalPages, currentPage, progressPercent, rating, savesCount, readsCount
         case isTaleOfTheDay, isRecentSubmission, isCuratorSpotlight, badgeText, totalChapters, chapters
-        case contentFormat, sourceProvider
+        case contentFormat, sourceProvider, lastReadChapterId, lastReadChapterNumber
     }
 
     public init(from decoder: Decoder) throws {
@@ -313,6 +315,8 @@ public struct Story: Identifiable, Hashable, Codable {
         self.chapters = try container.decodeIfPresent([Chapter].self, forKey: .chapters)
         self.contentFormat = try container.decodeIfPresent(ContentFormat.self, forKey: .contentFormat) ?? .prose
         self.sourceProvider = try container.decodeIfPresent(SourceProvider.self, forKey: .sourceProvider) ?? .fableOriginal
+        self.lastReadChapterId = try container.decodeIfPresent(String.self, forKey: .lastReadChapterId)
+        self.lastReadChapterNumber = try container.decodeIfPresent(Int.self, forKey: .lastReadChapterNumber)
     }
 
     // Architecture Contract Initializer (ARCHITECTURE.md Section 3.1 & 7.2)
@@ -328,7 +332,9 @@ public struct Story: Identifiable, Hashable, Codable {
         isCompleted: Bool = false,
         createdAtUtc: Date = Date(),
         contentFormat: ContentFormat = .prose,
-        sourceProvider: SourceProvider = .fableOriginal
+        sourceProvider: SourceProvider = .fableOriginal,
+        lastReadChapterId: String? = nil,
+        lastReadChapterNumber: Int? = nil
     ) {
         self.id = id
         self.title = title
@@ -357,6 +363,8 @@ public struct Story: Identifiable, Hashable, Codable {
         self.chapters = nil
         self.contentFormat = contentFormat
         self.sourceProvider = sourceProvider
+        self.lastReadChapterId = lastReadChapterId
+        self.lastReadChapterNumber = lastReadChapterNumber
     }
 
     // Full Prototype Initializer
@@ -385,7 +393,9 @@ public struct Story: Identifiable, Hashable, Codable {
         badgeText: String? = nil,
         contentFormat: ContentFormat = .prose,
         sourceProvider: SourceProvider = .fableOriginal,
-        chapters: [Chapter]? = nil
+        chapters: [Chapter]? = nil,
+        lastReadChapterId: String? = nil,
+        lastReadChapterNumber: Int? = nil
     ) {
         self.id = id
         self.title = title
@@ -422,6 +432,8 @@ public struct Story: Identifiable, Hashable, Codable {
         self.chapters = chapters
         self.contentFormat = contentFormat
         self.sourceProvider = sourceProvider
+        self.lastReadChapterId = lastReadChapterId
+        self.lastReadChapterNumber = lastReadChapterNumber
     }
 }
 
