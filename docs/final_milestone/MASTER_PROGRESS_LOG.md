@@ -119,3 +119,11 @@ The Final Milestone transforms **Fable** from an editorial prototype into a full
 - [x] Added a main-actor haptic manager and wired bookmark, publish, reading-mode, and chapter-navigation feedback to the existing haptics preference.
 - [x] Extended LibraryTests with legacy fallback and saved chapter decoding assertions.
 - The iOS test suite and on-device diagnostics were not run in this Fedora workspace because swiftc, xcodebuild, and xcrun are unavailable.
+
+## Official Live Cover Precedence (2026-09-26)
+
+- [x] Live story responses now reconcile with offline catalog entries by ID or normalized title and author, then persist fetched HTTPS cover URLs in SwiftData for cached offline display.
+- [x] Reader and library covers prefer the fetched cover URL; image views remain clipped and retain bundled or procedural offline fallbacks.
+- [x] Legacy Unsplash demo covers and manga panels are filtered from existing backend rows and cached client state; a story cover is no longer used as a manga panel.
+- [x] Removed the duplicate Sleepy Hollow image asset and removed demo image URLs from default genre, author, and manga fixtures.
+- [x] Backend suite passed: 24 tests. iOS compilation and on-device diagnostics remain unavailable in this Fedora workspace because Xcode and the Swift compiler are not installed.
