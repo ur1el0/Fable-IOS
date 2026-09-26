@@ -26,59 +26,96 @@ def test_health_check():
     assert data["status"] == "healthy"
     assert data["database"] == "connected"
 
-def test_get_stories_includes_full_editorial_catalog():
+def test_get_stories_starts_without_embedded_catalog():
     response = client.get("/api/v1/stories")
     assert response.status_code == 200
-    stories = response.json()
-    assert len(stories) >= 10
-    titles = [s["title"] for s in stories]
-    assert "Dracula" in titles
-    assert "The Legend of Sleepy Hollow" in titles
-    assert "The Metamorphosis" in titles
-    assert "The Tell-Tale Heart" in titles
-    assert "Frankenstein" in titles
-    assert "The Odyssey" in titles
+    assert response.json() == []
+    init_db()
+    assert client.get("/api/v1/stories").json() == []
+
 
 def test_story_dto_camelcase_serialization_contract():
-    response = client.get("/api/v1/stories")
-    assert response.status_code == 200
-    first = response.json()[0]
-    # Verify contract parity with Swift JSONDecoder
-    assert "readTimeMinutes" in first
-    assert "isBookmarked" in first
-    assert "isCompleted" in first
-    assert "createdAtUtc" in first
-    assert "updatedAtUtc" in first
-    assert "totalChapters" in first
+    response = client.post("/api/v1/stories", json={
+        "title": "Contract Story",
+        "author": "Test Author",
+        "genre": "Gothic",
+        "synopsis": "A synopsis from the writer.",
+        "content": "The actual authored text.",
+        "readTimeMinutes": 4
+    })
+    assert response.status_code == 201
+    story = response.json()
+    assert "readTimeMinutes" in story
+    assert "isBookmarked" in story
+    assert "isCompleted" in story
+    assert "createdAtUtc" in story
+    assert "updatedAtUtc" in story
+    assert "totalChapters" in story
+    assert "providerId" in story
+    assert "providerDownloadCount" in story
+    assert story["rating"] is None
+    assert story["savesCount"] == "0"
+    assert story["readsCount"] == "0"
+    assert story["coverImageName"] is None
+    assert story["heroImageName"] is None
+
 
 def test_get_story_chapters():
-    response = client.get("/api/v1/stories")
-    assert response.status_code == 200
-    stories = response.json()
-    dracula = next(s for s in stories if s["title"] == "Dracula")
-    story_id = dracula["id"]
+    created = client.post("/api/v1/stories", json={
+        "title": "Reader Contract",
+        "author": "Test Author",
+        "genre": "Gothic",
+        "chapter": "Chapter One",
+        "synopsis": "A test synopsis.",
+        "content": "Text created through the validated story API.",
+        "readTimeMinutes": 3
+    })
+    assert created.status_code == 201
+    story_id = created.json()["id"]
 
-    # Test single story with chapters
-    detail_res = client.get(f"/api/v1/stories/{story_id}")
-    assert detail_res.status_code == 200
-    detail = detail_res.json()
-    assert "chapters" in detail
-    assert len(detail["chapters"]) >= 3
-    assert detail["chapters"][0]["chapterNumber"] == 1
-    assert "CHAPTER I" in detail["chapters"][0]["title"]
+    detail = client.get(f"/api/v1/stories/{story_id}")
+    assert detail.status_code == 200
+    assert len(detail.json()["chapters"]) == 1
 
-    # Test chapters endpoint
-    ch_res = client.get(f"/api/v1/stories/{story_id}/chapters")
-    assert ch_res.status_code == 200
-    chapters = ch_res.json()
-    assert len(chapters) >= 3
+    chapters = client.get(f"/api/v1/stories/{story_id}/chapters")
+    assert chapters.status_code == 200
+    assert len(chapters.json()) == 1
 
-    # Test chapter 1 endpoint
-    ch1_res = client.get(f"/api/v1/stories/{story_id}/chapters/1")
-    assert ch1_res.status_code == 200
-    ch1 = ch1_res.json()
-    assert ch1["chapterNumber"] == 1
-    assert "Bistritz" in ch1["content"]
+    chapter = client.get(f"/api/v1/stories/{story_id}/chapters/1")
+    assert chapter.status_code == 200
+    assert chapter.json()["chapterNumber"] == 1
+    assert "validated story API" in chapter.json()["content"]
+
+
+def test_story_metrics_are_derived_from_device_shelf_state():
+    created = client.post("/api/v1/stories", json={
+        "title": "Metrics Story",
+        "author": "Test Author",
+        "genre": "Mystery",
+        "synopsis": "",
+        "content": "Reader-created text.",
+        "readTimeMinutes": 1
+    })
+    story_id = created.json()["id"]
+    initial = client.get("/api/v1/stories").json()[0]
+    assert initial["savesCount"] == "0"
+    assert initial["readsCount"] == "0"
+
+    sync = client.post("/api/v1/shelf/sync", json={
+        "deviceId": "11111111-1111-1111-1111-111111111111",
+        "items": [{
+            "storyId": story_id,
+            "readingProgress": 0.25,
+            "isBookmarked": True,
+            "isCompleted": False,
+            "updatedAtUtc": datetime.now(timezone.utc).isoformat()
+        }]
+    })
+    assert sync.status_code == 200
+    updated = client.get("/api/v1/stories").json()[0]
+    assert updated["savesCount"] == "1"
+    assert updated["readsCount"] == "1"
+
 
 def test_extract_chapters_from_text():
     from main import extract_chapters_from_text
@@ -105,61 +142,93 @@ The morning brought no relief. The fog clung tightly to the moors, concealing wh
     assert "CHAPTER II" in chapters[1]["title"]
 
 def test_get_genres_endpoint():
+    created = client.post("/api/v1/stories", json={
+        "title": "Genre Count Story",
+        "author": "Test Author",
+        "genre": "Gothic",
+        "synopsis": "",
+        "content": "A story.",
+        "readTimeMinutes": 1
+    })
+    assert created.status_code == 201
     response = client.get("/api/v1/genres")
     assert response.status_code == 200
     genres = response.json()
-    assert len(genres) >= 4
-    names = [g["name"] for g in genres]
-    assert "Folklore" in names
-    assert "Gothic" in names
-    # Verify contract keys matching Swift GenreCategory
-    first = genres[0]
-    assert "storyCount" in first
-    assert "readersCount" in first
-    assert "description" in first
-    assert "imageName" in first
-    assert "imageUrl" in first
-    assert first["imageUrl"] is None
+    assert len(genres) == 1
+    gothic = genres[0]
+    assert gothic["name"] == "Gothic"
+    assert gothic["storyCount"] == 1
+    assert gothic["readersCount"] == "0"
+    assert gothic["description"] == ""
+    assert gothic["imageName"] == ""
+    assert gothic["imageUrl"] is None
+
 
 def test_get_top_authors_endpoint(monkeypatch):
     import httpx
 
-    async def mock_get(self, url, headers=None):
-        return httpx.Response(200, json={"works": [{"author_name": ["Bram Stoker"]}]})
+    async def mock_get(self, url, params=None, headers=None):
+        if url.endswith("/trending/daily.json"):
+            return httpx.Response(200, json={
+                "works": [{"author_name": ["Bram Stoker"]}]
+            })
+        return httpx.Response(200, json={
+            "docs": [{
+                "key": "OL123A",
+                "name": "Bram Stoker",
+                "work_count": 35
+            }]
+        })
 
     monkeypatch.setattr(httpx.AsyncClient, "get", mock_get)
     response = client.get("/api/v1/authors/top")
     assert response.status_code == 200
     writers = response.json()
-    assert len(writers) >= 1
-    first = writers[0]
-    assert "name" in first
-    assert "storyCount" in first
-    assert "avatarImageName" in first
-    assert "rating" in first
-    assert "avatarImageUrl" in first
-    portrait_urls = [w["avatarImageUrl"] for w in writers if w.get("avatarImageUrl")]
-    assert len(portrait_urls) > 0
-    assert portrait_urls[0].startswith("https://upload.wikimedia.org")
+    assert len(writers) == 1
+    assert writers[0]["name"] == "Bram Stoker"
+    assert writers[0]["storyCount"] == 35
+    assert writers[0]["avatarImageName"] == ""
+    assert writers[0]["avatarImageUrl"] == "https://covers.openlibrary.org/a/olid/OL123A-M.jpg?default=false"
+    assert writers[0]["rating"] is None
 
-def test_maria_makiling_has_live_gutenberg_cover():
-    response = client.get("/api/v1/stories")
+
+def test_gutenberg_cover_and_download_count_are_live(monkeypatch):
+    import httpx
+
+    async def mock_get(self, url, params=None, headers=None):
+        return httpx.Response(200, json={
+            "results": [{
+                "id": 38269,
+                "title": "The Legend of Maria Makiling",
+                "authors": [{"name": "Rizal, Jose"}],
+                "subjects": ["Folklore"],
+                "summaries": ["Provider synopsis"],
+                "download_count": 281,
+                "formats": {
+                    "image/jpeg": "https://www.gutenberg.org/cache/epub/38269/pg38269.cover.medium.jpg"
+                }
+            }]
+        })
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", mock_get)
+    response = client.get("/api/v1/public/gutenberg?search=Maria")
     assert response.status_code == 200
-    stories = response.json()
-    maria = next((s for s in stories if "Maria Makiling" in s["title"]), None)
-    assert maria is not None
-    assert maria["coverImageUrl"] == "https://www.gutenberg.org/cache/epub/38269/pg38269.cover.medium.jpg"
+    story = response.json()[0]
+    assert story["providerId"] == "38269"
+    assert story["coverImageUrl"] == "https://www.gutenberg.org/cache/epub/38269/pg38269.cover.medium.jpg"
+    assert story["providerDownloadCount"] == 281
+    assert story["content"] == ""
+    assert story["rating"] is None
+
 
 def test_get_update_feed_endpoint():
     response = client.get("/api/v1/updates")
     assert response.status_code == 200
     feed = response.json()
-    assert "taleOfTheDay" in feed
-    assert "curatorSpotlight" in feed
-    assert "recentSubmissions" in feed
-    assert "totalStories" in feed
-    assert feed["totalStories"] >= 10
-
+    assert feed["taleOfTheDay"] is None
+    assert feed["curatorSpotlight"] is None
+    assert feed["recentSubmissions"] == []
+    assert feed["totalStories"] == 0
 
 
 def test_create_story():
@@ -290,7 +359,7 @@ def test_multi_tenant_device_shelf_isolation():
 
 
 def test_package_modularity_imports():
-    from core import get_db, init_db, SEED_STORIES
+    from core import get_db, init_db
     from models import Story, Chapter, ShelfItem
     from schemas import (
         StoryDTO,
@@ -313,7 +382,6 @@ def test_package_modularity_imports():
 
     assert callable(get_db)
     assert callable(init_db)
-    assert len(SEED_STORIES) >= 10
     assert Story is not None
     assert Chapter is not None
     assert ShelfItem is not None
@@ -335,12 +403,31 @@ def test_package_modularity_imports():
     assert callable(auth_service.get_current_user)
     assert api_router is not None
 
-def test_get_gutenberg_public_stories():
-    response = client.get("/api/v1/public/gutenberg?topic=folklore")
+
+def test_get_gutenberg_public_stories(monkeypatch):
+    import httpx
+
+    async def mock_get(self, url, params=None, headers=None):
+        return httpx.Response(200, json={
+            "results": [{
+                "id": 84,
+                "title": "Frankenstein",
+                "authors": [{"name": "Shelley, Mary"}],
+                "subjects": ["Science fiction"],
+                "summaries": ["Source synopsis"],
+                "download_count": 940,
+                "formats": {"image/jpeg": "https://www.gutenberg.org/cover.jpg"}
+            }]
+        })
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", mock_get)
+    response = client.get("/api/v1/public/gutenberg?topic=fiction")
     assert response.status_code == 200
     data = response.json()
-    assert isinstance(data, list)
-    assert len(data) > 0
+    assert len(data) == 1
+    assert data[0]["sourceProvider"] == "GUTENBERG"
+    assert data[0]["providerId"] == "84"
+    assert data[0]["providerDownloadCount"] == 940
 
 
 def test_gutenberg_live_chapters_use_source_text_and_stable_ids(monkeypatch):
@@ -373,6 +460,63 @@ This is the complete source text for the second chapter. It also has enough word
     assert second_response.status_code == 200
     assert chapters[0]["id"] == second_response.json()[0]["id"]
 
+def test_gutenberg_ingest_uses_live_metadata_and_is_idempotent(monkeypatch):
+    import httpx
+
+    source_text = """
+*** START OF THE PROJECT GUTENBERG EBOOK SAMPLE ***
+
+CHAPTER I. THE OPENING
+The complete chapter comes from the provider text and contains enough words to read.
+
+CHAPTER II. THE CONTINUATION
+A second complete chapter also comes from the provider and has sufficient text content.
+*** END OF THE PROJECT GUTENBERG EBOOK SAMPLE ***
+"""
+
+    async def mock_get(self, url, params=None, headers=None):
+        if "gutendex.com" in url:
+            return httpx.Response(200, json={"results": [{
+                "id": 99,
+                "title": "Provider Book",
+                "authors": [{"name": "Doe, Jane"}],
+                "subjects": ["Live Genre"],
+                "summaries": ["Provider summary"],
+                "download_count": 73,
+                "formats": {"image/jpeg": "https://www.gutenberg.org/cover.jpg"}
+            }]})
+        return httpx.Response(200, text=source_text)
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", mock_get)
+    first = client.post("/api/v1/stories/ingest/99")
+    second = client.post("/api/v1/stories/ingest/99")
+
+    assert first.status_code == 201
+    assert second.status_code == 201
+    story = first.json()
+    assert story["id"] == second.json()["id"]
+    assert story["title"] == "Provider Book"
+    assert story["author"] == "Jane Doe"
+    assert story["synopsis"] == "Provider summary"
+    assert story["providerId"] == "99"
+    assert story["providerDownloadCount"] == 73
+    assert story["totalChapters"] == 2
+    assert "complete chapter comes from the provider" in story["chapters"][0]["content"]
+    assert len(second.json()["chapters"]) == 2
+
+
+def test_gutenberg_catalog_failure_does_not_return_local_catalog(monkeypatch):
+    import httpx
+
+    async def unavailable(self, url, params=None, headers=None):
+        raise httpx.ConnectError("private transport detail")
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", unavailable)
+    response = client.get("/api/v1/public/gutenberg")
+    assert response.status_code == 502
+    assert response.json()["detail"] == "Gutenberg catalog service is unavailable"
+
+
 def test_register_and_login_auth_flow():
     reg_payload = {
         "email": "reader.roosc@fable.app",
@@ -387,6 +531,7 @@ def test_register_and_login_auth_flow():
     assert reg_data["tokenType"] == "bearer"
     assert reg_data["user"]["email"] == "reader.roosc@fable.app"
     assert reg_data["user"]["name"] == "Roosc Zaño"
+    assert reg_data["user"]["avatarImageName"] is None
     token = reg_data["accessToken"]
 
     # 2. Get /auth/me with Bearer token
@@ -448,67 +593,78 @@ def test_auth_me_unauthorized():
     assert res2.status_code == 401
 
 def test_multi_format_content_and_provider_serialization():
-    response = client.get("/api/v1/stories")
-    assert response.status_code == 200
-    stories = response.json()
-    
-    # Check that stories have contentFormat and sourceProvider keys
-    for s in stories:
-        assert "contentFormat" in s
-        assert "sourceProvider" in s
+    response = client.post("/api/v1/stories", json={
+        "title": "Writer Created Graphic Story",
+        "author": "Test Author",
+        "genre": "Manga",
+        "chapter": "Issue One",
+        "synopsis": "A writer-created graphic story.",
+        "content": "",
+        "readTimeMinutes": 0,
+        "contentFormat": "MANGA",
+        "sourceProvider": "MANGADEX"
+    })
+    assert response.status_code == 201
+    story = response.json()
+    assert story["contentFormat"] == "MANGA"
+    assert story["sourceProvider"] == "FABLE_ORIGINAL"
+    assert story["title"] == "Writer Created Graphic Story"
+    assert story["coverImageUrl"] is None
+    assert story["rating"] is None
 
-    # Verify Manga sample is present with MANGADEX provider
-    manga_story = next((s for s in stories if s["contentFormat"] == "MANGA"), None)
-    assert manga_story is not None
-    assert manga_story["sourceProvider"] == "MANGADEX"
-    assert manga_story["title"] == "Chainsaw Devil: Special Edition"
-    assert manga_story["badgeText"] == "MANGA"
-    assert manga_story["coverImageUrl"] is None
-
-    # Verify Standard Ebooks sample is present
-    se_story = next((s for s in stories if s["sourceProvider"] == "STANDARD_EBOOKS"), None)
-    assert se_story is not None
-    assert se_story["contentFormat"] == "PROSE"
-    assert "standardebooks.org" in se_story["coverImageUrl"]
 
 def test_manga_chapter_page_urls_contract():
-    response = client.get("/api/v1/stories")
+    created = client.post("/api/v1/stories", json={
+        "title": "Writer Created Graphic Story",
+        "author": "Test Author",
+        "genre": "Manga",
+        "chapter": "Issue One",
+        "synopsis": "A writer-created graphic story.",
+        "content": "",
+        "readTimeMinutes": 0,
+        "contentFormat": "MANGA"
+    })
+    assert created.status_code == 201
+    story_id = created.json()["id"]
+    response = client.get(f"/api/v1/stories/{story_id}/chapters")
     assert response.status_code == 200
-    stories = response.json()
-    manga_story = next(s for s in stories if s["contentFormat"] == "MANGA")
-    
-    ch_res = client.get(f"/api/v1/stories/{manga_story['id']}/chapters")
-    assert ch_res.status_code == 200
-    chapters = ch_res.json()
-    assert len(chapters) >= 1
-    ch1 = chapters[0]
-    assert "pageUrls" in ch1
-    assert ch1["pageUrls"] == []
+    chapters = response.json()
+    assert len(chapters) == 1
+    assert chapters[0]["pageUrls"] == []
+
 
 def test_legacy_demo_manga_images_are_not_exposed():
     from core.database import get_db
 
-    response = client.get("/api/v1/stories")
-    manga_story = next(s for s in response.json() if s["contentFormat"] == "MANGA")
+    created = client.post("/api/v1/stories", json={
+        "title": "External Media Story",
+        "author": "Test Author",
+        "genre": "Manga",
+        "chapter": "Chapter 1",
+        "synopsis": "",
+        "content": "",
+        "readTimeMinutes": 0,
+        "contentFormat": "MANGA"
+    })
+    story_id = created.json()["id"]
     connection = get_db()
     with connection:
         connection.execute(
             "UPDATE stories SET cover_image_url = ? WHERE id = ?",
-            ("https://images.unsplash.com/photo-demo.jpg", manga_story["id"]),
+            ("https://images.unsplash.com/photo-demo.jpg", story_id),
         )
         connection.execute(
             "UPDATE chapters SET page_urls = ? WHERE story_id = ?",
             (
                 '["https://images.unsplash.com/panel-demo.jpg",'
                 '"https://uploads.mangadex.org/covers/demo/cover.jpg"]',
-                manga_story["id"],
+                story_id,
             ),
         )
     connection.close()
 
-    detail = client.get(f"/api/v1/stories/{manga_story['id']}").json()
-    chapters = client.get(f"/api/v1/stories/{manga_story['id']}/chapters").json()
-
+    detail = client.get(f"/api/v1/stories/{story_id}").json()
+    chapters = client.get(f"/api/v1/stories/{story_id}/chapters").json()
     assert detail["coverImageUrl"] is None
     assert detail["chapters"][0]["pageUrls"] == [
         "https://uploads.mangadex.org/covers/demo/cover.jpg"
@@ -535,35 +691,23 @@ def test_create_manga_story_via_api():
     assert created["sourceProvider"] == "FABLE_ORIGINAL"
     assert created["title"] == "Cyber Scribe Manga"
 
-def test_internal_health_and_media_invariants():
-    # 1. Update feed contract
-    feed_res = client.get("/api/v1/updates")
-    assert feed_res.status_code == 200
-    feed = feed_res.json()
-    assert feed["totalStories"] > 0
-    assert "timestampUtc" in feed
-    if feed.get("taleOfTheDay"):
-        assert "title" in feed["taleOfTheDay"]
-        assert "coverImageUrl" in feed["taleOfTheDay"]
+def test_internal_health_and_media_invariants(monkeypatch):
+    import httpx
 
-    # 2. Genre image and metadata invariants
-    genre_res = client.get("/api/v1/genres")
-    assert genre_res.status_code == 200
-    genres = genre_res.json()
-    for g in genres:
-        assert g["storyCount"] >= 0
-        assert len(g["readersCount"]) > 0
-        assert g["imageUrl"] is None or g["imageUrl"].startswith("https://")
+    async def empty_provider(self, url, params=None, headers=None):
+        return httpx.Response(200, json={"works": []})
 
-    # 3. Author portrait and rating invariants
-    author_res = client.get("/api/v1/authors/top")
-    assert author_res.status_code == 200
-    authors = author_res.json()
-    for a in authors:
-        assert a["rating"] >= 4.0
-        assert a["storyCount"] >= 0
-        if a.get("avatarImageUrl"):
-            assert a["avatarImageUrl"].startswith("https://")
+    monkeypatch.setattr(httpx.AsyncClient, "get", empty_provider)
+    feed = client.get("/api/v1/updates").json()
+    assert feed["totalStories"] == 0
+    assert feed["taleOfTheDay"] is None
+    assert feed["curatorSpotlight"] is None
+    assert feed["recentSubmissions"] == []
+
+    genres = client.get("/api/v1/genres").json()
+    assert genres == []
+    assert client.get("/api/v1/authors/top").json() == []
+
 
 def test_env_db_path_override(tmp_path, monkeypatch):
     from core.database import get_db

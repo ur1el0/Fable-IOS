@@ -22,10 +22,10 @@ class StoryDTO(BaseModel):
     title: str = Field(..., min_length=1, max_length=120)
     author: str = Field(..., min_length=1, max_length=80)
     genre: str
-    chapter: str = "Chapter I"
+    chapter: str = ""
     synopsis: str
     content: str
-    read_time_minutes: int = Field(default=4, ge=1, serialization_alias="readTimeMinutes")
+    read_time_minutes: int = Field(default=0, ge=0, serialization_alias="readTimeMinutes")
     is_bookmarked: bool = Field(default=False, serialization_alias="isBookmarked")
     is_completed: bool = Field(default=False, serialization_alias="isCompleted")
     created_at_utc: datetime = Field(..., serialization_alias="createdAtUtc")
@@ -33,20 +33,21 @@ class StoryDTO(BaseModel):
     cover_image_name: Optional[str] = Field(default=None, serialization_alias="coverImageName")
     hero_image_name: Optional[str] = Field(default=None, serialization_alias="heroImageName")
     cover_image_url: Optional[str] = Field(default=None, serialization_alias="coverImageUrl")
-    total_pages: int = Field(default=5, serialization_alias="totalPages")
+    total_pages: int = Field(default=0, serialization_alias="totalPages")
     current_page: int = Field(default=1, serialization_alias="currentPage")
     progress_percent: int = Field(default=0, serialization_alias="progressPercent")
-    rating: float = Field(default=4.9, serialization_alias="rating")
-    saves_count: str = Field(default="1.2k", serialization_alias="savesCount")
-    reads_count: str = Field(default="1.2k", serialization_alias="readsCount")
+    rating: Optional[float] = Field(default=None, serialization_alias="rating")
+    saves_count: str = Field(default="0", serialization_alias="savesCount")
+    reads_count: str = Field(default="0", serialization_alias="readsCount")
     is_tale_of_the_day: bool = Field(default=False, serialization_alias="isTaleOfTheDay")
     is_recent_submission: bool = Field(default=False, serialization_alias="isRecentSubmission")
     is_curator_spotlight: bool = Field(default=False, serialization_alias="isCuratorSpotlight")
     badge_text: Optional[str] = Field(default=None, serialization_alias="badgeText")
-    total_chapters: int = Field(default=1, serialization_alias="totalChapters")
+    total_chapters: int = Field(default=0, serialization_alias="totalChapters")
     content_format: str = Field(default="PROSE", serialization_alias="contentFormat")
     source_provider: str = Field(default="FABLE_ORIGINAL", serialization_alias="sourceProvider")
     provider_id: Optional[str] = Field(default=None, serialization_alias="providerId")
+    provider_download_count: Optional[int] = Field(default=None, serialization_alias="providerDownloadCount")
     chapters: Optional[list[ChapterDTO]] = None
 
     model_config = {
@@ -57,9 +58,9 @@ class GenreDTO(BaseModel):
     id: UUID
     name: str
     story_count: int = Field(default=0, serialization_alias="storyCount")
-    readers_count: str = Field(default="10k", serialization_alias="readersCount")
-    description: str
-    image_name: str = Field(default="genre_folklore", serialization_alias="imageName")
+    readers_count: str = Field(default="0", serialization_alias="readersCount")
+    description: str = ""
+    image_name: str = Field(default="", serialization_alias="imageName")
     image_url: Optional[str] = Field(default=None, serialization_alias="imageUrl")
 
     model_config = {
@@ -69,10 +70,10 @@ class GenreDTO(BaseModel):
 class WriterDTO(BaseModel):
     id: UUID
     name: str
-    avatar_image_name: str = Field(default="author_kuang", serialization_alias="avatarImageName")
+    avatar_image_name: str = Field(default="", serialization_alias="avatarImageName")
     avatar_image_url: Optional[str] = Field(default=None, serialization_alias="avatarImageUrl")
-    story_count: int = Field(default=1, serialization_alias="storyCount")
-    rating: float = Field(default=4.9, serialization_alias="rating")
+    story_count: int = Field(default=0, serialization_alias="storyCount")
+    rating: Optional[float] = Field(default=None, serialization_alias="rating")
 
     model_config = {
         "populate_by_name": True
@@ -93,12 +94,11 @@ class CreateStoryRequest(BaseModel):
     title: str = Field(..., min_length=1, max_length=120)
     author: str = Field(..., min_length=1, max_length=80)
     genre: str
-    chapter: Optional[str] = "Chapter I"
+    chapter: Optional[str] = None
     synopsis: str
     content: str
-    read_time_minutes: int = Field(default=4, ge=1, alias="readTimeMinutes")
+    read_time_minutes: int = Field(default=0, ge=0, alias="readTimeMinutes")
     content_format: Optional[str] = Field(default="PROSE", alias="contentFormat")
-    source_provider: Optional[str] = Field(default="FABLE_ORIGINAL", alias="sourceProvider")
 
     model_config = {
         "populate_by_name": True
@@ -136,7 +136,7 @@ class UserDTO(BaseModel):
     id: UUID
     email: str
     name: str
-    avatar_image_name: str = Field(default="avatar_roosc", serialization_alias="avatarImageName")
+    avatar_image_name: Optional[str] = Field(default=None, serialization_alias="avatarImageName")
     avatar_image_url: Optional[str] = Field(default=None, serialization_alias="avatarImageUrl")
     created_at_utc: datetime = Field(..., serialization_alias="createdAtUtc")
 

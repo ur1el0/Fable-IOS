@@ -1,24 +1,23 @@
 import httpx
 from datetime import datetime, timezone
-from uuid import UUID, uuid4, uuid5
 from typing import Optional
+from uuid import UUID, uuid5
 from fastapi import HTTPException
 
 from core.database import get_db
 from schemas.schemas import ChapterDTO, StoryDTO
 from services.text_parser import extract_chapters_from_text
-from services.story_service import row_to_story_dto, get_stories
-
+from services.story_service import row_to_story_dto
 
 GUTENBERG_CHAPTER_NAMESPACE = UUID("d3675b18-25d3-5aa7-9c4f-65ea90fb89b2")
+PROVIDER_HEADERS = {"User-Agent": "FableReader/1.0 (public-domain-text-client)"}
 
 
 async def _fetch_gutenberg_text(gutenberg_id: int) -> str:
     url = f"https://www.gutenberg.org/ebooks/{gutenberg_id}.txt.utf-8"
-    headers = {"User-Agent": "FableReader/1.0 (public-domain-text-client)"}
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
-            response = await client.get(url, headers=headers)
+            response = await client.get(url, headers=PROVIDER_HEADERS)
     except httpx.HTTPError as error:
         raise HTTPException(status_code=502, detail="Gutenberg text service is unavailable") from error
 
@@ -52,103 +51,142 @@ async def get_gutenberg_chapters(gutenberg_id: int) -> list[ChapterDTO]:
         for chapter in parsed_chapters
     ]
 
+
 async def ingest_gutenberg_book(
     gutenberg_id: int,
-    genre: Optional[str] = "Folklore"
+    genre: Optional[str] = None,
 ) -> StoryDTO:
-    """
-    Live Ingestion Engine: Fetches full plain text from Project Gutenberg, parses
-    actual chapters, extracts metadata, and stores into Fable database.
-    """
+    metadata_url = "https://gutendex.com/books/"
     text_url = f"https://www.gutenberg.org/ebooks/{gutenberg_id}.txt.utf-8"
-    meta_url = f"https://gutendex.com/books/?ids={gutenberg_id}"
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            metadata_response = await client.get(
+                metadata_url,
+                params={"ids": str(gutenberg_id)},
+                headers=PROVIDER_HEADERS,
+            )
+            if metadata_response.status_code != 200:
+                raise HTTPException(status_code=502, detail="Gutenberg catalog service returned an error")
+            results = metadata_response.json().get("results", [])
+            book = next((item for item in results if item.get("id") == gutenberg_id), None)
+            if not book:
+                raise HTTPException(status_code=404, detail="Gutenberg book was not found")
 
-    title = f"Gutenberg Classic #{gutenberg_id}"
-    author = "Public Domain"
-    cover_url = f"https://www.gutenberg.org/cache/epub/{gutenberg_id}/pg{gutenberg_id}.cover.medium.jpg"
-    synopsis = f"Authentic public-domain edition #{gutenberg_id} from Project Gutenberg."
+            text_response = await client.get(text_url, headers=PROVIDER_HEADERS)
+            if text_response.status_code == 404:
+                raise HTTPException(status_code=404, detail="Gutenberg text was not found")
+            if text_response.status_code != 200:
+                raise HTTPException(status_code=502, detail="Gutenberg text service returned an error")
+            raw_text = text_response.text
+    except httpx.HTTPError as error:
+        raise HTTPException(status_code=502, detail="Gutenberg services are unavailable") from error
 
-    headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"}
+    parsed_chapters = extract_chapters_from_text(raw_text)
+    if not parsed_chapters or not any(chapter["content"].strip() for chapter in parsed_chapters):
+        raise HTTPException(status_code=422, detail="Unable to extract readable chapters from Gutenberg text")
 
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        try:
-            meta_res = await client.get(meta_url, headers=headers)
-            if meta_res.status_code == 200:
-                results = meta_res.json().get("results", [])
-                if results:
-                    book_meta = results[0]
-                    title = book_meta.get("title", title)
-                    authors = book_meta.get("authors", [])
-                    if authors:
-                        raw_name = authors[0].get("name", author)
-                        if ", " in raw_name:
-                            p = raw_name.split(", ", 1)
-                            author = f"{p[1]} {p[0]}"
-                        else:
-                            author = raw_name
-                    summaries = book_meta.get("summaries", [])
-                    if summaries:
-                        synopsis = summaries[0]
-        except Exception:
-            pass
+    authors = book.get("authors", [])
+    title = str(book.get("title", "")).strip()
+    author_name = str(authors[0].get("name", "")).strip() if authors else ""
+    if not title or not author_name:
+        raise HTTPException(status_code=422, detail="Gutenberg metadata is incomplete")
+    if ", " in author_name:
+        family_name, given_names = author_name.split(", ", 1)
+        author_name = f"{given_names} {family_name}"
 
-        try:
-            txt_res = await client.get(text_url, headers=headers)
-            if txt_res.status_code != 200:
-                raise HTTPException(status_code=400, detail=f"Failed to fetch text from Gutenberg for ID {gutenberg_id}")
-            raw_text = txt_res.text
-        except Exception as e:
-            raise HTTPException(status_code=502, detail=f"External Gutenberg network error: {str(e)}")
-
-    chapters = extract_chapters_from_text(raw_text)
-    if not chapters:
-        raise HTTPException(status_code=422, detail="Unable to extract chapters from manuscript text")
-
-    story_id = str(uuid4())
+    subjects = book.get("subjects", [])
+    selected_genre = genre or (subjects[0] if subjects else "")
+    summaries = book.get("summaries", [])
+    synopsis = str(summaries[0]).strip() if summaries else ""
+    cover_url = book.get("formats", {}).get("image/jpeg")
+    if not cover_url:
+        raise HTTPException(status_code=422, detail="Gutenberg edition has no cover image")
+    download_count = max(0, int(book.get("download_count", 0)))
+    story_id = UUID(int=gutenberg_id)
     now = datetime.now(timezone.utc)
     now_iso = now.isoformat()
-    first_chapter = chapters[0]
-    total_words = sum(c["word_count"] for c in chapters)
-    read_mins = max(3, total_words // 200)
+    total_words = sum(chapter["word_count"] for chapter in parsed_chapters)
+    read_minutes = max(1, total_words // 200)
+    first_chapter = parsed_chapters[0]
 
     conn = get_db()
-    with conn:
-        conn.execute("""
-            INSERT INTO stories (
-                id, title, author, genre, chapter, synopsis, content,
-                read_time_minutes, is_bookmarked, is_completed, created_at_utc, updated_at_utc,
-                cover_image_url, is_recent_submission, total_chapters, content_format, source_provider
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            story_id, title[:120], author[:80], genre or "Folklore", first_chapter["title"],
-            synopsis[:300], first_chapter["content"], read_mins, 0, 0,
-            now_iso, now_iso, cover_url, 1, len(chapters), "PROSE", "GUTENBERG"
-        ))
+    try:
+        with conn:
+            existing = conn.execute(
+                "SELECT id, created_at_utc FROM stories WHERE source_provider = ? AND provider_id = ?",
+                ("GUTENBERG", str(gutenberg_id)),
+            ).fetchone()
+            if existing:
+                story_id_value = existing["id"]
+                created_at = existing["created_at_utc"]
+                conn.execute(
+                    """
+                    UPDATE stories SET
+                        title = ?, author = ?, genre = ?, chapter = ?, synopsis = ?, content = ?,
+                        read_time_minutes = ?, updated_at_utc = ?, cover_image_url = ?,
+                        total_chapters = ?, content_format = ?, provider_download_count = ?
+                    WHERE id = ?
+                    """,
+                    (
+                        title[:120], author_name[:80], selected_genre, first_chapter["title"],
+                        synopsis, first_chapter["content"], read_minutes, now_iso, cover_url,
+                        len(parsed_chapters), "PROSE", download_count, story_id_value,
+                    ),
+                )
+            else:
+                story_id_value = str(story_id)
+                created_at = now_iso
+                conn.execute(
+                    """
+                    INSERT INTO stories (
+                        id, title, author, genre, chapter, synopsis, content,
+                        read_time_minutes, created_at_utc, updated_at_utc, cover_image_url,
+                        is_recent_submission, total_chapters, content_format, source_provider,
+                        provider_id, provider_download_count
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        story_id_value, title[:120], author_name[:80], selected_genre,
+                        first_chapter["title"], synopsis, first_chapter["content"], read_minutes,
+                        created_at, now_iso, cover_url, 0, len(parsed_chapters), "PROSE",
+                        "GUTENBERG", str(gutenberg_id), download_count,
+                    ),
+                )
 
-        for ch in chapters:
-            ch_id = str(uuid4())
-            conn.execute("""
-                INSERT INTO chapters (
-                    id, story_id, chapter_number, title, content, word_count, created_at_utc
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (
-                ch_id, story_id, ch["chapter_number"], ch["title"], ch["content"], ch["word_count"], now_iso
-            ))
+            for chapter in parsed_chapters:
+                chapter_id = str(
+                    uuid5(GUTENBERG_CHAPTER_NAMESPACE, f"{gutenberg_id}:{chapter['chapter_number']}")
+                )
+                conn.execute(
+                    """
+                    INSERT INTO chapters (
+                        id, story_id, chapter_number, title, content, word_count, created_at_utc
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(id) DO UPDATE SET
+                        title = excluded.title,
+                        content = excluded.content,
+                        word_count = excluded.word_count,
+                        created_at_utc = excluded.created_at_utc
+                    """,
+                    (
+                        chapter_id, story_id_value, chapter["chapter_number"], chapter["title"],
+                        chapter["content"], chapter["word_count"], now_iso,
+                    ),
+                )
 
-    row = conn.execute("SELECT * FROM stories WHERE id = ?", (story_id,)).fetchone()
-    dto = row_to_story_dto(row, include_chapters=True, conn=conn)
-    conn.close()
-    return dto
+        row = conn.execute(
+            "SELECT * FROM stories WHERE id = ?",
+            (story_id_value,),
+        ).fetchone()
+        return row_to_story_dto(row, include_chapters=True, conn=conn)
+    finally:
+        conn.close()
+
 
 async def get_gutenberg_stories(
-    topic: Optional[str] = "folklore",
-    search: Optional[str] = None
+    topic: Optional[str] = None,
+    search: Optional[str] = None,
 ) -> list[StoryDTO]:
-    """
-    Public literature gateway: Queries Project Gutenberg via Gutendex REST API,
-    normalizes unstructured literary data into Fable's StoryDTO schema with cover URLs.
-    """
-    url = "https://gutendex.com/books/"
     params = {}
     if topic and topic.lower() != "all":
         params["topic"] = topic.lower()
@@ -156,68 +194,68 @@ async def get_gutenberg_stories(
         params["search"] = search
 
     try:
-        headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"}
-        async with httpx.AsyncClient(timeout=4.0) as client:
-            resp = await client.get(url, params=params, headers=headers)
-            if resp.status_code == 200:
-                payload = resp.json()
-                results = payload.get("results", [])
-                gutenberg_stories: list[StoryDTO] = []
-                now = datetime.now(timezone.utc)
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            response = await client.get(
+                "https://gutendex.com/books/",
+                params=params,
+                headers=PROVIDER_HEADERS,
+            )
+    except httpx.HTTPError as error:
+        raise HTTPException(status_code=502, detail="Gutenberg catalog service is unavailable") from error
+    if response.status_code != 200:
+        raise HTTPException(status_code=502, detail="Gutenberg catalog service returned an error")
 
-                for book in results[:10]:
-                    book_id = book.get("id", 1000)
-                    title = book.get("title", "Untitled Classic")
-                    authors = book.get("authors", [])
-                    author_name = authors[0].get("name", "Classic Author") if authors else "Public Domain"
-                    if ", " in author_name:
-                        parts = author_name.split(", ", 1)
-                        author_name = f"{parts[1]} {parts[0]}"
+    results = response.json().get("results", [])
+    now = datetime.now(timezone.utc)
+    stories: list[StoryDTO] = []
+    for book in results[:20]:
+        book_id = book.get("id")
+        title = str(book.get("title", "")).strip()
+        authors = book.get("authors", [])
+        author_name = str(authors[0].get("name", "")).strip() if authors else ""
+        if not book_id or not title or not author_name:
+            continue
+        if ", " in author_name:
+            family_name, given_names = author_name.split(", ", 1)
+            author_name = f"{given_names} {family_name}"
 
-                    summaries = book.get("summaries", [])
-                    synopsis = summaries[0] if summaries else f"Classic public domain edition of {title} from Project Gutenberg."
-                    if len(synopsis) > 280:
-                        synopsis = synopsis[:277] + "..."
+        subjects = book.get("subjects", [])
+        genre = str(subjects[0]).strip() if subjects else (topic or "")
+        summaries = book.get("summaries", [])
+        synopsis = str(summaries[0]).strip() if summaries else ""
+        cover_url = book.get("formats", {}).get("image/jpeg")
+        if not cover_url:
+            continue
+        try:
+            provider_download_count = max(0, int(book.get("download_count", 0)))
+            story_id = UUID(int=int(book_id))
+        except (TypeError, ValueError):
+            continue
 
-                    formats = book.get("formats", {})
-                    cover_url = formats.get("image/jpeg")
-
-                    subjects = book.get("subjects", [])
-                    genre = "Folklore"
-                    if any("myth" in s.lower() for s in subjects):
-                        genre = "Mythology"
-                    elif any("gothic" in s.lower() or "horror" in s.lower() for s in subjects):
-                        genre = "Gothic"
-                    elif any("fiction" in s.lower() for s in subjects):
-                        genre = "Classic Fiction"
-                    elif topic and topic.lower() != "all":
-                        genre = topic.capitalize()
-
-                    story_uuid = UUID(int=int(book_id))
-
-                    gutenberg_stories.append(StoryDTO(
-                        id=story_uuid,
-                        title=title[:120],
-                        author=author_name[:80],
-                        genre=genre,
-                        chapter="Chapter I",
-                        synopsis=synopsis,
-                        content="",
-                        read_time_minutes=max(3, min(12, len(title.split()) * 2)),
-                        is_bookmarked=False,
-                        is_completed=False,
-                        created_at_utc=now,
-                        updated_at_utc=now,
-                        cover_image_url=cover_url,
-                        total_chapters=1,
-                        content_format="PROSE",
-                        source_provider="GUTENBERG",
-                        provider_id=str(book_id),
-                    ))
-
-                if gutenberg_stories:
-                    return gutenberg_stories
-    except Exception:
-        pass
-
-    return get_stories(genre=topic, search=search)
+        stories.append(
+            StoryDTO(
+                id=story_id,
+                title=title[:120],
+                author=author_name[:80],
+                genre=genre,
+                chapter="",
+                synopsis=synopsis,
+                content="",
+                read_time_minutes=0,
+                is_bookmarked=False,
+                is_completed=False,
+                created_at_utc=now,
+                updated_at_utc=now,
+                cover_image_url=cover_url,
+                total_pages=0,
+                rating=None,
+                saves_count="0",
+                reads_count="0",
+                total_chapters=0,
+                content_format="PROSE",
+                source_provider="GUTENBERG",
+                provider_id=str(book_id),
+                provider_download_count=provider_download_count,
+            )
+        )
+    return stories

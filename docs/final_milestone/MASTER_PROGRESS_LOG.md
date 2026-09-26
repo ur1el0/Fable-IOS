@@ -144,3 +144,15 @@ The Final Milestone transforms **Fable** from an editorial prototype into a full
 - [x] Added internal diagnostics for provider ID decoding and chapter serialization round trips.
 - [x] Source diff passed whitespace validation.
 - The Swift diagnostics and iOS build could not run in this Fedora workspace because Swift and Xcode are unavailable.
+
+## Backend Live Catalog and Source-Backed Metrics (2026-09-26)
+
+- [x] Removed the embedded backend seed catalog; fresh databases now start empty and remain empty across restarts until content is fetched or authored.
+- [x] Gutenberg discovery returns provider metadata, official provider covers, provider download counts, and no synopsis-as-content or fabricated rating.
+- [x] Gutenberg ingestion uses provider metadata and stable book/chapter identifiers; re-ingestion updates matching rows by stable ID.
+- [x] Genre title and reader totals come from story and shelf records; author work counts and portraits come from Open Library; unavailable ratings remain null.
+- [x] Update feeds no longer promote arbitrary stories as editorial picks, user DTOs no longer default to a bundled avatar, and API story DTOs omit local asset names.
+- [x] Swift models accept missing ratings, persist provider download counts, and avoid showing a fake rating in explore cards.
+- [x] Backend container build and test suite passed: 28 tests.
+- Existing databases may still contain the 12 old demo story rows. They have not been deleted or modified; automatic review rejected destructive cleanup, and explicit approval for removing only those rows is pending.
+- The Swift build and diagnostics remain unrun because this Fedora workspace has no Swift/Xcode toolchain.

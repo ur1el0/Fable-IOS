@@ -3,12 +3,18 @@ import hmac
 import secrets
 from datetime import datetime, timezone
 from uuid import UUID, uuid4
+from typing import Optional
 from fastapi import HTTPException, status
 from core.database import get_db
 from schemas.schemas import UserDTO, RegisterRequest, LoginRequest, AuthResponse
 
 # In-memory session store mapping active bearer token -> user_id
 ACTIVE_SESSIONS: dict[str, str] = {}
+
+
+def _avatar_image_name(row) -> Optional[str]:
+    value = row["avatar_image_name"]
+    return None if value == "avatar_roosc" else value
 
 def hash_password(password: str) -> str:
     """Hash password using PBKDF2-HMAC-SHA256 with 100,000 iterations and 16-byte random salt."""
@@ -44,7 +50,7 @@ def register_user(req: RegisterRequest) -> AuthResponse:
             conn.execute("""
                 INSERT INTO users (id, email, password_hash, name, avatar_image_name, created_at_utc, updated_at_utc)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (user_id, normalized_email, pwd_hash, req.name.strip(), "avatar_roosc", now, now))
+            """, (user_id, normalized_email, pwd_hash, req.name.strip(), None, now, now))
     finally:
         conn.close()
 
@@ -54,7 +60,7 @@ def register_user(req: RegisterRequest) -> AuthResponse:
         id=UUID(user_id),
         email=normalized_email,
         name=req.name.strip(),
-        avatar_image_name="avatar_roosc",
+        avatar_image_name=None,
         created_at_utc=datetime.fromisoformat(now)
     )
     return AuthResponse(access_token=token, token_type="bearer", user=user_dto)
@@ -78,7 +84,7 @@ def login_user(req: LoginRequest) -> AuthResponse:
         id=UUID(row["id"]),
         email=row["email"],
         name=row["name"],
-        avatar_image_name=row["avatar_image_name"] or "avatar_roosc",
+        avatar_image_name=_avatar_image_name(row),
         avatar_image_url=row["avatar_image_url"],
         created_at_utc=datetime.fromisoformat(row["created_at_utc"])
     )
@@ -107,7 +113,7 @@ def get_current_user(token: str) -> UserDTO:
         id=UUID(row["id"]),
         email=row["email"],
         name=row["name"],
-        avatar_image_name=row["avatar_image_name"] or "avatar_roosc",
+        avatar_image_name=_avatar_image_name(row),
         avatar_image_url=row["avatar_image_url"],
         created_at_utc=datetime.fromisoformat(row["created_at_utc"])
     )
