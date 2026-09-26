@@ -170,6 +170,24 @@ class AuthResponse(BaseModel):
         "populate_by_name": True
     }
 
+
+class ReadingSessionRequest(BaseModel):
+    id: UUID
+    story_id: UUID = Field(..., alias="storyId", serialization_alias="storyId")
+    seconds_read: int = Field(..., ge=3, le=86400, alias="secondsRead", serialization_alias="secondsRead")
+    read_at_utc: datetime = Field(..., alias="readAtUtc", serialization_alias="readAtUtc")
+    is_completed: bool = Field(default=False, alias="isCompleted", serialization_alias="isCompleted")
+
+    model_config = {"populate_by_name": True, "extra": "forbid"}
+
+
+class ReadingStatsDTO(BaseModel):
+    stories_read_count: int = Field(..., serialization_alias="storiesReadCount")
+    total_minutes_read: int = Field(..., serialization_alias="totalMinutesRead")
+    streak_days: int = Field(..., serialization_alias="streakDays")
+
+    model_config = {"populate_by_name": True}
+
 class HealthResponse(BaseModel):
     status: str = "healthy"
     database: str = "connected"

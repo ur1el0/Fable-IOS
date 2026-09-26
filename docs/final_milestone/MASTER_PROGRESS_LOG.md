@@ -198,3 +198,15 @@ The Final Milestone transforms **Fable** from an editorial prototype into a full
 - [x] Added API coverage for unauthenticated rejection and same-device cross-account isolation.
 - [x] Docker backend suite passed: 32 tests.
 - [ ] iOS shelf requests are being updated to send the active server token; this environment cannot compile Swift because the Swift/Xcode toolchain is unavailable.
+
+
+## Authenticated Reading Statistics and Shelf Privacy (2026-09-26)
+
+- [x] Added an idempotent authenticated reading-session endpoint and per-account statistics endpoint.
+- [x] Backend totals count completed works, logged minutes, and consecutive UTC reading days from persisted session events.
+- [x] Shelf reads/writes and public save/read aggregates are isolated by authenticated account; public story DTOs no longer expose record-level bookmark/completion flags.
+- [x] Added coverage for session de-duplication, account isolation, unauthenticated rejection, and DTO privacy.
+- [x] Docker backend suite passed: 33 tests.
+- [x] iOS now queues offline reading events per account, fetches the live totals, and scopes offline logs and shelf snapshots to each account.
+- [x] Writer toolbar actions apply formatting to selected manuscript text and have an on-device interaction diagnostic.
+- The iOS diagnostic and simulator/device build remain unrun in this Fedora workspace because Swift and Xcode are unavailable.

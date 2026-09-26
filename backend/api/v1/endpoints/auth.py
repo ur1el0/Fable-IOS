@@ -1,6 +1,15 @@
 from fastapi import APIRouter, Header, status
-from schemas import RegisterRequest, LoginRequest, ProfileUpdateRequest, AuthResponse, StoryDTO, UserDTO
-from services import auth_service, story_service
+from schemas import (
+    RegisterRequest,
+    LoginRequest,
+    ProfileUpdateRequest,
+    AuthResponse,
+    StoryDTO,
+    UserDTO,
+    ReadingSessionRequest,
+    ReadingStatsDTO,
+)
+from services import auth_service, story_service, reading_stats
 
 router = APIRouter()
 
@@ -29,3 +38,18 @@ def update_me(req: ProfileUpdateRequest, authorization: str = Header(None)):
     auth_service.get_current_user_from_header(authorization)
     token = authorization.split(" ", 1)[1]
     return auth_service.update_current_user(token, req)
+
+
+@router.post("/auth/me/reading-sessions", status_code=status.HTTP_204_NO_CONTENT)
+def record_reading_session(
+    request: ReadingSessionRequest,
+    authorization: str = Header(None),
+):
+    user = auth_service.get_current_user_from_header(authorization)
+    reading_stats.record_reading_session(user.id, request)
+
+
+@router.get("/auth/me/stats", response_model=ReadingStatsDTO)
+def get_reading_stats(authorization: str = Header(None)):
+    user = auth_service.get_current_user_from_header(authorization)
+    return reading_stats.get_reading_stats(user.id)

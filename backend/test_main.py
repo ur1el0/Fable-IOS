@@ -99,8 +99,8 @@ def test_story_dto_camelcase_serialization_contract():
     assert response.status_code == 201
     story = response.json()
     assert "readTimeMinutes" in story
-    assert "isBookmarked" in story
-    assert "isCompleted" in story
+    assert story["isBookmarked"] is False
+    assert story["isCompleted"] is False
     assert "createdAtUtc" in story
     assert "updatedAtUtc" in story
     assert "totalChapters" in story
@@ -829,3 +829,35 @@ def test_shelf_sync_requires_authentication_and_isolates_accounts():
     second_items = client.get(f"/api/v1/shelf?deviceId={device_id}", headers=second_user)
     assert len(first_items.json()) == 1
     assert second_items.json() == []
+
+
+def test_reading_statistics_are_authenticated_idempotent_and_account_scoped():
+    user_a = auth_headers("Reading Stats A")
+    user_b = auth_headers("Reading Stats B")
+    session_id = str(uuid4())
+    request = {
+        "id": session_id,
+        "storyId": str(uuid4()),
+        "secondsRead": 125,
+        "readAtUtc": datetime.now(timezone.utc).isoformat(),
+        "isCompleted": True,
+    }
+
+    assert client.post("/api/v1/auth/me/reading-sessions", json=request).status_code == 401
+    first = client.post("/api/v1/auth/me/reading-sessions", headers=user_a, json=request)
+    duplicate = client.post("/api/v1/auth/me/reading-sessions", headers=user_a, json=request)
+    assert first.status_code == 204
+    assert duplicate.status_code == 204
+
+    stats_a = client.get("/api/v1/auth/me/stats", headers=user_a)
+    stats_b = client.get("/api/v1/auth/me/stats", headers=user_b)
+    assert stats_a.status_code == 200
+    assert stats_a.json()["storiesReadCount"] == 1
+    assert stats_a.json()["totalMinutesRead"] == 2
+    assert stats_a.json()["streakDays"] == 1
+    assert stats_b.json() == {
+        "storiesReadCount": 0,
+        "totalMinutesRead": 0,
+        "streakDays": 0,
+    }
+    assert client.get("/api/v1/auth/me/stats").status_code == 401
