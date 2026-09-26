@@ -1,0 +1,17 @@
+services:
+  fable-backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      args:
+        FABLE_UID: ${FABLE_UID:-1000}
+        FABLE_GID: ${FABLE_GID:-1000}
+    ports:
+      - "${FABLE_PORT:-8000}:8000"
+    volumes:
+      - ./data:/app/data
+    env_file:
+      - .env
+    environment:
+      FABLE_DB_PATH: /app/data/fable.sqlite3
+    restart: unless-stopped
