@@ -152,7 +152,7 @@ def test_story_metrics_are_derived_from_device_shelf_state():
     assert initial["savesCount"] == "0"
     assert initial["readsCount"] == "0"
 
-    sync = client.post("/api/v1/shelf/sync", json={
+    sync = client.post("/api/v1/shelf/sync", headers=auth_headers(), json={
         "deviceId": "11111111-1111-1111-1111-111111111111",
         "items": [{
             "storyId": story_id,
@@ -316,7 +316,8 @@ def test_last_write_wins_resolution():
             }
         ]
     }
-    res1 = client.post("/api/v1/shelf/sync", json=initial_sync)
+    headers = auth_headers()
+    res1 = client.post("/api/v1/shelf/sync", headers=headers, json=initial_sync)
     assert res1.status_code == 200
     reconciled = res1.json()["reconciledItems"]
     assert len(reconciled) == 1
@@ -335,7 +336,7 @@ def test_last_write_wins_resolution():
             }
         ]
     }
-    res2 = client.post("/api/v1/shelf/sync", json=stale_sync)
+    res2 = client.post("/api/v1/shelf/sync", headers=headers, json=stale_sync)
     assert res2.status_code == 200
     assert res2.json()["reconciledItems"][0]["readingProgress"] == 0.4
 
@@ -352,7 +353,7 @@ def test_last_write_wins_resolution():
             }
         ]
     }
-    res3 = client.post("/api/v1/shelf/sync", json=fresh_sync)
+    res3 = client.post("/api/v1/shelf/sync", headers=headers, json=fresh_sync)
     assert res3.status_code == 200
     assert res3.json()["reconciledItems"][0]["readingProgress"] == 0.9
 
@@ -373,7 +374,9 @@ def test_multi_tenant_device_shelf_isolation():
             "updatedAtUtc": now.isoformat()
         }]
     }
-    res_a = client.post("/api/v1/shelf/sync", json=payload_a)
+    headers_a = auth_headers("Device A Reader")
+    headers_b = auth_headers("Device B Reader")
+    res_a = client.post("/api/v1/shelf/sync", headers=headers_a, json=payload_a)
     assert res_a.status_code == 200
 
     # Device B syncs progress 0.20 for the exact same story
@@ -387,11 +390,11 @@ def test_multi_tenant_device_shelf_isolation():
             "updatedAtUtc": now.isoformat()
         }]
     }
-    res_b = client.post("/api/v1/shelf/sync", json=payload_b)
+    res_b = client.post("/api/v1/shelf/sync", headers=headers_b, json=payload_b)
     assert res_b.status_code == 200
 
     # Query shelf for Device A via GET /api/v1/shelf
-    get_a = client.get(f"/api/v1/shelf?deviceId={device_a}")
+    get_a = client.get(f"/api/v1/shelf?deviceId={device_a}", headers=headers_a)
     assert get_a.status_code == 200
     items_a = get_a.json()
     assert len(items_a) == 1
@@ -399,7 +402,7 @@ def test_multi_tenant_device_shelf_isolation():
     assert items_a[0]["isBookmarked"] is True
 
     # Query shelf for Device B via GET /api/v1/shelf
-    get_b = client.get(f"/api/v1/shelf?deviceId={device_b}")
+    get_b = client.get(f"/api/v1/shelf?deviceId={device_b}", headers=headers_b)
     assert get_b.status_code == 200
     items_b = get_b.json()
     assert len(items_b) == 1
@@ -799,3 +802,30 @@ def test_env_db_path_override(tmp_path, monkeypatch):
         assert database_path == str(override_path)
     finally:
         connection.close()
+
+
+def test_shelf_sync_requires_authentication_and_isolates_accounts():
+    device_id = str(uuid4())
+    story_id = str(uuid4())
+    payload = {
+        "deviceId": device_id,
+        "items": [{
+            "storyId": story_id,
+            "readingProgress": 0.6,
+            "isBookmarked": True,
+            "isCompleted": False,
+            "updatedAtUtc": datetime.now(timezone.utc).isoformat()
+        }]
+    }
+    assert client.post("/api/v1/shelf/sync", json=payload).status_code == 401
+    assert client.get(f"/api/v1/shelf?deviceId={device_id}").status_code == 401
+
+    first_user = auth_headers("First Shelf Owner")
+    second_user = auth_headers("Second Shelf Owner")
+    first_sync = client.post("/api/v1/shelf/sync", headers=first_user, json=payload)
+    assert first_sync.status_code == 200
+
+    first_items = client.get(f"/api/v1/shelf?deviceId={device_id}", headers=first_user)
+    second_items = client.get(f"/api/v1/shelf?deviceId={device_id}", headers=second_user)
+    assert len(first_items.json()) == 1
+    assert second_items.json() == []

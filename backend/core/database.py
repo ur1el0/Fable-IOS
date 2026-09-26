@@ -89,6 +89,20 @@ def init_db():
         """)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_shelf_items_device ON shelf_items (device_id);")
         conn.execute("""
+            CREATE TABLE IF NOT EXISTS account_shelf_items (
+                owner_user_id TEXT NOT NULL,
+                device_id TEXT NOT NULL,
+                story_id TEXT NOT NULL,
+                reading_progress REAL NOT NULL,
+                is_bookmarked INTEGER NOT NULL DEFAULT 0,
+                is_completed INTEGER NOT NULL DEFAULT 0,
+                updated_at_utc TEXT NOT NULL,
+                PRIMARY KEY (owner_user_id, device_id, story_id)
+            );
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_account_shelf_owner_device ON account_shelf_items (owner_user_id, device_id);")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_account_shelf_story ON account_shelf_items (story_id);")
+        conn.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 id TEXT PRIMARY KEY,
                 email TEXT UNIQUE NOT NULL,

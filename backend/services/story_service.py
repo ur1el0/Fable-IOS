@@ -83,9 +83,9 @@ def row_to_story_dto(
         shelf_counts = conn.execute(
             """
             SELECT
-                COUNT(DISTINCT CASE WHEN is_bookmarked = 1 THEN device_id END) AS saves_count,
-                COUNT(DISTINCT CASE WHEN reading_progress > 0 THEN device_id END) AS reads_count
-            FROM shelf_items
+                COUNT(DISTINCT CASE WHEN is_bookmarked = 1 THEN owner_user_id END) AS saves_count,
+                COUNT(DISTINCT CASE WHEN reading_progress > 0 THEN owner_user_id END) AS reads_count
+            FROM account_shelf_items
             WHERE story_id = ?
             """,
             (str(story_id),),
@@ -333,10 +333,10 @@ def get_genres() -> list[GenreDTO]:
                 stories.genre,
                 COUNT(DISTINCT stories.id) AS story_count,
                 COUNT(DISTINCT CASE
-                    WHEN shelf_items.reading_progress > 0 THEN shelf_items.device_id
+                    WHEN account_shelf_items.reading_progress > 0 THEN account_shelf_items.owner_user_id
                 END) AS readers_count
             FROM stories
-            LEFT JOIN shelf_items ON shelf_items.story_id = stories.id
+            LEFT JOIN account_shelf_items ON account_shelf_items.story_id = stories.id
             GROUP BY stories.genre
             ORDER BY story_count DESC, stories.genre COLLATE NOCASE ASC
             """

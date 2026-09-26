@@ -188,3 +188,13 @@ The Final Milestone transforms **Fable** from an editorial prototype into a full
 - [x] Added an authenticated `/auth/me/stories` endpoint with database-level owner filtering.
 - [x] Added tests for unauthenticated rejection, spoofed author rejection, and account-isolated published-story listings.
 - [x] Docker backend suite passed: 31 tests.
+
+
+## Account-Scoped Shelf Synchronization (2026-09-26)
+
+- [x] Added account-owned shelf records keyed by user, device, and story while preserving legacy rows without exposing them through authenticated endpoints.
+- [x] Required bearer authentication for shelf reads and writes and scoped every query to the authenticated user.
+- [x] Public save, reader, and genre-reader totals now count authenticated accounts rather than caller-controlled device identifiers.
+- [x] Added API coverage for unauthenticated rejection and same-device cross-account isolation.
+- [x] Docker backend suite passed: 32 tests.
+- [ ] iOS shelf requests are being updated to send the active server token; this environment cannot compile Swift because the Swift/Xcode toolchain is unavailable.
