@@ -416,6 +416,9 @@ public struct ReaderView: View {
                                     HStack(spacing: 14) {
                                         if currentChapterIndex > 0 {
                                             Button(action: {
+                                                if store.hapticFeedback {
+                                                    HapticManager.impact(style: .light)
+                                                }
                                                 selectChapter(at: currentChapterIndex - 1)
                                             }) {
                                                 HStack(spacing: 6) {
@@ -435,6 +438,9 @@ public struct ReaderView: View {
                                         
                                         if currentChapterIndex < chapters.count - 1 {
                                             Button(action: {
+                                                if store.hapticFeedback {
+                                                    HapticManager.impact(style: .light)
+                                                }
                                                 selectChapter(at: currentChapterIndex + 1)
                                             }) {
                                                 HStack(spacing: 6) {

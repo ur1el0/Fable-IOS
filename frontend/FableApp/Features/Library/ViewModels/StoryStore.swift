@@ -135,6 +135,9 @@ public final class StoryStore: ObservableObject {
         stories.insert(newStory, at: 0)
         profileStories.insert(newStory, at: 0)
         isStoryPublished = true
+        if hapticFeedback {
+            HapticManager.notification(type: .success)
+        }
         
         // Persist to SwiftData SQLite
         PersistenceService.shared.saveStory(newStory)
@@ -371,6 +374,9 @@ public final class StoryStore: ObservableObject {
             profileStories[idx].isBookmarked.toggle()
         }
         _ = PersistenceService.shared.toggleBookmark(storyId: story.id)
+        if hapticFeedback {
+            HapticManager.notification(type: .success)
+        }
         
         Task { [weak self] in
             guard let self = self else { return }

@@ -159,6 +159,9 @@ public struct MangaReaderView: View {
 
                         // Mode Selector (Webtoon vs Paging)
                         Button(action: {
+                            if store.hapticFeedback {
+                                HapticManager.selection()
+                            }
                             withAnimation(.easeInOut(duration: 0.2)) {
                                 readingMode = (readingMode == .webtoon) ? .paged : .webtoon
                             }
@@ -209,6 +212,9 @@ public struct MangaReaderView: View {
                             // Prev Chapter
                             Button(action: {
                                 if currentChapterIndex > 0 {
+                                    if store.hapticFeedback {
+                                        HapticManager.impact(style: .light)
+                                    }
                                     currentChapterIndex -= 1
                                     currentPageIndex = 0
                                 }
@@ -236,6 +242,9 @@ public struct MangaReaderView: View {
                             // Next Chapter
                             Button(action: {
                                 if currentChapterIndex < chapters.count - 1 {
+                                    if store.hapticFeedback {
+                                        HapticManager.impact(style: .light)
+                                    }
                                     currentChapterIndex += 1
                                     currentPageIndex = 0
                                 }
