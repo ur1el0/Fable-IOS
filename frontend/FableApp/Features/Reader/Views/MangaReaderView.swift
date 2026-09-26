@@ -265,6 +265,9 @@ public struct MangaReaderView: View {
         .task {
             await loadMangaChapters()
         }
+        .onChange(of: currentChapterIndex) { _, newIndex in
+            prefetchPanels(around: newIndex)
+        }
         .sheet(isPresented: $isShowingChapterSheet) {
             NavigationStack {
                 List(Array(chapters.enumerated()), id: \.element.id) { index, chap in
@@ -296,9 +299,11 @@ public struct MangaReaderView: View {
         }
     }
 
+    @MainActor
     private func loadMangaChapters() async {
         if let existing = story.chapters, !existing.isEmpty {
             self.chapters = existing
+            prefetchPanels(around: currentChapterIndex)
             return
         }
         isLoading = true
@@ -322,47 +327,71 @@ public struct MangaReaderView: View {
             self.chapters = [single]
         }
         isLoading = false
+        prefetchPanels(around: currentChapterIndex)
+    }
+
+    @MainActor
+    private func prefetchPanels(around chapterIndex: Int) {
+        let chapterIndices = [chapterIndex, chapterIndex + 1].filter {
+            chapters.indices.contains($0)
+        }
+        let urls = chapterIndices.flatMap { index in
+            chapters[index].pageUrls.compactMap { URL(string: $0) }
+        }
+
+        guard !urls.isEmpty else {
+            return
+        }
+
+        Task { @MainActor in
+            await DiskImageCache.shared.prefetch(urls: urls)
+        }
     }
 }
 
+@MainActor
 private struct MangaPageView: View {
     let urlString: String
     let pageNumber: Int
+
+    private var imageURL: URL? {
+        guard
+            let url = URL(string: urlString),
+            let scheme = url.scheme?.lowercased(),
+            scheme == "http" || scheme == "https"
+        else {
+            return nil
+        }
+
+        return url
+    }
 
     var body: some View {
         ZStack {
             Color.black
 
-            AsyncImage(url: URL(string: urlString)) { phase in
-                switch phase {
-                case .empty:
-                    Rectangle()
-                        .fill(Color(white: 0.1))
-                        .frame(minHeight: 480)
-                        .overlay(
-                            ProgressView()
-                                .tint(.white)
-                        )
-                case .success(let image):
-                    image
-                        .resizable()
-                        .scaledToFit()
-                        .frame(maxWidth: .infinity)
-                case .failure:
-                    VStack(spacing: 8) {
-                        Image(systemName: "exclamationmark.triangle")
-                            .font(.system(size: 28))
-                            .foregroundColor(.gray)
-                        Text("Failed to load panel \(pageNumber)")
-                            .font(.system(size: 12))
-                            .foregroundColor(.gray)
-                    }
-                    .frame(height: 360)
-                @unknown default:
-                    EmptyView()
+            if let imageURL {
+                FableRemoteImageView(url: imageURL, contentMode: .fit) {
+                    placeholder
                 }
+                .frame(maxWidth: .infinity)
+                .clipped()
+            } else {
+                placeholder
             }
         }
+        .clipped()
+    }
+
+    private var placeholder: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "photo")
+                .font(.system(size: 28))
+                .foregroundColor(.gray)
+            Text("Panel \(pageNumber) unavailable")
+                .font(.system(size: 12))
+                .foregroundColor(.gray)
+        }
+        .frame(maxWidth: .infinity, minHeight: 360)
     }
 }
-
