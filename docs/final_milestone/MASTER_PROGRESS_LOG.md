@@ -104,3 +104,9 @@ The Final Milestone transforms **Fable** from an editorial prototype into a full
 - [x] Added GitHub Actions backend-test and Docker-build verification jobs.
 - [x] Removed duplicate Figma configuration from `.env.example` and documented runtime and Docker ownership settings.
 - [x] Added `test_env_db_path_override` to verify the database path can be overridden through `FABLE_DB_PATH`.
+
+## Offline Manga Panel Cache (2026-09-26)
+
+- [x] Added an actor-isolated SHA-256 disk cache with an in-memory image cache, compressed image storage, and bounded asynchronous URL prefetching.
+- [x] Manga reader prefetches the active and next chapter; remote images render from cache first with network and procedural fallbacks clipped to their view bounds.
+- Device diagnostics were not run in this Fedora workspace because `xcodebuild`, `xcrun`, and the Swift compiler are unavailable.
