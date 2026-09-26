@@ -49,6 +49,40 @@ public final class DiskImageCache {
         await write(data, for: url)
     }
 
+    public func diskUsageInBytes() async -> Int64 {
+        let directoryURL = cacheDirectoryURL
+        return await Task.detached(priority: .utility) {
+            guard let enumerator = FileManager.default.enumerator(
+                at: directoryURL,
+                includingPropertiesForKeys: [.fileSizeKey],
+                options: [.skipsHiddenFiles]
+            ) else {
+                return 0
+            }
+
+            var totalBytes: Int64 = 0
+            for case let fileURL as URL in enumerator {
+                let values = try? fileURL.resourceValues(forKeys: [.fileSizeKey])
+                totalBytes += Int64(values?.fileSize ?? 0)
+            }
+            return totalBytes
+        }.value
+    }
+
+    public func clearCache() async throws {
+        inFlightDownloads.values.forEach { $0.cancel() }
+        inFlightDownloads.removeAll()
+        memoryCache.removeAllObjects()
+
+        let directoryURL = cacheDirectoryURL
+        try await Task.detached(priority: .utility) {
+            guard FileManager.default.fileExists(atPath: directoryURL.path) else {
+                return
+            }
+            try FileManager.default.removeItem(at: directoryURL)
+        }.value
+    }
+
     public func prefetch(urls: [URL]) async {
         var seen = Set<URL>()
         let uncachedURLs = urls.filter { url in

@@ -18,16 +18,18 @@ public struct GenreDetailView: View {
     
     var genreStories: [Story] {
         let matching = store.stories.filter {
-            $0.genre.rawValue.localizedCaseInsensitiveContains(genre.name) ||
-            $0.title.localizedCaseInsensitiveContains(genre.name) ||
-            $0.badgeText?.localizedCaseInsensitiveContains(genre.name) == true
+            $0.genre.rawValue.caseInsensitiveCompare(genre.name) == .orderedSame
         }
-        let list = matching.isEmpty ? store.stories : matching
+        let list = matching
         switch selectedSubcategory {
         case "Popular":
-            return list.sorted { ($0.providerDownloadCount ?? 0) > ($1.providerDownloadCount ?? 0) }
+            return list.sorted { left, right in
+                let leftCount = (Int(left.readsCount) ?? 0) + (Int(left.savesCount) ?? 0) + (left.providerDownloadCount ?? 0)
+                let rightCount = (Int(right.readsCount) ?? 0) + (Int(right.savesCount) ?? 0) + (right.providerDownloadCount ?? 0)
+                return leftCount > rightCount
+            }
         case "Editor's Pick":
-            return list.filter { $0.isSaved || $0.isCuratorSpotlight }
+            return list.filter(\.isCuratorSpotlight)
         case "Quick Reads":
             return list.filter { $0.readingTimeMinutes > 0 && $0.readingTimeMinutes <= 4 }
         default:
@@ -35,6 +37,19 @@ public struct GenreDetailView: View {
         }
     }
     
+    private func toggleGenreFollow() {
+        withAnimation {
+            isFollowing.toggle()
+        }
+        var followed = Set(UserDefaults.standard.stringArray(forKey: "fable_followed_genres") ?? [])
+        if isFollowing {
+            followed.insert(genre.name)
+        } else {
+            followed.remove(genre.name)
+        }
+        UserDefaults.standard.set(followed.sorted(), forKey: "fable_followed_genres")
+    }
+
     public var body: some View {
         ZStack {
             FableTheme.background.ignoresSafeArea()
@@ -62,11 +77,7 @@ public struct GenreDetailView: View {
                     Spacer()
                     
                     HStack(spacing: 10) {
-                        Button(action: {
-                            withAnimation {
-                                isFollowing.toggle()
-                            }
-                        }) {
+                        Button(action: toggleGenreFollow) {
                             Image(systemName: isFollowing ? "bookmark.fill" : "bookmark")
                                 .font(.system(size: 15))
                                 .foregroundColor(isFollowing ? FableTheme.brandPrimary : FableTheme.textPrimary)
@@ -111,11 +122,7 @@ public struct GenreDetailView: View {
                                     .lineSpacing(4)
                             }
                             
-                            Button(action: {
-                                withAnimation {
-                                    isFollowing.toggle()
-                                }
-                            }) {
+                            Button(action: toggleGenreFollow) {
                                 HStack(spacing: 6) {
                                     Image(systemName: isFollowing ? "checkmark" : "plus")
                                         .font(.system(size: 12, weight: .bold))
@@ -166,18 +173,26 @@ public struct GenreDetailView: View {
                                 .foregroundColor(FableTheme.textPrimary)
                                 .padding(.horizontal, 20)
                             
+                            if genreStories.isEmpty {
+                                Text("No cached titles match this genre yet.")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(FableTheme.textMuted)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.horizontal, 20)
+                            }
+
                             VStack(spacing: 12) {
                                 ForEach(genreStories) { story in
-                                    Button(action: {
-                                        selectedStoryToRead = story
-                                    }) {
-                                        HStack(alignment: .top, spacing: 14) {
-                                            FableImageView(name: story.effectiveCoverImage, placeholderIcon: "book")
-                                                .frame(width: 72, height: 90)
-                                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                                            
-                                            VStack(alignment: .leading, spacing: 5) {
-                                                HStack {
+                                    HStack(alignment: .top, spacing: 10) {
+                                        Button {
+                                            selectedStoryToRead = story
+                                        } label: {
+                                            HStack(alignment: .top, spacing: 14) {
+                                                FableImageView(name: story.effectiveCoverImage, placeholderIcon: "book")
+                                                    .frame(width: 72, height: 90)
+                                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                                                VStack(alignment: .leading, spacing: 5) {
                                                     HStack(spacing: 4) {
                                                         Text(story.contentFormat.displayName.uppercased())
                                                             .font(.system(size: 8, weight: .bold))
@@ -186,7 +201,7 @@ public struct GenreDetailView: View {
                                                             .background(story.contentFormat == .manga ? FableTheme.brandPrimary.opacity(0.12) : FableTheme.surfaceVariant)
                                                             .foregroundColor(story.contentFormat == .manga ? FableTheme.brandPrimary : FableTheme.textSecondary)
                                                             .clipShape(Capsule())
-                                                        
+
                                                         Text(story.badgeText ?? story.genre.rawValue.uppercased())
                                                             .font(.system(size: 9, weight: .bold))
                                                             .tracking(0.6)
@@ -196,37 +211,39 @@ public struct GenreDetailView: View {
                                                             .background(FableTheme.surface)
                                                             .clipShape(Capsule())
                                                     }
-                                                    
-                                                    Spacer()
-                                                    
-                                                    Button(action: {
-                                                        store.toggleBookmark(for: story)
-                                                    }) {
-                                                        Image(systemName: story.isBookmarked ? "bookmark.fill" : "bookmark")
-                                                            .font(.system(size: 12))
-                                                            .foregroundColor(story.isBookmarked ? FableTheme.brandPrimary : FableTheme.textMuted)
-                                                    }
+
+                                                    Text(story.title)
+                                                        .font(.system(size: 16, weight: .bold))
+                                                        .foregroundColor(FableTheme.textPrimary)
+                                                        .lineLimit(1)
+
+                                                    Text(story.excerpt)
+                                                        .font(.system(size: 12, weight: .regular))
+                                                        .foregroundColor(FableTheme.textPrimary.opacity(0.75))
+                                                        .lineLimit(2)
+                                                        .lineSpacing(2)
                                                 }
-                                                
-                                                Text(story.title)
-                                                    .font(.system(size: 16, weight: .bold))
-                                                    .foregroundColor(FableTheme.textPrimary)
-                                                    .lineLimit(1)
-                                                
-                                                Text(story.excerpt)
-                                                    .font(.system(size: 12, weight: .regular))
-                                                    .foregroundColor(FableTheme.textPrimary.opacity(0.75))
-                                                    .lineLimit(2)
-                                                    .lineSpacing(2)
+                                                .frame(maxWidth: .infinity, alignment: .leading)
                                             }
+                                            .contentShape(Rectangle())
                                         }
-                                        .padding(14)
-                                        .background(FableTheme.cardBackground)
-                                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                                        .shadow(color: Color.black.opacity(0.03), radius: 6, y: 2)
-                                        .padding(.horizontal, 20)
+                                        .buttonStyle(.plain)
+
+                                        Button {
+                                            store.toggleBookmark(for: story)
+                                        } label: {
+                                            Image(systemName: story.isBookmarked ? "bookmark.fill" : "bookmark")
+                                                .font(.system(size: 12))
+                                                .foregroundColor(story.isBookmarked ? FableTheme.brandPrimary : FableTheme.textMuted)
+                                                .padding(6)
+                                        }
+                                        .accessibilityLabel(story.isBookmarked ? "Remove bookmark" : "Bookmark story")
                                     }
-                                    .buttonStyle(.plain)
+                                    .padding(14)
+                                    .background(FableTheme.cardBackground)
+                                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                                    .shadow(color: Color.black.opacity(0.03), radius: 6, y: 2)
+                                    .padding(.horizontal, 20)
                                 }
                             }
                         }
@@ -236,6 +253,10 @@ public struct GenreDetailView: View {
             }
         }
         .navigationBarBackButtonHidden(true)
+        .onAppear {
+            let followed = UserDefaults.standard.stringArray(forKey: "fable_followed_genres") ?? []
+            isFollowing = followed.contains(genre.name)
+        }
         .fullScreenCover(item: $selectedStoryToRead) { story in
             ReaderView(story: story)
                 .environmentObject(store)

@@ -128,47 +128,51 @@ public struct LibraryView: View {
 
                         // Featured Hero Card
                         if let featuredStory = store.stories.first(where: { $0.isTaleOfTheDay }) ?? store.stories.first {
-                            Button(action: {
-                                selectedStoryToRead = featuredStory
-                            }) {
-                                VStack(alignment: .leading, spacing: 0) {
-                                    // Media Cover with Dynamic Format Badge
-                                    ZStack(alignment: .top) {
+                            VStack(alignment: .leading, spacing: 0) {
+                                ZStack(alignment: .top) {
+                                    Button {
+                                        selectedStoryToRead = featuredStory
+                                    } label: {
                                         FableImageView(name: featuredStory.effectiveCoverImage, placeholderIcon: "square.stack")
                                             .frame(maxWidth: .infinity)
                                             .frame(height: 220)
                                             .clipped()
-                                        
-                                        HStack {
-                                            Text(featuredStory.contentFormat == .manga ? "FEATURED MANGA" : "FEATURED TITLE")
-                                                .font(.system(size: 10, weight: .heavy))
-                                                .tracking(1.0)
-                                                .foregroundColor(FableTheme.brandPrimary)
-                                                .padding(.horizontal, 10)
-                                                .padding(.vertical, 5)
-                                                .background(Color.white.opacity(0.95))
-                                                .clipShape(Capsule())
-                                            
-                                            Spacer()
-                                            
-                                            Button(action: {
-                                                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                                                    store.toggleBookmark(for: featuredStory)
-                                                }
-                                            }) {
-                                                Image(systemName: featuredStory.isBookmarked ? "bookmark.fill" : "bookmark")
-                                                    .font(.system(size: 13, weight: .semibold))
-                                                    .foregroundColor(taleOfTheDay.isBookmarked ? FableTheme.brandPrimary : FableTheme.textPrimary)
-                                                    .padding(8)
-                                                    .background(Color.white.opacity(0.95))
-                                                    .clipShape(Circle())
-                                                    .shadow(color: Color.black.opacity(0.08), radius: 3, y: 1)
-                                            }
-                                        }
-                                        .padding(14)
                                     }
-                                    
-                                    // Description Area
+                                    .buttonStyle(.plain)
+
+                                    HStack {
+                                        Text(featuredStory.contentFormat == .manga ? "FEATURED MANGA" : "FEATURED TITLE")
+                                            .font(.system(size: 10, weight: .heavy))
+                                            .tracking(1.0)
+                                            .foregroundColor(FableTheme.brandPrimary)
+                                            .padding(.horizontal, 10)
+                                            .padding(.vertical, 5)
+                                            .background(Color.white.opacity(0.95))
+                                            .clipShape(Capsule())
+
+                                        Spacer()
+
+                                        Button {
+                                            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                                                store.toggleBookmark(for: featuredStory)
+                                            }
+                                        } label: {
+                                            Image(systemName: featuredStory.isBookmarked ? "bookmark.fill" : "bookmark")
+                                                .font(.system(size: 13, weight: .semibold))
+                                                .foregroundColor(featuredStory.isBookmarked ? FableTheme.brandPrimary : FableTheme.textPrimary)
+                                                .padding(8)
+                                                .background(Color.white.opacity(0.95))
+                                                .clipShape(Circle())
+                                                .shadow(color: Color.black.opacity(0.08), radius: 3, y: 1)
+                                        }
+                                        .accessibilityLabel(featuredStory.isBookmarked ? "Remove bookmark" : "Bookmark story")
+                                    }
+                                    .padding(14)
+                                }
+
+                                Button {
+                                    selectedStoryToRead = featuredStory
+                                } label: {
                                     VStack(alignment: .leading, spacing: 8) {
                                         HStack(spacing: 6) {
                                             Text(featuredStory.author)
@@ -176,15 +180,15 @@ public struct LibraryView: View {
                                                 .foregroundColor(FableTheme.brandPrimary)
                                             Text("•")
                                                 .foregroundColor(FableTheme.textMuted)
-                                            Text(featuredStory.contentFormat == .manga ? "\(featuredStory.readingTimeMinutes)m read" : "\(featuredStory.readingTimeMinutes) min read")
+                                            Text("\(featuredStory.readingTimeMinutes) min read")
                                                 .font(.system(size: 13, weight: .regular))
                                                 .foregroundColor(FableTheme.textMuted)
                                         }
-                                        
+
                                         Text(featuredStory.title)
                                             .font(.system(size: 22, weight: .bold, design: .default))
                                             .foregroundColor(FableTheme.textPrimary)
-                                        
+
                                         Text(featuredStory.excerpt)
                                             .font(.system(size: 14, weight: .regular, design: .default))
                                             .foregroundColor(FableTheme.textSecondary)
@@ -194,13 +198,13 @@ public struct LibraryView: View {
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .background(FableTheme.cardBackground)
                                 }
-                                .clipShape(RoundedRectangle(cornerRadius: 18))
-                                .shadow(color: Color.black.opacity(0.04), radius: 8, y: 2)
-                                .padding(.horizontal, 20)
+                                .buttonStyle(.plain)
                             }
-                            .buttonStyle(.plain)
+                            .clipShape(RoundedRectangle(cornerRadius: 18))
+                            .shadow(color: Color.black.opacity(0.04), radius: 8, y: 2)
+                            .padding(.horizontal, 20)
                         }
-                        
+
                         // Continue Reading Section
                         if let inProgressStory = store.stories.first(where: { $0.progressPercent > 0 && !$0.isCompleted }) {
                             VStack(alignment: .leading, spacing: 12) {
@@ -304,17 +308,16 @@ public struct LibraryView: View {
                             
                             VStack(spacing: 12) {
                                 ForEach(filteredRecentStories) { story in
-                                    Button(action: {
-                                        selectedStoryToRead = story
-                                    }) {
-                                        HStack(alignment: .top, spacing: 14) {
-                                            FableImageView(name: story.effectiveCoverImage, placeholderIcon: "square.stack")
-                                                .frame(width: 72, height: 96)
-                                                .clipShape(RoundedRectangle(cornerRadius: 10))
-                                            
-                                            VStack(alignment: .leading, spacing: 5) {
-                                                HStack {
-                                                    // Dynamic Format Pill
+                                    HStack(alignment: .top, spacing: 10) {
+                                        Button {
+                                            selectedStoryToRead = story
+                                        } label: {
+                                            HStack(alignment: .top, spacing: 14) {
+                                                FableImageView(name: story.effectiveCoverImage, placeholderIcon: "square.stack")
+                                                    .frame(width: 72, height: 96)
+                                                    .clipShape(RoundedRectangle(cornerRadius: 10))
+
+                                                VStack(alignment: .leading, spacing: 5) {
                                                     Text(story.contentFormat == .manga ? "MANGA" : (story.sourceProvider == .standardEbooks ? "STANDARD EBOOKS" : story.genre.rawValue.uppercased()))
                                                         .font(.system(size: 9, weight: .heavy))
                                                         .tracking(0.5)
@@ -323,44 +326,46 @@ public struct LibraryView: View {
                                                         .padding(.vertical, 3)
                                                         .background(FableTheme.surface)
                                                         .clipShape(Capsule())
-                                                    
-                                                    Spacer()
-                                                    
-                                                    Button(action: {
-                                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                                                            store.toggleBookmark(for: story)
-                                                        }
-                                                    }) {
-                                                        Image(systemName: story.isBookmarked ? "bookmark.fill" : "bookmark")
-                                                            .font(.system(size: 13))
-                                                            .foregroundColor(story.isBookmarked ? FableTheme.brandPrimary : FableTheme.textMuted)
-                                                    }
+
+                                                    Text(story.title)
+                                                        .font(.system(size: 16, weight: .bold, design: .default))
+                                                        .foregroundColor(FableTheme.textPrimary)
+                                                        .lineLimit(1)
+
+                                                    Text(story.author)
+                                                        .font(.system(size: 12, weight: .medium))
+                                                        .foregroundColor(FableTheme.textMuted)
+
+                                                    Text(story.excerpt)
+                                                        .font(.system(size: 12, weight: .regular))
+                                                        .foregroundColor(FableTheme.textSecondary)
+                                                        .lineLimit(2)
+                                                        .lineSpacing(2)
                                                 }
-                                                
-                                                Text(story.title)
-                                                    .font(.system(size: 16, weight: .bold, design: .default))
-                                                    .foregroundColor(FableTheme.textPrimary)
-                                                    .lineLimit(1)
-                                                
-                                                Text(story.author)
-                                                    .font(.system(size: 12, weight: .medium))
-                                                    .foregroundColor(FableTheme.textMuted)
-                                                
-                                                Text(story.excerpt)
-                                                    .font(.system(size: 12, weight: .regular))
-                                                    .foregroundColor(FableTheme.textSecondary)
-                                                    .lineLimit(2)
-                                                    .lineSpacing(2)
+                                                .frame(maxWidth: .infinity, alignment: .leading)
                                             }
+                                            .contentShape(Rectangle())
                                         }
-                                        .padding(14)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                        .background(FableTheme.cardBackground)
-                                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                                        .shadow(color: Color.black.opacity(0.03), radius: 6, y: 2)
-                                        .padding(.horizontal, 20)
+                                        .buttonStyle(.plain)
+
+                                        Button {
+                                            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                                                store.toggleBookmark(for: story)
+                                            }
+                                        } label: {
+                                            Image(systemName: story.isBookmarked ? "bookmark.fill" : "bookmark")
+                                                .font(.system(size: 13))
+                                                .foregroundColor(story.isBookmarked ? FableTheme.brandPrimary : FableTheme.textMuted)
+                                                .padding(6)
+                                        }
+                                        .accessibilityLabel(story.isBookmarked ? "Remove bookmark" : "Bookmark story")
                                     }
-                                    .buttonStyle(.plain)
+                                    .padding(14)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .background(FableTheme.cardBackground)
+                                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                                    .shadow(color: Color.black.opacity(0.03), radius: 6, y: 2)
+                                    .padding(.horizontal, 20)
                                 }
                             }
                         }

@@ -82,7 +82,7 @@ public final class AudioNarratorController: NSObject, ObservableObject, AVSpeech
         if let voiceId = selectedVoiceIdentifier, let voice = AVSpeechSynthesisVoice(identifier: voiceId) {
             utterance.voice = voice
         } else {
-            utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
+            utterance.voice = AVSpeechSynthesisVoice(language: Locale.current.identifier)
         }
         
         let clampedMultiplier = max(0.5, min(2.0, playbackRateMultiplier))

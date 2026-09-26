@@ -5,13 +5,21 @@ public struct SettingsView: View {
     @Environment(\.dismiss) var dismiss
     @ObservedObject var auth = AuthManager.shared
     
-    @State private var autoArchiveStories: Bool = false
-    @State private var cacheCleared: Bool = false
+    @State private var imageCacheSizeInBytes: Int64 = 0
+    @State private var isClearingImageCache: Bool = false
+    @State private var imageCacheMessage: String?
     @State private var navigateToProfile: Bool = false
     @State private var isShowingSignOutAlert: Bool = false
     @State private var isShowingDiagnostics: Bool = false
     
     public init() {}
+
+    private var versionLabel: String {
+        let metadata = Bundle.main.infoDictionary ?? [:]
+        let version = metadata["CFBundleShortVersionString"] as? String ?? "Unknown"
+        let build = metadata["CFBundleVersion"] as? String ?? "Unknown"
+        return "Fable for iOS • Version \(version) (Build \(build))"
+    }
     
     public var body: some View {
         NavigationStack {
@@ -193,29 +201,38 @@ public struct SettingsView: View {
                                 VStack(spacing: 0) {
                                     HStack(spacing: 14) {
                                         VStack(alignment: .leading, spacing: 3) {
-                                            Text("Offline Library Cache")
+                                            Text("Downloaded Cover & Panel Images")
                                                 .font(.system(size: 15, weight: .medium))
                                                 .foregroundColor(FableTheme.textPrimary)
-                                            Text(cacheCleared ? "Cache clean (0 MB)" : "9 Stories Cached (24 MB)")
+                                            Text(imageCacheMessage ?? ByteCountFormatter.string(fromByteCount: imageCacheSizeInBytes, countStyle: .file))
                                                 .font(.system(size: 12))
                                                 .foregroundColor(FableTheme.textMuted)
                                         }
                                         
                                         Spacer()
                                         
-                                        Button(action: {
-                                            withAnimation {
-                                                cacheCleared = true
+                                        Button {
+                                            Task {
+                                                isClearingImageCache = true
+                                                defer { isClearingImageCache = false }
+                                                do {
+                                                    try await DiskImageCache.shared.clearCache()
+                                                    imageCacheSizeInBytes = await DiskImageCache.shared.diskUsageInBytes()
+                                                    imageCacheMessage = "Image cache cleared"
+                                                } catch {
+                                                    imageCacheMessage = "Unable to clear image cache"
+                                                }
                                             }
-                                        }) {
-                                            Text(cacheCleared ? "Cleaned" : "Clear Cache")
+                                        } label: {
+                                            Text(isClearingImageCache ? "Clearing…" : "Clear")
                                                 .font(.system(size: 13, weight: .semibold))
-                                                .foregroundColor(cacheCleared ? .green : FableTheme.textPrimary)
+                                                .foregroundColor(FableTheme.textPrimary)
                                                 .padding(.horizontal, 12)
                                                 .padding(.vertical, 6)
                                                 .background(FableTheme.surfaceVariant)
                                                 .clipShape(RoundedRectangle(cornerRadius: 8))
                                         }
+                                        .disabled(isClearingImageCache)
                                     }
                                     .padding(.horizontal, 16)
                                     .padding(.vertical, 14)
@@ -223,11 +240,16 @@ public struct SettingsView: View {
                                     Divider().padding(.leading, 16)
                                     
                                     HStack(spacing: 14) {
-                                        Text("Auto-Archive Completed")
-                                            .font(.system(size: 15, weight: .medium))
-                                            .foregroundColor(FableTheme.textPrimary)
+                                        VStack(alignment: .leading, spacing: 3) {
+                                            Text("Auto-Archive Completed")
+                                                .font(.system(size: 15, weight: .medium))
+                                                .foregroundColor(FableTheme.textPrimary)
+                                            Text("Remove finished books from Saved")
+                                                .font(.system(size: 12))
+                                                .foregroundColor(FableTheme.textMuted)
+                                        }
                                         Spacer()
-                                        Toggle("", isOn: $autoArchiveStories)
+                                        Toggle("", isOn: $store.autoArchiveCompletedStories)
                                             .tint(FableTheme.brandPrimary)
                                             .labelsHidden()
                                     }
@@ -329,7 +351,7 @@ public struct SettingsView: View {
                             
                             // App Version Info
                             VStack(spacing: 4) {
-                                Text("Fable for iOS • Version 1.0.0 (Build 77)")
+                                Text(versionLabel)
                                     .font(.system(size: 12, weight: .medium))
                                     .foregroundColor(FableTheme.textMuted)
                                 Text("Inspired by high-end independent editorial journals.")
@@ -361,6 +383,9 @@ public struct SettingsView: View {
             }
             .sheet(isPresented: $isShowingDiagnostics) {
                 SystemDiagnosticsSheet()
+            }
+            .task {
+                imageCacheSizeInBytes = await DiskImageCache.shared.diskUsageInBytes()
             }
         }
     }

@@ -8,6 +8,8 @@ public struct ExploreView: View {
     @State private var selectedGenreForDetail: GenreCategory?
     @State private var selectedStoryToRead: Story?
     @State private var selectedWriter: Writer?
+    @State private var isFindingWriterTitle: Bool = false
+    @State private var writerTitleMessage: String?
     
     let filters = ["All", "Under 5 mins", "Community Favorites", "Quick Reads"]
     
@@ -364,6 +366,13 @@ public struct ExploreView: View {
                     await store.syncWithCloudBackend()
                 }
             }
+            .task(id: searchText) {
+                let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !query.isEmpty else { return }
+                try? await Task.sleep(nanoseconds: 350_000_000)
+                guard !Task.isCancelled else { return }
+                await store.searchCatalog(query: query)
+            }
             .navigationDestination(item: $selectedGenreForDetail) { genre in
                 GenreDetailView(genre: genre)
                     .environmentObject(store)
@@ -387,12 +396,28 @@ public struct ExploreView: View {
                         .font(.system(size: 14))
                         .foregroundColor(FableTheme.textMuted)
                     
-                    Button("Read Top Title") {
-                        selectedWriter = nil
-                        if let first = store.stories.first {
-                            selectedStoryToRead = first
+                    if let writerTitleMessage {
+                        Text(writerTitleMessage)
+                            .font(.system(size: 13))
+                            .foregroundColor(FableTheme.textMuted)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 24)
+                    }
+
+                    Button(isFindingWriterTitle ? "Searching…" : "Find a title") {
+                        isFindingWriterTitle = true
+                        Task {
+                            let story = await store.topStory(for: writer)
+                            isFindingWriterTitle = false
+                            if let story {
+                                selectedWriter = nil
+                                selectedStoryToRead = story
+                            } else {
+                                writerTitleMessage = "No titles by this author are available in the catalog yet."
+                            }
                         }
                     }
+                    .disabled(isFindingWriterTitle)
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundColor(.white)
                     .padding(.horizontal, 28)

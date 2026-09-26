@@ -376,7 +376,7 @@ public struct ReaderView: View {
                                         .clipShape(RoundedRectangle(cornerRadius: 16))
                                         .shadow(color: Color.black.opacity(0.06), radius: 8, y: 3)
                                     
-                                    Text("FOLIO 82")
+                                    Text("FOLIO \(max(1, currentPage))")
                                         .font(.system(size: 10, weight: .bold))
                                         .tracking(1.0)
                                         .foregroundColor(FableTheme.brandPrimary)

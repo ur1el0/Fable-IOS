@@ -8,6 +8,8 @@ public struct ProfileView: View {
     @State private var selectedTab: String = "Published"
     @State private var selectedStoryToRead: Story?
     @State private var isShowingEditProfile: Bool = false
+    @State private var isSavingProfile: Bool = false
+    @State private var profileSaveMessage: String?
     
     @State private var userName: String = ""
     @State private var userHandle: String = ""
@@ -16,6 +18,13 @@ public struct ProfileView: View {
     let tabs = ["Published", "Saved", "Reading Stats"]
     
     public init() {}
+
+    private var shareableProfileDetails: String {
+        [userName, userHandle, userBio]
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .joined(separator: "\n")
+    }
     
     public var body: some View {
         NavigationStack {
@@ -45,7 +54,7 @@ public struct ProfileView: View {
                         Spacer()
                         
                         // Native Share Profile
-                        ShareLink(item: "Check out \(userName)'s profile on Fable.") {
+                        ShareLink(item: shareableProfileDetails, subject: Text("Fable profile")) {
                             Image(systemName: "square.and.arrow.up")
                                 .font(.system(size: 15))
                                 .foregroundColor(FableTheme.textPrimary)
@@ -59,28 +68,13 @@ public struct ProfileView: View {
                     
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: 20) {
-                            // Avatar with Edit Badge
-                            ZStack(alignment: .bottomTrailing) {
-                                FableImageView(name: auth.currentSession?.avatarName, placeholderIcon: "person.crop.circle.fill")
-                                    .frame(width: 96, height: 96)
-                                    .clipShape(Circle())
-                                    .overlay(Circle().stroke(Color.white, lineWidth: 3))
-                                    .shadow(color: Color.black.opacity(0.08), radius: 6, y: 3)
-                                
-                                Button(action: {
-                                    isShowingEditProfile = true
-                                }) {
-                                    Image(systemName: "pencil")
-                                        .font(.system(size: 11, weight: .bold))
-                                        .foregroundColor(.white)
-                                        .frame(width: 26, height: 26)
-                                        .background(FableTheme.brandPrimary)
-                                        .clipShape(Circle())
-                                        .overlay(Circle().stroke(Color.white, lineWidth: 2))
-                                }
-                            }
-                            .padding(.top, 8)
-                            
+                            FableImageView(name: auth.currentSession?.avatarName, placeholderIcon: "person.crop.circle.fill")
+                                .frame(width: 96, height: 96)
+                                .clipShape(Circle())
+                                .overlay(Circle().stroke(Color.white, lineWidth: 3))
+                                .shadow(color: Color.black.opacity(0.08), radius: 6, y: 3)
+                                .padding(.top, 8)
+
                             // Name & Bio
                             VStack(spacing: 6) {
                                 HStack(spacing: 6) {
@@ -121,11 +115,11 @@ public struct ProfileView: View {
                                     .clipShape(RoundedRectangle(cornerRadius: 12))
                                 }
                                 
-                                ShareLink(item: "Check out \(userName)'s profile on Fable.") {
+                                ShareLink(item: shareableProfileDetails, subject: Text("Fable profile")) {
                                     HStack(spacing: 6) {
                                         Image(systemName: "square.and.arrow.up")
                                             .font(.system(size: 13))
-                                        Text("Share")
+                                        Text("Share profile details")
                                             .font(.system(size: 14, weight: .semibold))
                                     }
                                     .foregroundColor(FableTheme.textPrimary)
@@ -203,10 +197,12 @@ public struct ProfileView: View {
                                                         .foregroundColor(FableTheme.textMuted)
                                                     
                                                     HStack(spacing: 8) {
-                                                        Text("★ 4.9")
-                                                            .font(.system(size: 11, weight: .semibold))
-                                                            .foregroundColor(.orange)
-                                                        Text("• 1.2k reads")
+                                                        if let rating = story.rating {
+                                                            Text("★ \(rating, specifier: "%.1f")")
+                                                                .font(.system(size: 11, weight: .semibold))
+                                                                .foregroundColor(.orange)
+                                                        }
+                                                        Text("• \(story.readsCount) reads")
                                                             .font(.system(size: 11))
                                                             .foregroundColor(FableTheme.textMuted)
                                                     }
@@ -345,20 +341,41 @@ public struct ProfileView: View {
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
                         ToolbarItem(placement: .topBarTrailing) {
-                            Button("Save") {
-                                auth.updateProfile(
-                                    name: userName,
-                                    handle: userHandle,
-                                    bio: userBio
-                                )
-                                isShowingEditProfile = false
+                            Button(isSavingProfile ? "Saving…" : "Save") {
+                                isSavingProfile = true
+                                Task {
+                                    let synced = await auth.updateProfile(
+                                        name: userName,
+                                        handle: userHandle,
+                                        bio: userBio
+                                    )
+                                    isSavingProfile = false
+                                    profileSaveMessage = synced
+                                        ? "Your profile was updated."
+                                        : (auth.isGuestMode
+                                            ? "Your guest profile is saved on this device."
+                                            : "Your profile is saved on this device and queued to sync.")
+                                    isShowingEditProfile = false
+                                }
                             }
+                            .disabled(isSavingProfile || userName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                             .font(.system(size: 15, weight: .semibold))
                             .foregroundColor(FableTheme.brandPrimary)
                         }
                     }
                 }
                 .presentationDetents([.medium])
+            }
+            .alert("Profile", isPresented: Binding(
+                get: { profileSaveMessage != nil },
+                set: { if !$0 { profileSaveMessage = nil } }
+            )) {
+                Button("OK", role: .cancel) { profileSaveMessage = nil }
+            } message: {
+                Text(profileSaveMessage ?? "")
+            }
+            .task(id: auth.currentSession?.id) {
+                await store.loadMyPublishedStories()
             }
             .onAppear {
                 store.reloadReadingStats()
