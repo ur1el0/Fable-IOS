@@ -25,11 +25,11 @@ public struct GenreDetailView: View {
         let list = matching.isEmpty ? store.stories : matching
         switch selectedSubcategory {
         case "Popular":
-            return list.filter { $0.rating >= 4.8 }
+            return list.sorted { ($0.providerDownloadCount ?? 0) > ($1.providerDownloadCount ?? 0) }
         case "Editor's Pick":
             return list.filter { $0.isSaved || $0.isCuratorSpotlight }
         case "Quick Reads":
-            return list.filter { $0.readingTimeMinutes <= 4 }
+            return list.filter { $0.readingTimeMinutes > 0 && $0.readingTimeMinutes <= 4 }
         default:
             return list
         }
@@ -100,14 +100,16 @@ public struct GenreDetailView: View {
                                 .font(.system(size: 28, weight: .black))
                                 .foregroundColor(FableTheme.textPrimary)
                             
-                            Text("\(genre.storyCount) Titles  •  \(genre.readersCount) Readers  •  Curated Weekly")
+                            Text("\(genre.storyCount) Titles  •  \(genre.readersCount) Readers")
                                 .font(.system(size: 12, weight: .medium))
                                 .foregroundColor(FableTheme.textMuted)
                             
-                            Text(genre.description)
-                                .font(.system(size: 14, weight: .regular))
-                                .foregroundColor(FableTheme.textPrimary.opacity(0.85))
-                                .lineSpacing(4)
+                            if !genre.description.isEmpty {
+                                Text(genre.description)
+                                    .font(.system(size: 14, weight: .regular))
+                                    .foregroundColor(FableTheme.textPrimary.opacity(0.85))
+                                    .lineSpacing(4)
+                            }
                             
                             Button(action: {
                                 withAnimation {

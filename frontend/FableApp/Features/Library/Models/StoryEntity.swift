@@ -20,6 +20,7 @@ public final class StoryEntity {
     public var heroImageName: String?
     public var coverImageUrl: String?
     public var providerId: String?
+    public var providerDownloadCount: Int?
     @Attribute(.externalStorage) public var cachedChaptersData: Data?
     public var lastReadChapterId: String?
     public var lastReadChapterNumber: Int?
@@ -49,6 +50,7 @@ public final class StoryEntity {
         heroImageName: String? = nil,
         coverImageUrl: String? = nil,
         providerId: String? = nil,
+        providerDownloadCount: Int? = nil,
         cachedChaptersData: Data? = nil,
         lastReadChapterId: String? = nil,
         lastReadChapterNumber: Int? = nil,
@@ -74,6 +76,7 @@ public final class StoryEntity {
         self.heroImageName = heroImageName
         self.coverImageUrl = coverImageUrl
         self.providerId = providerId
+        self.providerDownloadCount = providerDownloadCount
         self.cachedChaptersData = cachedChaptersData
         self.lastReadChapterId = lastReadChapterId
         self.lastReadChapterNumber = lastReadChapterNumber

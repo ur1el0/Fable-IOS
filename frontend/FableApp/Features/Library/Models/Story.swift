@@ -232,6 +232,7 @@ public struct Story: Identifiable, Hashable, Codable {
     public var currentPage: Int
     public var progressPercent: Int
     public var rating: Double
+    public var providerDownloadCount: Int?
     public var savesCount: String
     public var readsCount: String
     public var isTaleOfTheDay: Bool
@@ -281,7 +282,7 @@ public struct Story: Identifiable, Hashable, Codable {
 
     enum CodingKeys: String, CodingKey {
         case id, title, author, genre, synopsis, content, readTimeMinutes, isBookmarked, isCompleted, createdAtUtc
-        case coverImageName, heroImageName, coverImageUrl, totalPages, currentPage, progressPercent, rating, savesCount, readsCount
+        case coverImageName, heroImageName, coverImageUrl, totalPages, currentPage, progressPercent, rating, providerDownloadCount, savesCount, readsCount
         case isTaleOfTheDay, isRecentSubmission, isCuratorSpotlight, badgeText, totalChapters, chapters
         case contentFormat, sourceProvider, providerId, lastReadChapterId, lastReadChapterNumber
     }
@@ -294,7 +295,7 @@ public struct Story: Identifiable, Hashable, Codable {
         self.genre = try container.decodeIfPresent(Genre.self, forKey: .genre) ?? .folklore
         self.synopsis = try container.decodeIfPresent(String.self, forKey: .synopsis) ?? ""
         self.content = try container.decodeIfPresent(String.self, forKey: .content) ?? ""
-        self.readTimeMinutes = try container.decodeIfPresent(Int.self, forKey: .readTimeMinutes) ?? 5
+        self.readTimeMinutes = try container.decodeIfPresent(Int.self, forKey: .readTimeMinutes) ?? 0
         self.isBookmarked = try container.decodeIfPresent(Bool.self, forKey: .isBookmarked) ?? false
         self.isCompleted = try container.decodeIfPresent(Bool.self, forKey: .isCompleted) ?? false
         self.createdAtUtc = try container.decodeIfPresent(Date.self, forKey: .createdAtUtc) ?? Date()
@@ -302,17 +303,18 @@ public struct Story: Identifiable, Hashable, Codable {
         self.coverImageName = try container.decodeIfPresent(String.self, forKey: .coverImageName)
         self.heroImageName = try container.decodeIfPresent(String.self, forKey: .heroImageName)
         self.coverImageUrl = try container.decodeIfPresent(String.self, forKey: .coverImageUrl)
-        self.totalPages = try container.decodeIfPresent(Int.self, forKey: .totalPages) ?? 5
+        self.totalPages = try container.decodeIfPresent(Int.self, forKey: .totalPages) ?? 0
         self.currentPage = try container.decodeIfPresent(Int.self, forKey: .currentPage) ?? 1
         self.progressPercent = try container.decodeIfPresent(Int.self, forKey: .progressPercent) ?? 0
-        self.rating = try container.decodeIfPresent(Double.self, forKey: .rating) ?? 4.9
-        self.savesCount = try container.decodeIfPresent(String.self, forKey: .savesCount) ?? "1.2k"
-        self.readsCount = try container.decodeIfPresent(String.self, forKey: .readsCount) ?? "1.2k"
+        self.rating = try container.decodeIfPresent(Double.self, forKey: .rating) ?? 0
+        self.providerDownloadCount = try container.decodeIfPresent(Int.self, forKey: .providerDownloadCount)
+        self.savesCount = try container.decodeIfPresent(String.self, forKey: .savesCount) ?? "0"
+        self.readsCount = try container.decodeIfPresent(String.self, forKey: .readsCount) ?? "0"
         self.isTaleOfTheDay = try container.decodeIfPresent(Bool.self, forKey: .isTaleOfTheDay) ?? false
         self.isRecentSubmission = try container.decodeIfPresent(Bool.self, forKey: .isRecentSubmission) ?? false
         self.isCuratorSpotlight = try container.decodeIfPresent(Bool.self, forKey: .isCuratorSpotlight) ?? false
         self.badgeText = try container.decodeIfPresent(String.self, forKey: .badgeText)
-        self.totalChapters = try container.decodeIfPresent(Int.self, forKey: .totalChapters) ?? 1
+        self.totalChapters = try container.decodeIfPresent(Int.self, forKey: .totalChapters) ?? 0
         self.chapters = try container.decodeIfPresent([Chapter].self, forKey: .chapters)
         self.contentFormat = try container.decodeIfPresent(ContentFormat.self, forKey: .contentFormat) ?? .prose
         self.sourceProvider = try container.decodeIfPresent(SourceProvider.self, forKey: .sourceProvider) ?? .fableOriginal
@@ -349,12 +351,13 @@ public struct Story: Identifiable, Hashable, Codable {
         self.isBookmarked = isBookmarked
         self.isCompleted = isCompleted
         self.createdAtUtc = createdAtUtc
-        self.totalPages = max(1, readTimeMinutes)
+        self.totalPages = max(0, readTimeMinutes)
         self.currentPage = 1
         self.progressPercent = isCompleted ? 100 : 0
-        self.rating = 4.9
-        self.savesCount = "1.2k"
-        self.readsCount = "1.2k"
+        self.rating = 0
+        self.providerDownloadCount = nil
+        self.savesCount = "0"
+        self.readsCount = "0"
         self.isTaleOfTheDay = false
         self.isRecentSubmission = true
         self.isCuratorSpotlight = false
@@ -382,13 +385,14 @@ public struct Story: Identifiable, Hashable, Codable {
         coverImageName: String? = nil,
         heroImageName: String? = nil,
         coverImageUrl: String? = nil,
-        readingTimeMinutes: Int = 4,
-        totalPages: Int = 5,
+        readingTimeMinutes: Int = 0,
+        totalPages: Int = 0,
         currentPage: Int = 1,
         progressPercent: Int = 0,
-        rating: Double = 4.9,
-        savesCount: String = "1.2k",
-        readsCount: String = "1.2k",
+        rating: Double = 0,
+        providerDownloadCount: Int? = nil,
+        savesCount: String = "0",
+        readsCount: String = "0",
         isTaleOfTheDay: Bool = false,
         isRecentSubmission: Bool = false,
         isSaved: Bool = false,
@@ -427,6 +431,7 @@ public struct Story: Identifiable, Hashable, Codable {
         self.currentPage = currentPage
         self.progressPercent = progressPercent
         self.rating = rating
+        self.providerDownloadCount = providerDownloadCount
         self.savesCount = savesCount
         self.readsCount = readsCount
         self.isTaleOfTheDay = isTaleOfTheDay
@@ -476,7 +481,7 @@ public struct Writer: Identifiable, Hashable, Codable {
     public var avatarImageName: String
     public var avatarImageUrl: String?
     public var storyCount: Int
-    public var rating: Double
+    public var rating: Double?
     
     public var effectiveAvatar: String {
         if let url = avatarImageUrl, !url.isEmpty {
@@ -485,7 +490,7 @@ public struct Writer: Identifiable, Hashable, Codable {
         return avatarImageName
     }
     
-    public init(id: UUID = UUID(), name: String, avatarImageName: String, avatarImageUrl: String? = nil, storyCount: Int, rating: Double) {
+    public init(id: UUID = UUID(), name: String, avatarImageName: String, avatarImageUrl: String? = nil, storyCount: Int, rating: Double? = nil) {
         self.id = id
         self.name = name
         self.avatarImageName = avatarImageName

@@ -27,11 +27,11 @@ public struct ExploreView: View {
     var curatedStories: [Story] {
         switch selectedFilter {
         case "Under 5 mins":
-            return store.stories.filter { $0.readingTimeMinutes <= 5 }
+            return store.stories.filter { $0.readingTimeMinutes > 0 && $0.readingTimeMinutes <= 5 }
         case "Community Favorites":
-            return store.stories.filter { $0.rating >= 4.9 }
+            return store.stories.filter { (Int($0.savesCount) ?? 0) > 0 }
         case "Quick Reads":
-            return store.stories.filter { $0.readingTimeMinutes <= 3 }
+            return store.stories.filter { $0.readingTimeMinutes > 0 && $0.readingTimeMinutes <= 3 }
         default:
             return store.stories
         }
@@ -334,14 +334,6 @@ public struct ExploreView: View {
                                                         .font(.system(size: 11))
                                                         .foregroundColor(FableTheme.textMuted)
                                                     
-                                                    HStack(spacing: 2) {
-                                                        Image(systemName: "star.fill")
-                                                            .font(.system(size: 9))
-                                                            .foregroundColor(.orange)
-                                                        Text(String(format: "%.1f", writer.rating))
-                                                            .font(.system(size: 11, weight: .bold))
-                                                            .foregroundColor(FableTheme.textPrimary)
-                                                    }
                                                 }
                                             }
                                             .frame(width: 95)

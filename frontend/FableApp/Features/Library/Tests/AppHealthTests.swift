@@ -142,15 +142,15 @@ public struct AppHealthTests {
             avatarImageName: "author_kuang",
             avatarImageUrl: "https://avatars.example.org/author.jpg",
             storyCount: 12,
-            rating: 4.96
+            rating: nil
         )
         let writerValid = writer.storyCount > 0 &&
-                          writer.rating >= 4.0 &&
+                          writer.rating == nil &&
                           writer.effectiveAvatar.hasPrefix("https://") &&
                           writer.effectiveAvatar == writer.avatarImageUrl
         record(
             name: "Top Creators Live Portraits",
-            description: "Creator catalog provides authentic ratings, publication counts, and live portrait URLs",
+            description: "Creator catalog represents absent ratings honestly and carries live portraits",
             passed: writerValid,
             details: "Writer '\(writer.name)': \(writer.storyCount) stories, ★\(writer.rating), Avatar: \(writer.effectiveAvatar.prefix(35))..."
         )

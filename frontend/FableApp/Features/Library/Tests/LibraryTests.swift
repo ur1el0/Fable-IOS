@@ -89,6 +89,26 @@ public struct LibraryTests {
             assert(false, "Live Provider Story JSON Decoding Failed")
         }
 
+        let liveStatsJSON = """
+        {
+            "id": "00000000-0000-0000-0000-000000000053",
+            "title": "Live Statistics",
+            "author": "Source Author",
+            "rating": null,
+            "savesCount": "3",
+            "readsCount": "8",
+            "providerDownloadCount": 940
+        }
+        """.data(using: .utf8)!
+
+        if let liveStatsStory = try? JSONDecoder().decode(Story.self, from: liveStatsJSON) {
+            assert(liveStatsStory.rating == 0, "Missing Provider Rating Does Not Invent a Score")
+            assert(liveStatsStory.savesCount == "3" && liveStatsStory.readsCount == "8", "Story Counts Decode")
+            assert(liveStatsStory.providerDownloadCount == 940, "Provider Downloads Decode")
+        } else {
+            assert(false, "Live Story Statistics JSON Decoding Failed")
+        }
+
         // Test 6: Multi-Format Manga Payload Decoding (MangaDex Ingestion Contract)
         let mangaJSON = """
         {

@@ -48,7 +48,7 @@ public final class PersistenceService {
                         genreRaw: story.genre.rawValue,
                         contentFormatRaw: story.contentFormat.rawValue,
                         sourceProviderRaw: story.sourceProvider.rawValue,
-                        chapter: "Chapter I",
+                        chapter: "",
                         synopsis: story.synopsis,
                         content: story.content,
                         readTimeMinutes: story.readTimeMinutes,
@@ -58,6 +58,7 @@ public final class PersistenceService {
                         coverImageName: story.coverImageName,
                         heroImageName: story.heroImageName,
                         coverImageUrl: story.coverImageUrl,
+                        providerDownloadCount: story.providerDownloadCount,
                         lastReadChapterId: story.lastReadChapterId,
                         lastReadChapterNumber: story.lastReadChapterNumber,
                         isBookmarked: story.isBookmarked,
@@ -117,7 +118,10 @@ public final class PersistenceService {
                 existing.coverImageName = story.coverImageName
                 existing.heroImageName = story.heroImageName
                 existing.coverImageUrl = story.coverImageUrl
-                existing.providerId = story.providerId
+                if let providerId = story.providerId { existing.providerId = providerId }
+                if let providerDownloadCount = story.providerDownloadCount {
+                    existing.providerDownloadCount = providerDownloadCount
+                }
                 if let chapters = story.chapters, !chapters.isEmpty {
                     existing.cachedChaptersData = encodedChapters(chapters)
                 }
@@ -134,7 +138,7 @@ public final class PersistenceService {
                     genreRaw: story.genre.rawValue,
                     contentFormatRaw: story.contentFormat.rawValue,
                     sourceProviderRaw: story.sourceProvider.rawValue,
-                    chapter: "Chapter I",
+                    chapter: "",
                     synopsis: story.synopsis,
                     content: story.content,
                     readTimeMinutes: story.readTimeMinutes,
@@ -145,6 +149,7 @@ public final class PersistenceService {
                     heroImageName: story.heroImageName,
                     coverImageUrl: story.coverImageUrl,
                     providerId: story.providerId,
+                    providerDownloadCount: story.providerDownloadCount,
                     cachedChaptersData: encodedChapters(story.chapters),
                     lastReadChapterId: story.lastReadChapterId,
                     lastReadChapterNumber: story.lastReadChapterNumber,

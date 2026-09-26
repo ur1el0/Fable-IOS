@@ -128,7 +128,7 @@ public final class StoryStore: ObservableObject {
             totalPages: 1,
             currentPage: 1,
             progressPercent: 0,
-            rating: 5.0,
+            rating: 0,
             isRecentSubmission: true
         )
         stories.insert(newStory, at: 0)
@@ -176,6 +176,7 @@ public final class StoryStore: ObservableObject {
                     stories[idx].heroImageName = offlineCoverName(entity.heroImageName, genre: entity.genreRaw)
                     stories[idx].coverImageUrl = validCoverImageURL(entity.coverImageUrl)
                     stories[idx].providerId = entity.providerId
+                    stories[idx].providerDownloadCount = entity.providerDownloadCount
                     stories[idx].contentFormat = ContentFormat(rawValue: entity.contentFormatRaw ?? "PROSE") ?? .prose
                     stories[idx].sourceProvider = SourceProvider(rawValue: entity.sourceProviderRaw ?? "FABLE_ORIGINAL") ?? .fableOriginal
                     let cachedChapters = PersistenceService.shared.cachedChapters(storyId: entity.id)
@@ -193,6 +194,7 @@ public final class StoryStore: ObservableObject {
                         contentFormat: ContentFormat(rawValue: entity.contentFormatRaw ?? "PROSE") ?? .prose,
                         sourceProvider: SourceProvider(rawValue: entity.sourceProviderRaw ?? "FABLE_ORIGINAL") ?? .fableOriginal,
                         providerId: entity.providerId,
+                        providerDownloadCount: entity.providerDownloadCount,
                         chapters: PersistenceService.shared.cachedChapters(storyId: entity.id),
                         coverImageName: offlineCoverName(entity.coverImageName, genre: entity.genreRaw),
                         heroImageName: offlineCoverName(entity.heroImageName, genre: entity.genreRaw),
@@ -201,7 +203,7 @@ public final class StoryStore: ObservableObject {
                         totalPages: max(1, entity.totalPages),
                         currentPage: max(1, entity.currentPage),
                         progressPercent: Int(entity.readingProgress * 100.0),
-                        rating: 5.0,
+                        rating: 0,
                         isRecentSubmission: true,
                         isSaved: entity.isBookmarked,
                         isFinished: entity.isCompleted,
@@ -226,8 +228,8 @@ public final class StoryStore: ObservableObject {
                     genre: "Folklore",
                     excerpt: "In the shadowed alleys behind the Astronomical Clock, Master Hanuš polished cogs that measured not minutes, but heartbeats.",
                             readingTimeMinutes: 4,
-                    rating: 4.9,
-                    readsCount: "1.2k reads",
+                    rating: 0,
+                    readsCount: "0",
                     badgeText: "FOLKLORE • 4 min read"
                 )
             ]
@@ -284,6 +286,7 @@ public final class StoryStore: ObservableObject {
                     stories[index].totalChapters = remote.totalChapters
                     stories[index].contentFormat = remote.contentFormat
                     stories[index].sourceProvider = remote.sourceProvider
+                    if let downloadCount = remote.providerDownloadCount { stories[index].providerDownloadCount = downloadCount }
                     if let providerId = remote.providerId { stories[index].providerId = providerId }
                     if remote.isTaleOfTheDay { stories[index].isTaleOfTheDay = true }
                     if remote.isCuratorSpotlight { stories[index].isCuratorSpotlight = true }
@@ -428,6 +431,7 @@ public final class StoryStore: ObservableObject {
                     stories[index].contentFormat = book.contentFormat
                     stories[index].sourceProvider = book.sourceProvider
                     stories[index].providerId = book.providerId
+                    stories[index].providerDownloadCount = book.providerDownloadCount
                     stories[index].totalChapters = max(stories[index].chapters?.count ?? 0, book.totalChapters)
                     PersistenceService.shared.saveStory(stories[index])
                 } else {
