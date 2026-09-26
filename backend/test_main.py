@@ -12,12 +12,25 @@ from main import app, init_db
 def setup_teardown_db():
     if os.path.exists("test_fable.sqlite3"):
         os.remove("test_fable.sqlite3")
+    from services.auth_service import ACTIVE_SESSIONS
+    ACTIVE_SESSIONS.clear()
     init_db()
     yield
     if os.path.exists("test_fable.sqlite3"):
         os.remove("test_fable.sqlite3")
 
 client = TestClient(app)
+
+
+def auth_headers(name="Test Author"):
+    response = client.post("/api/v1/auth/register", json={
+        "email": f"{uuid4()}@example.test",
+        "password": "secure-password",
+        "name": name,
+        "handle": name.lower().replace(" ", "")
+    })
+    assert response.status_code == 201
+    return {"Authorization": f"Bearer {response.json()['accessToken']}"}
 
 def test_health_check():
     response = client.get("/api/v1/health")
@@ -34,10 +47,50 @@ def test_get_stories_starts_without_embedded_catalog():
     assert client.get("/api/v1/stories").json() == []
 
 
+def test_story_creation_requires_auth_and_server_owned_author():
+    payload = {
+        "title": "Owned Story",
+        "genre": "Mystery",
+        "synopsis": "A server-owned author record.",
+        "content": "Story content."
+    }
+    unauthorized = client.post("/api/v1/stories", json=payload)
+    assert unauthorized.status_code == 401
+
+    headers = auth_headers("Verified Writer")
+    spoofed = client.post(
+        "/api/v1/stories",
+        headers=headers,
+        json={**payload, "author": "Impersonated Writer"},
+    )
+    assert spoofed.status_code == 422
+
+    created = client.post("/api/v1/stories", headers=headers, json=payload)
+    assert created.status_code == 201
+    assert created.json()["author"] == "Verified Writer"
+
+
+def test_authenticated_story_listing_is_isolated_by_owner():
+    first_headers = auth_headers("First Writer")
+    second_headers = auth_headers("Second Writer")
+    for headers, title in ((first_headers, "First Story"), (second_headers, "Second Story")):
+        response = client.post("/api/v1/stories", headers=headers, json={
+            "title": title,
+            "genre": "Fantasy",
+            "synopsis": "An owned story.",
+            "content": "Story content."
+        })
+        assert response.status_code == 201
+
+    first_stories = client.get("/api/v1/auth/me/stories", headers=first_headers)
+    second_stories = client.get("/api/v1/auth/me/stories", headers=second_headers)
+    assert [story["title"] for story in first_stories.json()] == ["First Story"]
+    assert [story["title"] for story in second_stories.json()] == ["Second Story"]
+    assert client.get("/api/v1/auth/me/stories").status_code == 401
+
 def test_story_dto_camelcase_serialization_contract():
-    response = client.post("/api/v1/stories", json={
+    response = client.post("/api/v1/stories", headers=auth_headers(), json={
         "title": "Contract Story",
-        "author": "Test Author",
         "genre": "Gothic",
         "synopsis": "A synopsis from the writer.",
         "content": "The actual authored text.",
@@ -61,9 +114,8 @@ def test_story_dto_camelcase_serialization_contract():
 
 
 def test_get_story_chapters():
-    created = client.post("/api/v1/stories", json={
+    created = client.post("/api/v1/stories", headers=auth_headers(), json={
         "title": "Reader Contract",
-        "author": "Test Author",
         "genre": "Gothic",
         "chapter": "Chapter One",
         "synopsis": "A test synopsis.",
@@ -88,9 +140,8 @@ def test_get_story_chapters():
 
 
 def test_story_metrics_are_derived_from_device_shelf_state():
-    created = client.post("/api/v1/stories", json={
+    created = client.post("/api/v1/stories", headers=auth_headers(), json={
         "title": "Metrics Story",
-        "author": "Test Author",
         "genre": "Mystery",
         "synopsis": "",
         "content": "Reader-created text.",
@@ -142,9 +193,8 @@ The morning brought no relief. The fog clung tightly to the moors, concealing wh
     assert "CHAPTER II" in chapters[1]["title"]
 
 def test_get_genres_endpoint():
-    created = client.post("/api/v1/stories", json={
+    created = client.post("/api/v1/stories", headers=auth_headers(), json={
         "title": "Genre Count Story",
-        "author": "Test Author",
         "genre": "Gothic",
         "synopsis": "",
         "content": "A story.",
@@ -234,18 +284,17 @@ def test_get_update_feed_endpoint():
 def test_create_story():
     payload = {
         "title": "The Obsidian Tower",
-        "author": "Edgar Allan Poe",
         "genre": "Gothic",
         "chapter": "Chapter I",
         "synopsis": "A secluded fortress by the misty mere.",
         "content": "A secluded fortress by the misty mere stood solitary in the gloaming.",
         "read_time_minutes": 5
     }
-    response = client.post("/api/v1/stories", json=payload)
+    response = client.post("/api/v1/stories", headers=auth_headers("Verified Author"), json=payload)
     assert response.status_code == 201
     created = response.json()
     assert created["title"] == payload["title"]
-    assert created["author"] == payload["author"]
+    assert created["author"] == "Verified Author"
 
 def test_last_write_wins_resolution():
     story_id = str(uuid4())
@@ -628,16 +677,14 @@ def test_auth_me_unauthorized():
     assert res2.status_code == 401
 
 def test_multi_format_content_and_provider_serialization():
-    response = client.post("/api/v1/stories", json={
+    response = client.post("/api/v1/stories", headers=auth_headers(), json={
         "title": "Writer Created Graphic Story",
-        "author": "Test Author",
         "genre": "Manga",
         "chapter": "Issue One",
         "synopsis": "A writer-created graphic story.",
         "content": "",
         "readTimeMinutes": 0,
-        "contentFormat": "MANGA",
-        "sourceProvider": "MANGADEX"
+        "contentFormat": "MANGA"
     })
     assert response.status_code == 201
     story = response.json()
@@ -649,9 +696,8 @@ def test_multi_format_content_and_provider_serialization():
 
 
 def test_manga_chapter_page_urls_contract():
-    created = client.post("/api/v1/stories", json={
+    created = client.post("/api/v1/stories", headers=auth_headers(), json={
         "title": "Writer Created Graphic Story",
-        "author": "Test Author",
         "genre": "Manga",
         "chapter": "Issue One",
         "synopsis": "A writer-created graphic story.",
@@ -671,9 +717,8 @@ def test_manga_chapter_page_urls_contract():
 def test_legacy_demo_manga_images_are_not_exposed():
     from core.database import get_db
 
-    created = client.post("/api/v1/stories", json={
+    created = client.post("/api/v1/stories", headers=auth_headers(), json={
         "title": "External Media Story",
-        "author": "Test Author",
         "genre": "Manga",
         "chapter": "Chapter 1",
         "synopsis": "",
@@ -710,16 +755,14 @@ def test_legacy_demo_manga_images_are_not_exposed():
 def test_create_manga_story_via_api():
     payload = {
         "title": "Cyber Scribe Manga",
-        "author": "Fable Studios",
         "genre": "Manga",
         "chapter": "Issue #1",
         "synopsis": "A cyberpunk illustrator discovers a quill that draws reality.",
         "content": "",
         "readTimeMinutes": 6,
-        "contentFormat": "MANGA",
-        "sourceProvider": "FABLE_ORIGINAL"
+        "contentFormat": "MANGA"
     }
-    res = client.post("/api/v1/stories", json=payload)
+    res = client.post("/api/v1/stories", headers=auth_headers("Verified Author"), json=payload)
     assert res.status_code == 201
     created = res.json()
     assert created["contentFormat"] == "MANGA"

@@ -44,7 +44,8 @@ def init_db():
                 content_format TEXT DEFAULT 'PROSE',
                 source_provider TEXT DEFAULT 'FABLE_ORIGINAL',
                 provider_id TEXT,
-                provider_download_count INTEGER
+                provider_download_count INTEGER,
+                owner_user_id TEXT
             );
         """)
         conn.execute("""
@@ -65,6 +66,7 @@ def init_db():
             ("source_provider", "TEXT DEFAULT 'FABLE_ORIGINAL'"),
             ("provider_id", "TEXT"),
             ("provider_download_count", "INTEGER"),
+            ("owner_user_id", "TEXT"),
         ):
             try:
                 conn.execute(f"ALTER TABLE stories ADD COLUMN {col_name} {col_def}")

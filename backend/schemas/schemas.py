@@ -92,7 +92,6 @@ class UpdateFeedDTO(BaseModel):
 
 class CreateStoryRequest(BaseModel):
     title: str = Field(..., min_length=1, max_length=120)
-    author: str = Field(..., min_length=1, max_length=80)
     genre: str
     chapter: Optional[str] = None
     synopsis: str
@@ -101,7 +100,8 @@ class CreateStoryRequest(BaseModel):
     content_format: Optional[str] = Field(default="PROSE", alias="contentFormat")
 
     model_config = {
-        "populate_by_name": True
+        "populate_by_name": True,
+        "extra": "forbid",
     }
 
 class ShelfSyncItemDTO(BaseModel):

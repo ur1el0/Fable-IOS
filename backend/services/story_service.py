@@ -228,7 +228,7 @@ def get_story_chapter_by_number(story_id: UUID, chapter_number: int) -> ChapterD
         conn.close()
 
 
-def create_story(payload: CreateStoryRequest) -> StoryDTO:
+def create_story(payload: CreateStoryRequest, author: str, owner_user_id: UUID) -> StoryDTO:
     story_id = str(uuid4())
     chapter_id = str(uuid4())
     now = datetime.now(timezone.utc)
@@ -245,13 +245,13 @@ def create_story(payload: CreateStoryRequest) -> StoryDTO:
                 INSERT INTO stories (
                     id, title, author, genre, chapter, synopsis, content,
                     read_time_minutes, is_bookmarked, is_completed, created_at_utc, updated_at_utc,
-                    is_recent_submission, total_chapters, content_format, source_provider
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    is_recent_submission, total_chapters, content_format, source_provider, owner_user_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     story_id,
                     payload.title,
-                    payload.author,
+                    author,
                     payload.genre,
                     chapter_title,
                     payload.synopsis,
@@ -265,6 +265,7 @@ def create_story(payload: CreateStoryRequest) -> StoryDTO:
                     1,
                     content_format,
                     source_provider,
+                    str(owner_user_id),
                 ),
             )
             words = len(payload.content.split()) if payload.content else 0
@@ -291,7 +292,7 @@ def create_story(payload: CreateStoryRequest) -> StoryDTO:
     return StoryDTO(
         id=UUID(story_id),
         title=payload.title,
-        author=payload.author,
+        author=author,
         genre=payload.genre,
         chapter=chapter_title,
         synopsis=payload.synopsis,
@@ -309,6 +310,18 @@ def create_story(payload: CreateStoryRequest) -> StoryDTO:
         saves_count="0",
         reads_count="0",
     )
+
+
+def get_user_stories(owner_user_id: UUID) -> list[StoryDTO]:
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM stories WHERE owner_user_id = ? ORDER BY created_at_utc DESC",
+            (str(owner_user_id),),
+        ).fetchall()
+        return [row_to_story_dto(row, conn=conn) for row in rows]
+    finally:
+        conn.close()
 
 
 def get_genres() -> list[GenreDTO]:

@@ -180,3 +180,11 @@ The Final Milestone transforms **Fable** from an editorial prototype into a full
 - [x] Registration persists the submitted handle; authenticated `PATCH /auth/me` updates name, handle, and biography and returns the canonical profile.
 - [x] Added positive profile update and unauthenticated rejection coverage.
 - [x] Docker backend suite passed: 29 tests.
+
+## Authenticated Story Publishing and Ownership (2026-09-26)
+
+- [x] Story creation now requires a bearer session and assigns the author and owner from the authenticated account.
+- [x] Creation payloads reject extra fields so callers cannot submit server-owned authorship or provider identity.
+- [x] Added an authenticated `/auth/me/stories` endpoint with database-level owner filtering.
+- [x] Added tests for unauthenticated rejection, spoofed author rejection, and account-isolated published-story listings.
+- [x] Docker backend suite passed: 31 tests.

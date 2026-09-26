@@ -125,6 +125,15 @@ def get_current_user(token: str) -> UserDTO:
     return _to_user_dto(row)
 
 
+def get_current_user_from_header(authorization: Optional[str]) -> UserDTO:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing or invalid Authorization header. Expected 'Bearer <token>'",
+        )
+    return get_current_user(authorization.split(" ", 1)[1])
+
+
 def update_current_user(token: str, req: ProfileUpdateRequest) -> UserDTO:
     user_id = ACTIVE_SESSIONS.get(token)
     if not user_id:
