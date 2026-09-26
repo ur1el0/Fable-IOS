@@ -4,6 +4,7 @@ import httpx
 from datetime import datetime, timezone
 from uuid import UUID, uuid4
 from typing import Optional
+from urllib.parse import urlsplit
 from fastapi import HTTPException
 
 from core.database import get_db
@@ -20,43 +21,36 @@ GENRE_METADATA = {
     "Folklore": {
         "description": "Traditional tales passed down through generations, reimagined by contemporary scribes—from fireside Slavic forest myths to maritime legends whispered across coastal tides.",
         "image_name": "genre_folklore",
-        "image_url": "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=800&auto=format&fit=crop",
         "default_readers": "18.4k"
     },
     "Mythology": {
         "description": "Epic sagas of deities, ancient heroes, and cosmic origins spanning classical traditions to obscure forgotten pantheons.",
         "image_name": "genre_mythology",
-        "image_url": "https://images.unsplash.com/photo-1579783902614-a3fb3927b675?q=80&w=800&auto=format&fit=crop",
         "default_readers": "12.1k"
     },
     "Gothic": {
         "description": "Atmospheric hauntings, crumbling estates, and romantic dread exploring the psychological depths of human melancholy.",
         "image_name": "genre_gothic",
-        "image_url": "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=800&auto=format&fit=crop",
         "default_readers": "9.8k"
     },
     "Classic Fiction": {
         "description": "Enduring literary cornerstones, psychological inquiries, and philosophical journeys across the centuries.",
         "image_name": "genre_folklore",
-        "image_url": "https://images.unsplash.com/photo-1457369804613-52c61a468e7d?q=80&w=800&auto=format&fit=crop",
         "default_readers": "16.5k"
     },
     "Classic Mystery": {
         "description": "Whodunits, deductive puzzles, and atmospheric investigations through gaslit cobblestones and locked rooms.",
         "image_name": "genre_mystery",
-        "image_url": "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?q=80&w=800&auto=format&fit=crop",
         "default_readers": "14.2k"
     },
     "Manga": {
         "description": "Visual narratives, serialized graphic adventures, and dynamic panel-driven epics originating from contemporary Japanese and global studios.",
-        "image_name": "genre_folklore",
-        "image_url": "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=800&auto=format&fit=crop",
+        "image_name": "genre_manga",
         "default_readers": "34.8k"
     }
 }
 
 AUTHOR_PORTRAIT_URLS = {
-    "Tatsuki Fujimoto": "https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=800&auto=format&fit=crop",
     "Bram Stoker": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/34/Bram_Stoker_1906.jpg/440px-Bram_Stoker_1906.jpg",
     "Washington Irving": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Washington_Irving_by_John_Wesley_Jarvis%2C_1809.jpg/440px-Washington_Irving_by_John_Wesley_Jarvis%2C_1809.jpg",
     "Edgar Allan Poe": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/75/Edgar_Allan_Poe_2_edit.jpg/440px-Edgar_Allan_Poe_2_edit.jpg",
@@ -68,6 +62,31 @@ AUTHOR_PORTRAIT_URLS = {
     "Jose Rizal": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b0/Jose_rizal_01.jpg/440px-Jose_rizal_01.jpg",
     "Lewis Carroll": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/LewisCarrollSelfPhoto.jpg/440px-LewisCarrollSelfPhoto.jpg"
 }
+
+def _is_legacy_demo_image_url(value: str) -> bool:
+    try:
+        return (urlsplit(value).hostname or "").lower() == "images.unsplash.com"
+    except ValueError:
+        return False
+
+def _decode_page_urls(value: Optional[str]) -> list[str]:
+    if not value:
+        return []
+    try:
+        page_urls = json.loads(value)
+    except (TypeError, json.JSONDecodeError):
+        return []
+    if not isinstance(page_urls, list):
+        return []
+    return [
+        url for url in page_urls
+        if isinstance(url, str) and not _is_legacy_demo_image_url(url)
+    ]
+
+def _cover_url_without_legacy_demo(value: Optional[str]) -> Optional[str]:
+    if value and _is_legacy_demo_image_url(value):
+        return None
+    return value
 
 def row_to_story_dto(r: sqlite3.Row, include_chapters: bool = False, conn: Optional[sqlite3.Connection] = None) -> StoryDTO:
     story_id = UUID(r["id"])
@@ -86,7 +105,7 @@ def row_to_story_dto(r: sqlite3.Row, include_chapters: bool = False, conn: Optio
                 content=ch["content"] if "content" in ch.keys() else "",
                 word_count=ch["word_count"] if "word_count" in ch.keys() else 0,
                 created_at_utc=datetime.fromisoformat(ch["created_at_utc"]),
-                page_urls=json.loads(ch["page_urls"]) if "page_urls" in ch.keys() and ch["page_urls"] else []
+                page_urls=_decode_page_urls(ch["page_urls"] if "page_urls" in ch.keys() else None)
             )
             for ch in ch_rows
         ]
@@ -110,7 +129,7 @@ def row_to_story_dto(r: sqlite3.Row, include_chapters: bool = False, conn: Optio
         updated_at_utc=datetime.fromisoformat(r["updated_at_utc"]),
         cover_image_name=r["cover_image_name"] if "cover_image_name" in keys else None,
         hero_image_name=r["hero_image_name"] if "hero_image_name" in keys else None,
-        cover_image_url=r["cover_image_url"] if "cover_image_url" in keys else None,
+        cover_image_url=_cover_url_without_legacy_demo(r["cover_image_url"] if "cover_image_url" in keys else None),
         total_pages=r["total_pages"] if "total_pages" in keys and r["total_pages"] else 5,
         current_page=r["current_page"] if "current_page" in keys and r["current_page"] else 1,
         progress_percent=r["progress_percent"] if "progress_percent" in keys and r["progress_percent"] is not None else 0,
@@ -185,7 +204,7 @@ def get_story_chapters(story_id: UUID) -> list[ChapterDTO]:
             content=r["content"] if "content" in r.keys() else "",
             word_count=r["word_count"] if "word_count" in r.keys() else 0,
             created_at_utc=datetime.fromisoformat(r["created_at_utc"]),
-            page_urls=json.loads(r["page_urls"]) if "page_urls" in r.keys() and r["page_urls"] else []
+            page_urls=_decode_page_urls(r["page_urls"] if "page_urls" in r.keys() else None)
         )
         for r in rows
     ]
@@ -209,7 +228,7 @@ def get_story_chapter_by_number(story_id: UUID, chapter_number: int) -> ChapterD
         content=row["content"] if "content" in row.keys() else "",
         word_count=row["word_count"] if "word_count" in row.keys() else 0,
         created_at_utc=datetime.fromisoformat(row["created_at_utc"]),
-        page_urls=json.loads(row["page_urls"]) if "page_urls" in row.keys() and row["page_urls"] else []
+        page_urls=_decode_page_urls(row["page_urls"] if "page_urls" in row.keys() else None)
     )
 
 def create_story(payload: CreateStoryRequest) -> StoryDTO:

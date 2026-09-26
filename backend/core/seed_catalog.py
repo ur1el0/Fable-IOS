@@ -283,9 +283,9 @@ SEED_CATALOG = [
         "synopsis": "In a gritty neon metropolis where human fears manifest as living devils, an indebted hunter fights for survival alongside his faithful devil companion.",
         "content": "",
         "read_time_minutes": 8,
-        "cover_image_name": "cover_dracula",
-        "hero_image_name": "hero_dracula",
-        "cover_image_url": "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=800&auto=format&fit=crop",
+        "cover_image_name": None,
+        "hero_image_name": None,
+        "cover_image_url": None,
         "is_tale_of_the_day": 0,
         "is_recent_submission": 1,
         "is_curator_spotlight": 0,
@@ -297,12 +297,7 @@ SEED_CATALOG = [
                 "number": 1,
                 "title": "Chapter 1: The Contract",
                 "content": "",
-                "page_urls": [
-                    "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=800&auto=format&fit=crop",
-                    "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=800&auto=format&fit=crop",
-                    "https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=800&auto=format&fit=crop",
-                    "https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=800&auto=format&fit=crop"
-                ]
+                "page_urls": []
             }
         ]
     },

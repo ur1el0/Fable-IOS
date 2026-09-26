@@ -119,8 +119,7 @@ def test_get_genres_endpoint():
     assert "description" in first
     assert "imageName" in first
     assert "imageUrl" in first
-    assert first["imageUrl"] is not None
-    assert first["imageUrl"].startswith("https://images.unsplash.com")
+    assert first["imageUrl"] is None
 
 def test_get_top_authors_endpoint(monkeypatch):
     import httpx
@@ -433,6 +432,7 @@ def test_multi_format_content_and_provider_serialization():
     assert manga_story["sourceProvider"] == "MANGADEX"
     assert manga_story["title"] == "Chainsaw Devil: Special Edition"
     assert manga_story["badgeText"] == "MANGA"
+    assert manga_story["coverImageUrl"] is None
 
     # Verify Standard Ebooks sample is present
     se_story = next((s for s in stories if s["sourceProvider"] == "STANDARD_EBOOKS"), None)
@@ -452,8 +452,38 @@ def test_manga_chapter_page_urls_contract():
     assert len(chapters) >= 1
     ch1 = chapters[0]
     assert "pageUrls" in ch1
-    assert len(ch1["pageUrls"]) >= 3
-    assert all(url.startswith("https://") for url in ch1["pageUrls"])
+    assert ch1["pageUrls"] == []
+
+def test_legacy_demo_manga_images_are_not_exposed():
+    from core.database import get_db
+
+    response = client.get("/api/v1/stories")
+    manga_story = next(s for s in response.json() if s["contentFormat"] == "MANGA")
+    connection = get_db()
+    with connection:
+        connection.execute(
+            "UPDATE stories SET cover_image_url = ? WHERE id = ?",
+            ("https://images.unsplash.com/photo-demo.jpg", manga_story["id"]),
+        )
+        connection.execute(
+            "UPDATE chapters SET page_urls = ? WHERE story_id = ?",
+            (
+                '["https://images.unsplash.com/panel-demo.jpg",'
+                '"https://uploads.mangadex.org/covers/demo/cover.jpg"]',
+                manga_story["id"],
+            ),
+        )
+    connection.close()
+
+    detail = client.get(f"/api/v1/stories/{manga_story['id']}").json()
+    chapters = client.get(f"/api/v1/stories/{manga_story['id']}/chapters").json()
+
+    assert detail["coverImageUrl"] is None
+    assert detail["chapters"][0]["pageUrls"] == [
+        "https://uploads.mangadex.org/covers/demo/cover.jpg"
+    ]
+    assert chapters[0]["pageUrls"] == detail["chapters"][0]["pageUrls"]
+
 
 def test_create_manga_story_via_api():
     payload = {
@@ -492,7 +522,7 @@ def test_internal_health_and_media_invariants():
     for g in genres:
         assert g["storyCount"] >= 0
         assert len(g["readersCount"]) > 0
-        assert g["imageUrl"].startswith("https://")
+        assert g["imageUrl"] is None or g["imageUrl"].startswith("https://")
 
     # 3. Author portrait and rating invariants
     author_res = client.get("/api/v1/authors/top")
