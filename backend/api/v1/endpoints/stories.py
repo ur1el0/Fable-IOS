@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Header, status
 
 from schemas import (
     StoryDTO,
@@ -11,7 +11,7 @@ from schemas import (
     UpdateFeedDTO,
     CreateStoryRequest
 )
-from services import story_service
+from services import auth_service, story_service
 
 router = APIRouter()
 
@@ -48,5 +48,6 @@ def get_story_chapter_by_number(story_id: UUID, chapter_number: int):
     return story_service.get_story_chapter_by_number(story_id, chapter_number)
 
 @router.post("/stories", response_model=StoryDTO, status_code=status.HTTP_201_CREATED)
-def create_story(payload: CreateStoryRequest):
-    return story_service.create_story(payload)
+def create_story(payload: CreateStoryRequest, authorization: str = Header(None)):
+    user = auth_service.get_current_user_from_header(authorization)
+    return story_service.create_story(payload, author=user.name, owner_user_id=user.id)

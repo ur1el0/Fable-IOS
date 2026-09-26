@@ -18,24 +18,31 @@ public struct LibraryTests {
 
         let store = StoryStore()
 
-        // Test 1: Story store initialization
-        assert(!store.stories.isEmpty, "Stories Catalog Loaded")
+        // Test 1: Cached provider records require stable provider identity.
+        assert(store.stories.allSatisfy {
+            $0.sourceProvider == .fableOriginal || $0.providerId?.isEmpty == false
+        }, "Cached Provider Stories Have Provider IDs")
+
+        let actionStory = Story(
+            title: "Diagnostic Fixture",
+            author: "Diagnostic",
+            genre: .folklore,
+            synopsis: "",
+            content: "",
+            readTimeMinutes: 4
+        )
+        store.stories.append(actionStory)
 
         // Test 2: Bookmark toggling
-        if let first = store.stories.first {
-            let initialState = first.isBookmarked
-            store.toggleBookmark(for: first)
-            let updatedState = store.stories.first(where: { $0.id == first.id })?.isBookmarked ?? false
-            assert(updatedState != initialState, "Toggle Bookmark State")
-            store.toggleBookmark(for: first) // revert
-        }
+        store.toggleBookmark(for: actionStory)
+        let bookmarked = store.stories.first(where: { $0.id == actionStory.id })?.isBookmarked ?? false
+        assert(bookmarked, "Toggle Bookmark State")
+        store.toggleBookmark(for: actionStory)
 
         // Test 3: Reading progress mutation
-        if let first = store.stories.first {
-            store.updateProgress(for: first.id, page: 3, totalPages: 4)
-            let updated = store.stories.first(where: { $0.id == first.id })
-            assert(updated?.progressPercent == 75 && updated?.currentPage == 3, "Update Reading Progress")
-        }
+        store.updateProgress(for: actionStory.id, page: 3, totalPages: 4)
+        let updated = store.stories.first(where: { $0.id == actionStory.id })
+        assert(updated?.progressPercent == 75 && updated?.currentPage == 3, "Update Reading Progress")
 
         // Test 4: Legacy JSON Fallback Decoding (Defaults to .prose and .fableOriginal)
         let legacyJSON = """
@@ -48,12 +55,71 @@ public struct LibraryTests {
 
         if let legacyStory = try? JSONDecoder().decode(Story.self, from: legacyJSON) {
             assert(legacyStory.contentFormat == .prose, "Legacy Story ContentFormat Defaults to Prose")
+            assert(legacyStory.genre == .unspecified, "Missing Legacy Genre Stays Unspecified")
             assert(legacyStory.sourceProvider == .fableOriginal, "Legacy Story SourceProvider Defaults to FableOriginal")
+            assert(legacyStory.lastReadChapterId == nil && legacyStory.lastReadChapterNumber == nil, "Legacy Story Chapter Progress Defaults to Empty")
         } else {
             assert(false, "Legacy Story JSON Decoding Failed")
         }
 
-        // Test 5: Multi-Format Manga Payload Decoding (MangaDex Ingestion Contract)
+        // Test 5: Granular Chapter Progress Decoding
+        let chapterProgressJSON = """
+        {
+            "id": "A0000000-0000-0000-0000-000000000005",
+            "title": "Saved Chapter",
+            "author": "Anonymous",
+            "lastReadChapterId": "C0000000-0000-0000-0000-000000000005",
+            "lastReadChapterNumber": 5
+        }
+        """.data(using: .utf8)!
+
+        if let progressedStory = try? JSONDecoder().decode(Story.self, from: chapterProgressJSON) {
+            assert(progressedStory.lastReadChapterId == "C0000000-0000-0000-0000-000000000005", "Story Decodes Saved Chapter ID")
+            assert(progressedStory.lastReadChapterNumber == 5, "Story Decodes Saved Chapter Number")
+        } else {
+            assert(false, "Chapter Progress JSON Decoding Failed")
+        }
+
+        let liveProviderJSON = """
+        {
+            "id": "00000000-0000-0000-0000-00000000053E",
+            "title": "Pride and Prejudice",
+            "author": "Jane Austen",
+            "genre": "Historical Fiction",
+            "sourceProvider": "GUTENBERG",
+            "providerId": "1342"
+        }
+        """.data(using: .utf8)!
+
+        if let liveBook = try? JSONDecoder().decode(Story.self, from: liveProviderJSON) {
+            assert(liveBook.sourceProvider == .gutenberg, "Live Book Decodes Gutenberg Source")
+            assert(liveBook.providerId == "1342", "Live Book Decodes Provider ID")
+            assert(liveBook.genre.rawValue == "Historical Fiction", "Unknown Live Genre Is Preserved")
+        } else {
+            assert(false, "Live Provider Story JSON Decoding Failed")
+        }
+
+        let liveStatsJSON = """
+        {
+            "id": "00000000-0000-0000-0000-000000000053",
+            "title": "Live Statistics",
+            "author": "Source Author",
+            "rating": null,
+            "savesCount": "3",
+            "readsCount": "8",
+            "providerDownloadCount": 940
+        }
+        """.data(using: .utf8)!
+
+        if let liveStatsStory = try? JSONDecoder().decode(Story.self, from: liveStatsJSON) {
+            assert(liveStatsStory.rating == nil, "Missing Provider Rating Stays Unavailable")
+            assert(liveStatsStory.savesCount == "3" && liveStatsStory.readsCount == "8", "Story Counts Decode")
+            assert(liveStatsStory.providerDownloadCount == 940, "Provider Downloads Decode")
+        } else {
+            assert(false, "Live Story Statistics JSON Decoding Failed")
+        }
+
+        // Test 6: Multi-Format Manga Payload Decoding (MangaDex Ingestion Contract)
         let mangaJSON = """
         {
             "id": "B0000000-0000-0000-0000-000000000002",
@@ -73,7 +139,7 @@ public struct LibraryTests {
             assert(false, "Manga Story JSON Decoding Failed")
         }
 
-        // Test 6: Chapter JSON Page URLs Decoding (Panel Manifest & Fallback)
+        // Test 7: Chapter JSON Page URLs Decoding (Panel Manifest & Fallback)
         let chapterWithPagesJSON = """
         {
             "id": "C0000000-0000-0000-0000-000000000003",
@@ -106,22 +172,40 @@ public struct LibraryTests {
             assert(false, "Legacy Chapter JSON Decoding Failed")
         }
 
-        // Test 7: Catalog Multi-Format Diversity
-        let hasProse = store.stories.contains(where: { $0.contentFormat == .prose })
-        let hasManga = store.stories.contains(where: { $0.contentFormat == .manga })
-        assert(hasProse, "StoryStore Contains Prose Literature")
-        assert(hasManga, "StoryStore Contains Manga Releases")
+        let cachedChapter = Chapter(
+            id: UUID(uuidString: "C0000000-0000-0000-0000-000000000006")!,
+            storyId: UUID(uuidString: "A0000000-0000-0000-0000-000000000006")!,
+            chapterNumber: 1,
+            title: "Cached Chapter",
+            content: "Chapter text stored for offline reading."
+        )
+        let cachedChapterRoundTrip = (try? JSONEncoder().encode([cachedChapter]))
+            .flatMap { try? JSONDecoder().decode([Chapter].self, from: $0) }
+        assert(cachedChapterRoundTrip == [cachedChapter], "Chapter Payload Can Be Persisted and Restored")
 
-        // Test 8: Multi-Provider Ingestion Recognition
-        let hasGutenberg = store.stories.contains(where: { $0.sourceProvider == .gutenberg })
-        let hasMangaDex = store.stories.contains(where: { $0.sourceProvider == .mangadex })
-        assert(hasGutenberg, "Catalog Contains Project Gutenberg Ingested Titles")
-        assert(hasMangaDex, "Catalog Contains MangaDex Ingested Titles")
+        // Test 8: Provider formats are decoded without requiring a bundled catalog.
+        assert(liveBook.contentFormat == .prose && mangaStory.contentFormat == .manga, "Live Prose and Manga Formats Decode")
 
-        // Test 9: Internal App Health & Subsystem Diagnostics Suite
+        // Test 9: Provider identities survive decoding and can address live chapter endpoints.
+        assert(liveBook.providerId == "1342" && mangaStory.sourceProvider == .mangadex, "Live Provider Identity Decodes")
+
+        let createRequest = CreateStoryRequest(
+            title: "Authored Story",
+            genre: "Historical Fiction",
+            chapter: "Opening",
+            synopsis: "A writer supplied synopsis.",
+            content: "Writer supplied manuscript.",
+            readTimeMinutes: 1
+        )
+        let createRequestObject = try? JSONSerialization.jsonObject(with: JSONEncoder().encode(createRequest)) as? [String: Any]
+        assert(createRequestObject?["author"] == nil && createRequestObject?["sourceProvider"] == nil, "Story Create Payload Omits Server-Owned Fields")
+        assert(createRequestObject?["readTimeMinutes"] as? Int == 1, "Story Create Payload Uses Camel Case Contract")
+
+        // Test 10: Internal App Health & Subsystem Diagnostics Suite
         let healthResult = AppHealthTests.runAllTests()
         assert(healthResult.failures.isEmpty && healthResult.passed == healthResult.total, "Internal App Health Diagnostics Verification (\(healthResult.passed)/\(healthResult.total) Passed)")
 
+        store.stories.removeAll(where: { $0.id == actionStory.id })
         return (passed, total, failures)
     }
 }

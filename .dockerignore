@@ -1,0 +1,12 @@
+.git
+.env
+.env.*
+!.env.example
+data/
+.venv/
+venv/
+.pytest_cache/
+**/__pycache__/
+frontend/
+docs/
+*.pdf

@@ -32,41 +32,6 @@ public final class PersistenceService {
         }
     }
     
-    // Seed initial folklore stories if database is empty on cold launch
-    public func seedInitialDataIfNeeded(seedStories: [Story]) {
-        var descriptor = FetchDescriptor<StoryEntity>()
-        descriptor.fetchLimit = 1
-        
-        do {
-            let count = try context.fetchCount(descriptor)
-            if count == 0 {
-                for story in seedStories {
-                    let entity = StoryEntity(
-                        id: story.id,
-                        title: story.title,
-                        author: story.author,
-                        genreRaw: story.genre.rawValue,
-                        chapter: "Chapter I",
-                        synopsis: story.synopsis,
-                        content: story.content,
-                        readTimeMinutes: story.readTimeMinutes,
-                        readingProgress: Double(story.progressPercent) / 100.0,
-                        currentPage: story.currentPage,
-                        totalPages: story.totalPages,
-                        isBookmarked: story.isBookmarked,
-                        isCompleted: story.isCompleted,
-                        createdAtUtc: story.createdAtUtc,
-                        updatedAtUtc: Date()
-                    )
-                    context.insert(entity)
-                }
-                try context.save()
-            }
-        } catch {
-            print("Failed to seed initial stories: \(error)")
-        }
-    }
-    
     // Fetch all persistent stories
     public func fetchAllStories() -> [StoryEntity] {
         let descriptor = FetchDescriptor<StoryEntity>(
@@ -80,6 +45,11 @@ public final class PersistenceService {
         }
     }
     
+    private func encodedChapters(_ chapters: [Chapter]?) -> Data? {
+        guard let chapters, !chapters.isEmpty else { return nil }
+        return try? JSONEncoder().encode(chapters)
+    }
+
     // Insert or update manuscript
     public func saveStory(_ story: Story) {
         let targetId = story.id
@@ -94,12 +64,26 @@ public final class PersistenceService {
                 existing.title = story.title
                 existing.author = story.author
                 existing.genreRaw = story.genre.rawValue
+                existing.contentFormatRaw = story.contentFormat.rawValue
+                existing.sourceProviderRaw = story.sourceProvider.rawValue
                 existing.synopsis = story.synopsis
                 existing.content = story.content
                 existing.readTimeMinutes = story.readTimeMinutes
                 existing.readingProgress = Double(story.progressPercent) / 100.0
                 existing.currentPage = story.currentPage
                 existing.totalPages = story.totalPages
+                existing.coverImageName = story.coverImageName
+                existing.heroImageName = story.heroImageName
+                existing.coverImageUrl = story.coverImageUrl
+                if let providerId = story.providerId { existing.providerId = providerId }
+                if let providerDownloadCount = story.providerDownloadCount {
+                    existing.providerDownloadCount = providerDownloadCount
+                }
+                if let chapters = story.chapters, !chapters.isEmpty {
+                    existing.cachedChaptersData = encodedChapters(chapters)
+                }
+                existing.lastReadChapterId = story.lastReadChapterId
+                existing.lastReadChapterNumber = story.lastReadChapterNumber
                 existing.isBookmarked = story.isBookmarked
                 existing.isCompleted = story.isCompleted
                 existing.updatedAtUtc = Date()
@@ -109,13 +93,23 @@ public final class PersistenceService {
                     title: story.title,
                     author: story.author,
                     genreRaw: story.genre.rawValue,
-                    chapter: "Chapter I",
+                    contentFormatRaw: story.contentFormat.rawValue,
+                    sourceProviderRaw: story.sourceProvider.rawValue,
+                    chapter: "",
                     synopsis: story.synopsis,
                     content: story.content,
                     readTimeMinutes: story.readTimeMinutes,
                     readingProgress: Double(story.progressPercent) / 100.0,
                     currentPage: story.currentPage,
                     totalPages: story.totalPages,
+                    coverImageName: story.coverImageName,
+                    heroImageName: story.heroImageName,
+                    coverImageUrl: story.coverImageUrl,
+                    providerId: story.providerId,
+                    providerDownloadCount: story.providerDownloadCount,
+                    cachedChaptersData: encodedChapters(story.chapters),
+                    lastReadChapterId: story.lastReadChapterId,
+                    lastReadChapterNumber: story.lastReadChapterNumber,
                     isBookmarked: story.isBookmarked,
                     isCompleted: story.isCompleted,
                     createdAtUtc: story.createdAtUtc,
@@ -129,6 +123,34 @@ public final class PersistenceService {
         }
     }
     
+    public func cachedChapters(storyId: UUID) -> [Chapter] {
+        let descriptor = FetchDescriptor<StoryEntity>(
+            predicate: #Predicate { $0.id == storyId }
+        )
+        guard
+            let entity = try? context.fetch(descriptor).first,
+            let data = entity.cachedChaptersData
+        else {
+            return []
+        }
+        return (try? JSONDecoder().decode([Chapter].self, from: data)) ?? []
+    }
+
+    public func saveCachedChapters(_ chapters: [Chapter], storyId: UUID) {
+        guard !chapters.isEmpty else { return }
+        let descriptor = FetchDescriptor<StoryEntity>(
+            predicate: #Predicate { $0.id == storyId }
+        )
+        do {
+            guard let entity = try context.fetch(descriptor).first else { return }
+            entity.cachedChaptersData = try JSONEncoder().encode(chapters)
+            entity.updatedAtUtc = Date()
+            try context.save()
+        } catch {
+            print("Failed to cache story chapters: \(error)")
+        }
+    }
+
     // Update progress
     public func updateProgress(storyId: UUID, progressPercent: Int, isCompleted: Bool, page: Int = 1, totalPages: Int = 1) {
         var descriptor = FetchDescriptor<StoryEntity>(
@@ -150,6 +172,39 @@ public final class PersistenceService {
         }
     }
     
+    public func updateReadingProgress(storyId: UUID, chapterId: String, chapterNumber: Int) {
+        var descriptor = FetchDescriptor<StoryEntity>(
+            predicate: #Predicate { $0.id == storyId }
+        )
+        descriptor.fetchLimit = 1
+
+        do {
+            guard let entity = try context.fetch(descriptor).first else { return }
+            entity.lastReadChapterId = chapterId
+            entity.lastReadChapterNumber = chapterNumber
+            entity.updatedAtUtc = Date()
+            try context.save()
+        } catch {
+            print("Failed to update chapter progress: \(error)")
+        }
+    }
+
+    public func setBookmark(storyId: UUID, isBookmarked: Bool) {
+        let targetId = storyId
+        var descriptor = FetchDescriptor<StoryEntity>(
+            predicate: #Predicate { $0.id == targetId }
+        )
+        descriptor.fetchLimit = 1
+        do {
+            guard let entity = try context.fetch(descriptor).first else { return }
+            entity.isBookmarked = isBookmarked
+            entity.updatedAtUtc = Date()
+            try context.save()
+        } catch {
+            print("Failed to update bookmark state: \(error)")
+        }
+    }
+
     // Toggle bookmark
     public func toggleBookmark(storyId: UUID) -> Bool {
         var descriptor = FetchDescriptor<StoryEntity>(
@@ -189,7 +244,7 @@ public final class PersistenceService {
     
     // MARK: - Annotation / Marginalia Methods
     
-    public func fetchAnnotations(for storyId: UUID) -> [Annotation] {
+    public func fetchAnnotations(for storyId: UUID, ownerUserId: UUID?) -> [Annotation] {
         var descriptor = FetchDescriptor<StoryEntity>(
             predicate: #Predicate { $0.id == storyId }
         )
@@ -197,21 +252,23 @@ public final class PersistenceService {
         
         do {
             if let storyEntity = try context.fetch(descriptor).first {
-                return storyEntity.annotations.map { entity in
-                    Annotation(
-                        id: entity.id,
-                        storyId: storyId,
-                        storyTitle: storyEntity.title,
-                        storyAuthor: storyEntity.author,
-                        utf16StartOffset: entity.utf16StartOffset,
-                        utf16EndOffset: entity.utf16EndOffset,
-                        selectedText: entity.highlightedText,
-                        note: entity.note,
-                        color: HighlightColor(rawValue: entity.styleRaw) ?? .terracotta,
-                        isPinnedToJournal: entity.isPinnedToJournal,
-                        createdAt: entity.createdAtUtc
-                    )
-                }
+                return storyEntity.annotations
+                    .filter { $0.ownerUserId == ownerUserId }
+                    .map { entity in
+                        Annotation(
+                            id: entity.id,
+                            storyId: storyId,
+                            storyTitle: storyEntity.title,
+                            storyAuthor: storyEntity.author,
+                            utf16StartOffset: entity.utf16StartOffset,
+                            utf16EndOffset: entity.utf16EndOffset,
+                            selectedText: entity.highlightedText,
+                            note: entity.note,
+                            color: HighlightColor(rawValue: entity.styleRaw) ?? .terracotta,
+                            isPinnedToJournal: entity.isPinnedToJournal,
+                            createdAt: entity.createdAtUtc
+                        )
+                    }
             }
         } catch {
             print("Failed to fetch annotations: \(error)")
@@ -219,7 +276,7 @@ public final class PersistenceService {
         return []
     }
     
-    public func saveAnnotation(_ annotation: Annotation) {
+    public func saveAnnotation(_ annotation: Annotation, ownerUserId: UUID?) {
         let storyId = annotation.storyId
         var descriptor = FetchDescriptor<StoryEntity>(
             predicate: #Predicate { $0.id == storyId }
@@ -229,8 +286,8 @@ public final class PersistenceService {
         do {
             guard let storyEntity = try context.fetch(descriptor).first else { return }
             
-            // Check if annotation exists
             if let existing = storyEntity.annotations.first(where: { $0.id == annotation.id }) {
+                guard existing.ownerUserId == ownerUserId else { return }
                 existing.highlightedText = annotation.selectedText
                 existing.note = annotation.note
                 existing.styleRaw = annotation.color.rawValue
@@ -244,6 +301,7 @@ public final class PersistenceService {
                     note: annotation.note,
                     styleRaw: annotation.color.rawValue,
                     isPinnedToJournal: annotation.isPinnedToJournal,
+                    ownerUserId: ownerUserId,
                     createdAtUtc: annotation.createdAt,
                     story: storyEntity
                 )
@@ -256,14 +314,14 @@ public final class PersistenceService {
         }
     }
     
-    public func deleteAnnotation(id: UUID) {
+    public func deleteAnnotation(id: UUID, ownerUserId: UUID?) {
         var descriptor = FetchDescriptor<AnnotationEntity>(
             predicate: #Predicate { $0.id == id }
         )
         descriptor.fetchLimit = 1
         
         do {
-            if let entity = try context.fetch(descriptor).first {
+            if let entity = try context.fetch(descriptor).first, entity.ownerUserId == ownerUserId {
                 context.delete(entity)
                 try context.save()
             }
@@ -272,14 +330,14 @@ public final class PersistenceService {
         }
     }
     
-    public func fetchAllPinnedAnnotations() -> [Annotation] {
+    public func fetchAllPinnedAnnotations(ownerUserId: UUID?) -> [Annotation] {
         let descriptor = FetchDescriptor<AnnotationEntity>(
             predicate: #Predicate { $0.isPinnedToJournal == true },
             sortBy: [SortDescriptor(\.createdAtUtc, order: .reverse)]
         )
         
         do {
-            let entities = try context.fetch(descriptor)
+            let entities = try context.fetch(descriptor).filter { $0.ownerUserId == ownerUserId }
             return entities.map { entity in
                 Annotation(
                     id: entity.id,
@@ -315,50 +373,53 @@ public final class PersistenceService {
         }
     }
     
-    public func logReadingSession(storyId: UUID, storyTitle: String, seconds: Int, isCompleted: Bool) {
+    public func logReadingSession(
+        id: UUID = UUID(),
+        storyId: UUID,
+        storyTitle: String,
+        seconds: Int,
+        ownerUserId: UUID,
+        isCompleted: Bool
+    ) {
         guard seconds >= 3 else { return }
         let log = ReadingLogEntity(
+            id: id,
             storyId: storyId,
             storyTitle: storyTitle,
             secondsRead: seconds,
             date: Date(),
+            ownerUserId: ownerUserId,
             isCompleted: isCompleted
         )
         context.insert(log)
         try? context.save()
     }
     
-    public func fetchReadingStats() -> ReadingStatsSummary {
+    public func fetchReadingStats(ownerUserId: UUID) -> ReadingStatsSummary {
         let descriptor = FetchDescriptor<ReadingLogEntity>(sortBy: [SortDescriptor(\.date, order: .reverse)])
         do {
-            let logs = try context.fetch(descriptor)
+            let logs = try context.fetch(descriptor).filter { $0.ownerUserId == ownerUserId }
             let totalLoggedSeconds = logs.reduce(0) { $0 + $1.secondsRead }
-            let additionalMinutes = totalLoggedSeconds / 60
-            
-            // Count unique stories completed
-            var completedCount = 0
-            let completedDescriptor = FetchDescriptor<StoryEntity>(predicate: #Predicate { $0.isCompleted })
-            if let completedList = try? context.fetch(completedDescriptor) {
-                completedCount = completedList.count
+            let completedStoryIDs = Set(logs.filter(\.isCompleted).map(\.storyId))
+            let calendar = Calendar.current
+            let activeDays = Set(logs.compactMap { calendar.startOfDay(for: $0.date) })
+            var streakStart = calendar.startOfDay(for: Date())
+            if !activeDays.contains(streakStart),
+               let yesterday = calendar.date(byAdding: .day, value: -1, to: streakStart),
+               activeDays.contains(yesterday) {
+                streakStart = yesterday
             }
-            
-            // Calculate active streak days from unique reading days
-            var uniqueDaySet = Set<String>()
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM-dd"
-            for log in logs {
-                uniqueDaySet.insert(formatter.string(from: log.date))
+            var streakDays = 0
+            while activeDays.contains(streakStart) {
+                streakDays += 1
+                guard let previousDay = calendar.date(byAdding: .day, value: -1, to: streakStart) else { break }
+                streakStart = previousDay
             }
-            
-            // Pure calculated stats based on authentic user activity
-            let finalStories = completedCount
-            let finalMinutes = additionalMinutes
-            let finalStreak = uniqueDaySet.count
-            
+
             return ReadingStatsSummary(
-                storiesReadCount: finalStories,
-                totalMinutesRead: finalMinutes,
-                streakDays: finalStreak
+                storiesReadCount: completedStoryIDs.count,
+                totalMinutesRead: totalLoggedSeconds / 60,
+                streakDays: streakDays
             )
         } catch {
             return ReadingStatsSummary(storiesReadCount: 0, totalMinutesRead: 0, streakDays: 0)

@@ -46,8 +46,7 @@ public struct MangaReaderView: View {
         if let firstChap = story.chapters?.first, !firstChap.pageUrls.isEmpty {
             return firstChap.pageUrls
         }
-        // Fallback to story covers
-        return [story.coverImageUrl, story.effectiveCoverImage].compactMap { $0 }
+        return []
     }
 
     public var body: some View {
@@ -159,6 +158,9 @@ public struct MangaReaderView: View {
 
                         // Mode Selector (Webtoon vs Paging)
                         Button(action: {
+                            if store.hapticFeedback {
+                                HapticManager.selection()
+                            }
                             withAnimation(.easeInOut(duration: 0.2)) {
                                 readingMode = (readingMode == .webtoon) ? .paged : .webtoon
                             }
@@ -209,6 +211,9 @@ public struct MangaReaderView: View {
                             // Prev Chapter
                             Button(action: {
                                 if currentChapterIndex > 0 {
+                                    if store.hapticFeedback {
+                                        HapticManager.impact(style: .light)
+                                    }
                                     currentChapterIndex -= 1
                                     currentPageIndex = 0
                                 }
@@ -236,6 +241,9 @@ public struct MangaReaderView: View {
                             // Next Chapter
                             Button(action: {
                                 if currentChapterIndex < chapters.count - 1 {
+                                    if store.hapticFeedback {
+                                        HapticManager.impact(style: .light)
+                                    }
                                     currentChapterIndex += 1
                                     currentPageIndex = 0
                                 }
@@ -264,6 +272,10 @@ public struct MangaReaderView: View {
         }
         .task {
             await loadMangaChapters()
+        }
+        .onChange(of: currentChapterIndex) { _, newIndex in
+            prefetchPanels(around: newIndex)
+            persistCurrentChapter(at: newIndex)
         }
         .sheet(isPresented: $isShowingChapterSheet) {
             NavigationStack {
@@ -296,9 +308,12 @@ public struct MangaReaderView: View {
         }
     }
 
+    @MainActor
     private func loadMangaChapters() async {
         if let existing = story.chapters, !existing.isEmpty {
             self.chapters = existing
+            restoreSavedChapter()
+            prefetchPanels(around: currentChapterIndex)
             return
         }
         isLoading = true
@@ -313,56 +328,100 @@ public struct MangaReaderView: View {
                 title: story.title,
                 content: "",
                 wordCount: 0,
-                pageUrls: [
-                    story.coverImageUrl,
-                    "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=800&auto=format&fit=crop",
-                    "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=800&auto=format&fit=crop"
-                ].compactMap { $0 }
+                pageUrls: []
             )
             self.chapters = [single]
         }
         isLoading = false
+        restoreSavedChapter()
+        prefetchPanels(around: currentChapterIndex)
+    }
+
+    @MainActor
+    private func restoreSavedChapter() {
+        let progress = store.stories.first(where: { $0.id == story.id }) ?? story
+        if let chapterId = progress.lastReadChapterId,
+           let savedIndex = chapters.firstIndex(where: { $0.id.uuidString == chapterId }) {
+            currentChapterIndex = savedIndex
+        } else if let chapterNumber = progress.lastReadChapterNumber,
+                  let savedIndex = chapters.firstIndex(where: { $0.chapterNumber == chapterNumber }) {
+            currentChapterIndex = savedIndex
+        }
+    }
+
+    @MainActor
+    private func persistCurrentChapter(at index: Int) {
+        guard chapters.indices.contains(index) else { return }
+        let chapter = chapters[index]
+        store.updateReadingProgress(
+            for: story.id,
+            chapterId: chapter.id.uuidString,
+            chapterNumber: chapter.chapterNumber
+        )
+    }
+
+    @MainActor
+    private func prefetchPanels(around chapterIndex: Int) {
+        let chapterIndices = [chapterIndex, chapterIndex + 1].filter {
+            chapters.indices.contains($0)
+        }
+        let urls = chapterIndices.flatMap { index in
+            chapters[index].pageUrls.compactMap { URL(string: $0) }
+        }
+
+        guard !urls.isEmpty else {
+            return
+        }
+
+        Task { @MainActor in
+            await DiskImageCache.shared.prefetch(urls: urls)
+        }
     }
 }
 
+@MainActor
 private struct MangaPageView: View {
     let urlString: String
     let pageNumber: Int
+
+    private var imageURL: URL? {
+        guard
+            let url = URL(string: urlString),
+            let scheme = url.scheme?.lowercased(),
+            scheme == "http" || scheme == "https"
+        else {
+            return nil
+        }
+
+        return url
+    }
 
     var body: some View {
         ZStack {
             Color.black
 
-            AsyncImage(url: URL(string: urlString)) { phase in
-                switch phase {
-                case .empty:
-                    Rectangle()
-                        .fill(Color(white: 0.1))
-                        .frame(minHeight: 480)
-                        .overlay(
-                            ProgressView()
-                                .tint(.white)
-                        )
-                case .success(let image):
-                    image
-                        .resizable()
-                        .scaledToFit()
-                        .frame(maxWidth: .infinity)
-                case .failure:
-                    VStack(spacing: 8) {
-                        Image(systemName: "exclamationmark.triangle")
-                            .font(.system(size: 28))
-                            .foregroundColor(.gray)
-                        Text("Failed to load panel \(pageNumber)")
-                            .font(.system(size: 12))
-                            .foregroundColor(.gray)
-                    }
-                    .frame(height: 360)
-                @unknown default:
-                    EmptyView()
+            if let imageURL {
+                FableRemoteImageView(url: imageURL, contentMode: .fit) {
+                    placeholder
                 }
+                .frame(maxWidth: .infinity)
+                .clipped()
+            } else {
+                placeholder
             }
         }
+        .clipped()
+    }
+
+    private var placeholder: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "photo")
+                .font(.system(size: 28))
+                .foregroundColor(.gray)
+            Text("Panel \(pageNumber) unavailable")
+                .font(.system(size: 12))
+                .foregroundColor(.gray)
+        }
+        .frame(maxWidth: .infinity, minHeight: 360)
     }
 }
-

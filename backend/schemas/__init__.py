@@ -10,9 +10,12 @@ from .schemas import (
     ShelfSyncResponse,
     HealthResponse,
     UserDTO,
+    ProfileUpdateRequest,
     LoginRequest,
     RegisterRequest,
-    AuthResponse
+    AuthResponse,
+    ReadingSessionRequest,
+    ReadingStatsDTO
 )
 
 __all__ = [
@@ -27,7 +30,10 @@ __all__ = [
     "ShelfSyncResponse",
     "HealthResponse",
     "UserDTO",
+    "ProfileUpdateRequest",
     "LoginRequest",
     "RegisterRequest",
-    "AuthResponse"
+    "AuthResponse",
+    "ReadingSessionRequest",
+    "ReadingStatsDTO"
 ]

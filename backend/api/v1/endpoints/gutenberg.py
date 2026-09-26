@@ -1,7 +1,7 @@
 from typing import Optional
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Path, Query, status
 
-from schemas import StoryDTO
+from schemas import ChapterDTO, StoryDTO
 from services import gutenberg as gutenberg_service
 
 router = APIRouter()
@@ -19,3 +19,13 @@ async def get_gutenberg_stories(
     search: Optional[str] = Query(default=None, description="Search term across title and author")
 ):
     return await gutenberg_service.get_gutenberg_stories(topic=topic, search=search)
+
+
+@router.get("/public/gutenberg/{gutenberg_id}", response_model=StoryDTO)
+async def get_gutenberg_story(gutenberg_id: int = Path(ge=1)):
+    return await gutenberg_service.get_gutenberg_story_by_id(gutenberg_id)
+
+
+@router.get("/public/gutenberg/{gutenberg_id}/chapters", response_model=list[ChapterDTO])
+async def get_gutenberg_chapters(gutenberg_id: int = Path(ge=1)):
+    return await gutenberg_service.get_gutenberg_chapters(gutenberg_id=gutenberg_id)

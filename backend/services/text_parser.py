@@ -13,7 +13,7 @@ def extract_chapters_from_text(raw_text: str) -> list[dict]:
     clean_text = raw_text[start_pos:end_pos].strip()
 
     # Match standard Chapter markers
-    pattern = r'(?:\r?\n){2,}(CHAPTER\s+[0-9IVXLCDM]+[^\r\n]*|Chapter\s+[0-9IVXLCDM]+[^\r\n]*|ACT\s+[0-9IVXLCDM]+[^\r\n]*|BOOK\s+[0-9IVXLCDM]+[^\r\n]*)'
+    pattern = r'(?:^|(?:\r?\n){2,})(CHAPTER\s+[0-9IVXLCDM]+[^\r\n]*|Chapter\s+[0-9IVXLCDM]+[^\r\n]*|ACT\s+[0-9IVXLCDM]+[^\r\n]*|BOOK\s+[0-9IVXLCDM]+[^\r\n]*)'
     splits = re.split(pattern, clean_text)
 
     extracted: list[dict] = []

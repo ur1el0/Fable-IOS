@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import UIKit
 
 @MainActor
 public struct AppHealthTests {
@@ -39,20 +40,20 @@ public struct AppHealthTests {
         {
             "taleOfTheDay": {
                 "id": "11111111-1111-1111-1111-111111111111",
-                "title": "Dracula",
-                "author": "Bram Stoker",
+                "title": "Public Domain Novel",
+                "author": "Source Author",
                 "contentFormat": "PROSE",
                 "sourceProvider": "GUTENBERG"
             },
             "curatorSpotlight": {
                 "id": "22222222-2222-2222-2222-222222222222",
-                "title": "Chainsaw Devil",
-                "author": "Tatsuki Fujimoto",
+                "title": "Serialized Graphic Work",
+                "author": "Graphic Author",
                 "contentFormat": "MANGA",
                 "sourceProvider": "MANGADEX"
             },
             "recentSubmissions": [],
-            "totalStories": 14,
+            "totalStories": 2,
             "timestampUtc": "2026-09-24T00:00:00Z"
         }
         """.data(using: .utf8)!
@@ -63,23 +64,23 @@ public struct AppHealthTests {
                 "id": "33333333-3333-3333-3333-333333333333",
                 "storyId": "22222222-2222-2222-2222-222222222222",
                 "chapterNumber": 1,
-                "title": "Chapter 1: The Contract",
+                "title": "Chapter 1",
                 "content": "",
                 "wordCount": 0,
                 "pageUrls": [
-                    "https://images.unsplash.com/panel1.jpg",
-                    "https://images.unsplash.com/panel2.jpg"
+                    "https://cdn.example.org/panel1.jpg",
+                    "https://cdn.example.org/panel2.jpg"
                 ]
             },
             {
                 "id": "44444444-4444-4444-4444-444444444444",
                 "storyId": "22222222-2222-2222-2222-222222222222",
                 "chapterNumber": 2,
-                "title": "Chapter 2: Chainsaw vs Bat",
+                "title": "Chapter 2",
                 "content": "",
                 "wordCount": 0,
                 "pageUrls": [
-                    "https://images.unsplash.com/panel3.jpg"
+                    "https://cdn.example.org/panel3.jpg"
                 ]
             }
         ]
@@ -92,9 +93,9 @@ public struct AppHealthTests {
         var test1Details = ""
         if let feed = try? decoder.decode(UpdateFeed.self, from: updateFeedJSON),
            let chapters = try? decoder.decode([Chapter].self, from: chaptersJSON) {
-            let feedValid = feed.taleOfTheDay?.title == "Dracula" &&
+            let feedValid = feed.taleOfTheDay?.title == "Public Domain Novel" &&
                             feed.curatorSpotlight?.contentFormat == .manga &&
-                            feed.totalStories == 14
+                            feed.totalStories == 2
             let chaptersValid = chapters.count == 2 &&
                                 chapters[0].chapterNumber == 1 &&
                                 chapters[0].pageUrls.count == 2 &&
@@ -116,15 +117,15 @@ public struct AppHealthTests {
         // Test 2: Top Genres Live Metadata & Cover URL Integrity
         // =================================================================
         let genre = GenreCategory(
-            name: "Manga",
-            storyCount: 520,
-            readersCount: "34.8k",
-            description: "Visual graphic serialized narratives",
-            imageName: "genre_folklore",
-            imageUrl: "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=800"
+            name: "Graphic Literature",
+            storyCount: 0,
+            readersCount: "",
+            description: "",
+            imageName: "",
+            imageUrl: "https://covers.example.org/genre.jpg"
         )
-        let genreValid = genre.storyCount > 0 &&
-                         !genre.readersCount.isEmpty &&
+        let genreValid = genre.storyCount == 0 &&
+                         genre.readersCount.isEmpty &&
                          genre.effectiveImage.hasPrefix("https://") &&
                          genre.effectiveImage == genre.imageUrl
         record(
@@ -138,19 +139,19 @@ public struct AppHealthTests {
         // Test 3: Top Creators Live Metadata & Portrait URL Integrity
         // =================================================================
         let writer = Writer(
-            name: "Tatsuki Fujimoto",
-            avatarImageName: "author_kuang",
-            avatarImageUrl: "https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=400",
-            storyCount: 12,
-            rating: 4.96
+            name: "Source Author",
+            avatarImageName: "",
+            avatarImageUrl: "https://avatars.example.org/author.jpg",
+            storyCount: 0,
+            rating: nil
         )
-        let writerValid = writer.storyCount > 0 &&
-                          writer.rating >= 4.0 &&
+        let writerValid = writer.storyCount == 0 &&
+                          writer.rating == nil &&
                           writer.effectiveAvatar.hasPrefix("https://") &&
                           writer.effectiveAvatar == writer.avatarImageUrl
         record(
             name: "Top Creators Live Portraits",
-            description: "Creator catalog provides authentic ratings, publication counts, and live portrait URLs",
+            description: "Creator catalog represents absent ratings honestly and carries live portraits",
             passed: writerValid,
             details: "Writer '\(writer.name)': \(writer.storyCount) stories, ★\(writer.rating), Avatar: \(writer.effectiveAvatar.prefix(35))..."
         )
@@ -191,11 +192,11 @@ public struct AppHealthTests {
         // Cover Art URL Prioritization Check
         let gutenbergCover = "https://www.gutenberg.org/cache/epub/345/pg345.cover.medium.jpg"
         let storyWithCover = Story(
-            title: "Dracula",
-            author: "Bram Stoker",
+            title: "Public Domain Novel",
+            author: "Source Author",
             genre: "Gothic",
-            excerpt: "A terrible precipice...",
-            coverImageName: "cover_dracula",
+            excerpt: "Provider supplied synopsis.",
+            coverImageName: nil,
             coverImageUrl: gutenbergCover,
             contentFormat: .prose,
             sourceProvider: .gutenberg
@@ -221,6 +222,37 @@ public struct AppHealthTests {
             description: "Strict frame bounds, 3:4 card aspect ratio, and circular avatars prevent layout overlap",
             passed: coverPriorityValid && geometryIsolated,
             details: "Cover priority: Gutenberg URL verified. Card: \(Int(coverWidth))x\(Int(coverHeight)) (3:4 ratio). Avatar: \(Int(avatarWidth))x\(Int(avatarHeight)) (1:1 circular)."
+        )
+
+        // =================================================================
+        // Test 6: Manuscript Formatting Controls
+        // =================================================================
+        func applyFormatting(
+            _ style: ManuscriptFormattingStyle,
+            to source: String,
+            selection: NSRange
+        ) -> String {
+            let textView = UITextView()
+            textView.text = source
+            textView.selectedRange = selection
+            let coordinator = ManuscriptEditor.Coordinator(text: .constant(source))
+            coordinator.apply(style, to: textView)
+            return textView.text
+        }
+
+        let boldResult = applyFormatting(.bold, to: "draft", selection: NSRange(location: 0, length: 5))
+        let italicResult = applyFormatting(.italic, to: "draft", selection: NSRange(location: 0, length: 5))
+        let quoteResult = applyFormatting(.quote, to: "first\nsecond", selection: NSRange(location: 0, length: 12))
+        let sceneBreakResult = applyFormatting(.sceneBreak, to: "keep", selection: NSRange(location: 0, length: 4))
+        let formattingControlsValid = boldResult == "**draft**"
+            && italicResult == "*draft*"
+            && quoteResult == "> first\n> second"
+            && sceneBreakResult == "keep\n\n---\n\n"
+        record(
+            name: "Manuscript Formatting Controls",
+            description: "Bold, italic, quote, and scene-break actions preserve and transform manuscript text",
+            passed: formattingControlsValid,
+            details: "Bold: \(boldResult); italic: \(italicResult); quote and scene-break preserve selected text."
         )
 
         return (passed, total, failures, reports)

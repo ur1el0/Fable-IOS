@@ -31,17 +31,17 @@ class Story:
     cover_image_name: Optional[str] = None
     hero_image_name: Optional[str] = None
     cover_image_url: Optional[str] = None
-    total_pages: int = 5
+    total_pages: int = 0
     current_page: int = 1
     progress_percent: int = 0
-    rating: float = 4.9
-    saves_count: str = "1.2k"
-    reads_count: str = "1.2k"
+    rating: Optional[float] = None
+    saves_count: str = "0"
+    reads_count: str = "0"
     is_tale_of_the_day: bool = False
     is_recent_submission: bool = False
     is_curator_spotlight: bool = False
     badge_text: Optional[str] = None
-    total_chapters: int = 1
+    total_chapters: int = 0
     content_format: str = "PROSE"
     source_provider: str = "FABLE_ORIGINAL"
 

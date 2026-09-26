@@ -171,9 +171,14 @@ public struct ShelfView: View {
                                                 }
                                                 
                                                 HStack {
-                                                    Text("— \(quote.storyTitle.isEmpty ? "Fable Scribe" : quote.storyTitle) • \(quote.storyAuthor.isEmpty ? "Anonymous" : quote.storyAuthor)")
-                                                        .font(.system(size: 11, weight: .medium))
-                                                        .foregroundColor(FableTheme.textMuted)
+                                                    let attribution = [quote.storyTitle, quote.storyAuthor]
+                                                        .filter { !$0.isEmpty }
+                                                        .joined(separator: " • ")
+                                                    if !attribution.isEmpty {
+                                                        Text("— \(attribution)")
+                                                            .font(.system(size: 11, weight: .medium))
+                                                            .foregroundColor(FableTheme.textMuted)
+                                                    }
                                                     
                                                     Spacer()
                                                     
@@ -193,7 +198,7 @@ public struct ShelfView: View {
                                 .frame(height: 100)
                                 .tabViewStyle(.page(indexDisplayMode: .automatic))
                             } else {
-                                Text("“A journey of a thousand panels begins with a single line.”")
+                                Text("Pin a passage while reading to save it here.")
                                     .font(.system(size: 12, weight: .medium, design: .default))
                                     .foregroundColor(FableTheme.textSecondary)
                                     .padding(.top, 4)

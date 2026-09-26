@@ -370,13 +370,13 @@ public struct ReaderView: View {
                             // Editorial Engraving Vignette (FIGMA.md Frame 2: 1:159)
                             VStack(spacing: 8) {
                                 ZStack(alignment: .topTrailing) {
-                                    FableImageView(name: story.heroImageName ?? story.effectiveCoverImage ?? "hero_castle", placeholderIcon: "photo")
+                                    FableImageView(name: story.effectiveCoverImage ?? story.heroImageName, placeholderIcon: "photo")
                                         .frame(maxWidth: .infinity)
                                         .frame(height: 200)
                                         .clipShape(RoundedRectangle(cornerRadius: 16))
                                         .shadow(color: Color.black.opacity(0.06), radius: 8, y: 3)
                                     
-                                    Text("FOLIO 82")
+                                    Text("FOLIO \(max(1, currentPage))")
                                         .font(.system(size: 10, weight: .bold))
                                         .tracking(1.0)
                                         .foregroundColor(FableTheme.brandPrimary)
@@ -416,6 +416,9 @@ public struct ReaderView: View {
                                     HStack(spacing: 14) {
                                         if currentChapterIndex > 0 {
                                             Button(action: {
+                                                if store.hapticFeedback {
+                                                    HapticManager.impact(style: .light)
+                                                }
                                                 selectChapter(at: currentChapterIndex - 1)
                                             }) {
                                                 HStack(spacing: 6) {
@@ -435,6 +438,9 @@ public struct ReaderView: View {
                                         
                                         if currentChapterIndex < chapters.count - 1 {
                                             Button(action: {
+                                                if store.hapticFeedback {
+                                                    HapticManager.impact(style: .light)
+                                                }
                                                 selectChapter(at: currentChapterIndex + 1)
                                             }) {
                                                 HStack(spacing: 6) {
@@ -562,6 +568,7 @@ public struct ReaderView: View {
             pacingEngine.startSession()
             if let existing = story.chapters, !existing.isEmpty {
                 self.chapters = existing
+                restoreSavedChapter()
                 loadCurrentChapterPages()
             } else {
                 loadCurrentChapterPages()
@@ -572,6 +579,7 @@ public struct ReaderView: View {
                         self.isLoadingChapters = false
                         if !fetched.isEmpty {
                             self.chapters = fetched
+                            restoreSavedChapter()
                             loadCurrentChapterPages()
                         }
                     }
@@ -814,10 +822,27 @@ public struct ReaderView: View {
         guard chapters.indices.contains(index) else { return }
         withAnimation(.easeInOut(duration: 0.25)) {
             currentChapterIndex = index
+            let chapter = chapters[index]
+            store.updateReadingProgress(
+                for: story.id,
+                chapterId: chapter.id.uuidString,
+                chapterNumber: chapter.chapterNumber
+            )
             loadCurrentChapterPages()
             if audioNarrator.isPlaying {
-                audioNarrator.speak(story: story, chapter: chapters[index])
+                audioNarrator.speak(story: story, chapter: chapter)
             }
+        }
+    }
+
+    private func restoreSavedChapter() {
+        let progress = store.stories.first(where: { $0.id == story.id }) ?? story
+        if let chapterId = progress.lastReadChapterId,
+           let savedIndex = chapters.firstIndex(where: { $0.id.uuidString == chapterId }) {
+            currentChapterIndex = savedIndex
+        } else if let chapterNumber = progress.lastReadChapterNumber,
+                  let savedIndex = chapters.firstIndex(where: { $0.chapterNumber == chapterNumber }) {
+            currentChapterIndex = savedIndex
         }
     }
     
@@ -927,9 +952,4 @@ public struct ReaderView: View {
             }
         }
     }
-}
-
-#Preview {
-    ReaderView(story: Story.defaultSeedStories[0])
-        .environmentObject(StoryStore())
 }

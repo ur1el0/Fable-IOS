@@ -147,24 +147,6 @@ public struct SignInView: View {
                         .padding(18)
                         .fableCard()
 
-                        // Demo Credentials Quick-Fill
-                        Button(action: {
-                            self.email = "demo@example.com"
-                            self.password = "password123"
-                        }) {
-                            HStack(spacing: 6) {
-                                Image(systemName: "sparkles")
-                                    .font(.system(size: 12))
-                                Text("Use Demo Account")
-                                    .font(.system(size: 13, weight: .medium))
-                            }
-                            .foregroundColor(FableTheme.brandPrimary)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 10)
-                            .background(FableTheme.brandPrimary.opacity(0.08))
-                            .clipShape(RoundedRectangle(cornerRadius: 10))
-                        }
-
                         // Navigation switch to Register
                         if let onNavigateToRegister {
                             Button(action: onNavigateToRegister) {

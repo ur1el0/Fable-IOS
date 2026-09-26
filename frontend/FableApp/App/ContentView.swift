@@ -48,6 +48,9 @@ struct ContentView: View {
             await authVM.checkExistingSession()
         }
         .animation(.easeInOut(duration: 0.25), value: authVM.authState)
+        .onChange(of: auth.currentSession?.id) { _, _ in
+            store.sessionDidChange()
+        }
         .environmentObject(store)
     }
 

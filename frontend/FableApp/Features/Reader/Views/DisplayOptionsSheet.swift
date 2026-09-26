@@ -285,7 +285,7 @@ struct DisplayOptionsSheet: View {
            let voice = narrator.availableVoices.first(where: { $0.identifier == id }) {
             return "\(voice.name)"
         }
-        return "System Default (en-US)"
+        return "System Default (\(Locale.current.identifier))"
     }
     
     private func spacingIcon(for spacing: ReaderLineSpacing) -> String {

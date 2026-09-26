@@ -8,6 +8,8 @@ public struct ExploreView: View {
     @State private var selectedGenreForDetail: GenreCategory?
     @State private var selectedStoryToRead: Story?
     @State private var selectedWriter: Writer?
+    @State private var isFindingWriterTitle: Bool = false
+    @State private var writerTitleMessage: String?
     
     let filters = ["All", "Under 5 mins", "Community Favorites", "Quick Reads"]
     
@@ -27,11 +29,11 @@ public struct ExploreView: View {
     var curatedStories: [Story] {
         switch selectedFilter {
         case "Under 5 mins":
-            return store.stories.filter { $0.readingTimeMinutes <= 5 }
+            return store.stories.filter { $0.readingTimeMinutes > 0 && $0.readingTimeMinutes <= 5 }
         case "Community Favorites":
-            return store.stories.filter { $0.rating >= 4.9 }
+            return store.stories.filter { (Int($0.savesCount) ?? 0) > 0 }
         case "Quick Reads":
-            return store.stories.filter { $0.readingTimeMinutes <= 3 }
+            return store.stories.filter { $0.readingTimeMinutes > 0 && $0.readingTimeMinutes <= 3 }
         default:
             return store.stories
         }
@@ -260,6 +262,13 @@ public struct ExploreView: View {
                             }
                             .padding(.horizontal, 20)
                             
+                            if store.genres.isEmpty {
+                                Text("Live genres will appear here after the catalog syncs.")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(FableTheme.textMuted)
+                                    .padding(.horizontal, 20)
+                            }
+
                             // 2x2 Grid
                             LazyVGrid(columns: [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)], spacing: 14) {
                                 ForEach(store.genres) { genre in
@@ -314,6 +323,11 @@ public struct ExploreView: View {
                             
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack(spacing: 18) {
+                                    if store.writers.isEmpty {
+                                        Text("Live author profiles will appear here after sync.")
+                                            .font(.system(size: 14))
+                                            .foregroundColor(FableTheme.textMuted)
+                                    }
                                     ForEach(store.writers) { writer in
                                         Button(action: {
                                             selectedWriter = writer
@@ -334,14 +348,6 @@ public struct ExploreView: View {
                                                         .font(.system(size: 11))
                                                         .foregroundColor(FableTheme.textMuted)
                                                     
-                                                    HStack(spacing: 2) {
-                                                        Image(systemName: "star.fill")
-                                                            .font(.system(size: 9))
-                                                            .foregroundColor(.orange)
-                                                        Text(String(format: "%.1f", writer.rating))
-                                                            .font(.system(size: 11, weight: .bold))
-                                                            .foregroundColor(FableTheme.textPrimary)
-                                                    }
                                                 }
                                             }
                                             .frame(width: 95)
@@ -358,8 +364,14 @@ public struct ExploreView: View {
                 }
                 .refreshable {
                     await store.syncWithCloudBackend()
-                    await store.fetchGutenbergPublicStories(topic: "fiction", search: nil)
                 }
+            }
+            .task(id: searchText) {
+                let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !query.isEmpty else { return }
+                try? await Task.sleep(nanoseconds: 350_000_000)
+                guard !Task.isCancelled else { return }
+                await store.searchCatalog(query: query)
             }
             .navigationDestination(item: $selectedGenreForDetail) { genre in
                 GenreDetailView(genre: genre)
@@ -384,12 +396,28 @@ public struct ExploreView: View {
                         .font(.system(size: 14))
                         .foregroundColor(FableTheme.textMuted)
                     
-                    Button("Read Top Title") {
-                        selectedWriter = nil
-                        if let first = store.stories.first {
-                            selectedStoryToRead = first
+                    if let writerTitleMessage {
+                        Text(writerTitleMessage)
+                            .font(.system(size: 13))
+                            .foregroundColor(FableTheme.textMuted)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 24)
+                    }
+
+                    Button(isFindingWriterTitle ? "Searching…" : "Find a title") {
+                        isFindingWriterTitle = true
+                        Task {
+                            let story = await store.topStory(for: writer)
+                            isFindingWriterTitle = false
+                            if let story {
+                                selectedWriter = nil
+                                selectedStoryToRead = story
+                            } else {
+                                writerTitleMessage = "No titles by this author are available in the catalog yet."
+                            }
                         }
                     }
+                    .disabled(isFindingWriterTitle)
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundColor(.white)
                     .padding(.horizontal, 28)

@@ -50,7 +50,7 @@ public struct VoiceSelectionSheet: View {
                         }
                     }
                 } header: {
-                    Text("Available Folklore Narrators")
+                    Text("Available System Voices")
                         .font(.system(size: 11, weight: .bold))
                         .foregroundColor(FableTheme.textMuted)
                 } footer: {
@@ -78,7 +78,7 @@ public struct VoiceSelectionSheet: View {
         if let currentId = narrator.selectedVoiceIdentifier {
             return currentId == voice.identifier
         }
-        return voice.language == "en-US" && voice.name.contains("Samantha")
+        return AVSpeechSynthesisVoice(language: Locale.current.identifier)?.identifier == voice.identifier
     }
     
     private func regionName(for languageCode: String) -> String {

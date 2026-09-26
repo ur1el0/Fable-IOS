@@ -2,19 +2,16 @@ import SwiftUI
 
 public struct WriteView: View {
     @EnvironmentObject var store: StoryStore
+    @ObservedObject private var auth = AuthManager.shared
     
     @State private var isShowingPublishSheet: Bool = false
-    @State private var publishedStoryToRead: Story?
+    @State private var publishedStory: Story?
+    @State private var selectedStoryToRead: Story?
     @State private var isShowingClearAlert: Bool = false
-    @FocusState private var isManuscriptFocused: Bool
+    @State private var formattingRequest: ManuscriptFormattingRequest?
     
-    let availableGenres = [
-        "Manga", "Folklore", "Mythology", "Gothic", "Classic Fiction",
-        "Classic Mystery", "Dark Fantasy", "Speculative", "Urban Legend"
-    ]
-    
-    let availableChapters = ["Prologue", "Chapter I", "Chapter II", "Chapter III", "Chapter IV", "Epilogue"]
-    
+    var availableGenres: [String] { store.genres.map(\.name) }
+
     public init() {}
     
     public var body: some View {
@@ -32,9 +29,7 @@ public struct WriteView: View {
                         .foregroundColor(.red.opacity(0.85))
                         .alert("Discard Draft?", isPresented: $isShowingClearAlert) {
                             Button("Discard", role: .destructive) {
-                                store.draftTitle = ""
-                                store.draftSynopsis = ""
-                                store.draftManuscript = ""
+                                store.clearWriterDraft()
                             }
                             Button("Cancel", role: .cancel) {}
                         } message: {
@@ -59,18 +54,30 @@ public struct WriteView: View {
                         Spacer()
                         
                         // Publish Button (Terracotta square with arrow up)
-                        Button(action: {
-                            store.publishStory()
-                            isShowingPublishSheet = true
-                        }) {
-                            Image(systemName: "arrow.up")
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundColor(.white)
-                                .frame(width: 42, height: 42)
-                                .background(FableTheme.brandPrimary)
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                                .shadow(color: FableTheme.brandPrimary.opacity(0.35), radius: 6, y: 3)
+                        Button {
+                            Task {
+                                guard let story = await store.publishStory() else { return }
+                                publishedStory = story
+                                isShowingPublishSheet = true
+                            }
+                        } label: {
+                            Group {
+                                if store.isPublishingStory {
+                                    ProgressView()
+                                        .tint(.white)
+                                } else {
+                                    Image(systemName: "arrow.up")
+                                        .font(.system(size: 16, weight: .bold))
+                                }
+                            }
+                            .foregroundColor(.white)
+                            .frame(width: 42, height: 42)
+                            .background(FableTheme.brandPrimary)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .shadow(color: FableTheme.brandPrimary.opacity(0.35), radius: 6, y: 3)
                         }
+                        .disabled(store.isPublishingStory)
+                        .accessibilityLabel(store.isPublishingStory ? "Publishing story" : "Publish story")
                     }
                     .padding(.horizontal, 20)
                     .padding(.vertical, 12)
@@ -116,7 +123,14 @@ public struct WriteView: View {
                                         .foregroundColor(FableTheme.textMuted)
                                         .frame(width: 44, alignment: .leading)
                                     
-                                    // Interactive Genre Picker Menu
+                                    TextField("Genre", text: $store.draftGenre)
+                                        .font(.system(size: 13, weight: .medium))
+                                        .textInputAutocapitalization(.words)
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 7)
+                                        .background(FableTheme.surface)
+                                        .clipShape(Capsule())
+
                                     Menu {
                                         ForEach(availableGenres, id: \.self) { genre in
                                             Button(genre) {
@@ -124,41 +138,22 @@ public struct WriteView: View {
                                             }
                                         }
                                     } label: {
-                                        HStack(spacing: 6) {
-                                            Image(systemName: "book.closed")
-                                                .font(.system(size: 11))
-                                            Text(store.draftGenre)
-                                                .font(.system(size: 12, weight: .semibold))
-                                            Image(systemName: "chevron.down")
-                                                .font(.system(size: 9))
-                                        }
-                                        .foregroundColor(FableTheme.brandPrimary)
-                                        .padding(.horizontal, 10)
-                                        .padding(.vertical, 5)
-                                        .background(FableTheme.surface)
-                                        .clipShape(Capsule())
+                                        Image(systemName: "chevron.down")
+                                            .font(.system(size: 10, weight: .semibold))
+                                            .foregroundColor(FableTheme.brandPrimary)
+                                            .padding(8)
+                                            .background(FableTheme.surface)
+                                            .clipShape(Circle())
                                     }
-                                    
-                                    // Interactive Chapter Picker Menu
-                                    Menu {
-                                        ForEach(availableChapters, id: \.self) { chapter in
-                                            Button(chapter) {
-                                                store.draftChapter = chapter
-                                            }
-                                        }
-                                    } label: {
-                                        HStack(spacing: 4) {
-                                            Text(store.draftChapter)
-                                                .font(.system(size: 13, weight: .medium))
-                                                .foregroundColor(FableTheme.textSecondary)
-                                            Image(systemName: "chevron.down")
-                                                .font(.system(size: 9))
-                                                .foregroundColor(FableTheme.textMuted)
-                                        }
-                                    }
-                                    
                                     Spacer()
                                 }
+
+                                Divider()
+
+                                TextField("Chapter title (optional)", text: $store.draftChapter)
+                                    .font(.system(size: 13, weight: .medium))
+                                    .textInputAutocapitalization(.sentences)
+                                    .foregroundColor(FableTheme.textSecondary)
                             }
                             .padding(18)
                             .background(FableTheme.cardBackground)
@@ -223,7 +218,7 @@ public struct WriteView: View {
                                     // Formatting Toolbar
                                     HStack(spacing: 8) {
                                         Button(action: {
-                                            store.draftManuscript += " **bold text** "
+                                            formattingRequest = ManuscriptFormattingRequest(style: .bold)
                                         }) {
                                             Text("B")
                                                 .font(.system(size: 12, weight: .bold))
@@ -232,9 +227,10 @@ public struct WriteView: View {
                                                 .clipShape(RoundedRectangle(cornerRadius: 4))
                                                 .foregroundColor(FableTheme.textPrimary)
                                         }
+                                        .accessibilityLabel("Insert bold formatting markers")
                                         
                                         Button(action: {
-                                            store.draftManuscript += " *italic text* "
+                                            formattingRequest = ManuscriptFormattingRequest(style: .italic)
                                         }) {
                                             Text("I")
                                                 .font(.system(size: 12, weight: .semibold))
@@ -244,9 +240,10 @@ public struct WriteView: View {
                                                 .clipShape(RoundedRectangle(cornerRadius: 4))
                                                 .foregroundColor(FableTheme.textPrimary)
                                         }
+                                        .accessibilityLabel("Insert italic formatting markers")
                                         
                                         Button(action: {
-                                            store.draftManuscript += "\n> \"A whisper in the dusk...\"\n"
+                                            formattingRequest = ManuscriptFormattingRequest(style: .quote)
                                         }) {
                                             Image(systemName: "quote.opening")
                                                 .font(.system(size: 10))
@@ -255,9 +252,10 @@ public struct WriteView: View {
                                                 .clipShape(RoundedRectangle(cornerRadius: 4))
                                                 .foregroundColor(FableTheme.textPrimary)
                                         }
+                                        .accessibilityLabel("Insert a block quote marker")
                                         
                                         Button(action: {
-                                            store.draftManuscript += "\n\n* * *\n\n"
+                                            formattingRequest = ManuscriptFormattingRequest(style: .sceneBreak)
                                         }) {
                                             Image(systemName: "divide")
                                                 .font(.system(size: 11))
@@ -266,16 +264,16 @@ public struct WriteView: View {
                                                 .clipShape(RoundedRectangle(cornerRadius: 4))
                                                 .foregroundColor(FableTheme.textPrimary)
                                         }
+                                        .accessibilityLabel("Insert a scene break")
                                     }
                                 }
                                 
-                                TextEditor(text: $store.draftManuscript)
-                                    .frame(minHeight: 280)
-                                    .font(.system(size: 16, weight: .regular))
-                                    .foregroundColor(FableTheme.textPrimary)
-                                    .lineSpacing(6)
-                                    .scrollContentBackground(.hidden)
-                                    .focused($isManuscriptFocused)
+                                ManuscriptEditor(
+                                    text: $store.draftManuscript,
+                                    formattingRequest: $formattingRequest
+                                )
+                                .frame(minHeight: 280)
+                                .accessibilityIdentifier("manuscriptEditor")
                             }
                             .padding(18)
                             .background(FableTheme.cardBackground)
@@ -314,10 +312,10 @@ public struct WriteView: View {
                     Divider().frame(height: 18)
                     
                     HStack(spacing: 4) {
-                        Image(systemName: "icloud.and.arrow.up")
+                        Image(systemName: "iphone")
                             .font(.system(size: 11))
                             .foregroundColor(FableTheme.brandPrimary)
-                        Text("Saved")
+                        Text("Saved locally")
                             .font(.system(size: 11, weight: .medium))
                     }
                     .foregroundColor(FableTheme.textMuted)
@@ -333,21 +331,32 @@ public struct WriteView: View {
                 .padding(.bottom, 80) // above custom tab bar
             }
             .sheet(isPresented: $isShowingPublishSheet) {
-                StoryPublishedSheet(
-                    onReturnToLibrary: {
-                        store.selectedTab = .library
-                    },
-                    onViewStory: {
-                        if let first = store.stories.first {
-                            publishedStoryToRead = first
+                if let publishedStory {
+                    StoryPublishedSheet(
+                        story: publishedStory,
+                        onReturnToLibrary: {
+                            store.selectedTab = .library
+                        },
+                        onViewStory: {
+                            selectedStoryToRead = publishedStory
                         }
-                    }
-                )
-                .environmentObject(store)
+                    )
+                }
             }
-            .fullScreenCover(item: $publishedStoryToRead) { story in
+            .alert("Couldn't publish story", isPresented: Binding(
+                get: { store.publishErrorMessage != nil },
+                set: { if !$0 { store.publishErrorMessage = nil } }
+            )) {
+                Button("OK", role: .cancel) { store.publishErrorMessage = nil }
+            } message: {
+                Text(store.publishErrorMessage ?? "")
+            }
+            .fullScreenCover(item: $selectedStoryToRead) { story in
                 ReaderView(story: story)
                     .environmentObject(store)
+            }
+            .task(id: auth.currentSession?.id) {
+                store.restoreWriterDraftForCurrentSession()
             }
         }
     }
