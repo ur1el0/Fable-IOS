@@ -110,3 +110,12 @@ The Final Milestone transforms **Fable** from an editorial prototype into a full
 - [x] Added an actor-isolated SHA-256 disk cache with an in-memory image cache, compressed image storage, and bounded asynchronous URL prefetching.
 - [x] Manga reader prefetches the active and next chapter; remote images render from cache first with network and procedural fallbacks clipped to their view bounds.
 - Device diagnostics were not run in this Fedora workspace because `xcodebuild`, `xcrun`, and the Swift compiler are unavailable.
+
+## Chapter Progress & Haptic Feedback (2026-09-26)
+
+- [x] Added optional chapter ID and chapter number fields to Story with legacy Codable fallback.
+- [x] Persisted the chapter cursor in optional SwiftData fields and hydrated it into local story state.
+- [x] Prose and manga readers restore by chapter ID, then chapter number, and save chapter changes locally.
+- [x] Added a main-actor haptic manager and wired bookmark, publish, reading-mode, and chapter-navigation feedback to the existing haptics preference.
+- [x] Extended LibraryTests with legacy fallback and saved chapter decoding assertions.
+- The iOS test suite and on-device diagnostics were not run in this Fedora workspace because swiftc, xcodebuild, and xcrun are unavailable.
