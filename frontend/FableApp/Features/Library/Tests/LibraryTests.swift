@@ -72,6 +72,23 @@ public struct LibraryTests {
             assert(false, "Chapter Progress JSON Decoding Failed")
         }
 
+        let liveProviderJSON = """
+        {
+            "id": "00000000-0000-0000-0000-00000000053E",
+            "title": "Pride and Prejudice",
+            "author": "Jane Austen",
+            "sourceProvider": "GUTENBERG",
+            "providerId": "1342"
+        }
+        """.data(using: .utf8)!
+
+        if let liveBook = try? JSONDecoder().decode(Story.self, from: liveProviderJSON) {
+            assert(liveBook.sourceProvider == .gutenberg, "Live Book Decodes Gutenberg Source")
+            assert(liveBook.providerId == "1342", "Live Book Decodes Provider ID")
+        } else {
+            assert(false, "Live Provider Story JSON Decoding Failed")
+        }
+
         // Test 6: Multi-Format Manga Payload Decoding (MangaDex Ingestion Contract)
         let mangaJSON = """
         {
@@ -124,6 +141,17 @@ public struct LibraryTests {
         } else {
             assert(false, "Legacy Chapter JSON Decoding Failed")
         }
+
+        let cachedChapter = Chapter(
+            id: UUID(uuidString: "C0000000-0000-0000-0000-000000000006")!,
+            storyId: UUID(uuidString: "A0000000-0000-0000-0000-000000000006")!,
+            chapterNumber: 1,
+            title: "Cached Chapter",
+            content: "Chapter text stored for offline reading."
+        )
+        let cachedChapterRoundTrip = (try? JSONEncoder().encode([cachedChapter]))
+            .flatMap { try? JSONDecoder().decode([Chapter].self, from: $0) }
+        assert(cachedChapterRoundTrip == [cachedChapter], "Chapter Payload Can Be Persisted and Restored")
 
         // Test 8: Catalog Multi-Format Diversity
         let hasProse = store.stories.contains(where: { $0.contentFormat == .prose })

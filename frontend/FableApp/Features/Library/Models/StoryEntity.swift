@@ -7,6 +7,8 @@ public final class StoryEntity {
     public var title: String
     public var author: String
     public var genreRaw: String
+    public var contentFormatRaw: String?
+    public var sourceProviderRaw: String?
     public var chapter: String
     public var synopsis: String
     public var content: String
@@ -17,6 +19,8 @@ public final class StoryEntity {
     public var coverImageName: String?
     public var heroImageName: String?
     public var coverImageUrl: String?
+    public var providerId: String?
+    @Attribute(.externalStorage) public var cachedChaptersData: Data?
     public var lastReadChapterId: String?
     public var lastReadChapterNumber: Int?
     public var isBookmarked: Bool
@@ -32,6 +36,8 @@ public final class StoryEntity {
         title: String,
         author: String,
         genreRaw: String,
+        contentFormatRaw: String? = nil,
+        sourceProviderRaw: String? = nil,
         chapter: String = "",
         synopsis: String,
         content: String,
@@ -42,6 +48,8 @@ public final class StoryEntity {
         coverImageName: String? = nil,
         heroImageName: String? = nil,
         coverImageUrl: String? = nil,
+        providerId: String? = nil,
+        cachedChaptersData: Data? = nil,
         lastReadChapterId: String? = nil,
         lastReadChapterNumber: Int? = nil,
         isBookmarked: Bool = false,
@@ -53,6 +61,8 @@ public final class StoryEntity {
         self.title = title
         self.author = author
         self.genreRaw = genreRaw
+        self.contentFormatRaw = contentFormatRaw
+        self.sourceProviderRaw = sourceProviderRaw
         self.chapter = chapter
         self.synopsis = synopsis
         self.content = content
@@ -63,6 +73,8 @@ public final class StoryEntity {
         self.coverImageName = coverImageName
         self.heroImageName = heroImageName
         self.coverImageUrl = coverImageUrl
+        self.providerId = providerId
+        self.cachedChaptersData = cachedChaptersData
         self.lastReadChapterId = lastReadChapterId
         self.lastReadChapterNumber = lastReadChapterNumber
         self.isBookmarked = isBookmarked

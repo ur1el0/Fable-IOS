@@ -46,6 +46,8 @@ public final class PersistenceService {
                         title: story.title,
                         author: story.author,
                         genreRaw: story.genre.rawValue,
+                        contentFormatRaw: story.contentFormat.rawValue,
+                        sourceProviderRaw: story.sourceProvider.rawValue,
                         chapter: "Chapter I",
                         synopsis: story.synopsis,
                         content: story.content,
@@ -85,6 +87,11 @@ public final class PersistenceService {
         }
     }
     
+    private func encodedChapters(_ chapters: [Chapter]?) -> Data? {
+        guard let chapters, !chapters.isEmpty else { return nil }
+        return try? JSONEncoder().encode(chapters)
+    }
+
     // Insert or update manuscript
     public func saveStory(_ story: Story) {
         let targetId = story.id
@@ -99,6 +106,8 @@ public final class PersistenceService {
                 existing.title = story.title
                 existing.author = story.author
                 existing.genreRaw = story.genre.rawValue
+                existing.contentFormatRaw = story.contentFormat.rawValue
+                existing.sourceProviderRaw = story.sourceProvider.rawValue
                 existing.synopsis = story.synopsis
                 existing.content = story.content
                 existing.readTimeMinutes = story.readTimeMinutes
@@ -108,6 +117,10 @@ public final class PersistenceService {
                 existing.coverImageName = story.coverImageName
                 existing.heroImageName = story.heroImageName
                 existing.coverImageUrl = story.coverImageUrl
+                existing.providerId = story.providerId
+                if let chapters = story.chapters, !chapters.isEmpty {
+                    existing.cachedChaptersData = encodedChapters(chapters)
+                }
                 existing.lastReadChapterId = story.lastReadChapterId
                 existing.lastReadChapterNumber = story.lastReadChapterNumber
                 existing.isBookmarked = story.isBookmarked
@@ -119,6 +132,8 @@ public final class PersistenceService {
                     title: story.title,
                     author: story.author,
                     genreRaw: story.genre.rawValue,
+                    contentFormatRaw: story.contentFormat.rawValue,
+                    sourceProviderRaw: story.sourceProvider.rawValue,
                     chapter: "Chapter I",
                     synopsis: story.synopsis,
                     content: story.content,
@@ -129,6 +144,8 @@ public final class PersistenceService {
                     coverImageName: story.coverImageName,
                     heroImageName: story.heroImageName,
                     coverImageUrl: story.coverImageUrl,
+                    providerId: story.providerId,
+                    cachedChaptersData: encodedChapters(story.chapters),
                     lastReadChapterId: story.lastReadChapterId,
                     lastReadChapterNumber: story.lastReadChapterNumber,
                     isBookmarked: story.isBookmarked,
@@ -144,6 +161,34 @@ public final class PersistenceService {
         }
     }
     
+    public func cachedChapters(storyId: UUID) -> [Chapter] {
+        let descriptor = FetchDescriptor<StoryEntity>(
+            predicate: #Predicate { $0.id == storyId }
+        )
+        guard
+            let entity = try? context.fetch(descriptor).first,
+            let data = entity.cachedChaptersData
+        else {
+            return []
+        }
+        return (try? JSONDecoder().decode([Chapter].self, from: data)) ?? []
+    }
+
+    public func saveCachedChapters(_ chapters: [Chapter], storyId: UUID) {
+        guard !chapters.isEmpty else { return }
+        let descriptor = FetchDescriptor<StoryEntity>(
+            predicate: #Predicate { $0.id == storyId }
+        )
+        do {
+            guard let entity = try context.fetch(descriptor).first else { return }
+            entity.cachedChaptersData = try JSONEncoder().encode(chapters)
+            entity.updatedAtUtc = Date()
+            try context.save()
+        } catch {
+            print("Failed to cache story chapters: \(error)")
+        }
+    }
+
     // Update progress
     public func updateProgress(storyId: UUID, progressPercent: Int, isCompleted: Bool, page: Int = 1, totalPages: Int = 1) {
         var descriptor = FetchDescriptor<StoryEntity>(

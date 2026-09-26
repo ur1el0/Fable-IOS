@@ -135,3 +135,12 @@ The Final Milestone transforms **Fable** from an editorial prototype into a full
 - [x] Fixed chapter parsing when a chapter heading immediately follows the Gutenberg start marker.
 - [x] Backend Docker build and test suite passed: 25 tests.
 - [ ] iOS provider routing and offline chapter persistence remain in the next implementation slice.
+
+## iOS Live Book Chapters and Offline Persistence (2026-09-26)
+
+- [x] Swift Story decodes and stores the live provider identifier with backward-compatible optional decoding.
+- [x] Gutenberg chapter requests use the provider-specific endpoint; cached chapters are returned before network requests.
+- [x] Chapter content and provider metadata persist in optional SwiftData fields, with chapter data stored externally to the primary SQLite row.
+- [x] Added internal diagnostics for provider ID decoding and chapter serialization round trips.
+- [x] Source diff passed whitespace validation.
+- The Swift diagnostics and iOS build could not run in this Fedora workspace because Swift and Xcode are unavailable.

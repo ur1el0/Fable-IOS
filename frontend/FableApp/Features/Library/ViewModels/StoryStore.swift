@@ -175,6 +175,11 @@ public final class StoryStore: ObservableObject {
                     stories[idx].coverImageName = offlineCoverName(entity.coverImageName, genre: entity.genreRaw)
                     stories[idx].heroImageName = offlineCoverName(entity.heroImageName, genre: entity.genreRaw)
                     stories[idx].coverImageUrl = validCoverImageURL(entity.coverImageUrl)
+                    stories[idx].providerId = entity.providerId
+                    stories[idx].contentFormat = ContentFormat(rawValue: entity.contentFormatRaw ?? "PROSE") ?? .prose
+                    stories[idx].sourceProvider = SourceProvider(rawValue: entity.sourceProviderRaw ?? "FABLE_ORIGINAL") ?? .fableOriginal
+                    let cachedChapters = PersistenceService.shared.cachedChapters(storyId: entity.id)
+                    if !cachedChapters.isEmpty { stories[idx].chapters = cachedChapters }
                     stories[idx].lastReadChapterId = entity.lastReadChapterId
                     stories[idx].lastReadChapterNumber = entity.lastReadChapterNumber
                 } else {
@@ -185,6 +190,10 @@ public final class StoryStore: ObservableObject {
                         genre: entity.genreRaw,
                         excerpt: entity.synopsis,
                         paragraphs: [entity.content],
+                        contentFormat: ContentFormat(rawValue: entity.contentFormatRaw ?? "PROSE") ?? .prose,
+                        sourceProvider: SourceProvider(rawValue: entity.sourceProviderRaw ?? "FABLE_ORIGINAL") ?? .fableOriginal,
+                        providerId: entity.providerId,
+                        chapters: PersistenceService.shared.cachedChapters(storyId: entity.id),
                         coverImageName: offlineCoverName(entity.coverImageName, genre: entity.genreRaw),
                         heroImageName: offlineCoverName(entity.heroImageName, genre: entity.genreRaw),
                         coverImageUrl: validCoverImageURL(entity.coverImageUrl),
@@ -275,6 +284,7 @@ public final class StoryStore: ObservableObject {
                     stories[index].totalChapters = remote.totalChapters
                     stories[index].contentFormat = remote.contentFormat
                     stories[index].sourceProvider = remote.sourceProvider
+                    if let providerId = remote.providerId { stories[index].providerId = providerId }
                     if remote.isTaleOfTheDay { stories[index].isTaleOfTheDay = true }
                     if remote.isCuratorSpotlight { stories[index].isCuratorSpotlight = true }
                     PersistenceService.shared.saveStory(stories[index])
@@ -384,8 +394,12 @@ public final class StoryStore: ObservableObject {
         if let existing = story.chapters, !existing.isEmpty {
             return existing
         }
+        let cached = PersistenceService.shared.cachedChapters(storyId: story.id)
+        if !cached.isEmpty {
+            return cached
+        }
         do {
-            let fetched = try await apiService.fetchChapters(for: story.id)
+            let fetched = try await apiService.fetchChapters(for: story.id, sourceProvider: story.sourceProvider.rawValue, providerId: story.providerId)
             if let idx = stories.firstIndex(where: { $0.id == story.id }) {
                 stories[idx].chapters = fetched
                 stories[idx].totalChapters = max(1, fetched.count)
@@ -394,9 +408,12 @@ public final class StoryStore: ObservableObject {
                 activeReaderStory?.chapters = fetched
                 activeReaderStory?.totalChapters = max(1, fetched.count)
             }
+            let updatedStory = stories.first(where: { $0.id == story.id }) ?? story
+            PersistenceService.shared.saveStory(updatedStory)
+            PersistenceService.shared.saveCachedChapters(fetched, storyId: story.id)
             return fetched
         } catch {
-            return story.chapters ?? []
+            return []
         }
     }
 
@@ -405,13 +422,23 @@ public final class StoryStore: ObservableObject {
         do {
             let fetched = try await apiService.fetchGutenbergStories(topic: topic, search: search)
             for book in fetched {
-                if !stories.contains(where: { $0.id == book.id }) {
-                    stories.append(book)
-                    PersistenceService.shared.saveStory(book)
+                if let index = stories.firstIndex(where: { $0.id == book.id }) {
+                    stories[index].synopsis = book.synopsis
+                    stories[index].coverImageUrl = validCoverImageURL(book.coverImageUrl)
+                    stories[index].contentFormat = book.contentFormat
+                    stories[index].sourceProvider = book.sourceProvider
+                    stories[index].providerId = book.providerId
+                    stories[index].totalChapters = max(stories[index].chapters?.count ?? 0, book.totalChapters)
+                    PersistenceService.shared.saveStory(stories[index])
+                } else {
+                    var liveBook = book
+                    liveBook.coverImageUrl = validCoverImageURL(book.coverImageUrl)
+                    stories.append(liveBook)
+                    PersistenceService.shared.saveStory(liveBook)
                 }
             }
         } catch {
-            // Graceful fallback to offline local stories
+            // Keep the last persisted catalog available when the provider cannot be reached.
         }
     }
     

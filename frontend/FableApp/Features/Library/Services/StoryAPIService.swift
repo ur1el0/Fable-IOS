@@ -159,7 +159,7 @@ public protocol StoryAPIServiceProtocol: Sendable {
     func fetchShelf(deviceId: UUID) async throws -> [ShelfSyncItem]
     func toggleBookmark(storyId: UUID) async throws -> Bool
     func fetchGutenbergStories(topic: String?, search: String?) async throws -> [Story]
-    func fetchChapters(for storyId: UUID) async throws -> [Chapter]
+    func fetchChapters(for storyId: UUID, sourceProvider: String, providerId: String?) async throws -> [Chapter]
     func fetchGenres() async throws -> [GenreCategory]
     func fetchTopAuthors() async throws -> [Writer]
     func fetchUpdateFeed() async throws -> UpdateFeed
@@ -169,6 +169,10 @@ public protocol StoryAPIServiceProtocol: Sendable {
 }
 
 public extension StoryAPIServiceProtocol {
+    func fetchChapters(for storyId: UUID) async throws -> [Chapter] {
+        try await fetchChapters(for: storyId, sourceProvider: "", providerId: nil)
+    }
+
     func fetchStories(genre: String? = nil, search: String? = nil) async throws -> [Story] {
         try await fetchStories(genre: genre, search: search, since: nil)
     }
@@ -299,8 +303,25 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
         return try decoder.decode([Story].self, from: data)
     }
 
-    public func fetchChapters(for storyId: UUID) async throws -> [Chapter] {
-        let url = baseURL.appendingPathComponent("stories").appendingPathComponent(storyId.uuidString).appendingPathComponent("chapters")
+    public func fetchChapters(for storyId: UUID, sourceProvider: String = "", providerId: String? = nil) async throws -> [Chapter] {
+        let url: URL
+        if sourceProvider == "GUTENBERG", let providerId {
+            guard let gutenbergId = Int(providerId), gutenbergId > 0 else {
+                throw URLError(.badURL)
+            }
+            url = baseURL
+                .appendingPathComponent("public")
+                .appendingPathComponent("gutenberg")
+                .appendingPathComponent(String(gutenbergId))
+                .appendingPathComponent("chapters")
+        } else if sourceProvider == "GUTENBERG" {
+            throw URLError(.badURL)
+        } else {
+            url = baseURL
+                .appendingPathComponent("stories")
+                .appendingPathComponent(storyId.uuidString)
+                .appendingPathComponent("chapters")
+        }
         let (data, response) = try await session.data(from: url)
         guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
             throw URLError(.badServerResponse)
