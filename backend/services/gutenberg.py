@@ -1,13 +1,56 @@
 import httpx
 from datetime import datetime, timezone
-from uuid import UUID, uuid4
+from uuid import UUID, uuid4, uuid5
 from typing import Optional
 from fastapi import HTTPException
 
 from core.database import get_db
-from schemas.schemas import StoryDTO
+from schemas.schemas import ChapterDTO, StoryDTO
 from services.text_parser import extract_chapters_from_text
 from services.story_service import row_to_story_dto, get_stories
+
+
+GUTENBERG_CHAPTER_NAMESPACE = UUID("d3675b18-25d3-5aa7-9c4f-65ea90fb89b2")
+
+
+async def _fetch_gutenberg_text(gutenberg_id: int) -> str:
+    url = f"https://www.gutenberg.org/ebooks/{gutenberg_id}.txt.utf-8"
+    headers = {"User-Agent": "FableReader/1.0 (public-domain-text-client)"}
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            response = await client.get(url, headers=headers)
+    except httpx.HTTPError as error:
+        raise HTTPException(status_code=502, detail="Gutenberg text service is unavailable") from error
+
+    if response.status_code == 404:
+        raise HTTPException(status_code=404, detail="Gutenberg book was not found")
+    if response.status_code != 200:
+        raise HTTPException(status_code=502, detail="Gutenberg text service returned an error")
+    if not response.text.strip():
+        raise HTTPException(status_code=422, detail="Gutenberg book has no readable text")
+    return response.text
+
+
+async def get_gutenberg_chapters(gutenberg_id: int) -> list[ChapterDTO]:
+    raw_text = await _fetch_gutenberg_text(gutenberg_id)
+    parsed_chapters = extract_chapters_from_text(raw_text)
+    if not parsed_chapters or not any(chapter["content"].strip() for chapter in parsed_chapters):
+        raise HTTPException(status_code=422, detail="Unable to extract readable chapters from Gutenberg text")
+
+    story_id = UUID(int=gutenberg_id)
+    now = datetime.now(timezone.utc)
+    return [
+        ChapterDTO(
+            id=uuid5(GUTENBERG_CHAPTER_NAMESPACE, f"{gutenberg_id}:{chapter['chapter_number']}"),
+            story_id=story_id,
+            chapter_number=chapter["chapter_number"],
+            title=chapter["title"],
+            content=chapter["content"],
+            word_count=chapter["word_count"],
+            created_at_utc=now,
+        )
+        for chapter in parsed_chapters
+    ]
 
 async def ingest_gutenberg_book(
     gutenberg_id: int,
@@ -159,7 +202,7 @@ async def get_gutenberg_stories(
                         genre=genre,
                         chapter="Chapter I",
                         synopsis=synopsis,
-                        content=synopsis,
+                        content="",
                         read_time_minutes=max(3, min(12, len(title.split()) * 2)),
                         is_bookmarked=False,
                         is_completed=False,
@@ -168,7 +211,8 @@ async def get_gutenberg_stories(
                         cover_image_url=cover_url,
                         total_chapters=1,
                         content_format="PROSE",
-                        source_provider="GUTENBERG"
+                        source_provider="GUTENBERG",
+                        provider_id=str(book_id),
                     ))
 
                 if gutenberg_stories:

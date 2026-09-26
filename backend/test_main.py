@@ -342,6 +342,37 @@ def test_get_gutenberg_public_stories():
     assert isinstance(data, list)
     assert len(data) > 0
 
+
+def test_gutenberg_live_chapters_use_source_text_and_stable_ids(monkeypatch):
+    from services import gutenberg as gutenberg_service
+
+    source_text = """
+*** START OF THE PROJECT GUTENBERG EBOOK SAMPLE ***
+
+CHAPTER I. THE FIRST CHAPTER
+This is the complete source text for the first chapter. It has enough words to be a real chapter.
+
+CHAPTER II. THE SECOND CHAPTER
+This is the complete source text for the second chapter. It also has enough words to be a real chapter.
+*** END OF THE PROJECT GUTENBERG EBOOK SAMPLE ***
+"""
+
+    async def fetch_text(_gutenberg_id):
+        return source_text
+
+    monkeypatch.setattr(gutenberg_service, "_fetch_gutenberg_text", fetch_text)
+    first_response = client.get("/api/v1/public/gutenberg/1342/chapters")
+    second_response = client.get("/api/v1/public/gutenberg/1342/chapters")
+
+    assert first_response.status_code == 200
+    chapters = first_response.json()
+    assert len(chapters) == 2
+    assert chapters[0]["storyId"] == "00000000-0000-0000-0000-00000000053e"
+    assert chapters[0]["chapterNumber"] == 1
+    assert "complete source text" in chapters[0]["content"]
+    assert second_response.status_code == 200
+    assert chapters[0]["id"] == second_response.json()[0]["id"]
+
 def test_register_and_login_auth_flow():
     reg_payload = {
         "email": "reader.roosc@fable.app",

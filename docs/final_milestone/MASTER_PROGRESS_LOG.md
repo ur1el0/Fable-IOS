@@ -127,3 +127,11 @@ The Final Milestone transforms **Fable** from an editorial prototype into a full
 - [x] Legacy Unsplash demo covers and manga panels are filtered from existing backend rows and cached client state; a story cover is no longer used as a manga panel.
 - [x] Removed the duplicate Sleepy Hollow image asset and removed demo image URLs from default genre, author, and manga fixtures.
 - [x] Backend suite passed: 24 tests. iOS compilation and on-device diagnostics remain unavailable in this Fedora workspace because Xcode and the Swift compiler are not installed.
+
+## Live Gutenberg Chapter Retrieval (2026-09-26)
+
+- [x] Added optional providerId to the Story API contract for live catalog entries.
+- [x] Added an on-demand chapter endpoint that fetches and parses the original Project Gutenberg text with stable chapter identifiers.
+- [x] Fixed chapter parsing when a chapter heading immediately follows the Gutenberg start marker.
+- [x] Backend Docker build and test suite passed: 25 tests.
+- [ ] iOS provider routing and offline chapter persistence remain in the next implementation slice.

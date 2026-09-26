@@ -46,6 +46,7 @@ class StoryDTO(BaseModel):
     total_chapters: int = Field(default=1, serialization_alias="totalChapters")
     content_format: str = Field(default="PROSE", serialization_alias="contentFormat")
     source_provider: str = Field(default="FABLE_ORIGINAL", serialization_alias="sourceProvider")
+    provider_id: Optional[str] = Field(default=None, serialization_alias="providerId")
     chapters: Optional[list[ChapterDTO]] = None
 
     model_config = {
