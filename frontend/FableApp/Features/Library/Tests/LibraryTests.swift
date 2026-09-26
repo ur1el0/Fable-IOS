@@ -49,11 +49,30 @@ public struct LibraryTests {
         if let legacyStory = try? JSONDecoder().decode(Story.self, from: legacyJSON) {
             assert(legacyStory.contentFormat == .prose, "Legacy Story ContentFormat Defaults to Prose")
             assert(legacyStory.sourceProvider == .fableOriginal, "Legacy Story SourceProvider Defaults to FableOriginal")
+            assert(legacyStory.lastReadChapterId == nil && legacyStory.lastReadChapterNumber == nil, "Legacy Story Chapter Progress Defaults to Empty")
         } else {
             assert(false, "Legacy Story JSON Decoding Failed")
         }
 
-        // Test 5: Multi-Format Manga Payload Decoding (MangaDex Ingestion Contract)
+        // Test 5: Granular Chapter Progress Decoding
+        let chapterProgressJSON = """
+        {
+            "id": "A0000000-0000-0000-0000-000000000005",
+            "title": "Saved Chapter",
+            "author": "Anonymous",
+            "lastReadChapterId": "C0000000-0000-0000-0000-000000000005",
+            "lastReadChapterNumber": 5
+        }
+        """.data(using: .utf8)!
+
+        if let progressedStory = try? JSONDecoder().decode(Story.self, from: chapterProgressJSON) {
+            assert(progressedStory.lastReadChapterId == "C0000000-0000-0000-0000-000000000005", "Story Decodes Saved Chapter ID")
+            assert(progressedStory.lastReadChapterNumber == 5, "Story Decodes Saved Chapter Number")
+        } else {
+            assert(false, "Chapter Progress JSON Decoding Failed")
+        }
+
+        // Test 6: Multi-Format Manga Payload Decoding (MangaDex Ingestion Contract)
         let mangaJSON = """
         {
             "id": "B0000000-0000-0000-0000-000000000002",
@@ -73,7 +92,7 @@ public struct LibraryTests {
             assert(false, "Manga Story JSON Decoding Failed")
         }
 
-        // Test 6: Chapter JSON Page URLs Decoding (Panel Manifest & Fallback)
+        // Test 7: Chapter JSON Page URLs Decoding (Panel Manifest & Fallback)
         let chapterWithPagesJSON = """
         {
             "id": "C0000000-0000-0000-0000-000000000003",
@@ -106,19 +125,19 @@ public struct LibraryTests {
             assert(false, "Legacy Chapter JSON Decoding Failed")
         }
 
-        // Test 7: Catalog Multi-Format Diversity
+        // Test 8: Catalog Multi-Format Diversity
         let hasProse = store.stories.contains(where: { $0.contentFormat == .prose })
         let hasManga = store.stories.contains(where: { $0.contentFormat == .manga })
         assert(hasProse, "StoryStore Contains Prose Literature")
         assert(hasManga, "StoryStore Contains Manga Releases")
 
-        // Test 8: Multi-Provider Ingestion Recognition
+        // Test 9: Multi-Provider Ingestion Recognition
         let hasGutenberg = store.stories.contains(where: { $0.sourceProvider == .gutenberg })
         let hasMangaDex = store.stories.contains(where: { $0.sourceProvider == .mangadex })
         assert(hasGutenberg, "Catalog Contains Project Gutenberg Ingested Titles")
         assert(hasMangaDex, "Catalog Contains MangaDex Ingested Titles")
 
-        // Test 9: Internal App Health & Subsystem Diagnostics Suite
+        // Test 10: Internal App Health & Subsystem Diagnostics Suite
         let healthResult = AppHealthTests.runAllTests()
         assert(healthResult.failures.isEmpty && healthResult.passed == healthResult.total, "Internal App Health Diagnostics Verification (\(healthResult.passed)/\(healthResult.total) Passed)")
 
