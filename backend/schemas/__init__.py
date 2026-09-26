@@ -10,6 +10,7 @@ from .schemas import (
     ShelfSyncResponse,
     HealthResponse,
     UserDTO,
+    ProfileUpdateRequest,
     LoginRequest,
     RegisterRequest,
     AuthResponse
@@ -27,6 +28,7 @@ __all__ = [
     "ShelfSyncResponse",
     "HealthResponse",
     "UserDTO",
+    "ProfileUpdateRequest",
     "LoginRequest",
     "RegisterRequest",
     "AuthResponse"

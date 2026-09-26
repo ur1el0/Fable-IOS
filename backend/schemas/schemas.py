@@ -136,6 +136,8 @@ class UserDTO(BaseModel):
     id: UUID
     email: str
     name: str
+    handle: str = ""
+    bio: str = ""
     avatar_image_name: Optional[str] = Field(default=None, serialization_alias="avatarImageName")
     avatar_image_url: Optional[str] = Field(default=None, serialization_alias="avatarImageUrl")
     created_at_utc: datetime = Field(..., serialization_alias="createdAtUtc")
@@ -151,7 +153,13 @@ class LoginRequest(BaseModel):
 class RegisterRequest(BaseModel):
     email: str
     password: str = Field(..., min_length=6)
-    name: str = Field(..., min_length=1)
+    name: str = Field(..., min_length=1, max_length=80)
+    handle: str = Field(default="", max_length=40)
+
+class ProfileUpdateRequest(BaseModel):
+    name: str = Field(..., min_length=1, max_length=80)
+    handle: str = Field(default="", max_length=40)
+    bio: str = Field(default="", max_length=500)
 
 class AuthResponse(BaseModel):
     access_token: str = Field(..., serialization_alias="accessToken")

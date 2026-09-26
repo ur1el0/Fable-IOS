@@ -173,3 +173,10 @@ The Final Milestone transforms **Fable** from an editorial prototype into a full
 - [x] Missing legacy genre values remain unspecified instead of becoming a fabricated category.
 - [x] Explore filtering and authoring suggestions use live genre metadata; authors may enter a genre when offline metadata is unavailable.
 - Added diagnostic assertions for arbitrary genre decoding. Swift/Xcode compilation remains unavailable in this environment.
+
+## Server-Backed User Profiles (2026-09-26)
+
+- [x] Added additive SQLite handle and biography columns for existing user databases.
+- [x] Registration persists the submitted handle; authenticated `PATCH /auth/me` updates name, handle, and biography and returns the canonical profile.
+- [x] Added positive profile update and unauthenticated rejection coverage.
+- [x] Docker backend suite passed: 29 tests.

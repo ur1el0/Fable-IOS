@@ -92,12 +92,22 @@ def init_db():
                 email TEXT UNIQUE NOT NULL,
                 password_hash TEXT NOT NULL,
                 name TEXT NOT NULL,
+                handle TEXT NOT NULL DEFAULT '',
+                bio TEXT NOT NULL DEFAULT '',
                 avatar_image_name TEXT,
                 avatar_image_url TEXT,
                 created_at_utc TEXT NOT NULL,
                 updated_at_utc TEXT NOT NULL
             );
         """)
+        for col_name, col_def in (
+            ("handle", "TEXT NOT NULL DEFAULT ''"),
+            ("bio", "TEXT NOT NULL DEFAULT ''"),
+        ):
+            try:
+                conn.execute(f"ALTER TABLE users ADD COLUMN {col_name} {col_def}")
+            except sqlite3.OperationalError:
+                pass
         conn.execute("CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_chapters_story_id ON chapters (story_id);")
 

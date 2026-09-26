@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Header, HTTPException, status
-from schemas import RegisterRequest, LoginRequest, AuthResponse, UserDTO
+from schemas import RegisterRequest, LoginRequest, ProfileUpdateRequest, AuthResponse, UserDTO
 from services import auth_service
 
 router = APIRouter()
@@ -22,3 +22,14 @@ def get_me(authorization: str = Header(None)):
     token = authorization.split(" ", 1)[1]
     return auth_service.get_current_user(token)
 
+
+
+@router.patch("/auth/me", response_model=UserDTO)
+def update_me(req: ProfileUpdateRequest, authorization: str = Header(None)):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing or invalid Authorization header. Expected 'Bearer <token>'"
+        )
+    token = authorization.split(" ", 1)[1]
+    return auth_service.update_current_user(token, req)

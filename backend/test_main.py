@@ -366,6 +366,7 @@ def test_package_modularity_imports():
         ChapterDTO,
         ShelfSyncPayload,
         UserDTO,
+        ProfileUpdateRequest,
         RegisterRequest,
         LoginRequest,
         AuthResponse
@@ -389,6 +390,7 @@ def test_package_modularity_imports():
     assert ChapterDTO is not None
     assert ShelfSyncPayload is not None
     assert UserDTO is not None
+    assert ProfileUpdateRequest is not None
     assert RegisterRequest is not None
     assert LoginRequest is not None
     assert AuthResponse is not None
@@ -519,9 +521,10 @@ def test_gutenberg_catalog_failure_does_not_return_local_catalog(monkeypatch):
 
 def test_register_and_login_auth_flow():
     reg_payload = {
-        "email": "reader.roosc@fable.app",
+        "email": "reader@example.test",
         "password": "SecurePassword123!",
-        "name": "Roosc Zaño"
+        "name": "Test Reader",
+        "handle": "test-reader"
     }
     # 1. Register
     reg_res = client.post("/api/v1/auth/register", json=reg_payload)
@@ -529,8 +532,10 @@ def test_register_and_login_auth_flow():
     reg_data = reg_res.json()
     assert "accessToken" in reg_data
     assert reg_data["tokenType"] == "bearer"
-    assert reg_data["user"]["email"] == "reader.roosc@fable.app"
-    assert reg_data["user"]["name"] == "Roosc Zaño"
+    assert reg_data["user"]["email"] == "reader@example.test"
+    assert reg_data["user"]["name"] == "Test Reader"
+    assert reg_data["user"]["handle"] == "@test-reader"
+    assert reg_data["user"]["bio"] == ""
     assert reg_data["user"]["avatarImageName"] is None
     token = reg_data["accessToken"]
 
@@ -538,19 +543,49 @@ def test_register_and_login_auth_flow():
     me_res = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
     assert me_res.status_code == 200
     me_data = me_res.json()
-    assert me_data["email"] == "reader.roosc@fable.app"
-    assert me_data["name"] == "Roosc Zaño"
+    assert me_data["email"] == "reader@example.test"
+    assert me_data["name"] == "Test Reader"
+    assert me_data["handle"] == "@test-reader"
 
     # 3. Login
     login_payload = {
-        "email": "reader.roosc@fable.app",
+        "email": "reader@example.test",
         "password": "SecurePassword123!"
     }
     login_res = client.post("/api/v1/auth/login", json=login_payload)
     assert login_res.status_code == 200
     login_data = login_res.json()
     assert "accessToken" in login_data
-    assert login_data["user"]["email"] == "reader.roosc@fable.app"
+    assert login_data["user"]["email"] == "reader@example.test"
+    assert login_data["user"]["handle"] == "@test-reader"
+
+def test_authenticated_profile_update_and_rejection():
+    response = client.post("/api/v1/auth/register", json={
+        "email": "profile@example.test",
+        "password": "ProfilePassword123!",
+        "name": "Profile Reader",
+        "handle": "reader"
+    })
+    token = response.json()["accessToken"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    updated = client.patch("/api/v1/auth/me", headers=headers, json={
+        "name": "Updated Reader",
+        "handle": "updated-reader",
+        "bio": "A profile saved through the authenticated API."
+    })
+    assert updated.status_code == 200
+    assert updated.json()["name"] == "Updated Reader"
+    assert updated.json()["handle"] == "@updated-reader"
+    assert updated.json()["bio"] == "A profile saved through the authenticated API."
+
+    unauthorized = client.patch("/api/v1/auth/me", json={
+        "name": "Intruder",
+        "handle": "intruder",
+        "bio": ""
+    })
+    assert unauthorized.status_code == 401
+
 
 def test_register_duplicate_email_conflict():
     payload = {
