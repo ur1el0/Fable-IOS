@@ -8,11 +8,12 @@ public final class DiskImageCache {
 
     private let memoryCache = NSCache<NSURL, UIImage>()
     private let cacheDirectoryURL: URL
+    private let diskStorage: DiskImageCacheStorage
     private var inFlightDownloads: [URL: Task<Data?, Never>] = [:]
     private let maximumConcurrentDownloads = 4
 
     private init() {
-        cacheDirectoryURL = FileManager.default.urls(
+        let directoryURL = FileManager.default.urls(
             for: .cachesDirectory,
             in: .userDomainMask
         ).first?.appendingPathComponent("FableMangaCache", isDirectory: true)
@@ -20,8 +21,15 @@ public final class DiskImageCache {
                 "FableMangaCache",
                 isDirectory: true
             )
+        cacheDirectoryURL = directoryURL
+        let storage = DiskImageCacheStorage(
+            directoryURL: directoryURL,
+            maximumUsageBytes: 256 * 1024 * 1024
+        )
+        diskStorage = storage
         memoryCache.totalCostLimit = 96 * 1024 * 1024
         memoryCache.name = "FableMangaCache"
+        Task { await storage.enforceLimit() }
     }
 
     public func image(for url: URL) -> UIImage? {
@@ -50,37 +58,14 @@ public final class DiskImageCache {
     }
 
     public func diskUsageInBytes() async -> Int64 {
-        let directoryURL = cacheDirectoryURL
-        return await Task.detached(priority: .utility) {
-            guard let enumerator = FileManager.default.enumerator(
-                at: directoryURL,
-                includingPropertiesForKeys: [.fileSizeKey],
-                options: [.skipsHiddenFiles]
-            ) else {
-                return 0
-            }
-
-            var totalBytes: Int64 = 0
-            for case let fileURL as URL in enumerator {
-                let values = try? fileURL.resourceValues(forKeys: [.fileSizeKey])
-                totalBytes += Int64(values?.fileSize ?? 0)
-            }
-            return totalBytes
-        }.value
+        await diskStorage.diskUsageInBytes()
     }
 
     public func clearCache() async throws {
         inFlightDownloads.values.forEach { $0.cancel() }
         inFlightDownloads.removeAll()
         memoryCache.removeAllObjects()
-
-        let directoryURL = cacheDirectoryURL
-        try await Task.detached(priority: .utility) {
-            guard FileManager.default.fileExists(atPath: directoryURL.path) else {
-                return
-            }
-            try FileManager.default.removeItem(at: directoryURL)
-        }.value
+        try await diskStorage.clear()
     }
 
     public func prefetch(urls: [URL]) async {
@@ -120,6 +105,7 @@ public final class DiskImageCache {
 
             for (url, task) in pendingDownloads {
                 guard
+                    !task.isCancelled,
                     let data = await task.value,
                     let image = UIImage(data: data)
                 else {
@@ -148,20 +134,92 @@ public final class DiskImageCache {
     }
 
     private func write(_ data: Data, for url: URL) async {
-        let directoryURL = cacheDirectoryURL
-        let destinationURL = cacheFileURL(for: url)
+        await diskStorage.write(data, to: cacheFileURL(for: url))
+    }
+}
 
-        await Task.detached(priority: .utility) {
-            do {
-                try FileManager.default.createDirectory(
-                    at: directoryURL,
-                    withIntermediateDirectories: true
-                )
-                try data.write(to: destinationURL, options: .atomic)
-            } catch {
-                return
+private actor DiskImageCacheStorage {
+    private let directoryURL: URL
+    private let maximumUsageBytes: Int64
+
+    init(directoryURL: URL, maximumUsageBytes: Int64) {
+        self.directoryURL = directoryURL
+        self.maximumUsageBytes = maximumUsageBytes
+    }
+
+    func write(_ data: Data, to destinationURL: URL) {
+        do {
+            try FileManager.default.createDirectory(
+                at: directoryURL,
+                withIntermediateDirectories: true
+            )
+            try data.write(to: destinationURL, options: .atomic)
+            evictOldestFilesIfNeeded()
+        } catch {
+            return
+        }
+    }
+
+    func enforceLimit() {
+        evictOldestFilesIfNeeded()
+    }
+
+    func diskUsageInBytes() -> Int64 {
+        guard let urls = try? FileManager.default.contentsOfDirectory(
+            at: directoryURL,
+            includingPropertiesForKeys: [.fileSizeKey],
+            options: [.skipsHiddenFiles]
+        ) else {
+            return 0
+        }
+
+        return urls.reduce(Int64(0)) { total, url in
+            let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+            return total + Int64(size)
+        }
+    }
+
+    func clear() throws {
+        guard FileManager.default.fileExists(atPath: directoryURL.path) else {
+            return
+        }
+        try FileManager.default.removeItem(at: directoryURL)
+    }
+
+    private func evictOldestFilesIfNeeded() {
+        guard let urls = try? FileManager.default.contentsOfDirectory(
+            at: directoryURL,
+            includingPropertiesForKeys: [.fileSizeKey, .contentModificationDateKey, .isRegularFileKey],
+            options: [.skipsHiddenFiles]
+        ) else {
+            return
+        }
+
+        var files = urls.compactMap { url -> (url: URL, size: Int64, modifiedAt: Date)? in
+            guard
+                let values = try? url.resourceValues(forKeys: [
+                    .fileSizeKey,
+                    .contentModificationDateKey,
+                    .isRegularFileKey
+                ]),
+                values.isRegularFile == true,
+                let size = values.fileSize
+            else {
+                return nil
             }
-        }.value
+            return (url, Int64(size), values.contentModificationDate ?? .distantPast)
+        }
+        files.sort { $0.modifiedAt < $1.modifiedAt }
+
+        var usage = files.reduce(Int64(0)) { $0 + $1.size }
+        for file in files where usage > maximumUsageBytes {
+            do {
+                try FileManager.default.removeItem(at: file.url)
+                usage -= file.size
+            } catch {
+                continue
+            }
+        }
     }
 }
 
