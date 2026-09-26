@@ -2,6 +2,20 @@ import sqlite3
 import os
 
 DB_PATH = os.environ.get("FABLE_DB_PATH", "fable.sqlite3")
+LEGACY_DEMO_STORY_IDS = (
+    "66666666-6666-6666-6666-666666666666",
+    "77777777-7777-7777-7777-777777777777",
+    "88888888-8888-8888-8888-888888888888",
+    "99999999-9999-9999-9999-999999999999",
+    "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+    "cccccccc-cccc-cccc-cccc-cccccccccccc",
+    "dddddddd-dddd-dddd-dddd-dddddddddddd",
+    "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee",
+    "ffffffff-ffff-ffff-ffff-ffffffffffff",
+    "10101010-1010-1010-1010-101010101010",
+    "20202020-2020-2020-2020-202020202020",
+)
 
 def get_db():
     # Dynamic lookup so tests can override os.environ["FABLE_DB_PATH"]
@@ -148,5 +162,16 @@ def init_db():
         """)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_user_sessions_user ON user_sessions (user_id);")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_chapters_story_id ON chapters (story_id);")
+
+        # Remove only the exact IDs from the retired bundled demo catalog.
+        placeholders = ", ".join("?" for _ in LEGACY_DEMO_STORY_IDS)
+        conn.execute(
+            f"DELETE FROM chapters WHERE story_id IN ({placeholders})",
+            LEGACY_DEMO_STORY_IDS,
+        )
+        conn.execute(
+            f"DELETE FROM stories WHERE id IN ({placeholders})",
+            LEGACY_DEMO_STORY_IDS,
+        )
 
     conn.close()

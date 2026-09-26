@@ -901,3 +901,76 @@ async def test_get_gutenberg_story_by_id_returns_live_metadata(monkeypatch):
     assert story.author == "Jane Austen"
     assert story.source_provider == "GUTENBERG"
     assert story.cover_image_url == "https://www.gutenberg.org/cover.jpg"
+
+
+
+def test_init_db_removes_only_legacy_demo_stories_and_chapters():
+    from core.database import LEGACY_DEMO_STORY_IDS, get_db
+
+    connection = get_db()
+    try:
+        for index, story_id in enumerate(LEGACY_DEMO_STORY_IDS):
+            connection.execute(
+                """
+                INSERT INTO stories (
+                    id, title, author, genre, chapter, synopsis, content,
+                    read_time_minutes, created_at_utc, updated_at_utc
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    story_id, f"Legacy {index}", "Demo Author", "Classic",
+                    "Chapter 1", "Legacy synopsis", "Legacy content", 1,
+                    "2026-01-01T00:00:00+00:00", "2026-01-01T00:00:00+00:00",
+                ),
+            )
+            connection.execute(
+                """
+                INSERT INTO chapters (
+                    id, story_id, chapter_number, title, content, word_count, created_at_utc
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    f"legacy-chapter-{index}", story_id, 1, "Demo Chapter",
+                    "Legacy chapter text", 3, "2026-01-01T00:00:00+00:00",
+                ),
+            )
+        authored_story_id = str(uuid4())
+        connection.execute(
+            """
+            INSERT INTO stories (
+                id, title, author, genre, chapter, synopsis, content,
+                read_time_minutes, created_at_utc, updated_at_utc, owner_user_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                authored_story_id, "Dracula", "A Fable Author", "Mystery",
+                "Chapter 1", "Authored synopsis", "Authored content", 1,
+                "2026-01-01T00:00:00+00:00", "2026-01-01T00:00:00+00:00", str(uuid4()),
+            ),
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    init_db()
+    init_db()
+
+    connection = get_db()
+    try:
+        legacy_story_count = connection.execute(
+            f"SELECT COUNT(*) FROM stories WHERE id IN ({', '.join('?' for _ in LEGACY_DEMO_STORY_IDS)})",
+            LEGACY_DEMO_STORY_IDS,
+        ).fetchone()[0]
+        legacy_chapter_count = connection.execute(
+            f"SELECT COUNT(*) FROM chapters WHERE story_id IN ({', '.join('?' for _ in LEGACY_DEMO_STORY_IDS)})",
+            LEGACY_DEMO_STORY_IDS,
+        ).fetchone()[0]
+        authored_story = connection.execute(
+            "SELECT id FROM stories WHERE id = ?", (authored_story_id,)
+        ).fetchone()
+    finally:
+        connection.close()
+
+    assert legacy_story_count == 0
+    assert legacy_chapter_count == 0
+    assert authored_story["id"] == authored_story_id
