@@ -3,7 +3,7 @@
 **Course:** ITWM101 (Integrative Programming & Technologies 2)  
 **Developer:** Roosc Zaño  
 **Role:** Lead Systems Engineer & Solutions Architect  
-**Active Feature Branch:** `feature/final-milestone`
+**Active Feature Branch:** `feature/production-hardening`
 
 ---
 
@@ -97,4 +97,10 @@ The Final Milestone transforms **Fable** from an editorial prototype into a full
   - [x] Step 8.4: Integration of `AppHealthTests` into `LibraryTests.swift` (Test 9).
   - [x] Step 8.5: Backend test suite expansion in `test_main.py` verifying live contracts and image URLs (22/22 pytest passing).
 
+## Production Hardening Enhancements (2026-09-26)
 
+- [x] Added a multi-stage Python 3.11 backend image that installs runtime dependencies, runs as the non-root `fableuser`, and checks `/api/v1/health`.
+- [x] Added Docker Compose configuration with a persistent SQLite bind mount and environment-file loading.
+- [x] Added GitHub Actions backend-test and Docker-build verification jobs.
+- [x] Removed duplicate Figma configuration from `.env.example` and documented runtime and Docker ownership settings.
+- [x] Added `test_env_db_path_override` to verify the database path can be overridden through `FABLE_DB_PATH`.
