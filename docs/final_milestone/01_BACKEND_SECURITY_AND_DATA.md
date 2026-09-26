@@ -81,7 +81,7 @@ In the initial prototype, the SQLite database table `shelf_items` defined `story
 | `backend/services/__init__.py` | VERIFIED | Exported `auth_service` and `get_shelf`. |
 | `backend/api/v1/endpoints/auth.py` | VERIFIED | Authentication router exposes register, login, profile update, logout, owned stories, reading events, and statistics. |
 | `backend/api/v1/api.py` | VERIFIED | Mounted `auth.router` into API v1. |
-| `backend/test_main.py` | VERIFIED | 35 tests cover provider contracts, account ownership, shelf isolation, persistent sessions, statistics, and authorization. |
+| `backend/test_main.py` | VERIFIED | 36 tests cover provider contracts, account ownership, shelf isolation, persistent sessions, statistics, and authorization. |
 
 ---
 
@@ -89,6 +89,8 @@ In the initial prototype, the SQLite database table `shelf_items` defined `story
 
 - **Container Build:** `docker build -t fable-backend:test -f backend/Dockerfile .`
 - **Test Command:** `docker run --rm --entrypoint pytest fable-backend:test test_main.py -v`
-- **Result:** `35 passed, 1 warning` (Starlette TestClient deprecation notice).
-- **Coverage includes:** Empty fresh catalog, DTO aliases and privacy, live provider metadata, chapter retrieval, owner-only publishing, account-isolated shelf sync, idempotent reading sessions, stats isolation, persisted bearer sessions, logout revocation, and database-path override.
+- **Result:** `36 passed, 1 warning` (Starlette TestClient deprecation notice).
+- **Coverage includes:** Empty fresh catalog, DTO aliases and privacy, live provider metadata, chapter retrieval, owner-only publishing, account-isolated shelf sync, idempotent reading sessions, stats isolation, persisted bearer sessions, logout revocation, and database-path override, and exact-ID legacy catalog cleanup.
 - The iOS simulator build and on-device diagnostics were not run in this Fedora workspace because Swift, Xcode, and `xcrun` are unavailable.
+
+- Startup cleanup deletes chapters and story rows for the twelve exact UUIDs from the retired demo catalog; user-authored stories with similar titles are preserved.

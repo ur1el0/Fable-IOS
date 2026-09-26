@@ -9,7 +9,7 @@
 
 ## Executive Summary & System Objectives
 
-This progress log tracks the transition of **Fable** from an editorial prototype to a provider-backed, offline-first reading platform. The backend has 35 passing container tests covering content contracts, account isolation, live statistics, and persistent sessions. The iOS changes are implemented but cannot be compiled or run in this Fedora workspace because Swift and Xcode are unavailable. Twelve legacy demo stories remain in existing backend databases pending explicit approval for their removal.
+This progress log tracks the transition of **Fable** from an editorial prototype to a provider-backed, offline-first reading platform. The backend has 36 passing container tests covering content contracts, account isolation, live statistics, and persistent sessions. The iOS changes are implemented but cannot be compiled or run in this Fedora workspace because Swift and Xcode are unavailable. An approved startup migration removes the twelve exact legacy demo story IDs and their chapters from existing SQLite databases on the next backend start.
 
 ### The 8 Core Architectural Domains
 
@@ -19,9 +19,9 @@ This progress log tracks the transition of **Fable** from an editorial prototype
 | **2. Live Media & Content Pipelines** | [`02_LIVE_MEDIA_AND_CONTENT.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/02_LIVE_MEDIA_AND_CONTENT.md) | **Complete** | Provider cover URLs, on-demand Gutenberg chapters, clipped remote images, offline media cache, and per-account device identity. |
 | **3. Reader Pacing & Word Tokenization** | [`03_READER_PACING_AND_WORD_TOKENIZATION.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/03_READER_PACING_AND_WORD_TOKENIZATION.md) | **Complete** | Zoom-invariant word counting, multi-whitespace tokenization, dynamic page chunking responsive to font scale. |
 | **4. UI Interactions & Voice Accessibility** | [`04_UI_INTERACTIONS_AND_AUDIO_ACCESSIBILITY.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/04_UI_INTERACTIONS_AND_AUDIO_ACCESSIBILITY.md) | **Implemented; device check pending** | Actions are wired across writing, profile, library, reader, shelf, and settings; `AVSpeechSynthesizer` uses installed OS voices. |
-| **5. Live Metadata & Pure User-State Isolation** | [`03_LIVE_METADATA_AND_USER_STATE_PURGING.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/03_LIVE_METADATA_AND_USER_STATE_PURGING.md) | **Code complete; legacy DB rows pending approval** | Fresh installs have no bundled story catalog; provider and authored content uses live metadata and account-owned shelf/profile state. |
+| **5. Live Metadata & Pure User-State Isolation** | [`03_LIVE_METADATA_AND_USER_STATE_PURGING.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/03_LIVE_METADATA_AND_USER_STATE_PURGING.md) | **Startup cleanup migration committed** | Fresh installs have no bundled story catalog; provider and authored content uses live metadata and account-owned shelf/profile state. |
 | **6. Multi-Format & Manga Architecture** | [`05_MULTI_FORMAT_AND_MANGA_ARCHITECTURE.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/05_MULTI_FORMAT_AND_MANGA_ARCHITECTURE.md) | **Complete** | Polymorphic reader dispatch, continuous vertical Webtoon scroll, horizontal swipe paging, manga panel ingestion pipeline. |
-| **7. Testing Suites & ADR Baseline** | [`04_UI_INTERACTIONS_AND_AUDIO_ACCESSIBILITY.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/04_UI_INTERACTIONS_AND_AUDIO_ACCESSIBILITY.md) | **Backend verified; iOS run pending** | 35/35 backend tests pass in Docker. Swift build, Swift tests, and device diagnostics require Xcode and remain unrun here. |
+| **7. Testing Suites & ADR Baseline** | [`04_UI_INTERACTIONS_AND_AUDIO_ACCESSIBILITY.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/04_UI_INTERACTIONS_AND_AUDIO_ACCESSIBILITY.md) | **Backend verified; iOS run pending** | 36/36 backend tests pass in Docker. Swift build, Swift tests, and device diagnostics require Xcode and remain unrun here. |
 | **8. App Health Diagnostics & Anti-Overlap Invariants** | [`MASTER_PROGRESS_LOG.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/MASTER_PROGRESS_LOG.md) | **Implemented; device check pending** | Image boundary clipping, `SystemDiagnosticsSheet`, and `AppHealthTests` are in source; execution requires Xcode. |
 
 ---
@@ -154,7 +154,7 @@ This progress log tracks the transition of **Fable** from an editorial prototype
 - [x] Update feeds no longer promote arbitrary stories as editorial picks, user DTOs no longer default to a bundled avatar, and API story DTOs omit local asset names.
 - [x] Swift models accept missing ratings, persist provider download counts, and avoid showing a fake rating in explore cards.
 - [x] Backend container build and test suite passed: 28 tests.
-- Existing databases may still contain the 12 old demo story rows. They have not been deleted or modified; automatic review rejected destructive cleanup, and explicit approval for removing only those rows is pending.
+- The 12 retired catalog IDs and their chapter rows are removed by the approved startup cleanup migration; it does not match by title and preserves authored stories.
 - The Swift build and diagnostics remain unrun because this Fedora workspace has no Swift/Xcode toolchain.
 
 ## Provider-Backed iOS Catalog (2026-09-26)
@@ -164,7 +164,7 @@ This progress log tracks the transition of **Fable** from an editorial prototype
 - [x] Removed content-specific image sets and title/author keyed artwork; cover and profile images now render HTTPS provider images or neutral SF Symbol placeholders, with clipped bounds.
 - [x] Library genre filters follow server metadata and empty catalog/discovery states are explicit and retryable.
 - [x] Removed fabricated default profile names, biographies, handles, and verification badges.
-- [ ] Legacy records already stored on backend instances are unchanged pending the requested approval for removing the 12 old demo rows.
+- [x] Existing SQLite databases remove only the 12 retired demo story UUIDs and their chapters during backend startup; no deployed database was reachable from this workspace.
 - Source diff passed whitespace checks. iOS compilation and on-device diagnostics remain unavailable here because Swift and Xcode are not installed.
 
 ## Preserve Live Genre Contract (2026-09-26)
@@ -224,7 +224,7 @@ This progress log tracks the transition of **Fable** from an editorial prototype
 
 - [x] Added a provider-ID metadata lookup so an authenticated shelf can resolve saved Gutenberg titles outside the first discovery page.
 - [x] Shelf restore applies account-owned progress to the live provider story; chapters and covers continue loading from Gutenberg metadata and source text.
-- [x] Added live metadata endpoint coverage. Docker backend suite passed: 35 tests.
+- [x] Added live metadata endpoint coverage. Docker backend suite passed: 35 tests at this historical checkpoint.
 - iOS implementation still awaits an Xcode build and device diagnostics, unavailable in this Fedora workspace.
 
 
@@ -234,4 +234,13 @@ This progress log tracks the transition of **Fable** from an editorial prototype
 - [x] Scanned SwiftUI button closures for empty application actions. The remaining empty Cancel closures are system alert/sheet dismiss actions; the visible feature controls dispatch to navigation, persistence, API, editor, reader, or settings operations.
 - [x] `git diff --check` passes. Backend suite remains at 35 passing tests in Docker.
 - [ ] iOS build, Swift tests, and on-device `AppHealthTests` remain unverified because this workspace has no Swift or Xcode toolchain.
-- [ ] Removal of the 12 legacy demo story/chapter rows from persistent backend databases remains pending explicit approval; no rows were deleted.
+- [x] Added an exact-UUID startup cleanup for those story/chapter rows; authored stories with similar names are preserved. The repo has no local persistent database, so existing deployed SQLite files will be cleaned on their next backend start.
+
+
+## Approved Legacy Catalog Cleanup and Bounded Image Cache (2026-09-26)
+
+- [x] Backend startup deletes chapters and stories only for the 12 UUIDs from the retired bundled demo catalog. The migration is transactional, repeat-safe, and title-independent; user-authored works and reading-session history are preserved.
+- [x] Added regression coverage proving all twelve records and their chapters are removed while a user-authored work with a matching title remains. Docker suite passed: 36 tests.
+- [x] Manga image disk cache now serializes file operations and evicts oldest files above 256 MiB; Settings still exposes cache usage and clear actions.
+- The configured local database file is absent; cleanup for any existing hosted database takes effect on the next backend deployment/start.
+- iOS runtime validation remains deferred until Xcode is available on the user's Mac.

@@ -7,7 +7,7 @@
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI%200.110+-009688.svg)](https://fastapi.tiangolo.com)
 [![Pydantic v2](https://img.shields.io/badge/Contract-Pydantic%20v2-e92063.svg)](https://docs.pydantic.dev/)
 [![Database](https://img.shields.io/badge/Database-SQLite-4169E1.svg)](https://www.sqlite.org/)
-[![Pytest](https://img.shields.io/badge/Tests-35%2F35%20Passing-brightgreen.svg)](https://pytest.org)
+[![Pytest](https://img.shields.io/badge/Tests-36%2F36%20Passing-brightgreen.svg)](https://pytest.org)
 [![Multi-Format](https://img.shields.io/badge/Format-Prose%20%7C%20Manga-indigo.svg)](https://developer.apple.com)
 [![Figma Prototype](https://img.shields.io/badge/Figma-100%25%20Prototype-pink.svg)](https://www.figma.com/proto/fable-ios-prototype-midterm)
 
@@ -38,7 +38,7 @@
 * **HTTP Client:** HTTPX for live Gutendex/Project Gutenberg and Open Library requests.
 * **Security:** Salted PBKDF2-HMAC-SHA256 password hashes, SHA-256 digests of random bearer tokens, 30-day session expiry, and server-side logout revocation.
 * **ASGI Web Server:** Uvicorn.
-* **Automated Testing:** Pytest with FastAPI `TestClient` (35 backend tests passing in the container).
+* **Automated Testing:** Pytest with FastAPI `TestClient` (36 backend tests passing in the container).
 
 ---
 
@@ -90,7 +90,7 @@ Fable is architected around **Feature-Driven Vertical Slices** combined with **M
 
 ### Architectural Principles
 1. **Contract-First API Design:** Python schemas define camelCase Pydantic serialization aliases that match Swift `Codable` contracts; backend tests cover the serialized response shapes.
-2. **Offline-First Resilience:** When the backend is unreachable, the client uses previously cached SwiftData stories, chapters, discovery metadata, images, shelf state, and queued reading sessions. A fresh install has no bundled story catalog.
+2. **Offline-First Resilience:** When the backend is unreachable, the client uses previously cached SwiftData stories, chapters, discovery metadata, images, shelf state, and queued reading sessions. The disk image cache evicts its oldest files above 256 MiB. A fresh install has no bundled story catalog.
 3. **Decoupled Service Boundary:** SwiftUI views never execute raw network requests. All data fetching, caching, and mutations flow through protocol-abstracted services.
 
 ---
