@@ -82,15 +82,15 @@ public final class AuthManager: ObservableObject {
         try? await Task.sleep(nanoseconds: 300_000_000)
 
         // Derive author name from email username if not default
-        let authorName = trimmedEmail.lowercased().contains("roosc") ? "Roosc Zaño" : trimmedEmail.components(separatedBy: "@").first?.capitalized ?? "Author"
+        let authorName = trimmedEmail.components(separatedBy: "@").first?.capitalized ?? ""
         let handle = "@\(trimmedEmail.components(separatedBy: "@").first?.lowercased() ?? "author")"
 
         let session = UserSession(
             name: authorName,
             handle: handle,
             email: trimmedEmail,
-            bio: "Writer of quiet lore, archivist of dusk folklore, and collector of vintage horology tales.",
-            avatarName: "avatar_roosc",
+            bio: "",
+            avatarName: nil,
             isGuest: false
         )
 
@@ -131,9 +131,9 @@ public final class AuthManager: ObservableObject {
 
         let session = UserSession(
             name: trimmedName,
-            handle: formattedHandle.isEmpty ? "@author" : formattedHandle,
+            handle: formattedHandle,
             email: trimmedEmail,
-            bio: "Newly minted scribe on Fable.",
+            bio: "",
             avatarName: nil,
             isGuest: false
         )
@@ -144,7 +144,7 @@ public final class AuthManager: ObservableObject {
     }
 
     public func continueAsGuest() {
-        let guest = UserSession.guestUser
+        let guest = UserSession.guest()
         persistSession(guest)
     }
 

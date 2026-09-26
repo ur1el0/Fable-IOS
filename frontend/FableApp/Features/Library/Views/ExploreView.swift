@@ -260,6 +260,13 @@ public struct ExploreView: View {
                             }
                             .padding(.horizontal, 20)
                             
+                            if store.genres.isEmpty {
+                                Text("Live genres will appear here after the catalog syncs.")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(FableTheme.textMuted)
+                                    .padding(.horizontal, 20)
+                            }
+
                             // 2x2 Grid
                             LazyVGrid(columns: [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)], spacing: 14) {
                                 ForEach(store.genres) { genre in
@@ -314,6 +321,11 @@ public struct ExploreView: View {
                             
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack(spacing: 18) {
+                                    if store.writers.isEmpty {
+                                        Text("Live author profiles will appear here after sync.")
+                                            .font(.system(size: 14))
+                                            .foregroundColor(FableTheme.textMuted)
+                                    }
                                     ForEach(store.writers) { writer in
                                         Button(action: {
                                             selectedWriter = writer
@@ -350,7 +362,6 @@ public struct ExploreView: View {
                 }
                 .refreshable {
                     await store.syncWithCloudBackend()
-                    await store.fetchGutenbergPublicStories(topic: "fiction", search: nil)
                 }
             }
             .navigationDestination(item: $selectedGenreForDetail) { genre in

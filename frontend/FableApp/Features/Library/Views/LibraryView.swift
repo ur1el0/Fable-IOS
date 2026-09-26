@@ -8,7 +8,7 @@ public struct LibraryView: View {
     @State private var selectedStoryToRead: Story?
     @State private var isShowingProfileSheet: Bool = false
     
-    let filterCategories = ["All", "Manga", "Folklore", "Mythology", "Gothic", "Speculative", "Classic"]
+    var filterCategories: [String] { ["All"] + store.genres.map(\.name) }
     
     var filteredRecentStories: [Story] {
         let recents = store.stories.filter { $0.isRecentSubmission }
@@ -67,7 +67,7 @@ public struct LibraryView: View {
                             Button(action: {
                                 isShowingProfileSheet = true
                             }) {
-                                FableImageView(name: auth.currentSession?.avatarName ?? "avatar_roosc", placeholderIcon: "person.crop.circle")
+                                FableImageView(name: auth.currentSession?.avatarName, placeholderIcon: "person.crop.circle")
                                     .frame(width: 40, height: 40)
                                     .clipShape(Circle())
                                     .overlay(Circle().stroke(FableTheme.divider, lineWidth: 1.5))
@@ -99,6 +99,33 @@ public struct LibraryView: View {
                             .padding(.horizontal, 20)
                         }
                         
+                        if store.stories.isEmpty {
+                            VStack(spacing: 12) {
+                                Image(systemName: "books.vertical")
+                                    .font(.system(size: 32))
+                                    .foregroundColor(FableTheme.textMuted)
+                                Text("Your library is empty")
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundColor(FableTheme.textPrimary)
+                                Text(store.isBackendReachable
+                                     ? "No titles are available from the live catalog yet."
+                                     : "Connect to the catalog to discover books. Previously saved books will remain available offline.")
+                                    .font(.system(size: 14))
+                                    .multilineTextAlignment(.center)
+                                    .foregroundColor(FableTheme.textMuted)
+                                Button("Retry catalog sync") {
+                                    Task { await store.syncWithCloudBackend() }
+                                }
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(FableTheme.brandPrimary)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(24)
+                            .background(FableTheme.cardBackground)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                            .padding(.horizontal, 20)
+                        }
+
                         // Featured Hero Card
                         if let featuredStory = store.stories.first(where: { $0.isTaleOfTheDay }) ?? store.stories.first {
                             Button(action: {

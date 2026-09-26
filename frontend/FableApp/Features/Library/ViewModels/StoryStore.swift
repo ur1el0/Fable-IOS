@@ -54,7 +54,7 @@ public final class StoryStore: ObservableObject {
     @Published var pinnedQuotes: [Annotation] = []
     
     // Living Reading Stats (Plan 03 & Mobile Hardening)
-    @Published var readingStats: PersistenceService.ReadingStatsSummary = PersistenceService.ReadingStatsSummary(storiesReadCount: 12, totalMinutesRead: 48, streakDays: 3)
+    @Published var readingStats: PersistenceService.ReadingStatsSummary = PersistenceService.ReadingStatsSummary(storiesReadCount: 0, totalMinutesRead: 0, streakDays: 0)
     
     // Writing Draft
     @Published var draftTitle: String = ""
@@ -63,17 +63,17 @@ public final class StoryStore: ObservableObject {
     @Published var draftSynopsis: String = ""
     @Published var draftManuscript: String = ""
     
-    // Live Server-Driven Genres (with bundled defaults)
-    @Published var genres: [GenreCategory] = GenreCategory.defaultCategories
+    // These collections populate from the server; cached stories remain available offline.
+    @Published var genres: [GenreCategory] = []
     
-    // Live Server-Driven Trending Writers (with bundled defaults)
-    @Published var writers: [Writer] = Writer.defaultWriters
+    @Published var writers: [Writer] = []
     
     // User Profile Stories
     @Published var profileStories: [Story] = []
     
     init() {
         loadReaderPreferences()
+        restoreDiscoveryCache()
         syncWithPersistence()
         Task { [weak self] in
             await self?.syncWithCloudBackend()
@@ -159,21 +159,23 @@ public final class StoryStore: ObservableObject {
     }
     
     private func syncWithPersistence() {
-        // Seed default stories if SQLite is empty
-        PersistenceService.shared.seedInitialDataIfNeeded(seedStories: Story.defaultSeedStories)
-        
         // Hydrate and reconcile from SQLite
         let persisted = PersistenceService.shared.fetchAllStories()
         if !persisted.isEmpty {
             for entity in persisted {
+                let provider = SourceProvider(rawValue: entity.sourceProviderRaw ?? "FABLE_ORIGINAL") ?? .fableOriginal
+                if provider != .fableOriginal && (entity.providerId?.isEmpty ?? true) {
+                    continue
+                }
+
                 if let idx = stories.firstIndex(where: { $0.id == entity.id }) {
                     stories[idx].isBookmarked = entity.isBookmarked
                     stories[idx].isCompleted = entity.isCompleted
                     stories[idx].progressPercent = Int(entity.readingProgress * 100.0)
                     stories[idx].currentPage = max(1, entity.currentPage)
                     stories[idx].totalPages = max(1, entity.totalPages)
-                    stories[idx].coverImageName = offlineCoverName(entity.coverImageName, genre: entity.genreRaw)
-                    stories[idx].heroImageName = offlineCoverName(entity.heroImageName, genre: entity.genreRaw)
+                    stories[idx].coverImageName = nil
+                    stories[idx].heroImageName = nil
                     stories[idx].coverImageUrl = validCoverImageURL(entity.coverImageUrl)
                     stories[idx].providerId = entity.providerId
                     stories[idx].providerDownloadCount = entity.providerDownloadCount
@@ -192,12 +194,12 @@ public final class StoryStore: ObservableObject {
                         excerpt: entity.synopsis,
                         paragraphs: [entity.content],
                         contentFormat: ContentFormat(rawValue: entity.contentFormatRaw ?? "PROSE") ?? .prose,
-                        sourceProvider: SourceProvider(rawValue: entity.sourceProviderRaw ?? "FABLE_ORIGINAL") ?? .fableOriginal,
+                        sourceProvider: provider,
                         providerId: entity.providerId,
                         providerDownloadCount: entity.providerDownloadCount,
                         chapters: PersistenceService.shared.cachedChapters(storyId: entity.id),
-                        coverImageName: offlineCoverName(entity.coverImageName, genre: entity.genreRaw),
-                        heroImageName: offlineCoverName(entity.heroImageName, genre: entity.genreRaw),
+                        coverImageName: nil,
+                        heroImageName: nil,
                         coverImageUrl: validCoverImageURL(entity.coverImageUrl),
                         readingTimeMinutes: entity.readTimeMinutes,
                         totalPages: max(1, entity.totalPages),
@@ -211,28 +213,13 @@ public final class StoryStore: ObservableObject {
                         lastReadChapterNumber: entity.lastReadChapterNumber
                     )
                     stories.insert(userStory, at: 0)
-                    profileStories.insert(userStory, at: 0)
+                    if let session = AuthManager.shared.currentSession,
+                       !session.isGuest,
+                       normalizedCatalogValue(userStory.author) == normalizedCatalogValue(session.name) {
+                        profileStories.insert(userStory, at: 0)
+                    }
                 }
             }
-        }
-        
-        if stories.isEmpty {
-            self.stories = Story.defaultSeedStories
-        }
-        
-        if profileStories.isEmpty {
-            self.profileStories = [
-                Story(
-                    title: "The Clockmaker of Prague",
-                    author: AuthManager.shared.currentSession?.name ?? "Roosc Zaño",
-                    genre: "Folklore",
-                    excerpt: "In the shadowed alleys behind the Astronomical Clock, Master Hanuš polished cogs that measured not minutes, but heartbeats.",
-                            readingTimeMinutes: 4,
-                    rating: 0,
-                    readsCount: "0",
-                    badgeText: "FOLKLORE • 4 min read"
-                )
-            ]
         }
         
         reloadPinnedQuotes()
@@ -244,25 +231,25 @@ public final class StoryStore: ObservableObject {
     }
     
     func reloadPinnedQuotes() {
-        let loaded = PersistenceService.shared.fetchAllPinnedAnnotations()
-        if loaded.isEmpty {
-            let defaultQuote = Annotation(
-                storyId: UUID(uuidString: "11111111-1111-1111-1111-111111111111") ?? UUID(),
-                storyTitle: "De Oratore",
-                storyAuthor: "Marcus Tullius Cicero",
-                utf16StartOffset: 0,
-                utf16EndOffset: 51,
-                selectedText: "A room without books is like a body without a soul.",
-                note: "Foundational literary ethos",
-                color: .terracotta,
-                isPinnedToJournal: true
-            )
-            self.pinnedQuotes = [defaultQuote]
-        } else {
-            self.pinnedQuotes = loaded
-        }
+        self.pinnedQuotes = PersistenceService.shared.fetchAllPinnedAnnotations()
     }
     
+    private func restoreDiscoveryCache() {
+        if let data = UserDefaults.standard.data(forKey: "fable_cached_genres"),
+           let cached = try? JSONDecoder().decode([GenreCategory].self, from: data) {
+            genres = cached
+        }
+        if let data = UserDefaults.standard.data(forKey: "fable_cached_writers"),
+           let cached = try? JSONDecoder().decode([Writer].self, from: data) {
+            writers = cached
+        }
+    }
+
+    private func persistDiscoveryCache<Value: Encodable>(_ values: Value, key: String) {
+        guard let data = try? JSONEncoder().encode(values) else { return }
+        UserDefaults.standard.set(data, forKey: key)
+    }
+
     // MARK: - Cloud Synchronization Pipeline (Plan 05)
     func syncWithCloudBackend() async {
         isCloudSyncActive = true
@@ -275,6 +262,9 @@ public final class StoryStore: ObservableObject {
             
             var synchronizedStoryIds = Set<UUID>()
             for remote in remoteStories {
+                if remote.sourceProvider != .fableOriginal && (remote.providerId?.isEmpty ?? true) {
+                    continue
+                }
                 if let index = liveStoryIndex(matching: remote, excluding: synchronizedStoryIds) {
                     synchronizedStoryIds.insert(stories[index].id)
                     stories[index].isBookmarked = stories[index].isBookmarked || remote.isBookmarked
@@ -303,15 +293,19 @@ public final class StoryStore: ObservableObject {
                     PersistenceService.shared.saveStory(fetchedStory)
                 }
             }
+
+            await fetchGutenbergPublicStories(topic: "fiction", search: nil)
             
             // 2. Fetch live dynamic categories/genres from backend
-            if let liveGenres = try? await apiService.fetchGenres(), !liveGenres.isEmpty {
+            if let liveGenres = try? await apiService.fetchGenres() {
                 self.genres = liveGenres
+                persistDiscoveryCache(liveGenres, key: "fable_cached_genres")
             }
             
             // 3. Fetch live trending authors from backend/Open Library
-            if let liveWriters = try? await apiService.fetchTopAuthors(), !liveWriters.isEmpty {
+            if let liveWriters = try? await apiService.fetchTopAuthors() {
                 self.writers = liveWriters
+                persistDiscoveryCache(liveWriters, key: "fable_cached_writers")
             }
             
             // 4. Fetch live update feed (Tale of the Day, Curator Spotlight)
@@ -373,10 +367,6 @@ public final class StoryStore: ObservableObject {
         value
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
-    }
-
-    private func offlineCoverName(_ value: String?, genre: String) -> String? {
-        normalizedCatalogValue(genre) == normalizedCatalogValue(Genre.manga.rawValue) ? nil : value
     }
 
     private func validCoverImageURL(_ value: String?) -> String? {

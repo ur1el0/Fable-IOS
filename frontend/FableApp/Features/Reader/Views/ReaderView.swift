@@ -953,8 +953,3 @@ public struct ReaderView: View {
         }
     }
 }
-
-#Preview {
-    ReaderView(story: Story.defaultSeedStories[0])
-        .environmentObject(StoryStore())
-}

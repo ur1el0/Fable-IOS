@@ -9,9 +9,9 @@ public struct ProfileView: View {
     @State private var selectedStoryToRead: Story?
     @State private var isShowingEditProfile: Bool = false
     
-    @State private var userName: String = "Roosc Zaño"
-    @State private var userHandle: String = "@zanoroosc"
-    @State private var userBio: String = "Writer of quiet lore, archivist of dusk folklore, and collector of vintage horology tales. Author of 14 published stories."
+    @State private var userName: String = ""
+    @State private var userHandle: String = ""
+    @State private var userBio: String = ""
     
     let tabs = ["Published", "Saved", "Reading Stats"]
     
@@ -61,7 +61,7 @@ public struct ProfileView: View {
                         VStack(spacing: 20) {
                             // Avatar with Edit Badge
                             ZStack(alignment: .bottomTrailing) {
-                                FableImageView(name: auth.currentSession?.avatarName ?? "avatar_roosc", placeholderIcon: "person.crop.circle.fill")
+                                FableImageView(name: auth.currentSession?.avatarName, placeholderIcon: "person.crop.circle.fill")
                                     .frame(width: 96, height: 96)
                                     .clipShape(Circle())
                                     .overlay(Circle().stroke(Color.white, lineWidth: 3))
@@ -88,9 +88,6 @@ public struct ProfileView: View {
                                         .font(.system(size: 24, weight: .black))
                                         .foregroundColor(FableTheme.textPrimary)
                                     
-                                    Image(systemName: "checkmark.seal.fill")
-                                        .font(.system(size: 14))
-                                        .foregroundColor(FableTheme.brandPrimary)
                                 }
                                 
                                 Text(userHandle)
@@ -368,9 +365,7 @@ public struct ProfileView: View {
                 if let session = auth.currentSession {
                     self.userName = session.name
                     self.userHandle = session.handle
-                    if !session.bio.isEmpty {
-                        self.userBio = session.bio
-                    }
+                    self.userBio = session.bio
                 }
             }
         }

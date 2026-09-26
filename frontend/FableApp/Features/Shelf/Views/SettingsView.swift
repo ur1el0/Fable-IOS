@@ -26,13 +26,13 @@ public struct SettingsView: View {
                                 navigateToProfile = true
                             }) {
                                 HStack(spacing: 14) {
-                                    FableImageView(name: auth.currentSession?.avatarName ?? "avatar_roosc", placeholderIcon: "person.crop.circle")
+                                    FableImageView(name: auth.currentSession?.avatarName, placeholderIcon: "person.crop.circle")
                                         .frame(width: 54, height: 54)
                                         .clipShape(Circle())
                                     
                                     VStack(alignment: .leading, spacing: 3) {
                                         HStack(spacing: 6) {
-                                            Text(auth.currentSession?.name ?? "Guest Reader")
+                                            Text(auth.currentSession?.name ?? "Guest")
                                                 .font(.system(size: 17, weight: .bold))
                                                 .foregroundColor(FableTheme.textPrimary)
                                             

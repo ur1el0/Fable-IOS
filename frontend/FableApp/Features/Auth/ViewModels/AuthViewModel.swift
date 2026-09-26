@@ -100,15 +100,15 @@ public final class AuthViewModel: ObservableObject {
         // Brief delay to simulate authentic verification
         try? await Task.sleep(nanoseconds: 300_000_000)
 
-        let authorName = trimmedEmail.lowercased().contains("roosc") ? "Roosc Zaño" : trimmedEmail.components(separatedBy: "@").first?.capitalized ?? "Author"
+        let authorName = trimmedEmail.components(separatedBy: "@").first?.capitalized ?? ""
         let handle = "@\(trimmedEmail.components(separatedBy: "@").first?.lowercased() ?? "author")"
 
         let session = UserSession(
             name: authorName,
             handle: handle,
             email: trimmedEmail,
-            bio: "Reader and storyteller on Fable.",
-            avatarName: "avatar_roosc",
+            bio: "",
+            avatarName: nil,
             isGuest: false
         )
 
@@ -150,9 +150,9 @@ public final class AuthViewModel: ObservableObject {
 
         let session = UserSession(
             name: trimmedName,
-            handle: formattedHandle.isEmpty ? "@reader" : formattedHandle,
+            handle: formattedHandle,
             email: trimmedEmail,
-            bio: "Story enthusiast on Fable.",
+            bio: "",
             avatarName: nil,
             isGuest: false
         )
@@ -164,7 +164,7 @@ public final class AuthViewModel: ObservableObject {
 
     /// Initiates an offline guest session.
     public func continueAsGuest() {
-        let guest = UserSession.guestUser
+        let guest = UserSession.guest()
         persistSession(guest)
     }
 

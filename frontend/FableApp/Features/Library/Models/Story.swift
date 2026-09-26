@@ -269,10 +269,8 @@ public struct Story: Identifiable, Hashable, Codable {
     }
 
     public var effectiveCoverImage: String? {
-        if let url = coverImageUrl, !url.isEmpty {
-            return url
-        }
-        return coverImageName
+        guard let url = coverImageUrl, !url.isEmpty else { return nil }
+        return url
     }
 
     public var paragraphs: [String] {
@@ -458,10 +456,8 @@ public struct GenreCategory: Identifiable, Hashable, Codable {
     public var imageUrl: String?
     
     public var effectiveImage: String {
-        if let url = imageUrl, !url.isEmpty {
-            return url
-        }
-        return imageName
+        guard let url = imageUrl, !url.isEmpty else { return "" }
+        return url
     }
     
     public init(id: UUID = UUID(), name: String, storyCount: Int, readersCount: String, description: String, imageName: String, imageUrl: String? = nil) {
@@ -484,10 +480,8 @@ public struct Writer: Identifiable, Hashable, Codable {
     public var rating: Double?
     
     public var effectiveAvatar: String {
-        if let url = avatarImageUrl, !url.isEmpty {
-            return url
-        }
-        return avatarImageName
+        guard let url = avatarImageUrl, !url.isEmpty else { return "" }
+        return url
     }
     
     public init(id: UUID = UUID(), name: String, avatarImageName: String, avatarImageUrl: String? = nil, storyCount: Int, rating: Double? = nil) {
@@ -596,266 +590,7 @@ public struct UserSession: Identifiable, Codable, Equatable {
         self.joinedDate = joinedDate
     }
 
-    /// Pre-configured seed profile for default authoring
-    public static let defaultUser = UserSession(
-        name: "Roosc Zaño",
-        handle: "@zanoroosc",
-        email: "roosc-zano@fable.app",
-        bio: "Writer of quiet lore, archivist of dusk folklore, and collector of vintage horology tales.",
-        avatarName: "avatar_roosc",
-        isGuest: false
-    )
-
-    /// Ephemeral session for guest exploration
-    public static let guestUser = UserSession(
-        name: "Guest Reader",
-        handle: "@reader",
-        email: "guest@fable.local",
-        bio: "Exploring the curated folklore manuscripts as a guest.",
-        avatarName: nil,
-        isGuest: true
-    )
+    public static func guest() -> UserSession {
+        UserSession(name: "Guest", handle: "", email: "", isGuest: true)
+    }
 }
-
-extension Story {
-    public static let defaultSeedStories: [Story] = [
-        Story(
-            title: "Dracula",
-            author: "Bram Stoker",
-            genre: "Gothic",
-            excerpt: "The castle is on the very edge of a terrible precipice. A stone falling from the window would fall a thousand feet without touching anything.",
-            paragraphs: [
-                "Before the sun had set, we reached the Bistritz pass. The grey of the evening had begun to fall, and the shadows of the mountains seemed to close in around us with every mile. The horses began to strain against the harness as the road turned sharply upward into the deep pine forests of Transylvania.",
-                "\"The castle is on the very edge of a terrible precipice,\" the driver whispered, crossing himself as the wolves began their low, distant howling down in the valley below. \"A stone falling from the window would fall a thousand feet without touching anything.\"",
-                "The wind grew colder, piercing through my woollen mantle with icy teeth. Far above, perched jaggedly upon a fang of rock, the black battlements rose against a sky bruised with indigo and blood orange.",
-                "I could hear the wolves getting closer. Their choruses echoed through the gorge like a choir of starved spirits. And then, at the crest of the winding road, a tall figure in a heavy cape stepped into the lantern light..."
-            ],
-            coverImageName: "cover_dracula",
-            heroImageName: "hero_castle",
-            readingTimeMinutes: 4,
-            totalPages: 5,
-            currentPage: 1,
-            progressPercent: 0,
-            rating: 4.95,
-            isTaleOfTheDay: true,
-            isSaved: false,
-            sourceProvider: .gutenberg
-        ),
-        Story(
-            title: "The Legend of Sleepy Hollow",
-            author: "Washington Irving",
-            genre: "Folklore",
-            excerpt: "A drowsy, dreamy influence seems to hang over the land, and to pervade the very atmosphere.",
-            paragraphs: [
-                "A drowsy, dreamy influence seems to hang over the land, and to pervade the very atmosphere. Some say that the place was bewitched by a High German doctor, during the early days of the settlement; others, that an old Indian chief, the prophet or wizard of his tribe, held his powwows there before the country was discovered by Master Hendrick Hudson.",
-                "Certain it is, the place still continues under the sway of some bewitching power, that holds a spell over the minds of the good people, causing them to walk in a continual reverie. They are given to all kinds of marvelous beliefs, are subject to trances and visions, and frequently see strange sights, and hear music and voices in the air."
-            ],
-            coverImageName: "thumb_sleepy",
-            heroImageName: "thumb_sleepy",
-            readingTimeMinutes: 4,
-            totalPages: 24,
-            currentPage: 1,
-            progressPercent: 0,
-            rating: 4.95,
-            isSaved: false,
-            isCuratorSpotlight: true,
-            sourceProvider: .gutenberg
-        ),
-        Story(
-            title: "The Metamorphosis",
-            author: "Franz Kafka",
-            genre: "Classic Fiction",
-            excerpt: "One morning, when Gregor Samsa woke from troubled dreams, he found himself transformed in his bed into a monstrous vermin.",
-            paragraphs: [
-                "One morning, when Gregor Samsa woke from troubled dreams, he found himself transformed in his bed into a monstrous vermin.",
-                "He lay on his armour-like back, and if he lifted his head a little he could see his brown belly, slightly domed and divided by arches into stiff sections."
-            ],
-            coverImageName: "thumb_metamorphosis",
-            readingTimeMinutes: 5,
-            totalPages: 8,
-            currentPage: 1,
-            progressPercent: 0,
-            isRecentSubmission: true,
-            isSaved: false,
-            sourceProvider: .gutenberg
-        ),
-        Story(
-            title: "The Tell-Tale Heart",
-            author: "Edgar Allan Poe",
-            genre: "Gothic",
-            excerpt: "True! — nervous — very, very dreadfully nervous I had been and am; but why will you say that I am mad?",
-            paragraphs: [
-                "True! — nervous — very, very dreadfully nervous I had been and am; but why will you say that I am mad? The disease had sharpened my senses — not destroyed — not dulled them.",
-                "Above all was the sense of hearing acute. I heard all things in the heaven and in the earth. I heard many things in hell. How, then, am I mad? Hearken! and observe how healthily — how calmly I can tell you the whole story."
-            ],
-            coverImageName: "thumb_tell_tale",
-            readingTimeMinutes: 3,
-            totalPages: 4,
-            currentPage: 1,
-            progressPercent: 0,
-            isRecentSubmission: true,
-            isSaved: false,
-            sourceProvider: .gutenberg
-        ),
-        Story(
-            title: "The Legend of Maria Makiling",
-            author: "Jose Rizal",
-            genre: "Folklore",
-            excerpt: "She was a fantastic creature, half nymph, half sylph, born under the moonbeams in the mystery of ancient woods...",
-            paragraphs: [
-                "She was a fantastic creature, half nymph, half sylph, born under the moonbeams in the mystery of ancient woods...",
-                "Her voice was like the murmur of crystal water over white pebbles, and her step was as light as the dewdrop falling upon a leaf at dawn."
-            ],
-            coverImageName: "thumb_maria_makiling",
-            readingTimeMinutes: 4,
-            totalPages: 6,
-            currentPage: 1,
-            progressPercent: 0,
-            isRecentSubmission: true,
-            isSaved: false,
-            sourceProvider: .gutenberg
-        ),
-        Story(
-            title: "Rip Van Winkle",
-            author: "Washington Irving",
-            genre: "Folklore",
-            excerpt: "Whoever has made a voyage up the Hudson must remember the Kaatskill mountains...",
-            paragraphs: [
-                "Whoever has made a voyage up the Hudson must remember the Kaatskill mountains. They are a dismembered branch of the great Appalachian family, and are seen away to the west of the river, swelling up to a noble height, and lording it over the surrounding country."
-            ],
-            coverImageName: "thumb_rip_van_winkle",
-            readingTimeMinutes: 4,
-            totalPages: 6,
-            currentPage: 1,
-            progressPercent: 0,
-            isRecentSubmission: true,
-            isSaved: false,
-            sourceProvider: .gutenberg
-        ),
-        Story(
-            id: UUID(uuidString: "10101010-1010-1010-1010-101010101010") ?? UUID(),
-            title: "Chainsaw Devil: Special Edition",
-            author: "Tatsuki Fujimoto",
-            genre: "Manga",
-            excerpt: "In a gritty neon metropolis where human fears manifest as living devils, an indebted hunter fights for survival alongside his faithful devil companion.",
-            paragraphs: [],
-            readingTimeMinutes: 8,
-            totalPages: 4,
-            currentPage: 1,
-            progressPercent: 0,
-            rating: 4.95,
-            isRecentSubmission: true,
-            isSaved: false,
-            badgeText: "MANGA",
-            contentFormat: .manga,
-            sourceProvider: .mangadex,
-            chapters: [
-                Chapter(
-                    storyId: UUID(uuidString: "10101010-1010-1010-1010-101010101010") ?? UUID(),
-                    chapterNumber: 1,
-                    title: "Chapter 1: The Contract",
-                    content: "",
-                    wordCount: 0,
-                    pageUrls: []
-                )
-            ]
-        ),
-        Story(
-            id: UUID(uuidString: "20202020-2020-2020-2020-202020202020") ?? UUID(),
-            title: "The Metamorphosis",
-            author: "Franz Kafka",
-            genre: "Classic Fiction",
-            excerpt: "One morning, Gregor Samsa woke from uneasy dreams to find himself transformed into a monstrous insect.",
-            paragraphs: [
-                "One morning, when Gregor Samsa woke from troubled dreams, he found himself transformed in his bed into a horrible vermin."
-            ],
-            coverImageName: "cover_metamorphosis",
-            heroImageName: "cover_metamorphosis",
-            readingTimeMinutes: 7,
-            totalPages: 8,
-            currentPage: 1,
-            progressPercent: 0,
-            rating: 4.9,
-            isCuratorSpotlight: true,
-            badgeText: "STANDARD EBOOKS",
-            contentFormat: .prose,
-            sourceProvider: .standardEbooks
-        )
-    ]
-}
-
-extension GenreCategory {
-    public static let defaultCategories: [GenreCategory] = [
-        GenreCategory(
-            name: "Manga",
-            storyCount: 520,
-            readersCount: "34.8k",
-            description: "Visual graphic serialized narratives, high-contrast dynamic action panels, and modern serialized storytelling.",
-            imageName: "genre_manga"
-        ),
-        GenreCategory(
-            name: "Folklore",
-            storyCount: 248,
-            readersCount: "18.4k",
-            description: "Timeless fables, oral legends, and cultural allegories passed through generations of oral history and regional myth.",
-            imageName: "genre_folklore"
-        ),
-        GenreCategory(
-            name: "Mythology",
-            storyCount: 312,
-            readersCount: "22.1k",
-            description: "Ancient pantheons, cosmic sagas, and heroic epic narratives from classical civilizations across the globe.",
-            imageName: "genre_mythology"
-        ),
-        GenreCategory(
-            name: "Gothic",
-            storyCount: 185,
-            readersCount: "9.8k",
-            description: "Atmospheric hauntings, crumbling estates, and romantic dread exploring the psychological depths of human melancholy.",
-            imageName: "genre_gothic"
-        ),
-        GenreCategory(
-            name: "Classic Mystery",
-            storyCount: 185,
-            readersCount: "14.2k",
-            description: "Whodunits, deductive puzzles, and atmospheric investigations through gaslit cobblestones and locked rooms.",
-            imageName: "genre_mystery"
-        )
-    ]
-}
-
-extension Writer {
-    public static let defaultWriters: [Writer] = [
-        Writer(
-            name: "Bram Stoker",
-            avatarImageName: "author_kuang",
-            storyCount: 14,
-            rating: 4.9
-        ),
-        Writer(
-            name: "Washington Irving",
-            avatarImageName: "author_yarros",
-            storyCount: 9,
-            rating: 4.8
-        ),
-        Writer(
-            name: "Edgar Allan Poe",
-            avatarImageName: "author_klune",
-            storyCount: 16,
-            rating: 4.9
-        ),
-        Writer(
-            name: "Franz Kafka",
-            avatarImageName: "author_kuang",
-            storyCount: 14,
-            rating: 4.8
-        ),
-        Writer(
-            name: "Tatsuki Fujimoto",
-            avatarImageName: "author_roosc",
-            storyCount: 22,
-            rating: 5.0
-        )
-    ]
-}
-

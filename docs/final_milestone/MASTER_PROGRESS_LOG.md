@@ -156,3 +156,13 @@ The Final Milestone transforms **Fable** from an editorial prototype into a full
 - [x] Backend container build and test suite passed: 28 tests.
 - Existing databases may still contain the 12 old demo story rows. They have not been deleted or modified; automatic review rejected destructive cleanup, and explicit approval for removing only those rows is pending.
 - The Swift build and diagnostics remain unrun because this Fedora workspace has no Swift/Xcode toolchain.
+
+## Provider-Backed iOS Catalog (2026-09-26)
+
+- [x] Removed bundled story, genre, author, guest-profile, quote, and sample-stat defaults; fresh installs load live provider data and preserve only the SwiftData cache for offline reading.
+- [x] Discovery genre and author payloads are cached locally after a successful fetch so they remain available offline.
+- [x] Removed content-specific image sets and title/author keyed artwork; cover and profile images now render HTTPS provider images or neutral SF Symbol placeholders, with clipped bounds.
+- [x] Library genre filters follow server metadata and empty catalog/discovery states are explicit and retryable.
+- [x] Removed fabricated default profile names, biographies, handles, and verification badges.
+- [ ] Legacy records already stored on backend instances are unchanged pending the requested approval for removing the 12 old demo rows.
+- Source diff passed whitespace checks. iOS compilation and on-device diagnostics remain unavailable here because Swift and Xcode are not installed.

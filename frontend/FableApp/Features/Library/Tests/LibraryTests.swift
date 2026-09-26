@@ -18,24 +18,31 @@ public struct LibraryTests {
 
         let store = StoryStore()
 
-        // Test 1: Story store initialization
-        assert(!store.stories.isEmpty, "Stories Catalog Loaded")
+        // Test 1: Cached provider records require stable provider identity.
+        assert(store.stories.allSatisfy {
+            $0.sourceProvider == .fableOriginal || $0.providerId?.isEmpty == false
+        }, "Cached Provider Stories Have Provider IDs")
+
+        let actionStory = Story(
+            title: "Diagnostic Fixture",
+            author: "Diagnostic",
+            genre: .folklore,
+            synopsis: "",
+            content: "",
+            readTimeMinutes: 4
+        )
+        store.stories.append(actionStory)
 
         // Test 2: Bookmark toggling
-        if let first = store.stories.first {
-            let initialState = first.isBookmarked
-            store.toggleBookmark(for: first)
-            let updatedState = store.stories.first(where: { $0.id == first.id })?.isBookmarked ?? false
-            assert(updatedState != initialState, "Toggle Bookmark State")
-            store.toggleBookmark(for: first) // revert
-        }
+        store.toggleBookmark(for: actionStory)
+        let bookmarked = store.stories.first(where: { $0.id == actionStory.id })?.isBookmarked ?? false
+        assert(bookmarked, "Toggle Bookmark State")
+        store.toggleBookmark(for: actionStory)
 
         // Test 3: Reading progress mutation
-        if let first = store.stories.first {
-            store.updateProgress(for: first.id, page: 3, totalPages: 4)
-            let updated = store.stories.first(where: { $0.id == first.id })
-            assert(updated?.progressPercent == 75 && updated?.currentPage == 3, "Update Reading Progress")
-        }
+        store.updateProgress(for: actionStory.id, page: 3, totalPages: 4)
+        let updated = store.stories.first(where: { $0.id == actionStory.id })
+        assert(updated?.progressPercent == 75 && updated?.currentPage == 3, "Update Reading Progress")
 
         // Test 4: Legacy JSON Fallback Decoding (Defaults to .prose and .fableOriginal)
         let legacyJSON = """
@@ -173,22 +180,17 @@ public struct LibraryTests {
             .flatMap { try? JSONDecoder().decode([Chapter].self, from: $0) }
         assert(cachedChapterRoundTrip == [cachedChapter], "Chapter Payload Can Be Persisted and Restored")
 
-        // Test 8: Catalog Multi-Format Diversity
-        let hasProse = store.stories.contains(where: { $0.contentFormat == .prose })
-        let hasManga = store.stories.contains(where: { $0.contentFormat == .manga })
-        assert(hasProse, "StoryStore Contains Prose Literature")
-        assert(hasManga, "StoryStore Contains Manga Releases")
+        // Test 8: Provider formats are decoded without requiring a bundled catalog.
+        assert(liveBook.contentFormat == .prose && mangaStory.contentFormat == .manga, "Live Prose and Manga Formats Decode")
 
-        // Test 9: Multi-Provider Ingestion Recognition
-        let hasGutenberg = store.stories.contains(where: { $0.sourceProvider == .gutenberg })
-        let hasMangaDex = store.stories.contains(where: { $0.sourceProvider == .mangadex })
-        assert(hasGutenberg, "Catalog Contains Project Gutenberg Ingested Titles")
-        assert(hasMangaDex, "Catalog Contains MangaDex Ingested Titles")
+        // Test 9: Provider identities survive decoding and can address live chapter endpoints.
+        assert(liveBook.providerId == "1342" && mangaStory.sourceProvider == .mangadex, "Live Provider Identity Decodes")
 
         // Test 10: Internal App Health & Subsystem Diagnostics Suite
         let healthResult = AppHealthTests.runAllTests()
         assert(healthResult.failures.isEmpty && healthResult.passed == healthResult.total, "Internal App Health Diagnostics Verification (\(healthResult.passed)/\(healthResult.total) Passed)")
 
+        store.stories.removeAll(where: { $0.id == actionStory.id })
         return (passed, total, failures)
     }
 }

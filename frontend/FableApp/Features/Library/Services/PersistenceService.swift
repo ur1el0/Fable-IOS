@@ -32,49 +32,6 @@ public final class PersistenceService {
         }
     }
     
-    // Seed initial folklore stories if database is empty on cold launch
-    public func seedInitialDataIfNeeded(seedStories: [Story]) {
-        var descriptor = FetchDescriptor<StoryEntity>()
-        descriptor.fetchLimit = 1
-        
-        do {
-            let count = try context.fetchCount(descriptor)
-            if count == 0 {
-                for story in seedStories {
-                    let entity = StoryEntity(
-                        id: story.id,
-                        title: story.title,
-                        author: story.author,
-                        genreRaw: story.genre.rawValue,
-                        contentFormatRaw: story.contentFormat.rawValue,
-                        sourceProviderRaw: story.sourceProvider.rawValue,
-                        chapter: "",
-                        synopsis: story.synopsis,
-                        content: story.content,
-                        readTimeMinutes: story.readTimeMinutes,
-                        readingProgress: Double(story.progressPercent) / 100.0,
-                        currentPage: story.currentPage,
-                        totalPages: story.totalPages,
-                        coverImageName: story.coverImageName,
-                        heroImageName: story.heroImageName,
-                        coverImageUrl: story.coverImageUrl,
-                        providerDownloadCount: story.providerDownloadCount,
-                        lastReadChapterId: story.lastReadChapterId,
-                        lastReadChapterNumber: story.lastReadChapterNumber,
-                        isBookmarked: story.isBookmarked,
-                        isCompleted: story.isCompleted,
-                        createdAtUtc: story.createdAtUtc,
-                        updatedAtUtc: Date()
-                    )
-                    context.insert(entity)
-                }
-                try context.save()
-            }
-        } catch {
-            print("Failed to seed initial stories: \(error)")
-        }
-    }
-    
     // Fetch all persistent stories
     public func fetchAllStories() -> [StoryEntity] {
         let descriptor = FetchDescriptor<StoryEntity>(

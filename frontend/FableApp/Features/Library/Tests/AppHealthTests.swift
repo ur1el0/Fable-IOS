@@ -39,20 +39,20 @@ public struct AppHealthTests {
         {
             "taleOfTheDay": {
                 "id": "11111111-1111-1111-1111-111111111111",
-                "title": "Dracula",
-                "author": "Bram Stoker",
+                "title": "Public Domain Novel",
+                "author": "Source Author",
                 "contentFormat": "PROSE",
                 "sourceProvider": "GUTENBERG"
             },
             "curatorSpotlight": {
                 "id": "22222222-2222-2222-2222-222222222222",
-                "title": "Chainsaw Devil",
-                "author": "Tatsuki Fujimoto",
+                "title": "Serialized Graphic Work",
+                "author": "Graphic Author",
                 "contentFormat": "MANGA",
                 "sourceProvider": "MANGADEX"
             },
             "recentSubmissions": [],
-            "totalStories": 14,
+            "totalStories": 2,
             "timestampUtc": "2026-09-24T00:00:00Z"
         }
         """.data(using: .utf8)!
@@ -63,7 +63,7 @@ public struct AppHealthTests {
                 "id": "33333333-3333-3333-3333-333333333333",
                 "storyId": "22222222-2222-2222-2222-222222222222",
                 "chapterNumber": 1,
-                "title": "Chapter 1: The Contract",
+                "title": "Chapter 1",
                 "content": "",
                 "wordCount": 0,
                 "pageUrls": [
@@ -75,7 +75,7 @@ public struct AppHealthTests {
                 "id": "44444444-4444-4444-4444-444444444444",
                 "storyId": "22222222-2222-2222-2222-222222222222",
                 "chapterNumber": 2,
-                "title": "Chapter 2: Chainsaw vs Bat",
+                "title": "Chapter 2",
                 "content": "",
                 "wordCount": 0,
                 "pageUrls": [
@@ -92,9 +92,9 @@ public struct AppHealthTests {
         var test1Details = ""
         if let feed = try? decoder.decode(UpdateFeed.self, from: updateFeedJSON),
            let chapters = try? decoder.decode([Chapter].self, from: chaptersJSON) {
-            let feedValid = feed.taleOfTheDay?.title == "Dracula" &&
+            let feedValid = feed.taleOfTheDay?.title == "Public Domain Novel" &&
                             feed.curatorSpotlight?.contentFormat == .manga &&
-                            feed.totalStories == 14
+                            feed.totalStories == 2
             let chaptersValid = chapters.count == 2 &&
                                 chapters[0].chapterNumber == 1 &&
                                 chapters[0].pageUrls.count == 2 &&
@@ -116,15 +116,15 @@ public struct AppHealthTests {
         // Test 2: Top Genres Live Metadata & Cover URL Integrity
         // =================================================================
         let genre = GenreCategory(
-            name: "Manga",
-            storyCount: 520,
-            readersCount: "34.8k",
-            description: "Visual graphic serialized narratives",
-            imageName: "genre_folklore",
-            imageUrl: "https://covers.example.org/manga.jpg"
+            name: "Graphic Literature",
+            storyCount: 0,
+            readersCount: "",
+            description: "",
+            imageName: "",
+            imageUrl: "https://covers.example.org/genre.jpg"
         )
-        let genreValid = genre.storyCount > 0 &&
-                         !genre.readersCount.isEmpty &&
+        let genreValid = genre.storyCount == 0 &&
+                         genre.readersCount.isEmpty &&
                          genre.effectiveImage.hasPrefix("https://") &&
                          genre.effectiveImage == genre.imageUrl
         record(
@@ -138,13 +138,13 @@ public struct AppHealthTests {
         // Test 3: Top Creators Live Metadata & Portrait URL Integrity
         // =================================================================
         let writer = Writer(
-            name: "Tatsuki Fujimoto",
-            avatarImageName: "author_kuang",
+            name: "Source Author",
+            avatarImageName: "",
             avatarImageUrl: "https://avatars.example.org/author.jpg",
-            storyCount: 12,
+            storyCount: 0,
             rating: nil
         )
-        let writerValid = writer.storyCount > 0 &&
+        let writerValid = writer.storyCount == 0 &&
                           writer.rating == nil &&
                           writer.effectiveAvatar.hasPrefix("https://") &&
                           writer.effectiveAvatar == writer.avatarImageUrl
@@ -191,11 +191,11 @@ public struct AppHealthTests {
         // Cover Art URL Prioritization Check
         let gutenbergCover = "https://www.gutenberg.org/cache/epub/345/pg345.cover.medium.jpg"
         let storyWithCover = Story(
-            title: "Dracula",
-            author: "Bram Stoker",
+            title: "Public Domain Novel",
+            author: "Source Author",
             genre: "Gothic",
-            excerpt: "A terrible precipice...",
-            coverImageName: "cover_dracula",
+            excerpt: "Provider supplied synopsis.",
+            coverImageName: nil,
             coverImageUrl: gutenbergCover,
             contentFormat: .prose,
             sourceProvider: .gutenberg
