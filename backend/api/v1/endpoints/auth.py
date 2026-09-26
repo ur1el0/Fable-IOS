@@ -53,3 +53,10 @@ def record_reading_session(
 def get_reading_stats(authorization: str = Header(None)):
     user = auth_service.get_current_user_from_header(authorization)
     return reading_stats.get_reading_stats(user.id)
+
+
+@router.post("/auth/logout", status_code=status.HTTP_204_NO_CONTENT)
+def logout(authorization: str = Header(None)):
+    auth_service.get_current_user_from_header(authorization)
+    token = authorization.split(" ", 1)[1].strip()
+    auth_service.revoke_session(token)

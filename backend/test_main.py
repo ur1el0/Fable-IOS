@@ -12,8 +12,6 @@ from main import app, init_db
 def setup_teardown_db():
     if os.path.exists("test_fable.sqlite3"):
         os.remove("test_fable.sqlite3")
-    from services.auth_service import ACTIVE_SESSIONS
-    ACTIVE_SESSIONS.clear()
     init_db()
     yield
     if os.path.exists("test_fable.sqlite3"):
@@ -861,3 +859,19 @@ def test_reading_statistics_are_authenticated_idempotent_and_account_scoped():
         "streakDays": 0,
     }
     assert client.get("/api/v1/auth/me/stats").status_code == 401
+
+
+def test_bearer_session_survives_process_cache_loss_and_logout_revokes_it():
+    import importlib
+    from services import auth_service
+
+    headers = auth_headers("Persistent Session Reader")
+    assert client.get("/api/v1/auth/me", headers=headers).status_code == 200
+
+    # Authentication state is read from SQLite, not process-local memory.
+    importlib.reload(auth_service)
+    assert client.get("/api/v1/auth/me", headers=headers).status_code == 200
+
+    logout = client.post("/api/v1/auth/logout", headers=headers)
+    assert logout.status_code == 204
+    assert client.get("/api/v1/auth/me", headers=headers).status_code == 401

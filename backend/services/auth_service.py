@@ -1,15 +1,14 @@
 import hashlib
 import hmac
 import secrets
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from uuid import UUID, uuid4
 from typing import Optional
 from fastapi import HTTPException, status
 from core.database import get_db
 from schemas.schemas import UserDTO, RegisterRequest, LoginRequest, AuthResponse, ProfileUpdateRequest
 
-# In-memory session store mapping active bearer token -> user_id
-ACTIVE_SESSIONS: dict[str, str] = {}
+SESSION_LIFETIME = timedelta(days=30)
 
 
 def _avatar_image_name(row) -> Optional[str]:
@@ -52,6 +51,36 @@ def verify_password(stored_hash: str, password: str) -> bool:
     except (ValueError, AttributeError):
         return False
 
+def _token_digest(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def _issue_session(user_id: str) -> str:
+    token = secrets.token_urlsafe(32)
+    now = datetime.now(timezone.utc)
+    conn = get_db()
+    try:
+        with conn:
+            conn.execute(
+                "DELETE FROM user_sessions WHERE expires_at_utc <= ? OR revoked_at_utc < ?",
+                (now.isoformat(), (now - timedelta(days=30)).isoformat()),
+            )
+            conn.execute(
+                """INSERT INTO user_sessions
+                   (token_hash, user_id, created_at_utc, expires_at_utc, revoked_at_utc)
+                   VALUES (?, ?, ?, ?, NULL)""",
+                (
+                    _token_digest(token),
+                    user_id,
+                    now.isoformat(),
+                    (now + SESSION_LIFETIME).isoformat(),
+                ),
+            )
+    finally:
+        conn.close()
+    return token
+
+
 def register_user(req: RegisterRequest) -> AuthResponse:
     """Register a new user account with validated credentials and return authentication token."""
     normalized_email = req.email.strip().lower()
@@ -75,8 +104,7 @@ def register_user(req: RegisterRequest) -> AuthResponse:
     finally:
         conn.close()
 
-    token = secrets.token_urlsafe(32)
-    ACTIVE_SESSIONS[token] = user_id
+    token = _issue_session(user_id)
     conn = get_db()
     try:
         row = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
@@ -98,30 +126,31 @@ def login_user(req: LoginRequest) -> AuthResponse:
             detail="Invalid email or password"
         )
 
-    token = secrets.token_urlsafe(32)
-    ACTIVE_SESSIONS[token] = row["id"]
+    token = _issue_session(row["id"])
     user_dto = _to_user_dto(row)
     return AuthResponse(access_token=token, token_type="bearer", user=user_dto)
 
 def get_current_user(token: str) -> UserDTO:
-    """Retrieve user entity associated with an active bearer token."""
-    user_id = ACTIVE_SESSIONS.get(token)
-    if not user_id:
+    """Retrieve a user through a persisted, expiring bearer-session digest."""
+    now = datetime.now(timezone.utc).isoformat()
+    conn = get_db()
+    try:
+        row = conn.execute(
+            """SELECT users.* FROM user_sessions
+               JOIN users ON users.id = user_sessions.user_id
+               WHERE user_sessions.token_hash = ?
+                 AND user_sessions.revoked_at_utc IS NULL
+                 AND user_sessions.expires_at_utc > ?""",
+            (_token_digest(token), now),
+        ).fetchone()
+    finally:
+        conn.close()
+
+    if not row:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired session token"
         )
-
-    conn = get_db()
-    row = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
-    conn.close()
-
-    if not row:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
-        )
-
     return _to_user_dto(row)
 
 
@@ -131,16 +160,27 @@ def get_current_user_from_header(authorization: Optional[str]) -> UserDTO:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Missing or invalid Authorization header. Expected 'Bearer <token>'",
         )
-    return get_current_user(authorization.split(" ", 1)[1])
+    token = authorization.split(" ", 1)[1].strip()
+    if not token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid session token")
+    return get_current_user(token)
+
+
+def revoke_session(token: str) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    conn = get_db()
+    try:
+        with conn:
+            conn.execute(
+                "UPDATE user_sessions SET revoked_at_utc = ? WHERE token_hash = ? AND revoked_at_utc IS NULL",
+                (now, _token_digest(token)),
+            )
+    finally:
+        conn.close()
 
 
 def update_current_user(token: str, req: ProfileUpdateRequest) -> UserDTO:
-    user_id = ACTIVE_SESSIONS.get(token)
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired session token"
-        )
+    user_id = str(get_current_user(token).id)
 
     now = datetime.now(timezone.utc).isoformat()
     conn = get_db()
