@@ -122,7 +122,13 @@ def test_get_genres_endpoint():
     assert first["imageUrl"] is not None
     assert first["imageUrl"].startswith("https://images.unsplash.com")
 
-def test_get_top_authors_endpoint():
+def test_get_top_authors_endpoint(monkeypatch):
+    import httpx
+
+    async def mock_get(self, url, headers=None):
+        return httpx.Response(200, json={"works": [{"author_name": ["Bram Stoker"]}]})
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", mock_get)
     response = client.get("/api/v1/authors/top")
     assert response.status_code == 200
     writers = response.json()
@@ -498,6 +504,15 @@ def test_internal_health_and_media_invariants():
         if a.get("avatarImageUrl"):
             assert a["avatarImageUrl"].startswith("https://")
 
+def test_env_db_path_override(tmp_path, monkeypatch):
+    from core.database import get_db
 
-
-
+    override_path = tmp_path / "override.sqlite3"
+    monkeypatch.setenv("FABLE_DB_PATH", str(override_path))
+    connection = get_db()
+    try:
+        assert override_path.exists()
+        database_path = connection.execute("PRAGMA database_list").fetchone()["file"]
+        assert database_path == str(override_path)
+    finally:
+        connection.close()
