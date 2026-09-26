@@ -107,7 +107,7 @@ public struct LibraryView: View {
                                 VStack(alignment: .leading, spacing: 0) {
                                     // Media Cover with Dynamic Format Badge
                                     ZStack(alignment: .top) {
-                                        FableImageView(name: featuredStory.effectiveCoverImage ?? "cover_dracula", placeholderIcon: "square.stack")
+                                        FableImageView(name: featuredStory.effectiveCoverImage, placeholderIcon: "square.stack")
                                             .frame(maxWidth: .infinity)
                                             .frame(height: 220)
                                             .clipped()

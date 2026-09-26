@@ -53,6 +53,9 @@ public final class PersistenceService {
                         readingProgress: Double(story.progressPercent) / 100.0,
                         currentPage: story.currentPage,
                         totalPages: story.totalPages,
+                        coverImageName: story.coverImageName,
+                        heroImageName: story.heroImageName,
+                        coverImageUrl: story.coverImageUrl,
                         lastReadChapterId: story.lastReadChapterId,
                         lastReadChapterNumber: story.lastReadChapterNumber,
                         isBookmarked: story.isBookmarked,
@@ -102,6 +105,9 @@ public final class PersistenceService {
                 existing.readingProgress = Double(story.progressPercent) / 100.0
                 existing.currentPage = story.currentPage
                 existing.totalPages = story.totalPages
+                existing.coverImageName = story.coverImageName
+                existing.heroImageName = story.heroImageName
+                existing.coverImageUrl = story.coverImageUrl
                 existing.lastReadChapterId = story.lastReadChapterId
                 existing.lastReadChapterNumber = story.lastReadChapterNumber
                 existing.isBookmarked = story.isBookmarked
@@ -120,6 +126,9 @@ public final class PersistenceService {
                     readingProgress: Double(story.progressPercent) / 100.0,
                     currentPage: story.currentPage,
                     totalPages: story.totalPages,
+                    coverImageName: story.coverImageName,
+                    heroImageName: story.heroImageName,
+                    coverImageUrl: story.coverImageUrl,
                     lastReadChapterId: story.lastReadChapterId,
                     lastReadChapterNumber: story.lastReadChapterNumber,
                     isBookmarked: story.isBookmarked,

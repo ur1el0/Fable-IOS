@@ -14,6 +14,9 @@ public final class StoryEntity {
     public var readingProgress: Double
     public var currentPage: Int = 1
     public var totalPages: Int = 1
+    public var coverImageName: String?
+    public var heroImageName: String?
+    public var coverImageUrl: String?
     public var lastReadChapterId: String?
     public var lastReadChapterNumber: Int?
     public var isBookmarked: Bool
@@ -36,6 +39,9 @@ public final class StoryEntity {
         readingProgress: Double = 0.0,
         currentPage: Int = 1,
         totalPages: Int = 1,
+        coverImageName: String? = nil,
+        heroImageName: String? = nil,
+        coverImageUrl: String? = nil,
         lastReadChapterId: String? = nil,
         lastReadChapterNumber: Int? = nil,
         isBookmarked: Bool = false,
@@ -54,6 +60,9 @@ public final class StoryEntity {
         self.readingProgress = min(1.0, max(0.0, readingProgress))
         self.currentPage = max(1, currentPage)
         self.totalPages = max(1, totalPages)
+        self.coverImageName = coverImageName
+        self.heroImageName = heroImageName
+        self.coverImageUrl = coverImageUrl
         self.lastReadChapterId = lastReadChapterId
         self.lastReadChapterNumber = lastReadChapterNumber
         self.isBookmarked = isBookmarked

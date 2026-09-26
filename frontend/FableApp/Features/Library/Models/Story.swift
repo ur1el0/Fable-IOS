@@ -621,7 +621,6 @@ extension Story {
             ],
             coverImageName: "cover_dracula",
             heroImageName: "hero_castle",
-            coverImageUrl: "https://www.gutenberg.org/cache/epub/345/pg345.cover.medium.jpg",
             readingTimeMinutes: 4,
             totalPages: 5,
             currentPage: 1,
@@ -641,8 +640,7 @@ extension Story {
                 "Certain it is, the place still continues under the sway of some bewitching power, that holds a spell over the minds of the good people, causing them to walk in a continual reverie. They are given to all kinds of marvelous beliefs, are subject to trances and visions, and frequently see strange sights, and hear music and voices in the air."
             ],
             coverImageName: "thumb_sleepy",
-            heroImageName: "cover_sleepy_featured",
-            coverImageUrl: "https://www.gutenberg.org/cache/epub/41/pg41.cover.medium.jpg",
+            heroImageName: "thumb_sleepy",
             readingTimeMinutes: 4,
             totalPages: 24,
             currentPage: 1,
@@ -662,7 +660,6 @@ extension Story {
                 "He lay on his armour-like back, and if he lifted his head a little he could see his brown belly, slightly domed and divided by arches into stiff sections."
             ],
             coverImageName: "thumb_metamorphosis",
-            coverImageUrl: "https://www.gutenberg.org/cache/epub/5200/pg5200.cover.medium.jpg",
             readingTimeMinutes: 5,
             totalPages: 8,
             currentPage: 1,
@@ -681,7 +678,6 @@ extension Story {
                 "Above all was the sense of hearing acute. I heard all things in the heaven and in the earth. I heard many things in hell. How, then, am I mad? Hearken! and observe how healthily — how calmly I can tell you the whole story."
             ],
             coverImageName: "thumb_tell_tale",
-            coverImageUrl: "https://www.gutenberg.org/cache/epub/2148/pg2148.cover.medium.jpg",
             readingTimeMinutes: 3,
             totalPages: 4,
             currentPage: 1,
@@ -700,7 +696,6 @@ extension Story {
                 "Her voice was like the murmur of crystal water over white pebbles, and her step was as light as the dewdrop falling upon a leaf at dawn."
             ],
             coverImageName: "thumb_maria_makiling",
-            coverImageUrl: "https://www.gutenberg.org/cache/epub/38269/pg38269.cover.medium.jpg",
             readingTimeMinutes: 4,
             totalPages: 6,
             currentPage: 1,
@@ -718,7 +713,6 @@ extension Story {
                 "Whoever has made a voyage up the Hudson must remember the Kaatskill mountains. They are a dismembered branch of the great Appalachian family, and are seen away to the west of the river, swelling up to a noble height, and lording it over the surrounding country."
             ],
             coverImageName: "thumb_rip_van_winkle",
-            coverImageUrl: "https://www.gutenberg.org/cache/epub/2048/pg2048.cover.medium.jpg",
             readingTimeMinutes: 4,
             totalPages: 6,
             currentPage: 1,
@@ -734,9 +728,6 @@ extension Story {
             genre: "Manga",
             excerpt: "In a gritty neon metropolis where human fears manifest as living devils, an indebted hunter fights for survival alongside his faithful devil companion.",
             paragraphs: [],
-            coverImageName: "cover_dracula",
-            heroImageName: "hero_dracula",
-            coverImageUrl: "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=800&auto=format&fit=crop",
             readingTimeMinutes: 8,
             totalPages: 4,
             currentPage: 1,
@@ -754,12 +745,7 @@ extension Story {
                     title: "Chapter 1: The Contract",
                     content: "",
                     wordCount: 0,
-                    pageUrls: [
-                        "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=800&auto=format&fit=crop",
-                        "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=800&auto=format&fit=crop",
-                        "https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=800&auto=format&fit=crop",
-                        "https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=800&auto=format&fit=crop"
-                    ]
+                    pageUrls: []
                 )
             ]
         ),
@@ -774,7 +760,6 @@ extension Story {
             ],
             coverImageName: "cover_metamorphosis",
             heroImageName: "cover_metamorphosis",
-            coverImageUrl: "https://standardebooks.org/ebooks/franz-kafka/the-metamorphosis/david-wyllie/downloads/cover.jpg",
             readingTimeMinutes: 7,
             totalPages: 8,
             currentPage: 1,
@@ -795,40 +780,35 @@ extension GenreCategory {
             storyCount: 520,
             readersCount: "34.8k",
             description: "Visual graphic serialized narratives, high-contrast dynamic action panels, and modern serialized storytelling.",
-            imageName: "genre_folklore",
-            imageUrl: "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=800&auto=format&fit=crop"
+            imageName: "genre_manga"
         ),
         GenreCategory(
             name: "Folklore",
             storyCount: 248,
             readersCount: "18.4k",
             description: "Timeless fables, oral legends, and cultural allegories passed through generations of oral history and regional myth.",
-            imageName: "genre_folklore",
-            imageUrl: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=800&auto=format&fit=crop"
+            imageName: "genre_folklore"
         ),
         GenreCategory(
             name: "Mythology",
             storyCount: 312,
             readersCount: "22.1k",
             description: "Ancient pantheons, cosmic sagas, and heroic epic narratives from classical civilizations across the globe.",
-            imageName: "genre_mythology",
-            imageUrl: "https://images.unsplash.com/photo-1579783902614-a3fb3927b675?q=80&w=800&auto=format&fit=crop"
+            imageName: "genre_mythology"
         ),
         GenreCategory(
             name: "Gothic",
             storyCount: 185,
             readersCount: "9.8k",
             description: "Atmospheric hauntings, crumbling estates, and romantic dread exploring the psychological depths of human melancholy.",
-            imageName: "genre_gothic",
-            imageUrl: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=800&auto=format&fit=crop"
+            imageName: "genre_gothic"
         ),
         GenreCategory(
             name: "Classic Mystery",
             storyCount: 185,
             readersCount: "14.2k",
             description: "Whodunits, deductive puzzles, and atmospheric investigations through gaslit cobblestones and locked rooms.",
-            imageName: "genre_mystery",
-            imageUrl: "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?q=80&w=800&auto=format&fit=crop"
+            imageName: "genre_mystery"
         )
     ]
 }
@@ -838,35 +818,30 @@ extension Writer {
         Writer(
             name: "Bram Stoker",
             avatarImageName: "author_kuang",
-            avatarImageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/34/Bram_Stoker_1906.jpg/440px-Bram_Stoker_1906.jpg",
             storyCount: 14,
             rating: 4.9
         ),
         Writer(
             name: "Washington Irving",
             avatarImageName: "author_yarros",
-            avatarImageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Washington_Irving_by_John_Wesley_Jarvis%2C_1809.jpg/440px-Washington_Irving_by_John_Wesley_Jarvis%2C_1809.jpg",
             storyCount: 9,
             rating: 4.8
         ),
         Writer(
             name: "Edgar Allan Poe",
             avatarImageName: "author_klune",
-            avatarImageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/75/Edgar_Allan_Poe_2_edit.jpg/440px-Edgar_Allan_Poe_2_edit.jpg",
             storyCount: 16,
             rating: 4.9
         ),
         Writer(
             name: "Franz Kafka",
             avatarImageName: "author_kuang",
-            avatarImageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/26/Franz_Kafka%2C_1923.jpg/440px-Franz_Kafka%2C_1923.jpg",
             storyCount: 14,
             rating: 4.8
         ),
         Writer(
             name: "Tatsuki Fujimoto",
             avatarImageName: "author_roosc",
-            avatarImageUrl: "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=800&auto=format&fit=crop",
             storyCount: 22,
             rating: 5.0
         )

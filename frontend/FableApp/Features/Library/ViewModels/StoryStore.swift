@@ -124,7 +124,6 @@ public final class StoryStore: ObservableObject {
             genre: draftGenre,
             excerpt: draftSynopsis,
             paragraphs: [draftManuscript],
-            coverImageName: "thumb_metamorphosis",
             readingTimeMinutes: max(1, draftWordCount / 150),
             totalPages: 1,
             currentPage: 1,
@@ -173,6 +172,9 @@ public final class StoryStore: ObservableObject {
                     stories[idx].progressPercent = Int(entity.readingProgress * 100.0)
                     stories[idx].currentPage = max(1, entity.currentPage)
                     stories[idx].totalPages = max(1, entity.totalPages)
+                    stories[idx].coverImageName = offlineCoverName(entity.coverImageName, genre: entity.genreRaw)
+                    stories[idx].heroImageName = offlineCoverName(entity.heroImageName, genre: entity.genreRaw)
+                    stories[idx].coverImageUrl = validCoverImageURL(entity.coverImageUrl)
                     stories[idx].lastReadChapterId = entity.lastReadChapterId
                     stories[idx].lastReadChapterNumber = entity.lastReadChapterNumber
                 } else {
@@ -183,7 +185,9 @@ public final class StoryStore: ObservableObject {
                         genre: entity.genreRaw,
                         excerpt: entity.synopsis,
                         paragraphs: [entity.content],
-                        coverImageName: "thumb_metamorphosis",
+                        coverImageName: offlineCoverName(entity.coverImageName, genre: entity.genreRaw),
+                        heroImageName: offlineCoverName(entity.heroImageName, genre: entity.genreRaw),
+                        coverImageUrl: validCoverImageURL(entity.coverImageUrl),
                         readingTimeMinutes: entity.readTimeMinutes,
                         totalPages: max(1, entity.totalPages),
                         currentPage: max(1, entity.currentPage),
@@ -212,8 +216,7 @@ public final class StoryStore: ObservableObject {
                     author: AuthManager.shared.currentSession?.name ?? "Roosc Zaño",
                     genre: "Folklore",
                     excerpt: "In the shadowed alleys behind the Astronomical Clock, Master Hanuš polished cogs that measured not minutes, but heartbeats.",
-                    coverImageName: "thumb_metamorphosis",
-                    readingTimeMinutes: 4,
+                            readingTimeMinutes: 4,
                     rating: 4.9,
                     readsCount: "1.2k reads",
                     badgeText: "FOLKLORE • 4 min read"
@@ -259,25 +262,32 @@ public final class StoryStore: ObservableObject {
             let remoteStories = try await apiService.fetchStories(genre: nil, search: nil)
             self.isBackendReachable = true
             
-            if self.stories.isEmpty {
-                self.stories = remoteStories
-                for story in remoteStories {
-                    PersistenceService.shared.saveStory(story)
-                }
-            } else {
-                for remote in remoteStories {
-                    if let idx = stories.firstIndex(where: { $0.id == remote.id }) {
-                        stories[idx].isBookmarked = stories[idx].isBookmarked || remote.isBookmarked
-                        stories[idx].coverImageUrl = remote.coverImageUrl
-                        stories[idx].totalChapters = remote.totalChapters
-                        stories[idx].contentFormat = remote.contentFormat
-                        stories[idx].sourceProvider = remote.sourceProvider
-                        if remote.isTaleOfTheDay { stories[idx].isTaleOfTheDay = true }
-                        if remote.isCuratorSpotlight { stories[idx].isCuratorSpotlight = true }
-                    } else {
-                        stories.append(remote)
-                        PersistenceService.shared.saveStory(remote)
+            var synchronizedStoryIds = Set<UUID>()
+            for remote in remoteStories {
+                if let index = liveStoryIndex(matching: remote, excluding: synchronizedStoryIds) {
+                    synchronizedStoryIds.insert(stories[index].id)
+                    stories[index].isBookmarked = stories[index].isBookmarked || remote.isBookmarked
+                    stories[index].coverImageUrl = validCoverImageURL(remote.coverImageUrl)
+                    if remote.contentFormat == .manga {
+                        stories[index].coverImageName = nil
+                        stories[index].heroImageName = nil
                     }
+                    stories[index].totalChapters = remote.totalChapters
+                    stories[index].contentFormat = remote.contentFormat
+                    stories[index].sourceProvider = remote.sourceProvider
+                    if remote.isTaleOfTheDay { stories[index].isTaleOfTheDay = true }
+                    if remote.isCuratorSpotlight { stories[index].isCuratorSpotlight = true }
+                    PersistenceService.shared.saveStory(stories[index])
+                } else {
+                    var fetchedStory = remote
+                    fetchedStory.coverImageUrl = validCoverImageURL(remote.coverImageUrl)
+                    if fetchedStory.contentFormat == .manga {
+                        fetchedStory.coverImageName = nil
+                        fetchedStory.heroImageName = nil
+                    }
+                    stories.append(fetchedStory)
+                    synchronizedStoryIds.insert(fetchedStory.id)
+                    PersistenceService.shared.saveStory(fetchedStory)
                 }
             }
             
@@ -329,6 +339,46 @@ public final class StoryStore: ObservableObject {
         }
     }
     
+    private func liveStoryIndex(matching remote: Story, excluding matchedIds: Set<UUID>) -> Int? {
+        if let exactIndex = stories.firstIndex(where: { $0.id == remote.id && !matchedIds.contains($0.id) }) {
+            return exactIndex
+        }
+
+        let remoteTitle = normalizedCatalogValue(remote.title)
+        let remoteAuthor = normalizedCatalogValue(remote.author)
+        let matchingCatalogStories = stories.indices.filter { index in
+            let story = stories[index]
+            return !matchedIds.contains(story.id)
+                && normalizedCatalogValue(story.title) == remoteTitle
+                && normalizedCatalogValue(story.author) == remoteAuthor
+        }
+        return matchingCatalogStories.first(where: { stories[$0].sourceProvider == remote.sourceProvider })
+            ?? matchingCatalogStories.first
+    }
+
+    private func normalizedCatalogValue(_ value: String) -> String {
+        value
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+    }
+
+    private func offlineCoverName(_ value: String?, genre: String) -> String? {
+        normalizedCatalogValue(genre) == normalizedCatalogValue(Genre.manga.rawValue) ? nil : value
+    }
+
+    private func validCoverImageURL(_ value: String?) -> String? {
+        guard
+            let value = value?.trimmingCharacters(in: .whitespacesAndNewlines),
+            let url = URL(string: value),
+            url.scheme?.lowercased() == "https",
+            let host = url.host?.lowercased(),
+            host != "images.unsplash.com"
+        else {
+            return nil
+        }
+        return url.absoluteString
+    }
+
     /// Loads authentic chapters on demand for the active reading story
     func fetchChapters(for story: Story) async -> [Chapter] {
         if let existing = story.chapters, !existing.isEmpty {

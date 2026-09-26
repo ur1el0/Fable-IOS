@@ -56,7 +56,7 @@ public struct ReaderTests {
         assert(MangaReadingMode.webtoon.iconName == "arrow.up.and.down", "Webtoon Reading Mode Up/Down Icon")
         assert(MangaReadingMode.paged.iconName == "arrow.left.and.right", "Paged Reading Mode Left/Right Icon")
 
-        // Test 8: Manga Active Page URLs Fallback Hierarchy
+        // Test 8: Manga Panel and Cover Separation
         let testStoryId = UUID()
         let chapterWithPanels = Chapter(
             storyId: testStoryId,
@@ -80,15 +80,15 @@ public struct ReaderTests {
         let resolvedUrlsA = chapterWithPanels.pageUrls
         assert(resolvedUrlsA.count == 2 && resolvedUrlsA[0] == "https://cdn.manga.org/ch1_p1.jpg", "Manga Chapter Explicit Page Resolution")
 
-        // Scenario B: Chapter without page URLs falls back to first chapter or story cover
+        // Scenario B: A story cover remains a cover and is not rendered as a manga panel
         let emptyChapter = Chapter(
             storyId: testStoryId,
             chapterNumber: 2,
             title: "Ch 2",
             pageUrls: []
         )
-        let fallbackUrls = [mangaWithPanels.coverImageUrl, mangaWithPanels.effectiveCoverImage].compactMap { $0 }
-        assert(!fallbackUrls.isEmpty && fallbackUrls.contains("https://cdn.manga.org/cover.jpg"), "Manga Empty Panels Cover Fallback Resolution")
+        assert(emptyChapter.pageUrls.isEmpty, "Manga Empty Panels Do Not Use Story Cover")
+        assert(mangaWithPanels.effectiveCoverImage == "https://cdn.manga.org/cover.jpg", "Manga Story Cover Remains Available")
 
         // Test 9: Format-Based Reader Selection Protocol
         let proseStory = Story(

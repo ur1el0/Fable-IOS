@@ -46,8 +46,7 @@ public struct MangaReaderView: View {
         if let firstChap = story.chapters?.first, !firstChap.pageUrls.isEmpty {
             return firstChap.pageUrls
         }
-        // Fallback to story covers
-        return [story.coverImageUrl, story.effectiveCoverImage].compactMap { $0 }
+        return []
     }
 
     public var body: some View {
@@ -329,11 +328,7 @@ public struct MangaReaderView: View {
                 title: story.title,
                 content: "",
                 wordCount: 0,
-                pageUrls: [
-                    story.coverImageUrl,
-                    "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=800&auto=format&fit=crop",
-                    "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=800&auto=format&fit=crop"
-                ].compactMap { $0 }
+                pageUrls: []
             )
             self.chapters = [single]
         }

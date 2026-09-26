@@ -67,8 +67,8 @@ public struct AppHealthTests {
                 "content": "",
                 "wordCount": 0,
                 "pageUrls": [
-                    "https://images.unsplash.com/panel1.jpg",
-                    "https://images.unsplash.com/panel2.jpg"
+                    "https://cdn.example.org/panel1.jpg",
+                    "https://cdn.example.org/panel2.jpg"
                 ]
             },
             {
@@ -79,7 +79,7 @@ public struct AppHealthTests {
                 "content": "",
                 "wordCount": 0,
                 "pageUrls": [
-                    "https://images.unsplash.com/panel3.jpg"
+                    "https://cdn.example.org/panel3.jpg"
                 ]
             }
         ]
@@ -121,7 +121,7 @@ public struct AppHealthTests {
             readersCount: "34.8k",
             description: "Visual graphic serialized narratives",
             imageName: "genre_folklore",
-            imageUrl: "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=800"
+            imageUrl: "https://covers.example.org/manga.jpg"
         )
         let genreValid = genre.storyCount > 0 &&
                          !genre.readersCount.isEmpty &&
@@ -140,7 +140,7 @@ public struct AppHealthTests {
         let writer = Writer(
             name: "Tatsuki Fujimoto",
             avatarImageName: "author_kuang",
-            avatarImageUrl: "https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=400",
+            avatarImageUrl: "https://avatars.example.org/author.jpg",
             storyCount: 12,
             rating: 4.96
         )
