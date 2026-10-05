@@ -21,7 +21,7 @@ jobs:
       - name: Install backend dependencies
         run: pip install -r backend/requirements.txt pytest
       - name: Run backend tests
-        run: pytest backend/test_main.py -v
+        run: PYTHONPATH=.:backend pytest backend/test_main.py -v
 
   docker-build-verification:
     runs-on: ubuntu-latest
