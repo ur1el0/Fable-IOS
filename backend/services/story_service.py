@@ -19,6 +19,12 @@ from schemas.schemas import (
 )
 
 IDENTIFIER_NAMESPACE = UUID("b28f1a39-ff20-5d3c-9ff0-994df9324c22")
+STORY_SUMMARY_COLUMNS = """id, title, author, genre, chapter, synopsis, '' AS content,
+    read_time_minutes, is_bookmarked, is_completed, created_at_utc, updated_at_utc,
+    cover_image_name, hero_image_name, cover_image_url, total_pages, current_page,
+    progress_percent, rating, saves_count, reads_count, is_tale_of_the_day,
+    is_recent_submission, is_curator_spotlight, badge_text, total_chapters,
+    content_format, source_provider, provider_id, provider_download_count, owner_user_id"""
 
 
 def _is_legacy_demo_image_url(value: str) -> bool:
@@ -53,6 +59,7 @@ def row_to_story_dto(
     row: sqlite3.Row,
     include_chapters: bool = False,
     conn: Optional[sqlite3.Connection] = None,
+    include_content: bool = True,
 ) -> StoryDTO:
     story_id = UUID(row["id"])
     chapters = None
@@ -106,7 +113,7 @@ def row_to_story_dto(
         genre=row["genre"],
         chapter=row["chapter"],
         synopsis=row["synopsis"],
-        content=row["content"],
+        content=row["content"] if include_content else "",
         read_time_minutes=row["read_time_minutes"],
         is_bookmarked=False,
         is_completed=False,
@@ -138,10 +145,12 @@ def get_stories(
     genre: Optional[str] = None,
     search: Optional[str] = None,
     since: Optional[datetime] = None,
+    limit: int = 50,
+    offset: int = 0,
 ) -> list[StoryDTO]:
     conn = get_db()
     try:
-        query = "SELECT * FROM stories WHERE 1=1"
+        query = f"SELECT {STORY_SUMMARY_COLUMNS} FROM stories WHERE 1=1"
         params: list[object] = []
         if genre and genre.lower() != "all":
             query += " AND LOWER(genre) = LOWER(?)"
@@ -153,7 +162,8 @@ def get_stories(
         if since:
             query += " AND updated_at_utc > ?"
             params.append(since.isoformat())
-        query += " ORDER BY is_tale_of_the_day DESC, created_at_utc DESC"
+        query += " ORDER BY is_tale_of_the_day DESC, created_at_utc DESC, id ASC LIMIT ? OFFSET ?"
+        params.extend((limit, offset))
         rows = conn.execute(query, params).fetchall()
         return [row_to_story_dto(row, conn=conn) for row in rows]
     finally:
@@ -316,7 +326,7 @@ def get_user_stories(owner_user_id: UUID) -> list[StoryDTO]:
     conn = get_db()
     try:
         rows = conn.execute(
-            "SELECT * FROM stories WHERE owner_user_id = ? ORDER BY created_at_utc DESC",
+            f"SELECT {STORY_SUMMARY_COLUMNS} FROM stories WHERE owner_user_id = ? ORDER BY created_at_utc DESC",
             (str(owner_user_id),),
         ).fetchall()
         return [row_to_story_dto(row, conn=conn) for row in rows]
@@ -444,22 +454,22 @@ def get_update_feed() -> UpdateFeedDTO:
     conn = get_db()
     try:
         totd_row = conn.execute(
-            """
-            SELECT * FROM stories
+            f"""
+            SELECT {STORY_SUMMARY_COLUMNS} FROM stories
             WHERE is_tale_of_the_day = 1
             ORDER BY created_at_utc DESC LIMIT 1
             """
         ).fetchone()
         curator_row = conn.execute(
-            """
-            SELECT * FROM stories
+            f"""
+            SELECT {STORY_SUMMARY_COLUMNS} FROM stories
             WHERE is_curator_spotlight = 1
             ORDER BY created_at_utc DESC LIMIT 1
             """
         ).fetchone()
         recent_rows = conn.execute(
-            """
-            SELECT * FROM stories
+            f"""
+            SELECT {STORY_SUMMARY_COLUMNS} FROM stories
             WHERE is_recent_submission = 1
             ORDER BY created_at_utc DESC LIMIT 10
             """

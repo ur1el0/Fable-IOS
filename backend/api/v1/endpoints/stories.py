@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
-from fastapi import APIRouter, Header, status
+from fastapi import APIRouter, Header, Query, status
 
 from schemas import (
     StoryDTO,
@@ -17,11 +17,19 @@ router = APIRouter()
 
 @router.get("/stories", response_model=list[StoryDTO])
 def get_stories(
-    genre: Optional[str] = None,
-    search: Optional[str] = None,
-    since: Optional[datetime] = None
+    genre: Optional[str] = Query(default=None, max_length=50),
+    search: Optional[str] = Query(default=None, max_length=200),
+    since: Optional[datetime] = None,
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0, le=1_000_000),
 ):
-    return story_service.get_stories(genre=genre, search=search, since=since)
+    return story_service.get_stories(
+        genre=genre,
+        search=search,
+        since=since,
+        limit=limit,
+        offset=offset,
+    )
 
 @router.get("/genres", response_model=list[GenreDTO])
 def get_genres():

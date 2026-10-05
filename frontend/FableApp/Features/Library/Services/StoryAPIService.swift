@@ -1,6 +1,12 @@
 import Foundation
 
 public struct CreateStoryRequest: Codable {
+    public static let maximumTitleLength = 120
+    public static let maximumGenreLength = 50
+    public static let maximumChapterLength = 120
+    public static let maximumSynopsisLength = 2_000
+    public static let maximumContentLength = 50_000
+
     public let title: String
     public let genre: String
     public let chapter: String?
@@ -233,9 +239,14 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
     public init(baseURL: URL? = nil) {
         let infoBaseURL = Bundle.main.object(forInfoDictionaryKey: "FABLE_API_BASE_URL") as? String
         let configuredBaseURL = ProcessInfo.processInfo.environment["FABLE_API_BASE_URL"] ?? infoBaseURL
+#if DEBUG
+        let fallbackBaseURL = URL(string: "http://127.0.0.1:8000/api/v1")!
+#else
+        let fallbackBaseURL = URL(string: "https://api-configuration-required.invalid/api/v1")!
+#endif
         self.baseURL = baseURL
             ?? configuredBaseURL.flatMap { URL(string: $0) }
-            ?? URL(string: "http://127.0.0.1:8000/api/v1")!
+            ?? fallbackBaseURL
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 5.0
         self.session = URLSession(configuration: config)
@@ -251,38 +262,50 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
     }
 
     public func fetchStories(genre: String? = nil, search: String? = nil, since: Date? = nil) async throws -> [Story] {
-        var components = URLComponents(url: baseURL.appendingPathComponent("stories"), resolvingAgainstBaseURL: true)!
-        var queryItems: [URLQueryItem] = []
-        if let genre, genre != "All" { queryItems.append(URLQueryItem(name: "genre", value: genre)) }
-        if let search, !search.isEmpty { queryItems.append(URLQueryItem(name: "search", value: search)) }
-        if let since {
-            let formatter = ISO8601DateFormatter()
-            queryItems.append(URLQueryItem(name: "since", value: formatter.string(from: since)))
-        }
-        if !queryItems.isEmpty { components.queryItems = queryItems }
-
-        guard let targetURL = components.url else { throw URLError(.badURL) }
-        let (data, response) = try await session.data(from: targetURL)
-        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
-            throw URLError(.badServerResponse)
-        }
-
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        
-        // Supports both raw array and paged responses
-        if let directList = try? decoder.decode([Story].self, from: data) {
-            return directList
+        let pageSize = 50
+        var offset = 0
+        var stories: [Story] = []
+        var storyIDs = Set<UUID>()
+
+        while true {
+            var components = URLComponents(url: baseURL.appendingPathComponent("stories"), resolvingAgainstBaseURL: true)!
+            var queryItems = [
+                URLQueryItem(name: "limit", value: String(pageSize)),
+                URLQueryItem(name: "offset", value: String(offset))
+            ]
+            if let genre, genre != "All" { queryItems.append(URLQueryItem(name: "genre", value: genre)) }
+            if let search, !search.isEmpty { queryItems.append(URLQueryItem(name: "search", value: search)) }
+            if let since {
+                let formatter = ISO8601DateFormatter()
+                queryItems.append(URLQueryItem(name: "since", value: formatter.string(from: since)))
+            }
+            components.queryItems = queryItems
+
+            guard let targetURL = components.url else { throw URLError(.badURL) }
+            let (data, response) = try await session.data(from: targetURL)
+            guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+                throw URLError(.badServerResponse)
+            }
+
+            let page: [Story]
+            if let directPage = try? decoder.decode([Story].self, from: data) {
+                page = directPage
+            } else {
+                struct PagedStoryWrapper: Decodable {
+                    let items: [Story]
+                }
+                page = try decoder.decode(PagedStoryWrapper.self, from: data).items
+            }
+
+            let newStories = page.filter { storyIDs.insert($0.id).inserted }
+            stories.append(contentsOf: newStories)
+            if page.count < pageSize || page.count > pageSize || newStories.isEmpty {
+                return stories
+            }
+            offset += page.count
         }
-        
-        struct PagedStoryWrapper: Codable {
-            let items: [Story]
-        }
-        if let wrapped = try? decoder.decode(PagedStoryWrapper.self, from: data) {
-            return wrapped.items
-        }
-        
-        return try decoder.decode([Story].self, from: data)
     }
 
     public func createStory(_ request: CreateStoryRequest, token: String) async throws -> Story {
@@ -552,4 +575,3 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
         return try decoder.decode(AuthUserDTO.self, from: data)
     }
 }
-

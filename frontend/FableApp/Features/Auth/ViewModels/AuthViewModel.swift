@@ -142,8 +142,8 @@ public final class AuthViewModel: ObservableObject {
             errorMessage = "Please enter a valid email address."
             return false
         }
-        guard password.count >= 6 else {
-            errorMessage = "Password must be at least 6 characters."
+        guard password.count >= 12 else {
+            errorMessage = "Password must be at least 12 characters."
             return false
         }
 

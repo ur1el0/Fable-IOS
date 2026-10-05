@@ -98,6 +98,26 @@ public final class StoryStore: ObservableObject {
             updatedAtUtc: .distantPast
         )
 
+        private init(
+            readingProgress: Double,
+            isBookmarked: Bool,
+            isCompleted: Bool,
+            currentPage: Int,
+            totalPages: Int,
+            lastReadChapterId: String?,
+            lastReadChapterNumber: Int?,
+            updatedAtUtc: Date
+        ) {
+            self.readingProgress = readingProgress
+            self.isBookmarked = isBookmarked
+            self.isCompleted = isCompleted
+            self.currentPage = currentPage
+            self.totalPages = totalPages
+            self.lastReadChapterId = lastReadChapterId
+            self.lastReadChapterNumber = lastReadChapterNumber
+            self.updatedAtUtc = updatedAtUtc
+        }
+
         init(story: Story, updatedAtUtc: Date = Date()) {
             self.readingProgress = Double(story.progressPercent) / 100.0
             self.isBookmarked = story.isBookmarked
@@ -264,10 +284,11 @@ public final class StoryStore: ObservableObject {
         publishErrorMessage = nil
         let title = draftTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         let genre = draftGenre.trimmingCharacters(in: .whitespacesAndNewlines)
+        let chapter = draftChapter.trimmingCharacters(in: .whitespacesAndNewlines)
         let synopsis = draftSynopsis.trimmingCharacters(in: .whitespacesAndNewlines)
         let manuscript = draftManuscript.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        guard !title.isEmpty, title.count <= 120 else {
+        guard !title.isEmpty, title.count <= CreateStoryRequest.maximumTitleLength else {
             publishErrorMessage = "Enter a title with 1 to 120 characters."
             return nil
         }
@@ -275,12 +296,28 @@ public final class StoryStore: ObservableObject {
             publishErrorMessage = "Choose or enter a genre."
             return nil
         }
+        guard genre.count <= CreateStoryRequest.maximumGenreLength else {
+            publishErrorMessage = "Keep the genre to 50 characters or fewer."
+            return nil
+        }
+        guard chapter.count <= CreateStoryRequest.maximumChapterLength else {
+            publishErrorMessage = "Keep the chapter title to 120 characters or fewer."
+            return nil
+        }
         guard !synopsis.isEmpty else {
             publishErrorMessage = "Add a synopsis before publishing."
             return nil
         }
+        guard synopsis.count <= CreateStoryRequest.maximumSynopsisLength else {
+            publishErrorMessage = "Keep the synopsis to 2,000 characters or fewer."
+            return nil
+        }
         guard !manuscript.isEmpty else {
             publishErrorMessage = "Add manuscript text before publishing."
+            return nil
+        }
+        guard manuscript.count <= CreateStoryRequest.maximumContentLength else {
+            publishErrorMessage = "Keep the manuscript to 50,000 characters or fewer."
             return nil
         }
         guard let session = AuthManager.shared.currentSession, !session.isGuest,
@@ -294,7 +331,7 @@ public final class StoryStore: ObservableObject {
         let request = CreateStoryRequest(
             title: title,
             genre: genre,
-            chapter: draftChapter.trimmingCharacters(in: .whitespacesAndNewlines),
+            chapter: chapter,
             synopsis: synopsis,
             content: manuscript,
             readTimeMinutes: max(1, draftWordCount / 150)
@@ -393,11 +430,6 @@ public final class StoryStore: ObservableObject {
                         genre: entity.genreRaw,
                         excerpt: entity.synopsis,
                         paragraphs: [entity.content],
-                        contentFormat: ContentFormat(rawValue: entity.contentFormatRaw ?? "PROSE") ?? .prose,
-                        sourceProvider: provider,
-                        providerId: entity.providerId,
-                        providerDownloadCount: entity.providerDownloadCount,
-                        chapters: PersistenceService.shared.cachedChapters(storyId: entity.id),
                         coverImageName: nil,
                         heroImageName: nil,
                         coverImageUrl: validCoverImageURL(entity.coverImageUrl),
@@ -409,6 +441,10 @@ public final class StoryStore: ObservableObject {
                         isRecentSubmission: true,
                         isSaved: entity.isBookmarked,
                         isFinished: entity.isCompleted,
+                        contentFormat: ContentFormat(rawValue: entity.contentFormatRaw ?? "PROSE") ?? .prose,
+                        sourceProvider: provider,
+                        providerId: entity.providerId,
+                        chapters: PersistenceService.shared.cachedChapters(storyId: entity.id),
                         lastReadChapterId: entity.lastReadChapterId,
                         lastReadChapterNumber: entity.lastReadChapterNumber
                     )
