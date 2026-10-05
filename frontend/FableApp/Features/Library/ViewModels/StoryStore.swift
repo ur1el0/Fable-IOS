@@ -430,11 +430,6 @@ public final class StoryStore: ObservableObject {
                         genre: entity.genreRaw,
                         excerpt: entity.synopsis,
                         paragraphs: [entity.content],
-                        contentFormat: ContentFormat(rawValue: entity.contentFormatRaw ?? "PROSE") ?? .prose,
-                        sourceProvider: provider,
-                        providerId: entity.providerId,
-                        providerDownloadCount: entity.providerDownloadCount,
-                        chapters: PersistenceService.shared.cachedChapters(storyId: entity.id),
                         coverImageName: nil,
                         heroImageName: nil,
                         coverImageUrl: validCoverImageURL(entity.coverImageUrl),
@@ -446,6 +441,10 @@ public final class StoryStore: ObservableObject {
                         isRecentSubmission: true,
                         isSaved: entity.isBookmarked,
                         isFinished: entity.isCompleted,
+                        contentFormat: ContentFormat(rawValue: entity.contentFormatRaw ?? "PROSE") ?? .prose,
+                        sourceProvider: provider,
+                        providerId: entity.providerId,
+                        chapters: PersistenceService.shared.cachedChapters(storyId: entity.id),
                         lastReadChapterId: entity.lastReadChapterId,
                         lastReadChapterNumber: entity.lastReadChapterNumber
                     )

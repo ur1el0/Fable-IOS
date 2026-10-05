@@ -18,6 +18,7 @@ public struct AuthTests {
 
         let auth = AuthManager()
         auth.signOut()
+        let authViewModel = AuthViewModel.shared
 
         // Test 1: Invalid email format rejection
         let invalidEmailResult = await auth.signIn(email: "not-an-email", password: "password123")
@@ -28,12 +29,22 @@ public struct AuthTests {
         assert(!shortPasswordResult && auth.authErrorMessage == "Password must be at least 6 characters.", "Enforce Minimum Password Length")
 
         // Test 3: Guest session generation
-        auth.continueAsGuest()
-        assert(auth.isAuthenticated && auth.isGuestMode && auth.currentSession?.name == "Guest", "Guest Session Generation")
+        authViewModel.continueAsGuest()
+        assert(
+            AuthManager.shared.isAuthenticated
+                && AuthManager.shared.isGuestMode
+                && authViewModel.currentUser?.name == "Guest",
+            "Guest Session Generation"
+        )
 
         // Test 4: Sign-out state cleanup
+        authViewModel.logout()
+        assert(
+            !AuthManager.shared.isAuthenticated
+                && authViewModel.currentUser == nil,
+            "Sign Out State Cleanup"
+        )
         auth.signOut()
-        assert(!auth.isAuthenticated && auth.currentSession == nil, "Sign Out State Cleanup")
 
         return (passed, total, failures)
     }
