@@ -9,7 +9,7 @@
 
 ## Executive Summary & System Objectives
 
-This progress log tracks the transition of **Fable** from an editorial prototype to a provider-backed, offline-first reading platform. The backend has 36 passing container tests covering content contracts, account isolation, live statistics, and persistent sessions. The iOS changes are implemented but cannot be compiled or run in this Fedora workspace because Swift and Xcode are unavailable. An approved startup migration removes the twelve exact legacy demo story IDs and their chapters from existing SQLite databases on the next backend start.
+This progress log tracks the transition of **Fable** from an editorial prototype to a provider-backed, offline-first reading platform. The backend has 43 passing container tests covering content contracts, account isolation, live statistics, persistent sessions, request limits, versioned SQLite cleanup, and online backups. The iOS changes are implemented but cannot be compiled or run in this Fedora workspace because Swift and Xcode are unavailable; macOS CI is configured to build the Release app and run the XCTest target. The versioned startup migration removes the twelve exact legacy demo story IDs and their dependent shelf and reading-session records from existing SQLite databases.
 
 ### The 8 Core Architectural Domains
 
@@ -21,10 +21,19 @@ This progress log tracks the transition of **Fable** from an editorial prototype
 | **4. UI Interactions & Voice Accessibility** | [`04_UI_INTERACTIONS_AND_AUDIO_ACCESSIBILITY.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/04_UI_INTERACTIONS_AND_AUDIO_ACCESSIBILITY.md) | **Implemented; device check pending** | Actions are wired across writing, profile, library, reader, shelf, and settings; `AVSpeechSynthesizer` uses installed OS voices. |
 | **5. Live Metadata & Pure User-State Isolation** | [`03_LIVE_METADATA_AND_USER_STATE_PURGING.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/03_LIVE_METADATA_AND_USER_STATE_PURGING.md) | **Startup cleanup migration committed** | Fresh installs have no bundled story catalog; provider and authored content uses live metadata and account-owned shelf/profile state. |
 | **6. Multi-Format & Manga Architecture** | [`05_MULTI_FORMAT_AND_MANGA_ARCHITECTURE.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/05_MULTI_FORMAT_AND_MANGA_ARCHITECTURE.md) | **Complete** | Polymorphic reader dispatch, continuous vertical Webtoon scroll, horizontal swipe paging, manga panel ingestion pipeline. |
-| **7. Testing Suites & ADR Baseline** | [`04_UI_INTERACTIONS_AND_AUDIO_ACCESSIBILITY.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/04_UI_INTERACTIONS_AND_AUDIO_ACCESSIBILITY.md) | **Backend verified; iOS run pending** | 36/36 backend tests pass in Docker. Swift build, Swift tests, and device diagnostics require Xcode and remain unrun here. |
+| **7. Testing Suites & ADR Baseline** | [`04_UI_INTERACTIONS_AND_AUDIO_ACCESSIBILITY.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/04_UI_INTERACTIONS_AND_AUDIO_ACCESSIBILITY.md) | **Backend verified; iOS CI configured** | 43/43 backend tests pass in an isolated container. The new iOS scheme, XCTest target, and Release build check are configured in macOS CI; they were not run locally because this workspace is Fedora without Xcode. |
 | **8. App Health Diagnostics & Anti-Overlap Invariants** | [`MASTER_PROGRESS_LOG.md`](file:///home/dokja/vsc-fedora/all/Projects/swift-projects/Fable-IOS/docs/final_milestone/MASTER_PROGRESS_LOG.md) | **Implemented; device check pending** | Image boundary clipping, `SystemDiagnosticsSheet`, and `AppHealthTests` are in source; execution requires Xcode. |
 
 ---
+
+## Production Readiness Improvements (October 2026)
+
+- Release iOS builds now require a configured HTTPS API URL and reject loopback, unspecified, and reserved local hosts. Debug builds keep the simulator API URL.
+- API boundaries now enforce request-body and story-field size limits, sanitize validation errors, rate-limit registration and login, and validate CORS origins.
+- SQLite startup changes are recorded with `PRAGMA user_version`; the one-time cleanup removes only the twelve retired demo IDs and their shelf, reading-session, chapter, and story rows. An online backup and integrity-check command plus restore guidance are available in [`OPERATIONS.md`](../OPERATIONS.md).
+- Story catalog, account-story, and update-feed responses omit manuscript text. The public catalog supports bounded `limit`/`offset` pagination, and the iOS client fetches pages while story details and chapters retain full text.
+- Backend verification: 43/43 tests pass in the cached Docker image with the workspace mounted read-only. Compose configuration, Python compilation, release URL guard cases, and Xcode scheme XML pass locally. Xcode build and XCTest execution remain pending a macOS runner.
+- Implementation commits: `c631ee2` (backend and SQLite) and `4a327cc` (iOS release and CI).
 
 ## Master Feature & Button Audit Matrix
 
