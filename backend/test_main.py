@@ -84,6 +84,7 @@ def test_authenticated_story_listing_is_isolated_by_owner():
     second_stories = client.get("/api/v1/auth/me/stories", headers=second_headers)
     assert [story["title"] for story in first_stories.json()] == ["First Story"]
     assert [story["title"] for story in second_stories.json()] == ["Second Story"]
+    assert first_stories.json()[0]["content"] == ""
     assert client.get("/api/v1/auth/me/stories").status_code == 401
 
 def test_story_dto_camelcase_serialization_contract():
@@ -126,6 +127,11 @@ def test_get_story_chapters():
     detail = client.get(f"/api/v1/stories/{story_id}")
     assert detail.status_code == 200
     assert len(detail.json()["chapters"]) == 1
+    assert "validated story API" in detail.json()["content"]
+
+    catalog_item = client.get("/api/v1/stories").json()[0]
+    assert catalog_item["content"] == ""
+    assert catalog_item["chapters"] is None
 
     chapters = client.get(f"/api/v1/stories/{story_id}/chapters")
     assert chapters.status_code == 200
@@ -135,6 +141,59 @@ def test_get_story_chapters():
     assert chapter.status_code == 200
     assert chapter.json()["chapterNumber"] == 1
     assert "validated story API" in chapter.json()["content"]
+
+
+def test_story_catalog_paginates_and_returns_summaries():
+    headers = auth_headers()
+    for index in range(3):
+        response = client.post("/api/v1/stories", headers=headers, json={
+            "title": f"Paged Story {index}",
+            "genre": "Mystery",
+            "synopsis": "A short catalog summary.",
+            "content": "A long manuscript that should not be sent in the catalog response.",
+        })
+        assert response.status_code == 201
+
+    first_page = client.get("/api/v1/stories?limit=2&offset=0")
+    second_page = client.get("/api/v1/stories?limit=2&offset=2")
+
+    assert first_page.status_code == 200
+    assert second_page.status_code == 200
+    assert len(first_page.json()) == 2
+    assert len(second_page.json()) == 1
+    assert all(story["content"] == "" for story in first_page.json() + second_page.json())
+    assert client.get("/api/v1/stories?limit=101").status_code == 422
+    assert client.get("/api/v1/stories?offset=-1").status_code == 422
+    assert client.get(f"/api/v1/stories?search={'x' * 201}").status_code == 422
+
+
+def test_create_story_rejects_oversized_fields():
+    payload = {
+        "title": "Bounded Story",
+        "genre": "Mystery",
+        "synopsis": "A" * 2_001,
+        "content": "Valid content",
+    }
+    assert client.post("/api/v1/stories", json=payload).status_code == 422
+
+    payload["synopsis"] = "A valid synopsis"
+    payload["content"] = "B" * 50_001
+    assert client.post("/api/v1/stories", json=payload).status_code == 422
+
+    payload["content"] = "Valid content"
+    payload["genre"] = "G" * 51
+    assert client.post("/api/v1/stories", json=payload).status_code == 422
+
+
+def test_validation_errors_do_not_echo_submitted_password():
+    password = "928374"
+    response = client.post("/api/v1/auth/register", json={
+        "email": "reader@example.test",
+        "password": password,
+        "name": "Reader",
+    })
+    assert response.status_code == 422
+    assert password not in response.text
 
 
 def test_story_metrics_are_derived_from_device_shelf_state():
@@ -270,13 +329,22 @@ def test_gutenberg_cover_and_download_count_are_live(monkeypatch):
 
 
 def test_get_update_feed_endpoint():
+    created = client.post("/api/v1/stories", headers=auth_headers(), json={
+        "title": "Update Feed Summary",
+        "genre": "Literary",
+        "synopsis": "Catalog only.",
+        "content": "Full content remains available through story details.",
+    })
+    assert created.status_code == 201
+
     response = client.get("/api/v1/updates")
     assert response.status_code == 200
     feed = response.json()
     assert feed["taleOfTheDay"] is None
     assert feed["curatorSpotlight"] is None
-    assert feed["recentSubmissions"] == []
-    assert feed["totalStories"] == 0
+    assert len(feed["recentSubmissions"]) == 1
+    assert feed["recentSubmissions"][0]["content"] == ""
+    assert feed["totalStories"] == 1
 
 
 def test_create_story():
@@ -567,6 +635,8 @@ def test_gutenberg_catalog_failure_does_not_return_local_catalog(monkeypatch):
     response = client.get("/api/v1/public/gutenberg")
     assert response.status_code == 502
     assert response.json()["detail"] == "Gutenberg catalog service is unavailable"
+    assert client.get(f"/api/v1/public/gutenberg?search={'x' * 201}").status_code == 422
+    assert client.get("/api/v1/public/gutenberg/2147483648").status_code == 422
 
 
 def test_register_and_login_auth_flow():
@@ -608,6 +678,73 @@ def test_register_and_login_auth_flow():
     assert "accessToken" in login_data
     assert login_data["user"]["email"] == "reader@example.test"
     assert login_data["user"]["handle"] == "@test-reader"
+
+
+def test_registration_rate_limit_returns_retry_after(monkeypatch):
+    from services import auth_rate_limit
+
+    monkeypatch.setattr(auth_rate_limit, "REGISTER_LIMIT_PER_IP", 1)
+    payload = {
+        "email": "first@example.test",
+        "password": "LongSecurePassword123!",
+        "name": "First Reader",
+    }
+    assert client.post("/api/v1/auth/register", json=payload).status_code == 201
+
+    payload["email"] = "second@example.test"
+    limited = client.post("/api/v1/auth/register", json=payload)
+    assert limited.status_code == 429
+    assert int(limited.headers["retry-after"]) > 0
+    assert "first@example.test" not in limited.text
+
+
+def test_request_body_size_limit_rejects_oversized_request():
+    oversized_body = b'{"payload":"' + (b"x" * 262_144) + b'"}'
+    response = client.post(
+        "/api/v1/auth/register",
+        content=oversized_body,
+        headers={"Content-Type": "application/json"},
+    )
+    assert response.status_code == 413
+    assert response.json() == {"detail": "Request body exceeds the configured size limit."}
+
+
+def test_cors_configuration_is_validated_and_normalized(monkeypatch):
+    from core.settings import load_cors_origins
+
+    monkeypatch.setenv("FABLE_ENV", "production")
+    monkeypatch.setenv("CORS_ORIGINS", '["https://reader.example.test/"]')
+    assert load_cors_origins() == ["https://reader.example.test"]
+
+    monkeypatch.setenv("CORS_ORIGINS", '["*"]')
+    with pytest.raises(RuntimeError, match="Wildcard CORS"):
+        load_cors_origins()
+
+    monkeypatch.setenv("FABLE_ENV", "staging")
+    with pytest.raises(RuntimeError, match="Wildcard CORS"):
+        load_cors_origins()
+
+    monkeypatch.setenv("CORS_ORIGINS", '["https://reader.example.test:invalid"]')
+    with pytest.raises(RuntimeError, match="Invalid CORS origin"):
+        load_cors_origins()
+
+
+def test_sqlite_online_backup_and_integrity_check(tmp_path):
+    import sqlite3
+    from scripts.sqlite_backup import create_backup, verify_database
+
+    source = tmp_path / "source.sqlite3"
+    backup = tmp_path / "backups" / "snapshot.sqlite3"
+    with sqlite3.connect(source) as connection:
+        connection.execute("CREATE TABLE entries (value TEXT NOT NULL)")
+        connection.execute("INSERT INTO entries (value) VALUES ('preserved')")
+
+    create_backup(source, backup)
+    verify_database(backup)
+
+    with sqlite3.connect(backup) as connection:
+        assert connection.execute("SELECT value FROM entries").fetchone()[0] == "preserved"
+    assert backup.stat().st_mode & 0o777 == 0o600
 
 def test_authenticated_profile_update_and_rejection():
     response = client.post("/api/v1/auth/register", json={
@@ -904,7 +1041,7 @@ async def test_get_gutenberg_story_by_id_returns_live_metadata(monkeypatch):
 
 
 
-def test_init_db_removes_only_legacy_demo_stories_and_chapters():
+def test_init_db_migrates_legacy_demo_stories_and_shelf_references_once():
     from core.database import LEGACY_DEMO_STORY_IDS, get_db
 
     connection = get_db()
@@ -934,6 +1071,35 @@ def test_init_db_removes_only_legacy_demo_stories_and_chapters():
                     "Legacy chapter text", 3, "2026-01-01T00:00:00+00:00",
                 ),
             )
+            connection.execute(
+                """INSERT INTO shelf_items (
+                    device_id, story_id, reading_progress, is_bookmarked,
+                    is_completed, updated_at_utc
+                ) VALUES (?, ?, ?, ?, ?, ?)""",
+                (
+                    "device-legacy", story_id, 0.25, 1, 0,
+                    "2026-01-01T00:00:00+00:00",
+                ),
+            )
+            connection.execute(
+                """INSERT INTO account_shelf_items (
+                    owner_user_id, device_id, story_id, reading_progress,
+                    is_bookmarked, is_completed, updated_at_utc
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    "owner-legacy", "device-legacy", story_id, 0.25, 1, 0,
+                    "2026-01-01T00:00:00+00:00",
+                ),
+            )
+            connection.execute(
+                """INSERT INTO reading_sessions (
+                    owner_user_id, id, story_id, seconds_read, read_at_utc, is_completed
+                ) VALUES (?, ?, ?, ?, ?, ?)""",
+                (
+                    "owner-legacy", f"reading-session-{index}", story_id, 60,
+                    "2026-01-01T00:00:00+00:00", 0,
+                ),
+            )
         authored_story_id = str(uuid4())
         connection.execute(
             """
@@ -948,6 +1114,7 @@ def test_init_db_removes_only_legacy_demo_stories_and_chapters():
                 "2026-01-01T00:00:00+00:00", "2026-01-01T00:00:00+00:00", str(uuid4()),
             ),
         )
+        connection.execute("PRAGMA user_version = 0")
         connection.commit()
     finally:
         connection.close()
@@ -965,12 +1132,29 @@ def test_init_db_removes_only_legacy_demo_stories_and_chapters():
             f"SELECT COUNT(*) FROM chapters WHERE story_id IN ({', '.join('?' for _ in LEGACY_DEMO_STORY_IDS)})",
             LEGACY_DEMO_STORY_IDS,
         ).fetchone()[0]
+        legacy_shelf_count = connection.execute(
+            f"SELECT COUNT(*) FROM shelf_items WHERE story_id IN ({', '.join('?' for _ in LEGACY_DEMO_STORY_IDS)})",
+            LEGACY_DEMO_STORY_IDS,
+        ).fetchone()[0]
+        legacy_account_shelf_count = connection.execute(
+            f"SELECT COUNT(*) FROM account_shelf_items WHERE story_id IN ({', '.join('?' for _ in LEGACY_DEMO_STORY_IDS)})",
+            LEGACY_DEMO_STORY_IDS,
+        ).fetchone()[0]
+        legacy_reading_session_count = connection.execute(
+            f"SELECT COUNT(*) FROM reading_sessions WHERE story_id IN ({', '.join('?' for _ in LEGACY_DEMO_STORY_IDS)})",
+            LEGACY_DEMO_STORY_IDS,
+        ).fetchone()[0]
         authored_story = connection.execute(
             "SELECT id FROM stories WHERE id = ?", (authored_story_id,)
         ).fetchone()
+        schema_version = connection.execute("PRAGMA user_version").fetchone()[0]
     finally:
         connection.close()
 
     assert legacy_story_count == 0
     assert legacy_chapter_count == 0
+    assert legacy_shelf_count == 0
+    assert legacy_account_shelf_count == 0
+    assert legacy_reading_session_count == 0
     assert authored_story["id"] == authored_story_id
+    assert schema_version == 1

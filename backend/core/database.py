@@ -2,6 +2,7 @@ import sqlite3
 import os
 
 DB_PATH = os.environ.get("FABLE_DB_PATH", "fable.sqlite3")
+SCHEMA_VERSION = 1
 LEGACY_DEMO_STORY_IDS = (
     "66666666-6666-6666-6666-666666666666",
     "77777777-7777-7777-7777-777777777777",
@@ -24,10 +25,23 @@ def get_db():
     conn.row_factory = sqlite3.Row
     return conn
 
+
+def _add_column_if_missing(conn, table_name, column_name, column_definition):
+    existing_columns = {
+        row["name"]
+        for row in conn.execute(f"PRAGMA table_info({table_name})").fetchall()
+    }
+    if column_name not in existing_columns:
+        conn.execute(
+            f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_definition}"
+        )
+
+
 def init_db():
     conn = get_db()
-    with conn:
-        conn.execute("""
+    try:
+        with conn:
+            conn.execute("""
             CREATE TABLE IF NOT EXISTS stories (
                 id TEXT PRIMARY KEY,
                 title TEXT NOT NULL,
@@ -61,8 +75,8 @@ def init_db():
                 provider_download_count INTEGER,
                 owner_user_id TEXT
             );
-        """)
-        conn.execute("""
+            """)
+            conn.execute("""
             CREATE TABLE IF NOT EXISTS chapters (
                 id TEXT PRIMARY KEY,
                 story_id TEXT NOT NULL,
@@ -74,23 +88,17 @@ def init_db():
                 page_urls TEXT DEFAULT '[]',
                 FOREIGN KEY(story_id) REFERENCES stories(id) ON DELETE CASCADE
             );
-        """)
-        for col_name, col_def in (
-            ("content_format", "TEXT DEFAULT 'PROSE'"),
-            ("source_provider", "TEXT DEFAULT 'FABLE_ORIGINAL'"),
-            ("provider_id", "TEXT"),
-            ("provider_download_count", "INTEGER"),
-            ("owner_user_id", "TEXT"),
-        ):
-            try:
-                conn.execute(f"ALTER TABLE stories ADD COLUMN {col_name} {col_def}")
-            except sqlite3.OperationalError:
-                pass
-        try:
-            conn.execute("ALTER TABLE chapters ADD COLUMN page_urls TEXT DEFAULT '[]'")
-        except sqlite3.OperationalError:
-            pass
-        conn.execute("""
+            """)
+            for column_name, column_definition in (
+                ("content_format", "TEXT DEFAULT 'PROSE'"),
+                ("source_provider", "TEXT DEFAULT 'FABLE_ORIGINAL'"),
+                ("provider_id", "TEXT"),
+                ("provider_download_count", "INTEGER"),
+                ("owner_user_id", "TEXT"),
+            ):
+                _add_column_if_missing(conn, "stories", column_name, column_definition)
+            _add_column_if_missing(conn, "chapters", "page_urls", "TEXT DEFAULT '[]'")
+            conn.execute("""
             CREATE TABLE IF NOT EXISTS shelf_items (
                 device_id TEXT NOT NULL,
                 story_id TEXT NOT NULL,
@@ -100,9 +108,9 @@ def init_db():
                 updated_at_utc TEXT NOT NULL,
                 PRIMARY KEY (device_id, story_id)
             );
-        """)
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_shelf_items_device ON shelf_items (device_id);")
-        conn.execute("""
+            """)
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_shelf_items_device ON shelf_items (device_id);")
+            conn.execute("""
             CREATE TABLE IF NOT EXISTS account_shelf_items (
                 owner_user_id TEXT NOT NULL,
                 device_id TEXT NOT NULL,
@@ -113,10 +121,10 @@ def init_db():
                 updated_at_utc TEXT NOT NULL,
                 PRIMARY KEY (owner_user_id, device_id, story_id)
             );
-        """)
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_account_shelf_owner_device ON account_shelf_items (owner_user_id, device_id);")
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_account_shelf_story ON account_shelf_items (story_id);")
-        conn.execute("""
+            """)
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_account_shelf_owner_device ON account_shelf_items (owner_user_id, device_id);")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_account_shelf_story ON account_shelf_items (story_id);")
+            conn.execute("""
             CREATE TABLE IF NOT EXISTS reading_sessions (
                 owner_user_id TEXT NOT NULL,
                 id TEXT NOT NULL,
@@ -126,9 +134,9 @@ def init_db():
                 is_completed INTEGER NOT NULL DEFAULT 0,
                 PRIMARY KEY (owner_user_id, id)
             );
-        """)
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_reading_sessions_owner_date ON reading_sessions (owner_user_id, read_at_utc);")
-        conn.execute("""
+            """)
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_reading_sessions_owner_date ON reading_sessions (owner_user_id, read_at_utc);")
+            conn.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 id TEXT PRIMARY KEY,
                 email TEXT UNIQUE NOT NULL,
@@ -141,17 +149,11 @@ def init_db():
                 created_at_utc TEXT NOT NULL,
                 updated_at_utc TEXT NOT NULL
             );
-        """)
-        for col_name, col_def in (
-            ("handle", "TEXT NOT NULL DEFAULT ''"),
-            ("bio", "TEXT NOT NULL DEFAULT ''"),
-        ):
-            try:
-                conn.execute(f"ALTER TABLE users ADD COLUMN {col_name} {col_def}")
-            except sqlite3.OperationalError:
-                pass
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);")
-        conn.execute("""
+            """)
+            _add_column_if_missing(conn, "users", "handle", "TEXT NOT NULL DEFAULT ''")
+            _add_column_if_missing(conn, "users", "bio", "TEXT NOT NULL DEFAULT ''")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);")
+            conn.execute("""
             CREATE TABLE IF NOT EXISTS user_sessions (
                 token_hash TEXT PRIMARY KEY,
                 user_id TEXT NOT NULL,
@@ -159,19 +161,43 @@ def init_db():
                 expires_at_utc TEXT NOT NULL,
                 revoked_at_utc TEXT
             );
-        """)
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_user_sessions_user ON user_sessions (user_id);")
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_chapters_story_id ON chapters (story_id);")
+            """)
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_user_sessions_user ON user_sessions (user_id);")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_chapters_story_id ON chapters (story_id);")
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS auth_rate_limits (
+                    bucket_key TEXT PRIMARY KEY,
+                    window_expires_at INTEGER NOT NULL,
+                    request_count INTEGER NOT NULL
+                );
+            """)
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_auth_rate_limits_expiry ON auth_rate_limits (window_expires_at);")
 
-        # Remove only the exact IDs from the retired bundled demo catalog.
-        placeholders = ", ".join("?" for _ in LEGACY_DEMO_STORY_IDS)
-        conn.execute(
-            f"DELETE FROM chapters WHERE story_id IN ({placeholders})",
-            LEGACY_DEMO_STORY_IDS,
-        )
-        conn.execute(
-            f"DELETE FROM stories WHERE id IN ({placeholders})",
-            LEGACY_DEMO_STORY_IDS,
-        )
+            current_version = conn.execute("PRAGMA user_version").fetchone()[0]
+            if current_version > SCHEMA_VERSION:
+                raise RuntimeError(
+                    f"Database schema version {current_version} is newer than supported version {SCHEMA_VERSION}."
+                )
 
-    conn.close()
+            if current_version < 1:
+                placeholders = ", ".join("?" for _ in LEGACY_DEMO_STORY_IDS)
+                for table_name in ("shelf_items", "account_shelf_items"):
+                    conn.execute(
+                        f"DELETE FROM {table_name} WHERE story_id IN ({placeholders})",
+                        LEGACY_DEMO_STORY_IDS,
+                    )
+                conn.execute(
+                    f"DELETE FROM reading_sessions WHERE story_id IN ({placeholders})",
+                    LEGACY_DEMO_STORY_IDS,
+                )
+                conn.execute(
+                    f"DELETE FROM chapters WHERE story_id IN ({placeholders})",
+                    LEGACY_DEMO_STORY_IDS,
+                )
+                conn.execute(
+                    f"DELETE FROM stories WHERE id IN ({placeholders})",
+                    LEGACY_DEMO_STORY_IDS,
+                )
+                conn.execute("PRAGMA user_version = 1")
+    finally:
+        conn.close()

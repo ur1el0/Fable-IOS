@@ -7,7 +7,7 @@ services:
         FABLE_UID: ${FABLE_UID:-1000}
         FABLE_GID: ${FABLE_GID:-1000}
     ports:
-      - "${FABLE_PORT:-8000}:8000"
+      - "${FABLE_BIND_ADDRESS:-127.0.0.1}:${FABLE_PORT:-8000}:8000"
     volumes:
       - ./data:/app/data
     env_file:
