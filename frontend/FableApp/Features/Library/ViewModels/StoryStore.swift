@@ -98,6 +98,26 @@ public final class StoryStore: ObservableObject {
             updatedAtUtc: .distantPast
         )
 
+        private init(
+            readingProgress: Double,
+            isBookmarked: Bool,
+            isCompleted: Bool,
+            currentPage: Int,
+            totalPages: Int,
+            lastReadChapterId: String?,
+            lastReadChapterNumber: Int?,
+            updatedAtUtc: Date
+        ) {
+            self.readingProgress = readingProgress
+            self.isBookmarked = isBookmarked
+            self.isCompleted = isCompleted
+            self.currentPage = currentPage
+            self.totalPages = totalPages
+            self.lastReadChapterId = lastReadChapterId
+            self.lastReadChapterNumber = lastReadChapterNumber
+            self.updatedAtUtc = updatedAtUtc
+        }
+
         init(story: Story, updatedAtUtc: Date = Date()) {
             self.readingProgress = Double(story.progressPercent) / 100.0
             self.isBookmarked = story.isBookmarked
