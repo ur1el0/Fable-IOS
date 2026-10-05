@@ -51,6 +51,8 @@ jobs:
             exit 1
           fi
           CONFIGURATION=Release FABLE_API_BASE_URL=https://api.example.com/api/v1 scripts/validate_ios_release_config.sh
+      - name: Install iOS Simulator runtime
+        run: xcodebuild -downloadPlatform iOS
       - name: Build and test iOS app
         run: >-
           xcodebuild
