@@ -30,3 +30,44 @@ jobs:
         uses: actions/checkout@v4
       - name: Build backend image
         run: docker build -t fable-backend:test -f backend/Dockerfile .
+
+  ios-verification:
+    runs-on: macos-15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Verify Release API URL guard
+        run: |
+          if CONFIGURATION=Release FABLE_API_BASE_URL=http://127.0.0.1:8000/api/v1 scripts/validate_ios_release_config.sh; then
+            echo "The Release URL guard accepted an HTTP loopback URL."
+            exit 1
+          fi
+          if CONFIGURATION=Release FABLE_API_BASE_URL=https://127.1/api/v1 scripts/validate_ios_release_config.sh; then
+            echo "The Release URL guard accepted an abbreviated loopback address."
+            exit 1
+          fi
+          if CONFIGURATION=Release FABLE_API_BASE_URL= scripts/validate_ios_release_config.sh; then
+            echo "The Release URL guard accepted a missing API URL."
+            exit 1
+          fi
+          CONFIGURATION=Release FABLE_API_BASE_URL=https://api.example.com/api/v1 scripts/validate_ios_release_config.sh
+      - name: Build and test iOS app
+        run: >-
+          xcodebuild
+          -project frontend/FableApp.xcodeproj
+          -scheme FableApp
+          -destination 'platform=iOS Simulator,name=iPhone 16'
+          -derivedDataPath build/DerivedData
+          CODE_SIGNING_ALLOWED=NO
+          test
+      - name: Verify Release build
+        run: >-
+          xcodebuild
+          -project frontend/FableApp.xcodeproj
+          -scheme FableApp
+          -configuration Release
+          -destination 'generic/platform=iOS Simulator'
+          -derivedDataPath build/ReleaseDerivedData
+          FABLE_API_BASE_URL=https://api.example.com/api/v1
+          CODE_SIGNING_ALLOWED=NO
+          build

@@ -155,8 +155,8 @@ public final class AuthManager: ObservableObject {
             authErrorMessage = "Please provide a valid email."
             return false
         }
-        guard password.count >= 6 else {
-            authErrorMessage = "Password must be at least 6 characters."
+        guard password.count >= 12 else {
+            authErrorMessage = "Password must be at least 12 characters."
             return false
         }
 
