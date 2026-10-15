@@ -268,3 +268,9 @@ This progress log tracks the transition of **Fable** from an editorial prototype
 - [x] Verified 100% clean Xcode compilation (`** BUILD SUCCEEDED **`) on iOS Simulator platform.
 - [x] Verified full backend suite: 36/36 tests passing in `backend/test_main.py`.
 
+## Unconstrained Global Book Search (2026-10-15)
+
+- [x] Removed unintended `default="folklore"` parameter assignment in `backend/api/v1/endpoints/gutenberg.py`, switching topic query default to `None`.
+- [x] Verified unconstrained global searches (e.g. *Sherlock Holmes*, *Dracula*, *Moby Dick*, *Frankenstein*) return live catalog records from Gutenberg gateway.
+- [x] Maintained 100% test pass rate: 36/36 tests passing in `backend/test_main.py`.
+
