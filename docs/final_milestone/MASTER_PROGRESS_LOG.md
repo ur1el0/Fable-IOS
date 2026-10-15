@@ -361,3 +361,20 @@ This progress log tracks the transition of **Fable** from an editorial prototype
   - Swift compilation verified via `xcodebuild` on iOS Simulator (`** BUILD SUCCEEDED **`).
   - Backend pytest suite verified: 39/39 tests green.
 
+## Manga Direct CDN Panel Resolution & Live Simulator Verification (2026-10-15)
+
+- [x] **Root Cause Diagnosis (Guided Debugging):**
+  - Diagnosed why *Chainsaw Man* was still rendering the VIZ Media redirection card on the booted iOS Simulator:
+    1. SwiftData and memory cache guard (`isUsable`) previously accepted external URL strings (`content.starts(with: "http")`) as "usable chapters", locking the reader into the stale VIZ Media metadata without requesting live panels.
+    2. The running simulator had not yet re-installed and executed the updated build.
+- [x] **Strict Manga Panel Validation:**
+  - Updated `isUsable` in `StoryStore.swift` (`syncWithPersistence` and `fetchChapters`) and `MangaReaderView.swift` (`loadMangaChapters`) to enforce `!$0.pageUrls.isEmpty` when `contentFormat == .manga`.
+  - Stale 0-page chapters are rejected, forcing the app to fetch authentic panels from the backend proxy.
+- [x] **Backend Manga Ingestion:**
+  - Ingested *Chainsaw Man* (`a77742b1-befd-49a4-bff5-1ad4e6b0ef7b`) into `backend/fable.sqlite3` with 20 chapters and 70KB of CDN page URLs.
+- [x] **Live Simulator Navigation Verification:**
+  - Deployed updated build to booted iOS Simulator (iPhone 17 Pro) via `xcrun simctl install booted`.
+  - Launched app and navigated directly to *Chainsaw Man*.
+  - Verified live rendered screen via screenshot: **53 high-resolution manga panels rendered smoothly** under Webtoon vertical scroll and horizontal paging, with the interactive bottom scrubber reporting `WEBTOON • PAGE 1 OF 53`. Zero redirection cards remain.
+
+
