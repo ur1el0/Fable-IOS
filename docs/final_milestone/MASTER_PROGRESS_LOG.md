@@ -298,4 +298,22 @@ This progress log tracks the transition of **Fable** from an editorial prototype
 - [x] Enforced Tier-3 cover art preview fallback when direct panel images are absent, preventing dead-end blank reader screens.
 - [x] Verified zero regressions: Xcode iOS build succeeded and backend pytest suite passed (36/36 tests green).
 
+## Tachiyomi Manga Ingestion & Advanced Reader Engine Implementation (2026-10-15)
+
+- [x] **Backend Manga Ingestion & Proxy Service (Phase 2):**
+  - Implemented `backend/services/manga.py` featuring upstream MangaDex API querying, deterministic UUID5 generation (`MANGA_NAMESPACE`), and in-memory TTL caching (10-minute cache window) to protect against upstream 5 req/s rate limits.
+  - Implemented `backend/api/v1/endpoints/manga.py` providing endpoints: `GET /api/v1/public/manga`, `GET /api/v1/public/manga/{manga_id}`, `GET /api/v1/public/manga/{manga_id}/chapters`, and `POST /api/v1/stories/ingest/manga/{manga_id}`.
+  - Registered manga router in `backend/api/v1/api.py` and exported through `backend/services/__init__.py`.
+  - Added full test coverage in `backend/test_main.py` verifying search, metadata resolution, CDN panel extraction, and SQLite library ingestion (**39/39 tests passing**).
+- [x] **Client-Side Routing through Backend Proxy:**
+  - Upgraded `StoryAPIService.swift` (`fetchMangaStories` and `fetchMangaChapters`) to route through Fable's FastAPI proxy cache first, with automatic fallback to direct upstream calls if the backend is unreachable.
+- [x] **Advanced Native Manga Reader Engine (Phase 1):**
+  - Added traditional Japanese Right-to-Left reading mode (`.rightToLeft = "Manga (RTL)"`) to `MangaReadingMode` with native `.environment(\.layoutDirection)` swipe handling.
+  - Implemented Tachiyomi-style **3-Zone Tap Navigation**: Left 30% advances/backtracks by mode, Center 40% toggles chrome overlay, Right 30% advances/backtracks by mode, complete with haptic feedback.
+  - Implemented interactive bottom **Page Scrubber Slider** with live `Page X of Y` position reporting and smooth drag seeking.
+  - Implemented night reading **Ink Inversion Filter** (`isInvertedColor` with `.applyColorInvert()`) for high-contrast OLED reading.
+  - Upgraded top navigation chrome with a reading mode selection Menu and ink inversion toggle button.
+  - Expanded `ReaderTests.swift` verifying `.rightToLeft` enum, icon bindings, and case completeness.
+  - Verified 100% clean compilation via `xcodebuild` (`** BUILD SUCCEEDED **`) on iOS Simulator.
+
 
