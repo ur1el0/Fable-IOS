@@ -1183,6 +1183,65 @@ public final class StoryStore: ObservableObject {
         }
     }
 
+    func updateMangaProgress(
+        for storyId: UUID,
+        page: Int,
+        totalPages: Int,
+        chapterIndex: Int,
+        totalChapters: Int,
+        chapterId: String,
+        chapterNumber: Int
+    ) {
+        if let idx = stories.firstIndex(where: { $0.id == storyId }) {
+            stories[idx].currentPage = page
+            stories[idx].totalPages = totalPages
+            stories[idx].lastReadChapterId = chapterId
+            stories[idx].lastReadChapterNumber = chapterNumber
+            
+            let safeTotalChaps = max(1, totalChapters)
+            let safeTotalPages = max(1, totalPages)
+            let fraction = (Double(chapterIndex) / Double(safeTotalChaps)) + ((Double(page) / Double(safeTotalPages)) * (1.0 / Double(safeTotalChaps)))
+            let pct = min(100, max(1, Int((fraction * 100.0).rounded())))
+            stories[idx].progressPercent = pct
+            
+            if pct >= 100 {
+                stories[idx].isCompleted = true
+                if autoArchiveCompletedStories {
+                    stories[idx].isBookmarked = false
+                    PersistenceService.shared.setBookmark(storyId: storyId, isBookmarked: false)
+                }
+            }
+            
+            PersistenceService.shared.updateProgress(
+                storyId: storyId,
+                progressPercent: pct,
+                isCompleted: pct >= 100,
+                page: page,
+                totalPages: totalPages
+            )
+            PersistenceService.shared.updateReadingProgress(
+                storyId: storyId,
+                chapterId: chapterId,
+                chapterNumber: chapterNumber
+            )
+            reloadReadingStats()
+            persistShelfState(for: stories[idx])
+            
+            let currentBookmarked = stories[idx].isBookmarked
+            Task { [weak self] in
+                guard let self = self else { return }
+                let item = ShelfSyncItem(
+                    storyId: storyId,
+                    readingProgress: Double(pct) / 100.0,
+                    isBookmarked: currentBookmarked,
+                    isCompleted: pct >= 100,
+                    updatedAtUtc: Date()
+                )
+                _ = await self.syncShelfToAccount([item])
+            }
+        }
+    }
+
     func logReadingSession(for story: Story, seconds: Int) {
         guard seconds >= 3, let session = AuthManager.shared.currentSession else { return }
         let completed = stories.first(where: { $0.id == story.id })?.isCompleted ?? story.isCompleted

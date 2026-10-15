@@ -225,7 +225,7 @@ public struct LibraryView: View {
                         }
 
                         // Continue Reading Section
-                        if let inProgressStory = store.stories.first(where: { $0.progressPercent > 0 && !$0.isCompleted }) {
+                        if let inProgressStory = store.stories.first(where: { !PersistenceService.legacyDemoStoryIds.contains($0.id) && $0.progressPercent > 0 && !$0.isCompleted }) {
                             VStack(alignment: .leading, spacing: 12) {
                                 HStack {
                                     Text("Continue Reading")
@@ -285,9 +285,15 @@ public struct LibraryView: View {
                                             .frame(height: 4)
                                             .padding(.top, 2)
                                             
-                                            Text("\(inProgressStory.progressPercent)% complete • Page \(inProgressStory.currentPage) of \(inProgressStory.totalPages)")
-                                                .font(.system(size: 11, weight: .medium))
-                                                .foregroundColor(FableTheme.textMuted)
+                                            if inProgressStory.contentFormat == .manga, let chapNum = inProgressStory.lastReadChapterNumber {
+                                                Text("\(inProgressStory.progressPercent)% complete • Ch. \(chapNum) • Page \(inProgressStory.currentPage) of \(inProgressStory.totalPages)")
+                                                    .font(.system(size: 11, weight: .medium))
+                                                    .foregroundColor(FableTheme.textMuted)
+                                            } else {
+                                                Text("\(inProgressStory.progressPercent)% complete • Page \(inProgressStory.currentPage) of \(inProgressStory.totalPages)")
+                                                    .font(.system(size: 11, weight: .medium))
+                                                    .foregroundColor(FableTheme.textMuted)
+                                            }
                                         }
                                         
                                         Spacer()

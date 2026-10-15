@@ -11,13 +11,14 @@ public struct ShelfView: View {
     let tabs = ["Saved", "Finished", "My Drafts"]
     
     var displayedStories: [Story] {
+        let activePool = store.stories.filter { !PersistenceService.legacyDemoStoryIds.contains($0.id) }
         switch selectedTab {
         case "Finished":
-            return store.stories.filter { $0.isCompleted || $0.progressPercent >= 100 }
+            return activePool.filter { $0.isCompleted || $0.progressPercent >= 100 }
         case "My Drafts":
             return store.profileStories
         default: // "Saved"
-            return store.stories.filter { $0.isBookmarked }
+            return activePool.filter { $0.isBookmarked }
         }
     }
     
