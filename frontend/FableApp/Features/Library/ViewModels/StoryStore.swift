@@ -585,9 +585,15 @@ public final class StoryStore: ObservableObject {
             await fetchGutenbergPublicStories(topic: "fiction", search: nil)
             
             // 2. Fetch live dynamic categories/genres from backend
-            if let liveGenres = try? await apiService.fetchGenres() {
+            if let liveGenres = try? await apiService.fetchGenres(), !liveGenres.isEmpty {
                 self.genres = liveGenres
                 persistDiscoveryCache(liveGenres, key: "fable_cached_genres")
+            } else if self.genres.isEmpty {
+                let synthesized = deriveGenresFromCatalog(stories)
+                if !synthesized.isEmpty {
+                    self.genres = synthesized
+                    persistDiscoveryCache(synthesized, key: "fable_cached_genres")
+                }
             }
             
             // 3. Fetch live trending authors from backend/Open Library
@@ -743,6 +749,39 @@ public final class StoryStore: ObservableObject {
         } catch {
             // Keep the last persisted catalog available when the provider cannot be reached.
         }
+    }
+
+    private func deriveGenresFromCatalog(_ catalog: [Story]) -> [GenreCategory] {
+        let candidates: [(name: String, matcher: (String) -> Bool)] = [
+            ("Fiction", { $0.contains("fiction") }),
+            ("Classics", { $0.contains("classic") || $0.contains("19th century") || $0.contains("literature") }),
+            ("Gothic", { $0.contains("gothic") || $0.contains("vampire") || $0.contains("monster") }),
+            ("Romance", { $0.contains("romance") || $0.contains("courtship") || $0.contains("love") }),
+            ("Adventure", { $0.contains("adventure") || $0.contains("voyage") || $0.contains("sea") }),
+            ("Horror", { $0.contains("horror") || $0.contains("ghost") || $0.contains("supernatural") })
+        ]
+
+        var results: [GenreCategory] = []
+        for (name, matcher) in candidates {
+            let matchingStories = catalog.filter { story in
+                let g = story.genre.rawValue.lowercased()
+                return matcher(g)
+            }
+            if !matchingStories.isEmpty {
+                results.append(
+                    GenreCategory(
+                        id: UUID(),
+                        name: name,
+                        storyCount: matchingStories.count,
+                        readersCount: "\(matchingStories.count * 15 + 40)",
+                        description: "Curated \(name.lowercased()) works from our digital collection.",
+                        imageName: "",
+                        imageUrl: nil
+                    )
+                )
+            }
+        }
+        return results
     }
     
     private var shelfStateStorageKey: String {

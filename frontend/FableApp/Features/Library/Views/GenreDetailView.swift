@@ -17,8 +17,10 @@ public struct GenreDetailView: View {
     }
     
     var genreStories: [Story] {
-        let matching = store.stories.filter {
-            $0.genre.rawValue.caseInsensitiveCompare(genre.name) == .orderedSame
+        let target = genre.name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let matching = store.stories.filter { story in
+            let g = story.genre.rawValue.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            return g == target || g.contains(target) || target.contains(g)
         }
         let list = matching
         switch selectedSubcategory {
@@ -188,7 +190,7 @@ public struct GenreDetailView: View {
                                             selectedStoryToRead = story
                                         } label: {
                                             HStack(alignment: .top, spacing: 14) {
-                                                FableImageView(name: story.effectiveCoverImage, placeholderIcon: "book")
+                                                FableImageView(name: story.effectiveCoverImage, title: story.title, placeholderIcon: "book")
                                                     .frame(width: 72, height: 90)
                                                     .clipShape(RoundedRectangle(cornerRadius: 12))
 
