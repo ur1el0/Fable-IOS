@@ -497,7 +497,7 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
         components.queryItems = [
             URLQueryItem(name: "translatedLanguage[]", value: "en"),
             URLQueryItem(name: "order[chapter]", value: "asc"),
-            URLQueryItem(name: "limit", value: "10")
+            URLQueryItem(name: "limit", value: "20")
         ]
         guard let url = components.url else { throw URLError(.badURL) }
 
@@ -525,9 +525,11 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
             let chNumStr = attrs["chapter"] as? String ?? "\(index + 1)"
             let chNum = Int(chNumStr) ?? (index + 1)
             let displayTitle = chTitle.isEmpty ? "Chapter \(chNumStr)" : "Ch. \(chNumStr) - \(chTitle)"
+            let externalUrl = attrs["externalUrl"] as? String
 
             var pageUrls: [String] = []
-            if let atHomeURL = URL(string: "https://api.mangadex.org/at-home/server/\(chId)") {
+            // Only request @at-home CDN panels if this is not an external publisher redirect
+            if externalUrl == nil, let atHomeURL = URL(string: "https://api.mangadex.org/at-home/server/\(chId)") {
                 var ahReq = URLRequest(url: atHomeURL)
                 ahReq.setValue("Fable/1.0 (iOS client; https://github.com/ur1el0/Fable-IOS)", forHTTPHeaderField: "User-Agent")
                 ahReq.timeoutInterval = 10.0
@@ -549,7 +551,7 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
                     storyId: storyId,
                     chapterNumber: chNum,
                     title: displayTitle,
-                    content: "",
+                    content: externalUrl ?? "",
                     wordCount: 0,
                     createdAtUtc: Date(),
                     pageUrls: pageUrls
