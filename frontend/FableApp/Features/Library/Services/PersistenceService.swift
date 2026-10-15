@@ -31,6 +31,39 @@ public final class PersistenceService {
             fatalError("Failed to initialize SwiftData ModelContainer: \(error)")
         }
     }
+
+    public static let legacyDemoStoryIds: Set<UUID> = [
+        UUID(uuidString: "66666666-6666-6666-6666-666666666666")!,
+        UUID(uuidString: "77777777-7777-7777-7777-777777777777")!,
+        UUID(uuidString: "88888888-8888-8888-8888-888888888888")!,
+        UUID(uuidString: "99999999-9999-9999-9999-999999999999")!,
+        UUID(uuidString: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")!,
+        UUID(uuidString: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")!,
+        UUID(uuidString: "cccccccc-cccc-cccc-cccc-cccccccccccc")!,
+        UUID(uuidString: "dddddddd-dddd-dddd-dddd-dddddddddddd")!,
+        UUID(uuidString: "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee")!,
+        UUID(uuidString: "ffffffff-ffff-ffff-ffff-ffffffffffff")!,
+        UUID(uuidString: "10101010-1010-1010-1010-101010101010")!,
+        UUID(uuidString: "20202020-2020-2020-2020-202020202020")!
+    ]
+
+    public func purgeLegacyDemoStories() {
+        do {
+            let entities = try context.fetch(FetchDescriptor<StoryEntity>())
+            var purged = false
+            for entity in entities {
+                if Self.legacyDemoStoryIds.contains(entity.id) {
+                    context.delete(entity)
+                    purged = true
+                }
+            }
+            if purged {
+                try context.save()
+            }
+        } catch {
+            print("Failed to purge legacy demo stories: \(error)")
+        }
+    }
     
     // Fetch all persistent stories
     public func fetchAllStories() -> [StoryEntity] {
@@ -38,7 +71,8 @@ public final class PersistenceService {
             sortBy: [SortDescriptor(\.createdAtUtc, order: .reverse)]
         )
         do {
-            return try context.fetch(descriptor)
+            let entities = try context.fetch(descriptor)
+            return entities.filter { !Self.legacyDemoStoryIds.contains($0.id) }
         } catch {
             print("Failed to fetch stories: \(error)")
             return []

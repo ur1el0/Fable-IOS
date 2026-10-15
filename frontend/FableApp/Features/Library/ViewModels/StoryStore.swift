@@ -87,7 +87,7 @@ public final class StoryStore: ObservableObject {
         var lastReadChapterNumber: Int?
         var updatedAtUtc: Date
 
-        static let empty = LocalShelfState(
+        nonisolated static let empty = LocalShelfState(
             readingProgress: 0,
             isBookmarked: false,
             isCompleted: false,
@@ -173,6 +173,7 @@ public final class StoryStore: ObservableObject {
     @Published var profileStories: [Story] = []
     
     init() {
+        PersistenceService.shared.purgeLegacyDemoStories()
         loadReaderPreferences()
         restoreDiscoveryCache()
         restoreWriterDraft()
@@ -436,7 +437,7 @@ public final class StoryStore: ObservableObject {
                         progressPercent: Int(entity.readingProgress * 100.0),
                         rating: nil,
                         providerDownloadCount: entity.providerDownloadCount,
-                        isRecentSubmission: true,
+                        isRecentSubmission: false,
                         isSaved: entity.isBookmarked,
                         isFinished: entity.isCompleted,
                         contentFormat: ContentFormat(rawValue: entity.contentFormatRaw ?? "PROSE") ?? .prose,
@@ -446,7 +447,7 @@ public final class StoryStore: ObservableObject {
                         lastReadChapterId: entity.lastReadChapterId,
                         lastReadChapterNumber: entity.lastReadChapterNumber
                     )
-                    stories.insert(userStory, at: 0)
+                    stories.append(userStory)
                 }
             }
         }
@@ -600,16 +601,18 @@ public final class StoryStore: ObservableObject {
             await fetchGutenbergPublicStories(topic: "fiction", search: nil)
             await fetchMangaPublicStories(search: nil)
             
-            // 2. Fetch live dynamic categories/genres from backend
-            if let liveGenres = try? await apiService.fetchGenres(), !liveGenres.isEmpty {
-                self.genres = liveGenres
-                persistDiscoveryCache(liveGenres, key: "fable_cached_genres")
-            } else if self.genres.isEmpty {
-                let synthesized = deriveGenresFromCatalog(stories)
-                if !synthesized.isEmpty {
-                    self.genres = synthesized
-                    persistDiscoveryCache(synthesized, key: "fable_cached_genres")
+            // 2. Fetch live dynamic categories/genres from backend and merge catalog taxonomy
+            let liveGenres = (try? await apiService.fetchGenres()) ?? []
+            let synthesized = deriveGenresFromCatalog(stories)
+            var mergedGenres = liveGenres
+            for item in synthesized {
+                if !mergedGenres.contains(where: { $0.name.caseInsensitiveCompare(item.name) == .orderedSame }) {
+                    mergedGenres.append(item)
                 }
+            }
+            if !mergedGenres.isEmpty {
+                self.genres = mergedGenres
+                persistDiscoveryCache(mergedGenres, key: "fable_cached_genres")
             }
             
             // 3. Fetch live trending authors from backend/Open Library
@@ -857,16 +860,17 @@ public final class StoryStore: ObservableObject {
             ("Manga", { $0.contains("manga") }),
             ("Fiction", { $0.contains("fiction") }),
             ("Classics", { $0.contains("classic") || $0.contains("19th century") || $0.contains("literature") }),
-            ("Gothic", { $0.contains("gothic") || $0.contains("vampire") || $0.contains("monster") }),
-            ("Romance", { $0.contains("romance") || $0.contains("courtship") || $0.contains("love") }),
-            ("Adventure", { $0.contains("adventure") || $0.contains("voyage") || $0.contains("sea") }),
-            ("Horror", { $0.contains("horror") || $0.contains("ghost") || $0.contains("supernatural") })
+            ("Sci-Fi", { $0.contains("sci-fi") || $0.contains("science fiction") || $0.contains("space") || $0.contains("time") }),
+            ("Gothic", { $0.contains("gothic") || $0.contains("vampire") || $0.contains("dracula") || $0.contains("frankenstein") || $0.contains("monster") }),
+            ("Romance", { $0.contains("romance") || $0.contains("courtship") || $0.contains("love") || $0.contains("pride") }),
+            ("Adventure", { $0.contains("adventure") || $0.contains("voyage") || $0.contains("sea") || $0.contains("journey") }),
+            ("Horror", { $0.contains("horror") || $0.contains("ghost") || $0.contains("supernatural") || $0.contains("terror") })
         ]
 
         var results: [GenreCategory] = []
         for (name, matcher) in candidates {
             let matchingStories = catalog.filter { story in
-                let g = story.genre.rawValue.lowercased()
+                let g = (story.genre.rawValue + " " + story.title + " " + story.synopsis).lowercased()
                 return matcher(g)
             }
             if !matchingStories.isEmpty {
@@ -884,6 +888,33 @@ public final class StoryStore: ObservableObject {
             }
         }
         return results
+    }
+
+    public func storyMatchesCategory(_ story: Story, category: String) -> Bool {
+        if category == "All" { return true }
+        if category == "Manga" {
+            return story.contentFormat == .manga || story.genre == .manga || story.sourceProvider == .mangadex
+        }
+        let lowerCat = category.lowercased()
+        let haystack = (story.genre.rawValue + " " + story.title + " " + story.synopsis).lowercased()
+        switch lowerCat {
+        case "fiction":
+            return haystack.contains("fiction") || story.contentFormat == .prose
+        case "classics":
+            return haystack.contains("classic") || haystack.contains("literature") || haystack.contains("19th century") || story.sourceProvider == .gutenberg
+        case "sci-fi":
+            return haystack.contains("sci-fi") || haystack.contains("science fiction") || haystack.contains("space") || haystack.contains("time")
+        case "gothic":
+            return haystack.contains("gothic") || haystack.contains("vampire") || haystack.contains("dracula") || haystack.contains("frankenstein") || haystack.contains("monster")
+        case "romance":
+            return haystack.contains("romance") || haystack.contains("courtship") || haystack.contains("love") || haystack.contains("pride")
+        case "adventure":
+            return haystack.contains("adventure") || haystack.contains("voyage") || haystack.contains("sea") || haystack.contains("journey")
+        case "horror":
+            return haystack.contains("horror") || haystack.contains("ghost") || haystack.contains("supernatural") || haystack.contains("terror")
+        default:
+            return haystack.contains(lowerCat)
+        }
     }
     
     private var shelfStateStorageKey: String {

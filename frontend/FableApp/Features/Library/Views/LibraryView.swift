@@ -31,15 +31,11 @@ public struct LibraryView: View {
                 return false
             }
         }
-        let candidateStories = store.stories.filter { $0.isRecentSubmission }
-        let sourceList = candidateStories.isEmpty ? store.stories : candidateStories
+        let validStories = store.stories.filter { !PersistenceService.legacyDemoStoryIds.contains($0.id) }
         if selectedFilter == "All" {
-            return sourceList
+            return validStories
         } else {
-            return sourceList.filter {
-                $0.genre.rawValue.localizedCaseInsensitiveContains(selectedFilter) ||
-                $0.title.localizedCaseInsensitiveContains(selectedFilter)
-            }
+            return validStories.filter { store.storyMatchesCategory($0, category: selectedFilter) }
         }
     }
     
@@ -146,7 +142,7 @@ public struct LibraryView: View {
                         }
 
                         // Featured Hero Card
-                        if let featuredStory = (selectedFilter == "Manga" ? filteredRecentStories.first : (store.stories.first(where: { $0.isTaleOfTheDay }) ?? store.stories.first)) {
+                        if let featuredStory = (selectedFilter == "All" ? (filteredRecentStories.first(where: { $0.isTaleOfTheDay }) ?? filteredRecentStories.first) : filteredRecentStories.first) {
                             VStack(alignment: .leading, spacing: 0) {
                                 ZStack(alignment: .top) {
                                     Button {
