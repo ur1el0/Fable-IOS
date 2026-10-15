@@ -316,4 +316,14 @@ This progress log tracks the transition of **Fable** from an editorial prototype
   - Expanded `ReaderTests.swift` verifying `.rightToLeft` enum, icon bindings, and case completeness.
   - Verified 100% clean compilation via `xcodebuild` (`** BUILD SUCCEEDED **`) on iOS Simulator.
 
+## Stale Chapter Cache Invalidation Guard & TLS 1.3 Upstream Resilience (2026-10-15)
 
+- [x] **Backend TLS 1.3 Upstream Handshake Resilience:**
+  - Resolved Python 3.9's macOS system `LibreSSL 2.8.3` handshake incompatibility with Cloudflare on `api.mangadex.org` (`tlsv1 alert protocol version`).
+  - Implemented `_fetch_json_with_fallback` in `backend/services/manga.py`, automatically routing requests through macOS native `/usr/bin/curl` with full TLS 1.3 support whenever LibreSSL fails.
+  - Relaxed `ChapterDTO` schema validation in `backend/schemas/schemas.py` to allow `chapter_number >= 0` to accommodate prologue and extra chapters.
+- [x] **Client-Side Stale Cache Invalidation Guards:**
+  - Added cache usability validation in `StoryStore.swift` (`fetchChapters`) and `MangaReaderView.swift` (`loadMangaChapters`).
+  - Stale cached chapter sets containing zero image panels and no external links are now automatically bypassed and re-fetched live from the backend proxy.
+  - Upgraded `externalChapterURL` in `MangaReaderView.swift` to search all available chapters for external licensed links if `currentChapter` is unset.
+  - Verified 100% clean compilation via `xcodebuild` (`** BUILD SUCCEEDED **`) and backend test suite green (39/39 passing).
