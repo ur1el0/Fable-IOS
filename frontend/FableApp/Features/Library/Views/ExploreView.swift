@@ -95,6 +95,7 @@ public struct ExploreView: View {
                             
                             if !searchText.isEmpty {
                                 Button(action: {
+                                    FableHaptics.light()
                                     searchText = ""
                                 }) {
                                     Image(systemName: "xmark.circle.fill")
@@ -105,8 +106,12 @@ public struct ExploreView: View {
                         .padding(.horizontal, 16)
                         .padding(.vertical, 14)
                         .background(FableTheme.cardBackground)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
-                        .shadow(color: Color.black.opacity(0.03), radius: 6, y: 2)
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .stroke(FableTheme.divider.opacity(0.8), lineWidth: 0.8)
+                        )
+                        .shadow(color: Color.black.opacity(0.03), radius: 8, y: 2)
                         .padding(.horizontal, 20)
                         
                         // If searching, show search results
@@ -183,7 +188,8 @@ public struct ExploreView: View {
                             HStack(spacing: 8) {
                                 ForEach(filters, id: \.self) { filter in
                                     Button(action: {
-                                        withAnimation {
+                                        FableHaptics.selection()
+                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
                                             selectedFilter = filter
                                         }
                                     }) {
@@ -200,6 +206,7 @@ public struct ExploreView: View {
                                         .background(selectedFilter == filter ? FableTheme.brandPrimary : FableTheme.surfaceVariant)
                                         .foregroundColor(selectedFilter == filter ? .white : FableTheme.textPrimary)
                                         .clipShape(Capsule())
+                                        .shadow(color: selectedFilter == filter ? FableTheme.brandPrimary.opacity(0.25) : Color.clear, radius: 4, y: 2)
                                     }
                                 }
                             }
