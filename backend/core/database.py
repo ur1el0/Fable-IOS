@@ -90,6 +90,10 @@ def init_db():
             conn.execute("ALTER TABLE chapters ADD COLUMN page_urls TEXT DEFAULT '[]'")
         except sqlite3.OperationalError:
             pass
+        try:
+            conn.execute("ALTER TABLE shelf_items ADD COLUMN device_id TEXT NOT NULL DEFAULT ''")
+        except sqlite3.OperationalError:
+            pass
         conn.execute("""
             CREATE TABLE IF NOT EXISTS shelf_items (
                 device_id TEXT NOT NULL,
