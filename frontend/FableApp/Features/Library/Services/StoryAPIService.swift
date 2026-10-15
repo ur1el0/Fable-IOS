@@ -536,7 +536,8 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
         components.queryItems = [
             URLQueryItem(name: "translatedLanguage[]", value: "en"),
             URLQueryItem(name: "order[chapter]", value: "asc"),
-            URLQueryItem(name: "limit", value: "20")
+            URLQueryItem(name: "includeExternalUrl", value: "0"),
+            URLQueryItem(name: "limit", value: "50")
         ]
         guard let url = components.url else { throw URLError(.badURL) }
 
@@ -544,25 +545,65 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
         request.setValue("Fable/1.0 (iOS client; https://github.com/ur1el0/Fable-IOS)", forHTTPHeaderField: "User-Agent")
         request.timeoutInterval = 15.0
 
-        let (data, response) = try await session.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
-            throw URLError(.badServerResponse)
+        var chaptersData: [[String: Any]] = []
+        if let (data, response) = try? await session.data(for: request),
+           let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode),
+           let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+           let items = root["data"] as? [[String: Any]] {
+            chaptersData = items
         }
 
-        guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let chaptersData = root["data"] as? [[String: Any]] else {
-            return []
+        // Fallback: If no direct chapters exist, allow external publisher links
+        if chaptersData.isEmpty {
+            var fallbackComponents = URLComponents(string: "https://api.mangadex.org/manga/\(mangaId)/feed")!
+            fallbackComponents.queryItems = [
+                URLQueryItem(name: "translatedLanguage[]", value: "en"),
+                URLQueryItem(name: "order[chapter]", value: "asc"),
+                URLQueryItem(name: "limit", value: "20")
+            ]
+            if let fallbackURL = fallbackComponents.url {
+                var fallbackReq = URLRequest(url: fallbackURL)
+                fallbackReq.setValue("Fable/1.0 (iOS client; https://github.com/ur1el0/Fable-IOS)", forHTTPHeaderField: "User-Agent")
+                fallbackReq.timeoutInterval = 15.0
+                if let (fbData, fbResp) = try? await session.data(for: fallbackReq),
+                   let fbHttp = fbResp as? HTTPURLResponse, (200...299).contains(fbHttp.statusCode),
+                   let fbRoot = (try? JSONSerialization.jsonObject(with: fbData)) as? [String: Any],
+                   let fbItems = fbRoot["data"] as? [[String: Any]] {
+                    chaptersData = fbItems
+                }
+            }
         }
 
-        var chapters: [Chapter] = []
+        // Deduplicate by chapter number, selecting release with highest page count
+        var candidatesByNumber: [Int: [String: Any]] = [:]
         for (index, ch) in chaptersData.enumerated() {
-            guard let chId = ch["id"] as? String,
+            guard let attrs = ch["attributes"] as? [String: Any] else { continue }
+            let chNumStr = attrs["chapter"] as? String ?? "\(index + 1)"
+            let chNum = Int(Double(chNumStr) ?? Double(index + 1))
+            let pages = attrs["pages"] as? Int ?? 0
+
+            if let existing = candidatesByNumber[chNum],
+               let existingAttrs = existing["attributes"] as? [String: Any] {
+                let existingPages = existingAttrs["pages"] as? Int ?? 0
+                if pages > existingPages {
+                    candidatesByNumber[chNum] = ch
+                }
+            } else {
+                candidatesByNumber[chNum] = ch
+            }
+        }
+
+        let sortedKeys = candidatesByNumber.keys.sorted()
+        var chapters: [Chapter] = []
+
+        for chNum in sortedKeys.prefix(20) {
+            guard let ch = candidatesByNumber[chNum],
+                  let chId = ch["id"] as? String,
                   let attrs = ch["attributes"] as? [String: Any] else {
                 continue
             }
             let chTitle = attrs["title"] as? String ?? ""
-            let chNumStr = attrs["chapter"] as? String ?? "\(index + 1)"
-            let chNum = Int(chNumStr) ?? (index + 1)
+            let chNumStr = attrs["chapter"] as? String ?? "\(chNum)"
             let displayTitle = chTitle.isEmpty ? "Chapter \(chNumStr)" : "Ch. \(chNumStr) - \(chTitle)"
             let externalUrl = attrs["externalUrl"] as? String
 

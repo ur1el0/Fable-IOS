@@ -201,18 +201,33 @@ async def get_manga_chapters(manga_id: str, limit: int = 20) -> list[ChapterDTO]
         return cached
 
     url = f"https://api.mangadex.org/manga/{manga_id}/feed"
+    # First attempt: request direct hosted chapters (exclude external redirects)
     params = [
         ("translatedLanguage[]", "en"),
         ("order[chapter]", "asc"),
-        ("limit", str(min(limit, 50))),
+        ("includeExternalUrl", "0"),
+        ("limit", str(min(max(limit * 2, 50), 100))),
     ]
 
     feed_json = await _fetch_json_with_fallback(url, params=params)
     feed_data = feed_json.get("data", [])
+
+    # Fallback attempt: if no direct chapters exist, allow external publisher links
+    if not feed_data:
+        fallback_params = [
+            ("translatedLanguage[]", "en"),
+            ("order[chapter]", "asc"),
+            ("limit", str(min(limit, 50))),
+        ]
+        fallback_json = await _fetch_json_with_fallback(url, params=fallback_params)
+        feed_data = fallback_json.get("data", [])
+
     story_uuid = uuid5(MANGA_NAMESPACE, f"mangadex:{manga_id}")
     now = datetime.now(timezone.utc)
     chapters: list[ChapterDTO] = []
 
+    # Deduplicate chapters by chapter number, selecting release with highest page count
+    candidates_by_num: dict[int, tuple[dict, int, str]] = {}
     for idx, ch in enumerate(feed_data):
         ch_id = ch.get("id")
         attrs = ch.get("attributes", {})
@@ -225,6 +240,23 @@ async def get_manga_chapters(manga_id: str, limit: int = 20) -> list[ChapterDTO]
         except (ValueError, TypeError):
             ch_num = idx + 1
 
+        pages = attrs.get("pages", 0)
+        existing = candidates_by_num.get(ch_num)
+        if existing is None:
+            candidates_by_num[ch_num] = (ch, ch_num, ch_num_str)
+        else:
+            prev_pages = existing[0].get("attributes", {}).get("pages", 0)
+            if pages > prev_pages:
+                candidates_by_num[ch_num] = (ch, ch_num, ch_num_str)
+
+    # Sort deduplicated chapters by chapter number and limit
+    sorted_candidates = [
+        candidates_by_num[k] for k in sorted(candidates_by_num.keys())
+    ][:limit]
+
+    for ch, ch_num, ch_num_str in sorted_candidates:
+        ch_id = ch.get("id")
+        attrs = ch.get("attributes", {})
         raw_title = attrs.get("title") or ""
         display_title = raw_title if raw_title.strip() else f"Chapter {ch_num_str}"
         external_url = attrs.get("externalUrl")
