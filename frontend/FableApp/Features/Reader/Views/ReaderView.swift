@@ -565,8 +565,8 @@ public struct ReaderView: View {
         .navigationBarBackButtonHidden(true)
         .onAppear {
             self.sessionStartTime = Date()
-            pacingEngine.startSession()
-            if let existing = story.chapters, !existing.isEmpty {
+            let isUsable = story.chapters?.contains(where: { !$0.pageUrls.isEmpty || (!$0.content.isEmpty && $0.content.lowercased().starts(with: "http")) }) ?? false
+            if let existing = story.chapters, !existing.isEmpty, isUsable {
                 self.chapters = existing
                 restoreSavedChapter()
                 loadCurrentChapterPages()

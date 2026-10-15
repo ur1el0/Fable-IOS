@@ -402,10 +402,13 @@ public final class StoryStore: ObservableObject {
                     stories[idx].contentFormat = ContentFormat(rawValue: entity.contentFormatRaw ?? "PROSE") ?? .prose
                     stories[idx].sourceProvider = SourceProvider(rawValue: entity.sourceProviderRaw ?? "FABLE_ORIGINAL") ?? .fableOriginal
                     let cachedChapters = PersistenceService.shared.cachedChapters(storyId: entity.id)
-                    if !cachedChapters.isEmpty { stories[idx].chapters = cachedChapters }
+                    let isUsable = cachedChapters.contains { !$0.pageUrls.isEmpty || (!$0.content.isEmpty && $0.content.lowercased().starts(with: "http")) }
+                    if isUsable { stories[idx].chapters = cachedChapters }
                     stories[idx].lastReadChapterId = entity.lastReadChapterId
                     stories[idx].lastReadChapterNumber = entity.lastReadChapterNumber
                 } else {
+                    let initialCached = PersistenceService.shared.cachedChapters(storyId: entity.id)
+                    let validInitial = initialCached.contains(where: { !$0.pageUrls.isEmpty || (!$0.content.isEmpty && $0.content.lowercased().starts(with: "http")) }) ? initialCached : nil
                     let userStory = Story(
                         id: entity.id,
                         title: entity.title,
@@ -428,7 +431,7 @@ public final class StoryStore: ObservableObject {
                         contentFormat: ContentFormat(rawValue: entity.contentFormatRaw ?? "PROSE") ?? .prose,
                         sourceProvider: provider,
                         providerId: entity.providerId,
-                        chapters: PersistenceService.shared.cachedChapters(storyId: entity.id),
+                        chapters: validInitial,
                         lastReadChapterId: entity.lastReadChapterId,
                         lastReadChapterNumber: entity.lastReadChapterNumber
                     )
@@ -663,11 +666,16 @@ public final class StoryStore: ObservableObject {
 
     /// Loads authentic chapters on demand for the active reading story
     func fetchChapters(for story: Story) async -> [Chapter] {
-        if let existing = story.chapters, !existing.isEmpty {
+        let isUsable = { (chaps: [Chapter]?) -> Bool in
+            guard let chaps, !chaps.isEmpty else { return false }
+            return chaps.contains { !$0.pageUrls.isEmpty || (!$0.content.isEmpty && $0.content.lowercased().starts(with: "http")) }
+        }
+
+        if let existing = story.chapters, isUsable(existing) {
             return existing
         }
         let cached = PersistenceService.shared.cachedChapters(storyId: story.id)
-        if !cached.isEmpty {
+        if isUsable(cached) {
             return cached
         }
         do {
@@ -767,6 +775,8 @@ public final class StoryStore: ObservableObject {
                     PersistenceService.shared.saveStory(stories[index])
                 } else {
                     var liveManga = manga
+                    liveManga.contentFormat = .manga
+                    liveManga.isRecentSubmission = true
                     liveManga.coverImageUrl = validCoverImageURL(manga.coverImageUrl)
                     stories.append(liveManga)
                     PersistenceService.shared.saveStory(liveManga)

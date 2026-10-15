@@ -11,13 +11,15 @@ public struct LibraryView: View {
     var filterCategories: [String] { ["All"] + store.genres.map(\.name) }
     
     var filteredRecentStories: [Story] {
-        let recents = store.stories.filter { $0.isRecentSubmission }
+        if selectedFilter == "Manga" {
+            return store.stories.filter { $0.contentFormat == .manga || $0.genre == .manga }
+        }
+        let candidateStories = store.stories.filter { $0.isRecentSubmission }
+        let sourceList = candidateStories.isEmpty ? store.stories : candidateStories
         if selectedFilter == "All" {
-            return recents
-        } else if selectedFilter == "Manga" {
-            return recents.filter { $0.contentFormat == .manga || $0.genre == .manga }
+            return sourceList
         } else {
-            return recents.filter {
+            return sourceList.filter {
                 $0.genre.rawValue.localizedCaseInsensitiveContains(selectedFilter) ||
                 $0.title.localizedCaseInsensitiveContains(selectedFilter)
             }

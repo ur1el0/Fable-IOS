@@ -49,14 +49,20 @@ public struct MangaReaderView: View {
     }
 
     private var externalChapterURL: URL? {
-        guard let content = currentChapter?.content.trimmingCharacters(in: .whitespacesAndNewlines),
-              !content.isEmpty,
-              let url = URL(string: content),
-              let scheme = url.scheme?.lowercased(),
-              scheme == "http" || scheme == "https" else {
-            return nil
+        let candidate = currentChapter?.content.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let candidate, !candidate.isEmpty,
+           let url = URL(string: candidate),
+           let scheme = url.scheme?.lowercased(),
+           scheme == "http" || scheme == "https" {
+            return url
         }
-        return url
+        if let first = chapters.first(where: { !$0.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }),
+           let url = URL(string: first.content.trimmingCharacters(in: .whitespacesAndNewlines)),
+           let scheme = url.scheme?.lowercased(),
+           scheme == "http" || scheme == "https" {
+            return url
+        }
+        return nil
     }
 
     private var externalPublisherName: String {
@@ -592,7 +598,8 @@ public struct MangaReaderView: View {
 
     @MainActor
     private func loadMangaChapters() async {
-        if let existing = story.chapters, !existing.isEmpty {
+        let isUsable = story.chapters?.contains(where: { !$0.pageUrls.isEmpty || (!$0.content.isEmpty && $0.content.lowercased().starts(with: "http")) }) ?? false
+        if let existing = story.chapters, !existing.isEmpty, isUsable {
             self.chapters = existing
             restoreSavedChapter()
             prefetchPanels(around: currentChapterIndex)
