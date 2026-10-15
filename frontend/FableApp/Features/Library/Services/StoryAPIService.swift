@@ -403,13 +403,18 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
                 .appendingPathComponent("stories")
                 .appendingPathComponent(storyId.uuidString)
                 .appendingPathComponent("chapters")
-            let (data, response) = try await session.data(from: url)
-            guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
-                throw URLError(.badServerResponse)
+            if let (data, response) = try? await session.data(from: url),
+               let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) {
+                let decoder = JSONDecoder()
+                decoder.dateDecodingStrategy = .iso8601
+                if let chapters = try? decoder.decode([Chapter].self, from: data), !chapters.isEmpty {
+                    return chapters
+                }
             }
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
-            return try decoder.decode([Chapter].self, from: data)
+            if let providerId, !providerId.isEmpty {
+                return try await fetchMangaChapters(mangaId: providerId, storyId: storyId)
+            }
+            throw URLError(.badServerResponse)
         }
     }
 

@@ -387,6 +387,16 @@ public struct LibraryView: View {
                 ProfileView()
                     .environmentObject(store)
             }
+            .onAppear {
+                if let targetTitle = ProcessInfo.processInfo.environment["AUTO_OPEN_MANGA"], !targetTitle.isEmpty {
+                    Task { @MainActor in
+                        try? await Task.sleep(nanoseconds: 800_000_000)
+                        if let match = store.stories.first(where: { $0.title.localizedCaseInsensitiveContains(targetTitle) }) {
+                            selectedStoryToRead = match
+                        }
+                    }
+                }
+            }
         }
     }
 }

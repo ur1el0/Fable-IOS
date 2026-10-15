@@ -402,13 +402,22 @@ public final class StoryStore: ObservableObject {
                     stories[idx].contentFormat = ContentFormat(rawValue: entity.contentFormatRaw ?? "PROSE") ?? .prose
                     stories[idx].sourceProvider = SourceProvider(rawValue: entity.sourceProviderRaw ?? "FABLE_ORIGINAL") ?? .fableOriginal
                     let cachedChapters = PersistenceService.shared.cachedChapters(storyId: entity.id)
-                    let isUsable = cachedChapters.contains { !$0.pageUrls.isEmpty || (!$0.content.isEmpty && $0.content.lowercased().starts(with: "http")) }
+                    let isUsable: Bool
+                    if stories[idx].contentFormat == .manga {
+                        isUsable = cachedChapters.contains { !$0.pageUrls.isEmpty }
+                    } else {
+                        isUsable = cachedChapters.contains { !$0.pageUrls.isEmpty || (!$0.content.isEmpty && $0.content.lowercased().starts(with: "http")) }
+                    }
                     if isUsable { stories[idx].chapters = cachedChapters }
                     stories[idx].lastReadChapterId = entity.lastReadChapterId
                     stories[idx].lastReadChapterNumber = entity.lastReadChapterNumber
                 } else {
                     let initialCached = PersistenceService.shared.cachedChapters(storyId: entity.id)
-                    let validInitial = initialCached.contains(where: { !$0.pageUrls.isEmpty || (!$0.content.isEmpty && $0.content.lowercased().starts(with: "http")) }) ? initialCached : nil
+                    let format = ContentFormat(rawValue: entity.contentFormatRaw ?? "PROSE") ?? .prose
+                    let isUsableInitial = format == .manga
+                        ? initialCached.contains { !$0.pageUrls.isEmpty }
+                        : initialCached.contains { !$0.pageUrls.isEmpty || (!$0.content.isEmpty && $0.content.lowercased().starts(with: "http")) }
+                    let validInitial = isUsableInitial ? initialCached : nil
                     let userStory = Story(
                         id: entity.id,
                         title: entity.title,
@@ -668,6 +677,9 @@ public final class StoryStore: ObservableObject {
     func fetchChapters(for story: Story) async -> [Chapter] {
         let isUsable = { (chaps: [Chapter]?) -> Bool in
             guard let chaps, !chaps.isEmpty else { return false }
+            if story.contentFormat == .manga {
+                return chaps.contains { !$0.pageUrls.isEmpty }
+            }
             return chaps.contains { !$0.pageUrls.isEmpty || (!$0.content.isEmpty && $0.content.lowercased().starts(with: "http")) }
         }
 

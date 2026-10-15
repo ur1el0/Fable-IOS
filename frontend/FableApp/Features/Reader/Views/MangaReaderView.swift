@@ -87,7 +87,7 @@ public struct MangaReaderView: View {
         if let chapter = currentChapter, !chapter.pageUrls.isEmpty {
             return chapter.pageUrls
         }
-        if let firstChap = story.chapters?.first, !firstChap.pageUrls.isEmpty {
+        if let firstChap = chapters.first(where: { !$0.pageUrls.isEmpty }) {
             return firstChap.pageUrls
         }
         return []
@@ -598,8 +598,8 @@ public struct MangaReaderView: View {
 
     @MainActor
     private func loadMangaChapters() async {
-        let isUsable = story.chapters?.contains(where: { !$0.pageUrls.isEmpty || (!$0.content.isEmpty && $0.content.lowercased().starts(with: "http")) }) ?? false
-        if let existing = story.chapters, !existing.isEmpty, isUsable {
+        let hasDirectPanels = story.chapters?.contains(where: { !$0.pageUrls.isEmpty }) ?? false
+        if let existing = story.chapters, !existing.isEmpty, hasDirectPanels {
             self.chapters = existing
             restoreSavedChapter()
             prefetchPanels(around: currentChapterIndex)
