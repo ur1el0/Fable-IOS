@@ -732,8 +732,38 @@ public final class StoryStore: ObservableObject {
         await fetchMangaPublicStories(search: search)
     }
 
-    func topStory(for writer: Writer) async -> Story? {
-        await fetchGutenbergPublicStories(topic: nil, search: writer.name)
+    func matchesAuthor(storyAuthor: String, writerName: String) -> Bool {
+        let sAuthor = normalizedCatalogValue(storyAuthor)
+        let wName = normalizedCatalogValue(writerName)
+        if sAuthor.isEmpty || wName.isEmpty { return false }
+        if sAuthor == wName || sAuthor.contains(wName) || wName.contains(sAuthor) {
+            return true
+        }
+        let parts = writerName.components(separatedBy: " ").filter { !$0.isEmpty }
+        if parts.count >= 2 {
+            let reversed = "\(parts.last ?? ""), \(parts.first ?? "")".lowercased()
+            if sAuthor.contains(normalizedCatalogValue(reversed)) {
+                return true
+            }
+            let tokens = parts.map { normalizedCatalogValue($0) }.filter { $0.count > 1 }
+            if !tokens.isEmpty && tokens.allSatisfy({ sAuthor.contains($0) }) {
+                return true
+            }
+        }
+        return false
+    }
+
+    func stories(for writer: Writer) -> [Story] {
+        stories
+            .filter { matchesAuthor(storyAuthor: $0.author, writerName: writer.name) }
+            .sorted { ($0.providerDownloadCount ?? 0) > ($1.providerDownloadCount ?? 0) }
+    }
+
+    func fetchAuthorStories(for writer: Writer) async -> [Story] {
+        async let gutenbergSearch: () = fetchGutenbergPublicStories(topic: nil, search: writer.name)
+        async let mangaSearch: () = fetchMangaPublicStories(search: writer.name)
+        _ = await (gutenbergSearch, mangaSearch)
+
         if let remoteStories = try? await apiService.fetchStories(genre: nil, search: writer.name) {
             for remote in remoteStories where remote.sourceProvider == .fableOriginal || remote.providerId?.isEmpty == false {
                 guard !stories.contains(where: { $0.id == remote.id }) else { continue }
@@ -745,10 +775,17 @@ public final class StoryStore: ObservableObject {
                 PersistenceService.shared.saveStory(cached)
             }
         }
-        let author = normalizedCatalogValue(writer.name)
-        return stories
-            .filter { normalizedCatalogValue($0.author) == author }
-            .max { ($0.providerDownloadCount ?? 0) < ($1.providerDownloadCount ?? 0) }
+
+        let matching = stories(for: writer)
+        if !matching.isEmpty, let index = writers.firstIndex(where: { $0.id == writer.id }) {
+            writers[index].storyCount = max(writers[index].storyCount, matching.count)
+        }
+        return matching
+    }
+
+    func topStory(for writer: Writer) async -> Story? {
+        let authorStories = await fetchAuthorStories(for: writer)
+        return authorStories.first ?? stories(for: writer).first
     }
 
     func fetchGutenbergPublicStories(topic: String? = nil, search: String? = nil) async {
