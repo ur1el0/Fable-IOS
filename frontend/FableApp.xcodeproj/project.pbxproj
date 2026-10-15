@@ -252,8 +252,8 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
 				FABLE_API_BASE_URL = "http://127.0.0.1:8000/api/v1";
+				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_FABLE_API_BASE_URL = "$(FABLE_API_BASE_URL)";
 				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsArbitraryLoads = NO;
 				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsLocalNetworking = YES;
@@ -287,8 +287,8 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
 				FABLE_API_BASE_URL = "http://127.0.0.1:8000/api/v1";
+				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_FABLE_API_BASE_URL = "$(FABLE_API_BASE_URL)";
 				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsArbitraryLoads = NO;
 				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsLocalNetworking = YES;

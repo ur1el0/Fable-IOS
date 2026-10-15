@@ -8,8 +8,6 @@ public struct ExploreView: View {
     @State private var selectedGenreForDetail: GenreCategory?
     @State private var selectedStoryToRead: Story?
     @State private var selectedWriter: Writer?
-    @State private var isFindingWriterTitle: Bool = false
-    @State private var writerTitleMessage: String?
     
     let filters = ["All", "Under 5 mins", "Community Favorites", "Quick Reads"]
     
@@ -378,56 +376,17 @@ public struct ExploreView: View {
                     .environmentObject(store)
             }
             .fullScreenCover(item: $selectedStoryToRead) { story in
-                ReaderView(story: story)
-                    .environmentObject(store)
+                if story.contentFormat == .manga || story.sourceProvider == .mangadex {
+                    MangaReaderView(story: story)
+                        .environmentObject(store)
+                } else {
+                    ReaderView(story: story)
+                        .environmentObject(store)
+                }
             }
             .sheet(item: $selectedWriter) { writer in
-                VStack(spacing: 20) {
-                    FableImageView(name: writer.effectiveAvatar, title: writer.name, placeholderIcon: "person.circle.fill")
-                        .frame(width: 84, height: 84)
-                        .clipShape(Circle())
-                        .padding(.top, 24)
-                    
-                    Text(writer.name)
-                        .font(.system(size: 22, weight: .bold))
-                        .foregroundColor(FableTheme.textPrimary)
-                    
-                    Text("Featured Creator • \(writer.storyCount) published titles")
-                        .font(.system(size: 14))
-                        .foregroundColor(FableTheme.textMuted)
-                    
-                    if let writerTitleMessage {
-                        Text(writerTitleMessage)
-                            .font(.system(size: 13))
-                            .foregroundColor(FableTheme.textMuted)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 24)
-                    }
-
-                    Button(isFindingWriterTitle ? "Searching…" : "Find a title") {
-                        isFindingWriterTitle = true
-                        Task {
-                            let story = await store.topStory(for: writer)
-                            isFindingWriterTitle = false
-                            if let story {
-                                selectedWriter = nil
-                                selectedStoryToRead = story
-                            } else {
-                                writerTitleMessage = "No titles by this author are available in the catalog yet."
-                            }
-                        }
-                    }
-                    .disabled(isFindingWriterTitle)
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 28)
-                    .padding(.vertical, 12)
-                    .background(FableTheme.brandPrimary)
-                    .clipShape(Capsule())
-                    
-                    Spacer()
-                }
-                .presentationDetents([.fraction(0.4)])
+                AuthorDetailView(writer: writer)
+                    .environmentObject(store)
             }
         }
     }
