@@ -139,6 +139,30 @@ async def _probe_direct_chapters(manga_id: str) -> bool:
     if cached is not None:
         return cached
 
+    # 1. First check if fable.sqlite3 contains ingested chapters with page_urls
+    try:
+        conn = get_db()
+        try:
+            row = conn.execute(
+                """
+                SELECT c.id
+                FROM chapters c
+                JOIN stories s ON c.story_id = s.id
+                WHERE s.source_provider = 'MANGADEX' AND s.provider_id = ?
+                  AND c.page_urls IS NOT NULL AND c.page_urls != '[]' AND c.page_urls != ''
+                LIMIT 1
+                """,
+                (manga_id,)
+            ).fetchone()
+            if row:
+                _set_in_cache(cache_key, True)
+                return True
+        finally:
+            conn.close()
+    except Exception:
+        pass
+
+    # 2. Check upstream English direct chapters
     url = f"https://api.mangadex.org/manga/{manga_id}/feed"
     params = [
         ("translatedLanguage[]", "en"),
@@ -242,8 +266,52 @@ async def get_manga_chapters(manga_id: str, limit: int = 20) -> list[ChapterDTO]
     if cached is not None:
         return cached
 
+    # 1. Check if fable.sqlite3 contains ingested chapters with page_urls
+    try:
+        conn = get_db()
+        try:
+            rows = conn.execute(
+                """
+                SELECT c.id, c.story_id, c.chapter_number, c.title, c.content, c.word_count, c.created_at_utc, c.page_urls
+                FROM chapters c
+                JOIN stories s ON c.story_id = s.id
+                WHERE s.source_provider = 'MANGADEX' AND s.provider_id = ?
+                ORDER BY c.chapter_number ASC
+                LIMIT ?
+                """,
+                (manga_id, limit)
+            ).fetchall()
+            if rows:
+                stored_chapters = []
+                for r in rows:
+                    p_urls = []
+                    if r["page_urls"]:
+                        try:
+                            p_urls = json.loads(r["page_urls"])
+                        except Exception:
+                            p_urls = []
+                    stored_chapters.append(
+                        ChapterDTO(
+                            id=UUID(r["id"]),
+                            story_id=UUID(r["story_id"]),
+                            chapter_number=r["chapter_number"],
+                            title=r["title"],
+                            content=r["content"] or "",
+                            word_count=r["word_count"] or 0,
+                            created_at_utc=datetime.fromisoformat(r["created_at_utc"]),
+                            page_urls=p_urls,
+                        )
+                    )
+                if any(ch.page_urls for ch in stored_chapters):
+                    _set_in_cache(cache_key, stored_chapters)
+                    return stored_chapters
+        finally:
+            conn.close()
+    except Exception:
+        pass
+
     url = f"https://api.mangadex.org/manga/{manga_id}/feed"
-    # First attempt: request direct hosted chapters (exclude external redirects)
+    # First attempt: request direct hosted English chapters (exclude external redirects)
     params = [
         ("translatedLanguage[]", "en"),
         ("order[chapter]", "asc"),
@@ -254,15 +322,15 @@ async def get_manga_chapters(manga_id: str, limit: int = 20) -> list[ChapterDTO]
     feed_json = await _fetch_json_with_fallback(url, params=params)
     feed_data = feed_json.get("data", [])
 
-    # Fallback attempt: if no direct chapters exist, allow external publisher links
+    # Fallback: if no direct English chapters exist, allow external English publisher links
     if not feed_data:
-        fallback_params = [
+        ext_params = [
             ("translatedLanguage[]", "en"),
             ("order[chapter]", "asc"),
             ("limit", str(min(limit, 50))),
         ]
-        fallback_json = await _fetch_json_with_fallback(url, params=fallback_params)
-        feed_data = fallback_json.get("data", [])
+        ext_json = await _fetch_json_with_fallback(url, params=ext_params)
+        feed_data = ext_json.get("data", [])
 
     story_uuid = uuid5(MANGA_NAMESPACE, f"mangadex:{manga_id}")
     now = datetime.now(timezone.utc)
