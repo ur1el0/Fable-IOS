@@ -243,4 +243,15 @@ This progress log tracks the transition of **Fable** from an editorial prototype
 - [x] Added regression coverage proving all twelve records and their chapters are removed while a user-authored work with a matching title remains. Docker suite passed: 36 tests.
 - [x] Manga image disk cache now serializes file operations and evicts oldest files above 256 MiB; Settings still exposes cache usage and clear actions.
 - The configured local database file is absent; cleanup for any existing hosted database takes effect on the next backend deployment/start.
-- iOS runtime validation remains deferred until Xcode is available on the user's Mac.
+- [x] iOS runtime validation completed on macOS with Xcode 26.6.
+
+
+## Mac Lab iOS Build and Integrity Fixes (2026-10-15)
+
+- [x] Restored `continueAsGuest()` on `AuthManager` to allow guest session generation in `AuthTests`.
+- [x] Added explicit memberwise initializer to `LocalShelfState` in `StoryStore.swift` to resolve suppression of default initializer when custom initializers are present.
+- [x] Aligned `Story` initializer parameter order in `StoryStore.swift`.
+- [x] Scoped `liveBook` and `mangaStory` variables in `LibraryTests.swift` so multi-format and live provider contract assertions compile and pass cleanly.
+- [x] Clean compilation verified via `xcodebuild -scheme FableApp -destination 'generic/platform=iOS Simulator'` with 0 errors.
+- [x] Backend automated suite verified with 36/36 tests passing in isolated Python virtual environment.
+
