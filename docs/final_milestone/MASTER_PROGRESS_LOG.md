@@ -283,3 +283,10 @@ This progress log tracks the transition of **Fable** from an editorial prototype
 - [x] Clean compilation verified via Xcode (`** BUILD SUCCEEDED **`) on iOS Simulator target.
 - [x] Backend test suite verified: 36/36 tests passing in `backend/test_main.py`.
 
+## Tachiyomi Manga Architecture & Ingestion Strategy (2026-10-15)
+
+- [x] Evaluated and rejected binary reverse engineering (REA) in favor of direct open-source pattern extraction from Tachiyomi's Apache 2.0 codebase.
+- [x] Formulated comprehensive 3-phase architectural blueprint in `docs/final_milestone/06_TACHIYOMI_MANGA_READER_AND_INGESTION_ARCHITECTURE.md`.
+- [x] Scoped active milestones: Phase 1 (SwiftUI advanced reader with RTL, tap zones, and page scrubbing) and Phase 2 (FastAPI server-side proxy and ingestion engine).
+- [x] Scoped deferred milestone: Phase 3 (background offline download queue and disk quota management).
+
