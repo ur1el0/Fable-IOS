@@ -12,7 +12,24 @@ public struct LibraryView: View {
     
     var filteredRecentStories: [Story] {
         if selectedFilter == "Manga" {
-            return store.stories.filter { $0.contentFormat == .manga || $0.genre == .manga }
+            let mangaStories = store.stories.filter { $0.contentFormat == .manga || $0.genre == .manga }
+            var seen = Set<String>()
+            var uniqueManga: [Story] = []
+            for item in mangaStories {
+                let key = item.providerId ?? item.id.uuidString
+                if !seen.contains(key) {
+                    seen.insert(key)
+                    uniqueManga.append(item)
+                }
+            }
+            return uniqueManga.sorted { first, second in
+                let firstDirect = first.badgeText == "DIRECT PANELS" ? 1 : 0
+                let secondDirect = second.badgeText == "DIRECT PANELS" ? 1 : 0
+                if firstDirect != secondDirect {
+                    return firstDirect > secondDirect
+                }
+                return false
+            }
         }
         let candidateStories = store.stories.filter { $0.isRecentSubmission }
         let sourceList = candidateStories.isEmpty ? store.stories : candidateStories
@@ -129,7 +146,7 @@ public struct LibraryView: View {
                         }
 
                         // Featured Hero Card
-                        if let featuredStory = store.stories.first(where: { $0.isTaleOfTheDay }) ?? store.stories.first {
+                        if let featuredStory = (selectedFilter == "Manga" ? filteredRecentStories.first : (store.stories.first(where: { $0.isTaleOfTheDay }) ?? store.stories.first)) {
                             VStack(alignment: .leading, spacing: 0) {
                                 ZStack(alignment: .top) {
                                     Button {
@@ -143,14 +160,18 @@ public struct LibraryView: View {
                                     .buttonStyle(.plain)
 
                                     HStack {
-                                        Text(featuredStory.contentFormat == .manga ? "FEATURED MANGA" : "FEATURED TITLE")
-                                            .font(.system(size: 10, weight: .heavy))
-                                            .tracking(1.0)
-                                            .foregroundColor(FableTheme.brandPrimary)
-                                            .padding(.horizontal, 10)
-                                            .padding(.vertical, 5)
-                                            .background(Color.white.opacity(0.95))
-                                            .clipShape(Capsule())
+                                        if featuredStory.contentFormat == .manga {
+                                            storyBadge(for: featuredStory)
+                                        } else {
+                                            Text("FEATURED TITLE")
+                                                .font(.system(size: 10, weight: .heavy))
+                                                .tracking(1.0)
+                                                .foregroundColor(FableTheme.brandPrimary)
+                                                .padding(.horizontal, 10)
+                                                .padding(.vertical, 5)
+                                                .background(Color.white.opacity(0.95))
+                                                .clipShape(Capsule())
+                                        }
 
                                         Spacer()
 
@@ -320,14 +341,7 @@ public struct LibraryView: View {
                                                     .clipShape(RoundedRectangle(cornerRadius: 10))
 
                                                 VStack(alignment: .leading, spacing: 5) {
-                                                    Text(story.contentFormat == .manga ? "MANGA" : (story.sourceProvider == .standardEbooks ? "STANDARD EBOOKS" : story.genre.rawValue.uppercased()))
-                                                        .font(.system(size: 9, weight: .heavy))
-                                                        .tracking(0.5)
-                                                        .foregroundColor(FableTheme.brandPrimary)
-                                                        .padding(.horizontal, 7)
-                                                        .padding(.vertical, 3)
-                                                        .background(FableTheme.surface)
-                                                        .clipShape(Capsule())
+                                                    storyBadge(for: story)
 
                                                     Text(story.title)
                                                         .font(.system(size: 16, weight: .bold, design: .default))
@@ -388,6 +402,12 @@ public struct LibraryView: View {
                     .environmentObject(store)
             }
             .onAppear {
+                if let filter = ProcessInfo.processInfo.environment["AUTO_SELECT_FILTER"], !filter.isEmpty {
+                    selectedFilter = filter
+                }
+                Task {
+                    await store.fetchMangaPublicStories()
+                }
                 if let targetTitle = ProcessInfo.processInfo.environment["AUTO_OPEN_MANGA"], !targetTitle.isEmpty {
                     Task { @MainActor in
                         try? await Task.sleep(nanoseconds: 800_000_000)
@@ -397,6 +417,57 @@ public struct LibraryView: View {
                     }
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private func storyBadge(for story: Story) -> some View {
+        if story.contentFormat == .manga {
+            if story.badgeText == "DIRECT PANELS" {
+                HStack(spacing: 4) {
+                    Image(systemName: "checkmark.seal.fill")
+                        .font(.system(size: 8))
+                    Text("DIRECT PANELS")
+                        .font(.system(size: 9, weight: .heavy))
+                        .tracking(0.5)
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 7)
+                .padding(.vertical, 3)
+                .background(Color(red: 0.12, green: 0.58, blue: 0.32))
+                .clipShape(Capsule())
+            } else if story.badgeText == "OFFICIAL LINK" {
+                HStack(spacing: 4) {
+                    Image(systemName: "arrow.up.right")
+                        .font(.system(size: 8, weight: .bold))
+                    Text("OFFICIAL LINK")
+                        .font(.system(size: 9, weight: .heavy))
+                        .tracking(0.5)
+                }
+                .foregroundColor(Color.orange)
+                .padding(.horizontal, 7)
+                .padding(.vertical, 3)
+                .background(Color.orange.opacity(0.15))
+                .clipShape(Capsule())
+            } else {
+                Text("MANGA")
+                    .font(.system(size: 9, weight: .heavy))
+                    .tracking(0.5)
+                    .foregroundColor(FableTheme.brandPrimary)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(FableTheme.surface)
+                    .clipShape(Capsule())
+            }
+        } else {
+            Text(story.sourceProvider == .standardEbooks ? "STANDARD EBOOKS" : story.genre.rawValue.uppercased())
+                .font(.system(size: 9, weight: .heavy))
+                .tracking(0.5)
+                .foregroundColor(FableTheme.brandPrimary)
+                .padding(.horizontal, 7)
+                .padding(.vertical, 3)
+                .background(FableTheme.surface)
+                .clipShape(Capsule())
         }
     }
 }

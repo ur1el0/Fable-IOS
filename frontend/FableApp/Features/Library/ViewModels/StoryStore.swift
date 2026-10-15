@@ -388,7 +388,9 @@ public final class StoryStore: ObservableObject {
                     continue
                 }
 
-                if let idx = stories.firstIndex(where: { $0.id == entity.id }) {
+                if let idx = stories.firstIndex(where: {
+                    $0.id == entity.id || (entity.providerId != nil && !entity.providerId!.isEmpty && $0.providerId == entity.providerId)
+                }) {
                     stories[idx].isBookmarked = entity.isBookmarked
                     stories[idx].isCompleted = entity.isCompleted
                     stories[idx].progressPercent = Int(entity.readingProgress * 100.0)
@@ -576,6 +578,7 @@ public final class StoryStore: ObservableObject {
                     stories[index].totalChapters = remote.totalChapters
                     stories[index].contentFormat = remote.contentFormat
                     stories[index].sourceProvider = remote.sourceProvider
+                    if let badge = remote.badgeText { stories[index].badgeText = badge }
                     if let downloadCount = remote.providerDownloadCount { stories[index].providerDownloadCount = downloadCount }
                     if let providerId = remote.providerId { stories[index].providerId = providerId }
                     if remote.isTaleOfTheDay { stories[index].isTaleOfTheDay = true }
@@ -777,14 +780,27 @@ public final class StoryStore: ObservableObject {
         do {
             let fetched = try await apiService.fetchMangaStories(search: search)
             for manga in fetched {
-                if let index = stories.firstIndex(where: { $0.id == manga.id }) {
-                    stories[index].synopsis = manga.synopsis
-                    stories[index].coverImageUrl = validCoverImageURL(manga.coverImageUrl)
-                    stories[index].contentFormat = manga.contentFormat
-                    stories[index].sourceProvider = manga.sourceProvider
-                    stories[index].providerId = manga.providerId
-                    stories[index].totalChapters = max(stories[index].chapters?.count ?? 0, manga.totalChapters)
-                    PersistenceService.shared.saveStory(stories[index])
+                let matchingIndices = stories.indices.filter {
+                    stories[$0].id == manga.id ||
+                    (manga.providerId != nil && stories[$0].sourceProvider == manga.sourceProvider && stories[$0].providerId == manga.providerId)
+                }
+
+                if let firstIdx = matchingIndices.first {
+                    stories[firstIdx].title = manga.title
+                    stories[firstIdx].author = manga.author
+                    stories[firstIdx].synopsis = manga.synopsis
+                    stories[firstIdx].coverImageUrl = validCoverImageURL(manga.coverImageUrl)
+                    stories[firstIdx].contentFormat = manga.contentFormat
+                    stories[firstIdx].sourceProvider = manga.sourceProvider
+                    stories[firstIdx].providerId = manga.providerId
+                    if let badge = manga.badgeText { stories[firstIdx].badgeText = badge }
+                    stories[firstIdx].totalChapters = max(stories[firstIdx].chapters?.count ?? 0, manga.totalChapters)
+                    PersistenceService.shared.saveStory(stories[firstIdx])
+
+                    if matchingIndices.count > 1 {
+                        let dupIds = Set(matchingIndices.dropFirst().map { stories[$0].id })
+                        stories.removeAll(where: { dupIds.contains($0.id) })
+                    }
                 } else {
                     var liveManga = manga
                     liveManga.contentFormat = .manga

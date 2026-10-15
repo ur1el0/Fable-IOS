@@ -133,6 +133,28 @@ def _story_from_mangadex_item(item: dict) -> Optional[StoryDTO]:
     )
 
 
+async def _probe_direct_chapters(manga_id: str) -> bool:
+    cache_key = f"manga_has_direct:{manga_id}"
+    cached = _get_from_cache(cache_key)
+    if cached is not None:
+        return cached
+
+    url = f"https://api.mangadex.org/manga/{manga_id}/feed"
+    params = [
+        ("translatedLanguage[]", "en"),
+        ("includeExternalUrl", "0"),
+        ("limit", "1"),
+    ]
+    try:
+        data = await _fetch_json_with_fallback(url, params=params)
+        has_direct = len(data.get("data", [])) > 0
+    except Exception:
+        has_direct = False
+
+    _set_in_cache(cache_key, has_direct)
+    return has_direct
+
+
 async def search_manga(
     query: Optional[str] = None,
     limit: int = 20,
@@ -162,12 +184,29 @@ async def search_manga(
 
     data = await _fetch_json_with_fallback(url, params=params)
     items = data.get("data", [])
-    results: list[StoryDTO] = []
+    raw_results: list[StoryDTO] = []
     for item in items:
         dto = _story_from_mangadex_item(item)
         if dto:
-            results.append(dto)
+            raw_results.append(dto)
 
+    # Probe direct panel availability concurrently
+    probe_tasks = [_probe_direct_chapters(str(s.provider_id)) for s in raw_results]
+    probe_results = await asyncio.gather(*probe_tasks, return_exceptions=True)
+
+    direct_list: list[StoryDTO] = []
+    external_list: list[StoryDTO] = []
+
+    for dto, has_direct in zip(raw_results, probe_results):
+        if has_direct is True:
+            dto.badge_text = "DIRECT PANELS"
+            direct_list.append(dto)
+        else:
+            dto.badge_text = "OFFICIAL LINK"
+            external_list.append(dto)
+
+    # Prioritize titles with direct in-app reading panels
+    results = direct_list + external_list
     _set_in_cache(cache_key, results)
     return results
 
@@ -189,6 +228,9 @@ async def get_manga_by_id(manga_id: str) -> StoryDTO:
     dto = _story_from_mangadex_item(item)
     if not dto:
         raise HTTPException(status_code=404, detail="Manga title not found")
+
+    has_direct = await _probe_direct_chapters(manga_id)
+    dto.badge_text = "DIRECT PANELS" if has_direct else "OFFICIAL LINK"
 
     _set_in_cache(cache_key, dto)
     return dto
