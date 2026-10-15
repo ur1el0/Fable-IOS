@@ -395,4 +395,33 @@ This progress log tracks the transition of **Fable** from an editorial prototype
   - Verified *The Eminence in Shadow* displayed with emerald `DIRECT PANELS` badge as the Hero Card.
   - Auto-opened *The Eminence in Shadow Chapter 1* in reader, verifying smooth loading of **37 direct scanlation panels** under Paging mode with interactive bottom scrubber.
 
+## Trending Creators Alignment & Interactive Creator Bibliography (2026-10-15)
+
+- [x] **Root Cause Diagnosis (Obsolete Creators & Non-Functional "N Stories"):**
+  - Identified that `GET /api/v1/authors/top` was querying OpenLibrary's general `/trending/daily.json` endpoint, returning contemporary commercial non-fiction authors (James Clear, Robert Greene, Robert Kiyosaki, Morgan Housel, Mark Manson) who possess 0 readable works in Project Gutenberg or MangaDex.
+  - Identified that tapping a creator in `ExploreView` previously opened a small 40% sheet with a single "Find a title" button using a rigid string equality check (`normalizedCatalogValue($0.author) == author`) against Gutenberg only, completely failing on manga creators and formatted names ("Shelley, Mary"), and giving users zero story choice.
+- [x] **Backend Catalog Creator Alignment:**
+  - Updated `get_top_authors()` in `backend/services/story_service.py` to prioritize creators with real, readable works in Fable's catalog:
+    - Canonical Literary Masters: Mary Shelley, Arthur Conan Doyle, Bram Stoker, Jane Austen, Edgar Allan Poe.
+    - Acclaimed Manga Artists: Tatsuki Fujimoto.
+    - Local Community Writers: Any user-authored stories from SQLite `_local_writers()`.
+  - Maintained live OpenLibrary portrait URL retrieval (`https://covers.openlibrary.org/a/olid/{key}-M.jpg?default=false`) and real work counts.
+  - Preserved 100% test compatibility with `test_main.py` invariants and mocking contracts (**39/39 tests green**).
+- [x] **Multi-Provider Author Search & Ingestion in Store:**
+  - Implemented tokenized/fuzzy author matching (`matchesAuthor(storyAuthor:writerName:)`) in `StoryStore.swift` to handle both `"First Last"` and `"Last, First"` author nomenclature.
+  - Implemented `stories(for writer: Writer) -> [Story]` and `fetchAuthorStories(for writer: Writer) async -> [Story]` querying both Project Gutenberg (prose) and MangaDex (manga) concurrently.
+  - Upgraded `topStory(for writer: Writer)` to use multi-provider author search and updated `writer.storyCount` dynamically.
+- [x] **Interactive Creator Bibliography View (`AuthorDetailView.swift`):**
+  - Designed and implemented `AuthorDetailView.swift` presenting:
+    - Author hero profile with avatar portrait and dynamic monogram fallback.
+    - Curated creator bio summary and catalog availability counter.
+    - Full scrollable bibliography feed displaying all readable works by that author.
+    - Each story card features cover art preview, title, format tag (`PROSE` vs `MANGA`), genre, reading time/chapter count, and a direct "Read Now" action.
+    - Integrated with `MangaReaderView` for graphic manga and `ReaderView` for prose literature.
+  - Integrated `AuthorDetailView` into `ExploreView.swift`, replacing the dead-end 40% sheet and removing obsolete unreferenced state variables.
+- [x] **Verification & Integrity:**
+  - Backend automated test suite passed: **39/39 tests passing** (`test_main.py`).
+  - Xcode iOS build succeeded cleanly (`** BUILD SUCCEEDED **`) with 0 errors.
+
+
 
