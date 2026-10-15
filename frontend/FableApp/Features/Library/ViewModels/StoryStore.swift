@@ -98,6 +98,26 @@ public final class StoryStore: ObservableObject {
             updatedAtUtc: .distantPast
         )
 
+        init(
+            readingProgress: Double,
+            isBookmarked: Bool,
+            isCompleted: Bool,
+            currentPage: Int,
+            totalPages: Int,
+            lastReadChapterId: String?,
+            lastReadChapterNumber: Int?,
+            updatedAtUtc: Date
+        ) {
+            self.readingProgress = readingProgress
+            self.isBookmarked = isBookmarked
+            self.isCompleted = isCompleted
+            self.currentPage = currentPage
+            self.totalPages = totalPages
+            self.lastReadChapterId = lastReadChapterId
+            self.lastReadChapterNumber = lastReadChapterNumber
+            self.updatedAtUtc = updatedAtUtc
+        }
+
         init(story: Story, updatedAtUtc: Date = Date()) {
             self.readingProgress = Double(story.progressPercent) / 100.0
             self.isBookmarked = story.isBookmarked
@@ -393,11 +413,6 @@ public final class StoryStore: ObservableObject {
                         genre: entity.genreRaw,
                         excerpt: entity.synopsis,
                         paragraphs: [entity.content],
-                        contentFormat: ContentFormat(rawValue: entity.contentFormatRaw ?? "PROSE") ?? .prose,
-                        sourceProvider: provider,
-                        providerId: entity.providerId,
-                        providerDownloadCount: entity.providerDownloadCount,
-                        chapters: PersistenceService.shared.cachedChapters(storyId: entity.id),
                         coverImageName: nil,
                         heroImageName: nil,
                         coverImageUrl: validCoverImageURL(entity.coverImageUrl),
@@ -406,9 +421,14 @@ public final class StoryStore: ObservableObject {
                         currentPage: max(1, entity.currentPage),
                         progressPercent: Int(entity.readingProgress * 100.0),
                         rating: nil,
+                        providerDownloadCount: entity.providerDownloadCount,
                         isRecentSubmission: true,
                         isSaved: entity.isBookmarked,
                         isFinished: entity.isCompleted,
+                        contentFormat: ContentFormat(rawValue: entity.contentFormatRaw ?? "PROSE") ?? .prose,
+                        sourceProvider: provider,
+                        providerId: entity.providerId,
+                        chapters: PersistenceService.shared.cachedChapters(storyId: entity.id),
                         lastReadChapterId: entity.lastReadChapterId,
                         lastReadChapterNumber: entity.lastReadChapterNumber
                     )

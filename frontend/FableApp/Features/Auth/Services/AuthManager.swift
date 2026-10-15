@@ -173,6 +173,11 @@ public final class AuthManager: ObservableObject {
         }
     }
 
+    public func continueAsGuest() {
+        let guest = UserSession.guest()
+        _ = persistSession(guest, accessToken: nil)
+    }
+
     public func updateProfile(name: String, handle: String, bio: String, avatarName: String? = nil) async -> Bool {
         guard var session = currentSession else { return false }
         let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
