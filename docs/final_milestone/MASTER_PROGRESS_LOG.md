@@ -377,4 +377,22 @@ This progress log tracks the transition of **Fable** from an editorial prototype
   - Launched app and navigated directly to *Chainsaw Man*.
   - Verified live rendered screen via screenshot: **53 high-resolution manga panels rendered smoothly** under Webtoon vertical scroll and horizontal paging, with the interactive bottom scrubber reporting `WEBTOON • PAGE 1 OF 53`. Zero redirection cards remain.
 
+## Manga Catalog Direct-Panel Probing, Prioritization & Visual Badges (2026-10-15)
+
+- [x] **Backend Direct-Panel Probing & Catalog Prioritization:**
+  - Implemented `_probe_direct_chapters(manga_id)` in `backend/services/manga.py` using TTL caching (6-hour expiry) to query upstream MangaDex chapter feeds with `includeExternalUrl=0`.
+  - Concurrently evaluated search and catalog results via `asyncio.gather`.
+  - Tagged titles with `badge_text="DIRECT PANELS"` when authentic CDN scanlations exist, or `badge_text="OFFICIAL LINK"` when external publisher licensing restrictions apply.
+  - Re-sorted catalog results so direct-reading titles are placed at the top of the feed.
+- [x] **SwiftUI Visual Badge System & Dynamic Hero Card:**
+  - Added `storyBadge(for story: Story)` in `LibraryView.swift` rendering an emerald green capsule (`checkmark.seal.fill`, "DIRECT PANELS") or amber link capsule (`arrow.up.right`, "OFFICIAL LINK").
+  - Dynamically selected the top manga as the Featured Hero Card when filtering by Manga, providing instant visual feedback.
+  - Prioritized `DIRECT PANELS` in `filteredRecentStories` and deduplicated entries by `providerId` to ensure clean presentation across SwiftData and live feeds.
+- [x] **Verification & Live Simulator Validation:**
+  - Backend test suite: **39/39 tests passing** (`test_main.py`).
+  - Xcodebuild: Clean build succeeded with 0 errors.
+  - Live iOS Simulator verification: Launched app on iPhone 17 Pro with Manga filter active.
+  - Verified *The Eminence in Shadow* displayed with emerald `DIRECT PANELS` badge as the Hero Card.
+  - Auto-opened *The Eminence in Shadow Chapter 1* in reader, verifying smooth loading of **37 direct scanlation panels** under Paging mode with interactive bottom scrubber.
+
 
