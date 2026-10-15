@@ -414,6 +414,27 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
     }
 
     public func fetchMangaStories(search: String? = nil) async throws -> [Story] {
+        // 1. Primary path: query Fable backend proxy cache to protect against rate limits
+        var backendComponents = URLComponents(url: baseURL.appendingPathComponent("public").appendingPathComponent("manga"), resolvingAgainstBaseURL: true)
+        if let search, !search.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            backendComponents?.queryItems = [
+                URLQueryItem(name: "search", value: search.trimmingCharacters(in: .whitespacesAndNewlines))
+            ]
+        }
+        if let targetURL = backendComponents?.url {
+            var req = URLRequest(url: targetURL)
+            req.timeoutInterval = 8.0
+            if let (data, response) = try? await session.data(for: req),
+               let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) {
+                let decoder = JSONDecoder()
+                decoder.dateDecodingStrategy = .iso8601
+                if let stories = try? decoder.decode([Story].self, from: data), !stories.isEmpty {
+                    return stories
+                }
+            }
+        }
+
+        // 2. Direct upstream fallback if backend proxy is offline or unreachable
         var components = URLComponents(string: "https://api.mangadex.org/manga")!
         var queryItems = [
             URLQueryItem(name: "limit", value: "20"),
@@ -493,6 +514,24 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
     }
 
     private func fetchMangaChapters(mangaId: String, storyId: UUID) async throws -> [Chapter] {
+        // 1. Primary path: query Fable backend proxy cache
+        let backendUrl = baseURL
+            .appendingPathComponent("public")
+            .appendingPathComponent("manga")
+            .appendingPathComponent(mangaId)
+            .appendingPathComponent("chapters")
+        var backendReq = URLRequest(url: backendUrl)
+        backendReq.timeoutInterval = 8.0
+        if let (data, response) = try? await session.data(for: backendReq),
+           let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) {
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            if let chapters = try? decoder.decode([Chapter].self, from: data), !chapters.isEmpty {
+                return chapters
+            }
+        }
+
+        // 2. Direct upstream fallback if backend proxy is offline or unreachable
         var components = URLComponents(string: "https://api.mangadex.org/manga/\(mangaId)/feed")!
         components.queryItems = [
             URLQueryItem(name: "translatedLanguage[]", value: "en"),
