@@ -55,6 +55,8 @@ public struct ReaderTests {
         // Test 7: MangaReadingMode Enums & Iconography
         assert(MangaReadingMode.webtoon.iconName == "arrow.up.and.down", "Webtoon Reading Mode Up/Down Icon")
         assert(MangaReadingMode.paged.iconName == "arrow.left.and.right", "Paged Reading Mode Left/Right Icon")
+        assert(MangaReadingMode.rightToLeft.iconName == "arrow.right.to.line", "RTL Reading Mode Icon")
+        assert(MangaReadingMode.allCases.count == 3, "All Three Manga Reading Modes Defined")
 
         // Test 8: Manga Panel and Cover Separation
         let testStoryId = UUID()

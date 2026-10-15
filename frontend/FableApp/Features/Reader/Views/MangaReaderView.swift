@@ -3,12 +3,14 @@ import SwiftUI
 public enum MangaReadingMode: String, CaseIterable, Identifiable {
     case webtoon = "Webtoon"
     case paged = "Paging"
+    case rightToLeft = "Manga (RTL)"
 
     public var id: String { rawValue }
     public var iconName: String {
         switch self {
         case .webtoon: return "arrow.up.and.down"
         case .paged: return "arrow.left.and.right"
+        case .rightToLeft: return "arrow.right.to.line"
         }
     }
 }
@@ -27,6 +29,13 @@ public struct MangaReaderView: View {
     @State private var isLoading: Bool = false
     @State private var zoomScale: CGFloat = 1.0
     @State private var isShowingChapterSheet: Bool = false
+    @State private var isInvertedColor: Bool = false
+
+    private enum ReaderTapZone {
+        case left
+        case center
+        case right
+    }
 
     public init(story: Story) {
         self.story = story
@@ -180,50 +189,81 @@ public struct MangaReaderView: View {
                     }
                 }
             } else {
-                Group {
-                    if readingMode == .webtoon {
-                        // Vertical Webtoon Continuous Scroll
-                        ScrollView(showsIndicators: false) {
-                            LazyVStack(spacing: 2) {
-                                ForEach(Array(activePageUrls.enumerated()), id: \.offset) { index, urlString in
-                                    MangaPageView(urlString: urlString, pageNumber: index + 1)
-                                        .onTapGesture {
-                                            withAnimation(.easeInOut(duration: 0.2)) {
-                                                isChromeVisible.toggle()
-                                            }
-                                        }
-                                }
-                            }
-                            .padding(.bottom, 80)
-                        }
-                    } else {
-                        // Horizontal Page Flip (Paging)
-                        TabView(selection: $currentPageIndex) {
-                            ForEach(Array(activePageUrls.enumerated()), id: \.offset) { index, urlString in
-                                MangaPageView(urlString: urlString, pageNumber: index + 1)
-                                    .tag(index)
-                                    .onTapGesture {
-                                        withAnimation(.easeInOut(duration: 0.2)) {
-                                            isChromeVisible.toggle()
+                GeometryReader { geo in
+                    ZStack {
+                        Group {
+                            if readingMode == .webtoon {
+                                // Vertical Webtoon Continuous Scroll
+                                ScrollView(showsIndicators: false) {
+                                    LazyVStack(spacing: 2) {
+                                        ForEach(Array(activePageUrls.enumerated()), id: \.offset) { index, urlString in
+                                            MangaPageView(urlString: urlString, pageNumber: index + 1)
+                                                .onTapGesture {
+                                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                                        isChromeVisible.toggle()
+                                                    }
+                                                }
                                         }
                                     }
+                                    .padding(.bottom, 80)
+                                }
+                            } else {
+                                // Horizontal Page Flip (Paging LTR or RTL)
+                                TabView(selection: $currentPageIndex) {
+                                    ForEach(Array(activePageUrls.enumerated()), id: \.offset) { index, urlString in
+                                        MangaPageView(urlString: urlString, pageNumber: index + 1)
+                                            .tag(index)
+                                    }
+                                }
+                                .tabViewStyle(.page(indexDisplayMode: .never))
+                                .environment(\.layoutDirection, readingMode == .rightToLeft ? .rightToLeft : .leftToRight)
                             }
                         }
-                        .tabViewStyle(.page(indexDisplayMode: .never))
+                        .applyColorInvert(isInvertedColor)
+                        .scaleEffect(zoomScale)
+                        .gesture(
+                            MagnificationGesture()
+                                .onChanged { val in
+                                    zoomScale = max(1.0, min(3.0, val))
+                                }
+                                .onEnded { _ in
+                                    withAnimation(.spring()) {
+                                        zoomScale = 1.0
+                                    }
+                                }
+                        )
+
+                        // Tachiyomi 3-Zone Tap Navigation Overlay (Active in Paged Modes)
+                        if readingMode != .webtoon {
+                            HStack(spacing: 0) {
+                                // Left 30% Zone (Prev in LTR; Next in RTL)
+                                Color.clear
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        handleTapZone(.left)
+                                    }
+                                    .frame(width: geo.size.width * 0.30)
+
+                                // Center 40% Zone (Menu Toggle)
+                                Color.clear
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        handleTapZone(.center)
+                                    }
+                                    .frame(width: geo.size.width * 0.40)
+
+                                // Right 30% Zone (Next in LTR; Prev in RTL)
+                                Color.clear
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        handleTapZone(.right)
+                                    }
+                                    .frame(width: geo.size.width * 0.30)
+                            }
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        }
                     }
                 }
-                .scaleEffect(zoomScale)
-                .gesture(
-                    MagnificationGesture()
-                        .onChanged { val in
-                            zoomScale = max(1.0, min(3.0, val))
-                        }
-                        .onEnded { _ in
-                            withAnimation(.spring()) {
-                                zoomScale = 1.0
-                            }
-                        }
-                )
             }
 
             // Minimalist Overlay Top Chrome
@@ -258,15 +298,43 @@ public struct MangaReaderView: View {
 
                         Spacer()
 
-                        // Mode Selector (Webtoon vs Paging)
+                        // Ink Inversion (Night Contrast Filter)
                         Button(action: {
                             if store.hapticFeedback {
                                 HapticManager.selection()
                             }
                             withAnimation(.easeInOut(duration: 0.2)) {
-                                readingMode = (readingMode == .webtoon) ? .paged : .webtoon
+                                isInvertedColor.toggle()
                             }
                         }) {
+                            Image(systemName: isInvertedColor ? "circle.righthalf.filled.inverse" : "circle.righthalf.filled")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(isInvertedColor ? FableTheme.brandPrimary : .white)
+                                .padding(10)
+                                .background(Color.white.opacity(0.15))
+                                .clipShape(Circle())
+                        }
+
+                        // Mode Selector Menu (Webtoon vs Paging vs RTL)
+                        Menu {
+                            ForEach(MangaReadingMode.allCases) { mode in
+                                Button(action: {
+                                    if store.hapticFeedback {
+                                        HapticManager.selection()
+                                    }
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        readingMode = mode
+                                    }
+                                }) {
+                                    HStack {
+                                        Label(mode.rawValue, systemImage: mode.iconName)
+                                        if readingMode == mode {
+                                            Image(systemName: "checkmark")
+                                        }
+                                    }
+                                }
+                            }
+                        } label: {
                             HStack(spacing: 5) {
                                 Image(systemName: readingMode.iconName)
                                     .font(.system(size: 12, weight: .bold))
@@ -308,7 +376,41 @@ public struct MangaReaderView: View {
                     Spacer()
 
                     // Minimalist Bottom Scrubber Chrome
-                    VStack(spacing: 8) {
+                    VStack(spacing: 12) {
+                        // Interactive Page Scrubber Slider (Tachiyomi-style scrubber)
+                        if activePageUrls.count > 1 {
+                            HStack(spacing: 12) {
+                                Text("\(currentPageIndex + 1)")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .frame(width: 28, alignment: .trailing)
+
+                                Slider(
+                                    value: Binding(
+                                        get: { Double(currentPageIndex) },
+                                        set: { newVal in
+                                            let rounded = Int(newVal.rounded())
+                                            if rounded != currentPageIndex && activePageUrls.indices.contains(rounded) {
+                                                currentPageIndex = rounded
+                                                if store.hapticFeedback {
+                                                    HapticManager.selection()
+                                                }
+                                            }
+                                        }
+                                    ),
+                                    in: 0...Double(max(1, activePageUrls.count - 1)),
+                                    step: 1
+                                )
+                                .tint(FableTheme.brandPrimary)
+
+                                Text("\(activePageUrls.count)")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundColor(.gray)
+                                    .frame(width: 28, alignment: .leading)
+                            }
+                            .padding(.horizontal, 24)
+                        }
+
                         HStack {
                             // Prev Chapter
                             Button(action: {
@@ -330,7 +432,7 @@ public struct MangaReaderView: View {
 
                             // Page Counter or External Release Tag
                             if !activePageUrls.isEmpty {
-                                Text("PAGE \(currentPageIndex + 1) OF \(activePageUrls.count)")
+                                Text("\(readingMode.rawValue.uppercased()) • PAGE \(currentPageIndex + 1) OF \(activePageUrls.count)")
                                     .font(.system(size: 11, weight: .heavy))
                                     .tracking(1.0)
                                     .foregroundColor(.white.opacity(0.9))
@@ -424,6 +526,67 @@ public struct MangaReaderView: View {
                 .navigationTitle("Chapters")
                 .navigationBarTitleDisplayMode(.inline)
             }
+        }
+    }
+
+    @MainActor
+    private func handleTapZone(_ zone: ReaderTapZone) {
+        switch zone {
+        case .left:
+            if readingMode == .rightToLeft {
+                advancePage()
+            } else {
+                backtrackPage()
+            }
+        case .right:
+            if readingMode == .rightToLeft {
+                backtrackPage()
+            } else {
+                advancePage()
+            }
+        case .center:
+            if store.hapticFeedback {
+                HapticManager.selection()
+            }
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isChromeVisible.toggle()
+            }
+        }
+    }
+
+    @MainActor
+    private func advancePage() {
+        if currentPageIndex < activePageUrls.count - 1 {
+            if store.hapticFeedback {
+                HapticManager.impact(style: .light)
+            }
+            withAnimation(.easeInOut(duration: 0.18)) {
+                currentPageIndex += 1
+            }
+        } else if currentChapterIndex < chapters.count - 1 {
+            if store.hapticFeedback {
+                HapticManager.impact(style: .medium)
+            }
+            currentChapterIndex += 1
+            currentPageIndex = 0
+        }
+    }
+
+    @MainActor
+    private func backtrackPage() {
+        if currentPageIndex > 0 {
+            if store.hapticFeedback {
+                HapticManager.impact(style: .light)
+            }
+            withAnimation(.easeInOut(duration: 0.18)) {
+                currentPageIndex -= 1
+            }
+        } else if currentChapterIndex > 0 {
+            if store.hapticFeedback {
+                HapticManager.impact(style: .medium)
+            }
+            currentChapterIndex -= 1
+            currentPageIndex = 0
         }
     }
 
@@ -544,3 +707,15 @@ private struct MangaPageView: View {
         .frame(maxWidth: .infinity, minHeight: 360)
     }
 }
+
+private extension View {
+    @ViewBuilder
+    func applyColorInvert(_ active: Bool) -> some View {
+        if active {
+            self.colorInvert()
+        } else {
+            self
+        }
+    }
+}
+
