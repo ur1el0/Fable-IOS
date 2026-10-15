@@ -91,7 +91,8 @@ public struct LibraryTests {
         }
         """.data(using: .utf8)!
 
-        if let liveBook = try? JSONDecoder().decode(Story.self, from: liveProviderJSON) {
+        let liveBook = try? JSONDecoder().decode(Story.self, from: liveProviderJSON)
+        if let liveBook {
             assert(liveBook.sourceProvider == .gutenberg, "Live Book Decodes Gutenberg Source")
             assert(liveBook.providerId == "1342", "Live Book Decodes Provider ID")
             assert(liveBook.genre.rawValue == "Historical Fiction", "Unknown Live Genre Is Preserved")
@@ -131,7 +132,8 @@ public struct LibraryTests {
         }
         """.data(using: .utf8)!
 
-        if let mangaStory = try? JSONDecoder().decode(Story.self, from: mangaJSON) {
+        let mangaStory = try? JSONDecoder().decode(Story.self, from: mangaJSON)
+        if let mangaStory {
             assert(mangaStory.contentFormat == .manga, "Manga Story Decodes ContentFormat Manga")
             assert(mangaStory.sourceProvider == .mangadex, "Manga Story Decodes SourceProvider MangaDex")
             assert(mangaStory.totalChapters == 12, "Manga Story Decodes Total Chapters")
@@ -184,10 +186,10 @@ public struct LibraryTests {
         assert(cachedChapterRoundTrip == [cachedChapter], "Chapter Payload Can Be Persisted and Restored")
 
         // Test 8: Provider formats are decoded without requiring a bundled catalog.
-        assert(liveBook.contentFormat == .prose && mangaStory.contentFormat == .manga, "Live Prose and Manga Formats Decode")
+        assert(liveBook?.contentFormat == .prose && mangaStory?.contentFormat == .manga, "Live Prose and Manga Formats Decode")
 
         // Test 9: Provider identities survive decoding and can address live chapter endpoints.
-        assert(liveBook.providerId == "1342" && mangaStory.sourceProvider == .mangadex, "Live Provider Identity Decodes")
+        assert(liveBook?.providerId == "1342" && mangaStory?.sourceProvider == .mangadex, "Live Provider Identity Decodes")
 
         let createRequest = CreateStoryRequest(
             title: "Authored Story",
