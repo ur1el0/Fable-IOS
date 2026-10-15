@@ -443,6 +443,23 @@ This progress log tracks the transition of **Fable** from an editorial prototype
   - Xcode build: **BUILD SUCCEEDED** for `iPhone 17 Pro` simulator.
   - Live simulator execution: Verified via screenshot (`simulator_screen_purged_library.png`) with clean category pills, 71 valid titles, and zero legacy demo cards.
 
+## Production Hardening: Manga Reading State Continuity & Resumption Engine (2026-10-15)
+
+- [x] **Panel-Level Position Resumption:**
+  - Added `restoreSavedChapter()` panel restoration in `MangaReaderView.swift` to resume from `progress.currentPage - 1` rather than resetting to page 1 on every launch.
+  - Added `.onChange(of: currentPageIndex)` and `.onChange(of: currentChapterIndex)` to synchronize panel flips and chapter advances in real time.
+- [x] **Composite Multi-Chapter Progress Metric:**
+  - Implemented `updateMangaProgress()` in `StoryStore.swift` calculating composite reading percentage: `fraction = (chapterIndex / totalChapters) + (page / totalPagesInChap) * (1 / totalChapters)`.
+  - Atomically persisted composite progress to local SwiftData, LWW account shelf sync, and living reading statistics.
+  - Formatted "Continue Reading" card on `LibraryView.swift` to display `Ch. \(chap) • Page \(page) of \(totalPages)` for manga titles.
+- [x] **Defensive Legacy Demo Filtering:**
+  - Guarded `inProgressStory` in `LibraryView.swift` and `displayedStories` in `ShelfView.swift` against `PersistenceService.legacyDemoStoryIds`.
+- [x] **Verification:**
+  - Xcode build: **BUILD SUCCEEDED** targeting `iPhone 17 Pro`.
+  - Backend tests: **39/39 passing** (`test_main.py`).
+  - Simulator verification: Screen capture (`simulator_screen_reading_continuity.png`) confirms UI stability and layout integrity.
+
+
 
 
 
