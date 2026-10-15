@@ -39,6 +39,35 @@ public struct MangaReaderView: View {
         return nil
     }
 
+    private var externalChapterURL: URL? {
+        guard let content = currentChapter?.content.trimmingCharacters(in: .whitespacesAndNewlines),
+              !content.isEmpty,
+              let url = URL(string: content),
+              let scheme = url.scheme?.lowercased(),
+              scheme == "http" || scheme == "https" else {
+            return nil
+        }
+        return url
+    }
+
+    private var externalPublisherName: String {
+        guard let url = externalChapterURL, let host = url.host?.lowercased() else {
+            return "Official Publisher"
+        }
+        if host.contains("manga-up") {
+            return "Manga UP (Square Enix)"
+        } else if host.contains("mangaplus") {
+            return "MANGA Plus (Shueisha)"
+        } else if host.contains("viz.com") {
+            return "VIZ Media"
+        } else if host.contains("kodansha") {
+            return "Kodansha"
+        } else if host.contains("webtoons") {
+            return "WEBTOON"
+        }
+        return host.replacingOccurrences(of: "www.", with: "")
+    }
+
     private var activePageUrls: [String] {
         if let chapter = currentChapter, !chapter.pageUrls.isEmpty {
             return chapter.pageUrls
@@ -64,18 +93,91 @@ public struct MangaReaderView: View {
                         .foregroundColor(.gray)
                 }
             } else if activePageUrls.isEmpty {
-                VStack(spacing: 16) {
-                    Image(systemName: "photo.stack")
-                        .font(.system(size: 44))
-                        .foregroundColor(.gray.opacity(0.5))
-                    Text("No pages available")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(.white)
-                    Text("This manga chapter has no published image panels yet.")
-                        .font(.system(size: 13))
-                        .foregroundColor(.gray)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 32)
+                if let externalURL = externalChapterURL {
+                    VStack(spacing: 20) {
+                        FableImageView(
+                            name: story.coverImageUrl,
+                            title: story.title,
+                            placeholderIcon: "book.pages",
+                            contentMode: .fill
+                        )
+                        .frame(width: 140, height: 200)
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                        )
+                        .shadow(color: Color.black.opacity(0.6), radius: 16, x: 0, y: 8)
+
+                        VStack(spacing: 8) {
+                            Text(currentChapter?.title ?? "Official Chapter")
+                                .font(.system(size: 18, weight: .bold))
+                                .foregroundColor(.white)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 24)
+
+                            HStack(spacing: 6) {
+                                Image(systemName: "checkmark.seal.fill")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(FableTheme.brandPrimary)
+                                Text("Official Licensed Release")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundColor(FableTheme.brandPrimary)
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(FableTheme.brandPrimary.opacity(0.15))
+                            .clipShape(Capsule())
+
+                            Text("This chapter is licensed and published by \(externalPublisherName). Tap below to read the official release directly.")
+                                .font(.system(size: 13))
+                                .foregroundColor(.gray)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 32)
+                        }
+
+                        Link(destination: externalURL) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "safari.fill")
+                                    .font(.system(size: 14, weight: .semibold))
+                                Text("Read on \(externalPublisherName)")
+                                    .font(.system(size: 14, weight: .bold))
+                                Image(systemName: "arrow.up.right")
+                                    .font(.system(size: 12, weight: .bold))
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 22)
+                            .padding(.vertical, 12)
+                            .background(FableTheme.brandPrimary)
+                            .clipShape(Capsule())
+                            .shadow(color: FableTheme.brandPrimary.opacity(0.4), radius: 10, x: 0, y: 4)
+                        }
+                    }
+                    .padding(.vertical, 40)
+                } else {
+                    VStack(spacing: 16) {
+                        FableImageView(
+                            name: story.coverImageUrl,
+                            title: story.title,
+                            placeholderIcon: "photo.stack",
+                            contentMode: .fill
+                        )
+                        .frame(width: 120, height: 170)
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                        )
+
+                        Text("No pages available")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(.white)
+                        Text("This manga chapter has no published image panels yet.")
+                            .font(.system(size: 13))
+                            .foregroundColor(.gray)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 32)
+                    }
                 }
             } else {
                 Group {
@@ -226,15 +328,26 @@ public struct MangaReaderView: View {
 
                             Spacer()
 
-                            // Page Counter
-                            Text("PAGE \(currentPageIndex + 1) OF \(max(1, activePageUrls.count))")
-                                .font(.system(size: 11, weight: .heavy))
-                                .tracking(1.0)
-                                .foregroundColor(.white.opacity(0.9))
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 4)
-                                .background(Color.white.opacity(0.15))
-                                .clipShape(Capsule())
+                            // Page Counter or External Release Tag
+                            if !activePageUrls.isEmpty {
+                                Text("PAGE \(currentPageIndex + 1) OF \(activePageUrls.count)")
+                                    .font(.system(size: 11, weight: .heavy))
+                                    .tracking(1.0)
+                                    .foregroundColor(.white.opacity(0.9))
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 4)
+                                    .background(Color.white.opacity(0.15))
+                                    .clipShape(Capsule())
+                            } else if externalChapterURL != nil {
+                                Text("OFFICIAL RELEASE")
+                                    .font(.system(size: 10, weight: .heavy))
+                                    .tracking(1.0)
+                                    .foregroundColor(FableTheme.brandPrimary)
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 4)
+                                    .background(FableTheme.brandPrimary.opacity(0.15))
+                                    .clipShape(Capsule())
+                            }
 
                             Spacer()
 
@@ -290,9 +403,15 @@ public struct MangaReaderView: View {
                                 Text(chap.title.isEmpty ? "Chapter \(chap.chapterNumber)" : chap.title)
                                     .font(.system(size: 15, weight: index == currentChapterIndex ? .bold : .medium))
                                     .foregroundColor(index == currentChapterIndex ? FableTheme.brandPrimary : FableTheme.textPrimary)
-                                Text("\(chap.pageUrls.count) panels")
-                                    .font(.system(size: 12))
-                                    .foregroundColor(FableTheme.textMuted)
+                                if chap.pageUrls.isEmpty, !chap.content.isEmpty, chap.content.lowercased().starts(with: "http") {
+                                    Text("Official Release")
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .foregroundColor(FableTheme.brandPrimary)
+                                } else {
+                                    Text("\(chap.pageUrls.count) panels")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(FableTheme.textMuted)
+                                }
                             }
                             Spacer()
                             if index == currentChapterIndex {
