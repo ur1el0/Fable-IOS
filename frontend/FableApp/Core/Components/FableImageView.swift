@@ -3,11 +3,18 @@ import SwiftUI
 @MainActor
 public struct FableImageView: View {
     public let name: String?
+    public let title: String?
     public var placeholderIcon: String = "book.closed"
     public var contentMode: ContentMode = .fill
 
-    public init(name: String?, placeholderIcon: String = "book.closed", contentMode: ContentMode = .fill) {
+    public init(
+        name: String?,
+        title: String? = nil,
+        placeholderIcon: String = "book.closed",
+        contentMode: ContentMode = .fill
+    ) {
         self.name = name
+        self.title = title
         self.placeholderIcon = placeholderIcon
         self.contentMode = contentMode
     }
@@ -28,6 +35,16 @@ public struct FableImageView: View {
         .clipped()
     }
 
+    private var semanticKey: String {
+        if let title, !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return title
+        }
+        if let name, !name.contains("://") {
+            return name
+        }
+        return ""
+    }
+
     private var proceduralPlaceholder: some View {
         GeometryReader { geo in
             if placeholderIcon.contains("person") {
@@ -43,7 +60,7 @@ public struct FableImageView: View {
     }
 
     private func avatarPlaceholder(size: CGFloat) -> some View {
-        let (initials, colors) = avatarMetadata(for: name ?? "")
+        let (initials, colors) = avatarMetadata(for: semanticKey)
         return ZStack {
             LinearGradient(
                 colors: colors,
@@ -66,14 +83,36 @@ public struct FableImageView: View {
         .frame(width: max(1, size), height: max(1, size))
     }
 
+    private struct GenrePalette {
+        let colors: [Color]
+        let symbol: String
+    }
+
+    private func genrePalette(for key: String) -> GenrePalette {
+        let s = key.lowercased()
+        if s.contains("gothic") || s.contains("horror") {
+            return GenrePalette(colors: [Color(red: 0.28, green: 0.08, blue: 0.14), Color(red: 0.12, green: 0.04, blue: 0.08)], symbol: "flame.fill")
+        } else if s.contains("romance") || s.contains("courtship") {
+            return GenrePalette(colors: [Color(red: 0.35, green: 0.15, blue: 0.28), Color(red: 0.18, green: 0.06, blue: 0.16)], symbol: "heart.fill")
+        } else if s.contains("classic") {
+            return GenrePalette(colors: [Color(red: 0.15, green: 0.24, blue: 0.38), Color(red: 0.08, green: 0.12, blue: 0.22)], symbol: "building.columns.fill")
+        } else if s.contains("adventure") {
+            return GenrePalette(colors: [Color(red: 0.12, green: 0.28, blue: 0.24), Color(red: 0.06, green: 0.15, blue: 0.12)], symbol: "compass.drawing")
+        } else if s.contains("folklore") || s.contains("myth") {
+            return GenrePalette(colors: [Color(red: 0.28, green: 0.24, blue: 0.12), Color(red: 0.14, green: 0.12, blue: 0.06)], symbol: "leaf.fill")
+        }
+        return GenrePalette(colors: [Color(red: 0.14, green: 0.16, blue: 0.30), Color(red: 0.24, green: 0.16, blue: 0.40)], symbol: "books.vertical.fill")
+    }
+
     private func genrePlaceholder(size: CGSize) -> some View {
-        ZStack {
+        let palette = genrePalette(for: semanticKey)
+        return ZStack {
             LinearGradient(
-                colors: [Color(red: 0.12, green: 0.14, blue: 0.28), Color(red: 0.24, green: 0.16, blue: 0.40)],
+                colors: palette.colors,
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
-            Image(systemName: placeholderIcon)
+            Image(systemName: palette.symbol)
                 .font(.system(size: max(18, min(size.width, size.height) * 0.24), weight: .medium))
                 .foregroundColor(Color.white.opacity(0.45))
         }
@@ -88,7 +127,7 @@ public struct FableImageView: View {
     }
 
     private func bookCoverPlaceholder(size: CGSize) -> some View {
-        let palette = bookPalette(for: name ?? "")
+        let palette = bookPalette(for: semanticKey)
         return ZStack {
             LinearGradient(
                 colors: palette.colors,
@@ -135,6 +174,12 @@ public struct FableImageView: View {
             return ("RG", [Color(red: 0.28, green: 0.32, blue: 0.18), Color(red: 0.14, green: 0.16, blue: 0.08)])
         } else if clean.contains("rowling") {
             return ("JK", [Color(red: 0.45, green: 0.25, blue: 0.15), Color(red: 0.22, green: 0.12, blue: 0.06)])
+        } else if clean.contains("kiyosaki") {
+            return ("RK", [Color(red: 0.20, green: 0.28, blue: 0.36), Color(red: 0.10, green: 0.14, blue: 0.20)])
+        } else if clean.contains("housel") {
+            return ("MH", [Color(red: 0.34, green: 0.26, blue: 0.18), Color(red: 0.18, green: 0.12, blue: 0.08)])
+        } else if clean.contains("manson") {
+            return ("MM", [Color(red: 0.38, green: 0.22, blue: 0.16), Color(red: 0.18, green: 0.10, blue: 0.06)])
         }
         let fallbackInitials = clean.split(separator: " ").compactMap { $0.first.map(String.init) }.prefix(2).joined().uppercased()
         return (fallbackInitials.isEmpty ? "" : fallbackInitials, [FableTheme.brandPrimary, FableTheme.brandSecondary])
@@ -193,8 +238,6 @@ public struct FableRemoteImageView<Placeholder: View>: View {
             }
         }
         .task(id: url) {
-            cachedImage = nil
-
             if let cachedImage = DiskImageCache.shared.image(for: url) {
                 self.cachedImage = cachedImage
                 return
@@ -205,16 +248,11 @@ public struct FableRemoteImageView<Placeholder: View>: View {
                 return
             }
 
-            cachedImage = DiskImageCache.shared.image(for: url)
-        }
-        .clipped()
-    }
-
-    private var loadingView: some View {
-        ZStack {
-            FableTheme.surface
-            ProgressView()
-                .scaleEffect(0.8)
+            if let cached = DiskImageCache.shared.image(for: url) {
+                withAnimation(.easeIn(duration: 0.2)) {
+                    self.cachedImage = cached
+                }
+            }
         }
         .clipped()
     }
@@ -238,7 +276,7 @@ public struct FableRemoteImageView<Placeholder: View>: View {
                         }
                     }
             case .empty:
-                loadingView
+                placeholder
             case .failure:
                 placeholder
             @unknown default:
