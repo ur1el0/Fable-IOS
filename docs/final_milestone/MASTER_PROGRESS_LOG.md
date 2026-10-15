@@ -459,7 +459,20 @@ This progress log tracks the transition of **Fable** from an editorial prototype
   - Backend tests: **39/39 passing** (`test_main.py`).
   - Simulator verification: Screen capture (`simulator_screen_reading_continuity.png`) confirms UI stability and layout integrity.
 
+## Production Hardening: Backend CORS Whitelist & Sliding-Window Rate Limiting (2026-10-15)
 
-
-
-
+- [x] **Sliding-Window Rate Limiter Engine (`backend/core/rate_limit.py`):**
+  - Implemented thread-safe, in-memory sliding-window limiter using timestamp queues and atomic lock synchronization.
+  - Established tiered rate limits:
+    - Auth Tier (`/api/v1/auth/*`): 10 requests / 60 seconds per client IP to mitigate brute force credential attacks.
+    - General Tier (`/api/v1/*`): 60 requests / 60 seconds per client IP to protect upstream proxy resources (e.g. MangaDex).
+  - Built `RateLimitMiddleware` returning HTTP `429 Too Many Requests`, JSON error payload, and compliant `Retry-After: <seconds>` header.
+  - Added configurable bypass switch `FABLE_RATE_LIMIT_ENABLED` for safe regression and load testing.
+- [x] **CORS Origin Whitelisting (`backend/main.py`):**
+  - Replaced unsafe wildcard `allow_origins=["*"]` with environment-parsed `FABLE_CORS_ORIGINS` whitelist and trusted local/mobile origins (`localhost:3000`, `127.0.0.1:3000`, `localhost:8000`, `127.0.0.1:8000`, `localhost:5173`, `capacitor://localhost`, `ionic://localhost`).
+  - Enforced `allow_credentials=True` safety compliance across modern web and mobile webview clients.
+- [x] **Test Verification & Coverage (`backend/test_main.py`):**
+  - Added unit test `test_sliding_window_rate_limiter_unit()` verifying window eviction, quota exhaustion, retry calculation, and reset.
+  - Added integration test `test_rate_limit_middleware_blocks_burst()` verifying live middleware rejection with HTTP 429 and `Retry-After` header.
+  - Added contract test `test_cors_origin_whitelist_contract()` verifying trusted origin header reflection and untrusted origin exclusion.
+  - All **42/42 backend tests passing** in 1.38s.
