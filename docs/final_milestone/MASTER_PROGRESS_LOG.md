@@ -345,3 +345,19 @@ This progress log tracks the transition of **Fable** from an editorial prototype
   - Backend pytest test suite passed (39/39 tests green).
   - Xcode compilation verified (`** BUILD SUCCEEDED **`) on iPhone 17 Simulator.
 
+## Prose Book Reader Ergonomics Alignment & Precision Scrubber (2026-10-15)
+
+- [x] **Unified Reading Ergonomics Across Prose & Graphic Media:**
+  - Brought Tachiyomi and Kindle e-reader interaction patterns to standard literature and prose books in `ReaderView.swift`.
+  - Implemented `@State private var isChromeVisible: Bool = true` toggling top navigation bar and bottom floating HUD pill with matched `.move` and `.opacity` transitions for distraction-free reading.
+- [x] **3-Zone Tap Navigation Overlay:**
+  - Layered over paginated manuscript view: Left 30% triggers `turnPageBack()`, Center 40% toggles chrome visibility with selection haptics, Right 30% triggers `turnPageForward()`.
+- [x] **Interactive Page Scrubber Slider:**
+  - Added precision seeking slider to the floating HUD in paginated mode with monospaced page counts (`\(currentPage)` / `\(totalPages)`), smooth drag binding, haptic feedback on page change, and immediate progress persistence to `StoryStore`.
+- [x] **Atomic Inter-Chapter Navigation:**
+  - Upgraded `turnPageForward()`, `turnPageBack()`, `selectChapter()`, and `loadCurrentChapterPages()` with `startAtLastPage` support.
+  - Page turns at chapter boundaries seamlessly advance to the next chapter's first page or reverse to the previous chapter's final page with haptic notifications and live pacing recalculation.
+- [x] **Verification & Integrity:**
+  - Swift compilation verified via `xcodebuild` on iOS Simulator (`** BUILD SUCCEEDED **`).
+  - Backend pytest suite verified: 39/39 tests green.
+
