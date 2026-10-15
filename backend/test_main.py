@@ -4,9 +4,11 @@ from datetime import datetime, timezone, timedelta
 from uuid import uuid4
 from fastapi.testclient import TestClient
 
-# Ensure test uses a separate test database
+# Ensure test uses a separate test database and disables global rate limit by default
 os.environ["FABLE_DB_PATH"] = "test_fable.sqlite3"
-from main import app, init_db
+os.environ["FABLE_RATE_LIMIT_ENABLED"] = "false"
+from main import app, init_db, limiter
+from core.rate_limit import SlidingWindowRateLimiter
 
 @pytest.fixture(autouse=True)
 def setup_teardown_db():
@@ -1105,4 +1107,57 @@ def test_get_manga_chapters_and_ingest(monkeypatch):
     assert ingest_data["sourceProvider"] == "MANGADEX"
     assert len(ingest_data["chapters"]) == 1
     assert len(ingest_data["chapters"][0]["pageUrls"]) == 2
+
+
+def test_sliding_window_rate_limiter_unit():
+    test_limiter = SlidingWindowRateLimiter(auth_limit=2, auth_window=2)
+    allowed, retry = test_limiter.is_allowed("client-1", "auth")
+    assert allowed is True
+    assert retry == 0
+
+    allowed, retry = test_limiter.is_allowed("client-1", "auth")
+    assert allowed is True
+
+    # 3rd request in window is rejected
+    allowed, retry = test_limiter.is_allowed("client-1", "auth")
+    assert allowed is False
+    assert retry >= 1
+
+    # Isolated client is unaffected
+    allowed_other, _ = test_limiter.is_allowed("client-2", "auth")
+    assert allowed_other is True
+
+    # Reset cleans memory
+    test_limiter.reset()
+    allowed_after_reset, _ = test_limiter.is_allowed("client-1", "auth")
+    assert allowed_after_reset is True
+
+
+def test_rate_limit_middleware_blocks_burst(monkeypatch):
+    limiter.reset()
+    monkeypatch.setenv("FABLE_RATE_LIMIT_ENABLED", "true")
+    monkeypatch.setattr(limiter, "limits", {"auth": (3, 60), "general": (60, 60)})
+
+    for _ in range(3):
+        res = client.get("/api/v1/auth/me")
+        assert res.status_code == 401
+
+    blocked = client.get("/api/v1/auth/me")
+    assert blocked.status_code == 429
+    assert blocked.json()["detail"] == "Too many requests. Please slow down."
+    assert "Retry-After" in blocked.headers
+    assert int(blocked.headers["Retry-After"]) >= 1
+
+    limiter.reset()
+
+
+def test_cors_origin_whitelist_contract():
+    # Trusted localhost dev origin
+    res_allowed = client.get("/api/v1/health", headers={"Origin": "http://localhost:3000"})
+    assert res_allowed.headers.get("access-control-allow-origin") == "http://localhost:3000"
+    assert res_allowed.headers.get("access-control-allow-credentials") == "true"
+
+    # Untrusted external origin is not permitted
+    res_rejected = client.get("/api/v1/health", headers={"Origin": "https://malicious-domain.test"})
+    assert res_rejected.headers.get("access-control-allow-origin") != "https://malicious-domain.test"
 
