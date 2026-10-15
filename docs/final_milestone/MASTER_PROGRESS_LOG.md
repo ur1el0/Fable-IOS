@@ -255,3 +255,16 @@ This progress log tracks the transition of **Fable** from an editorial prototype
 - [x] Clean compilation verified via `xcodebuild -scheme FableApp -destination 'generic/platform=iOS Simulator'` with 0 errors.
 - [x] Backend automated suite verified with 36/36 tests passing in isolated Python virtual environment.
 
+## Live Media Resilience and Procedural Visual Fallback Engine (2026-10-15)
+
+- [x] Restored and upgraded procedural multi-tier visual fallback engine in `FableImageView.swift` with semantic `title:` resolution.
+- [x] Implemented dynamic monogram avatars with initials extraction and author-themed color palettes for Open Library creators (e.g. James Clear, Robert Greene, J.K. Rowling, Bram Stoker, Jane Austen).
+- [x] Implemented foil-stamped, genre-coded book covers with iconography and embossing borders during network in-flight load and offline fallback states.
+- [x] Configured zero-flicker remote image loading: placeholders render immediately with no blank gray boxes, cross-fading into live JPEGs as soon as `DiskImageCache` or `URLSession` completes download.
+- [x] Configured custom `User-Agent` and 15.0s timeout in `DiskImageCache.swift` to prevent bot-detection throttles and CDN timeouts on Project Gutenberg and Open Library image servers.
+- [x] Increased Gutenberg proxy timeout in `backend/services/gutenberg.py` from 8.0s to 15.0s to accommodate campus Wi-Fi network latency.
+- [x] Implemented catalog-derived live genre synthesis in `StoryStore.swift` so that newly registered accounts immediately see categorized genres (Fiction, Classics, Gothic, Romance, Adventure, Horror) with accurate live counts even before any user-created stories are published to SQLite.
+- [x] Upgraded `GenreDetailView.swift` with resilient multi-facet genre matching and semantic title passing.
+- [x] Verified 100% clean Xcode compilation (`** BUILD SUCCEEDED **`) on iOS Simulator platform.
+- [x] Verified full backend suite: 36/36 tests passing in `backend/test_main.py`.
+
