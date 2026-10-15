@@ -15,7 +15,7 @@ async def ingest_gutenberg_book(
 
 @router.get("/public/gutenberg", response_model=list[StoryDTO])
 async def get_gutenberg_stories(
-    topic: Optional[str] = Query(default="folklore", description="Topic or genre filter for Gutenberg"),
+    topic: Optional[str] = Query(default=None, description="Topic or genre filter for Gutenberg"),
     search: Optional[str] = Query(default=None, description="Search term across title and author")
 ):
     return await gutenberg_service.get_gutenberg_stories(topic=topic, search=search)
