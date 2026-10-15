@@ -1,5 +1,7 @@
+import asyncio
 import json
 import time
+import urllib.parse
 from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID, uuid5
@@ -34,6 +36,42 @@ def _set_in_cache(key: str, data: any):
     _CACHE[key] = (time.time(), data)
 
 
+async def _fetch_json_with_fallback(url: str, params: Optional[list] = None) -> dict:
+    """
+    Attempts to fetch upstream JSON via HTTPX. If Python's TLS stack lacks modern
+    handshake ciphers (e.g. LibreSSL on macOS), gracefully falls back to system curl.
+    """
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.get(url, params=params, headers=PROVIDER_HEADERS)
+            if resp.status_code == 200:
+                return resp.json()
+            if resp.status_code == 404:
+                return {}
+    except Exception:
+        pass
+
+    try:
+        full_url = url
+        if params:
+            query_str = urllib.parse.urlencode(params)
+            full_url = f"{url}?{query_str}"
+        proc = await asyncio.create_subprocess_exec(
+            "curl", "-s", "--max-time", "15",
+            "-H", f"User-Agent: {PROVIDER_HEADERS['User-Agent']}",
+            full_url,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        stdout, _ = await proc.communicate()
+        if stdout:
+            return json.loads(stdout.decode("utf-8"))
+    except Exception as err:
+        raise HTTPException(status_code=502, detail="Manga upstream service unavailable") from err
+
+    raise HTTPException(status_code=502, detail="Manga upstream service unavailable")
+
+
 def _story_from_mangadex_item(item: dict) -> Optional[StoryDTO]:
     manga_id = item.get("id")
     attrs = item.get("attributes", {})
@@ -41,9 +79,14 @@ def _story_from_mangadex_item(item: dict) -> Optional[StoryDTO]:
         return None
 
     title_dict = attrs.get("title", {})
-    title = title_dict.get("en") or (next(iter(title_dict.values())) if title_dict else "Untitled Manga")
+    title = title_dict.get("en")
     if not title:
-        return None
+        for alt in attrs.get("altTitles", []):
+            if "en" in alt:
+                title = alt["en"]
+                break
+    if not title:
+        title = next(iter(title_dict.values())) if title_dict else "Untitled Manga"
 
     desc_dict = attrs.get("description", {})
     synopsis = desc_dict.get("en", "")
@@ -86,6 +129,7 @@ def _story_from_mangadex_item(item: dict) -> Optional[StoryDTO]:
         source_provider="MANGADEX",
         provider_id=manga_id,
         is_curator_spotlight=False,
+        is_recent_submission=True,
     )
 
 
@@ -116,19 +160,7 @@ async def search_manga(
     else:
         params.append(("order[followedCount]", "desc"))
 
-    try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.get(url, params=params, headers=PROVIDER_HEADERS)
-    except httpx.HTTPError as err:
-        raise HTTPException(status_code=502, detail="Manga upstream service unavailable") from err
-
-    if resp.status_code != 200:
-        raise HTTPException(
-            status_code=502,
-            detail=f"Manga service returned upstream status {resp.status_code}"
-        )
-
-    data = resp.json()
+    data = await _fetch_json_with_fallback(url, params=params)
     items = data.get("data", [])
     results: list[StoryDTO] = []
     for item in items:
@@ -152,21 +184,11 @@ async def get_manga_by_id(manga_id: str) -> StoryDTO:
         ("includes[]", "author"),
     ]
 
-    try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.get(url, params=params, headers=PROVIDER_HEADERS)
-    except httpx.HTTPError as err:
-        raise HTTPException(status_code=502, detail="Manga upstream service unavailable") from err
-
-    if resp.status_code == 404:
-        raise HTTPException(status_code=404, detail="Manga title not found")
-    if resp.status_code != 200:
-        raise HTTPException(status_code=502, detail="Manga upstream error")
-
-    data = resp.json().get("data", {})
-    dto = _story_from_mangadex_item(data)
+    data = await _fetch_json_with_fallback(url, params=params)
+    item = data.get("data", {})
+    dto = _story_from_mangadex_item(item)
     if not dto:
-        raise HTTPException(status_code=422, detail="Invalid manga metadata payload")
+        raise HTTPException(status_code=404, detail="Manga title not found")
 
     _set_in_cache(cache_key, dto)
     return dto
@@ -185,72 +207,60 @@ async def get_manga_chapters(manga_id: str, limit: int = 20) -> list[ChapterDTO]
         ("limit", str(min(limit, 50))),
     ]
 
-    try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.get(url, params=params, headers=PROVIDER_HEADERS)
-    except httpx.HTTPError as err:
-        raise HTTPException(status_code=502, detail="Manga feed service unavailable") from err
-
-    if resp.status_code != 200:
-        raise HTTPException(status_code=502, detail="Failed to load manga chapters from upstream")
-
-    feed_data = resp.json().get("data", [])
+    feed_json = await _fetch_json_with_fallback(url, params=params)
+    feed_data = feed_json.get("data", [])
     story_uuid = uuid5(MANGA_NAMESPACE, f"mangadex:{manga_id}")
     now = datetime.now(timezone.utc)
     chapters: list[ChapterDTO] = []
 
-    async with httpx.AsyncClient(timeout=10.0) as at_home_client:
-        for idx, ch in enumerate(feed_data):
-            ch_id = ch.get("id")
-            attrs = ch.get("attributes", {})
-            if not ch_id or not attrs:
-                continue
+    for idx, ch in enumerate(feed_data):
+        ch_id = ch.get("id")
+        attrs = ch.get("attributes", {})
+        if not ch_id or not attrs:
+            continue
 
-            ch_num_str = attrs.get("chapter") or f"{idx + 1}"
+        ch_num_str = attrs.get("chapter") or f"{idx + 1}"
+        try:
+            ch_num = max(0, int(float(ch_num_str)))
+        except (ValueError, TypeError):
+            ch_num = idx + 1
+
+        raw_title = attrs.get("title") or ""
+        display_title = raw_title if raw_title.strip() else f"Chapter {ch_num_str}"
+        external_url = attrs.get("externalUrl")
+
+        page_urls: list[str] = []
+        if not external_url:
             try:
-                ch_num = int(float(ch_num_str))
-            except (ValueError, TypeError):
-                ch_num = idx + 1
+                ah_url = f"https://api.mangadex.org/at-home/server/{ch_id}"
+                ah_data = await _fetch_json_with_fallback(ah_url)
+                base_url = ah_data.get("baseUrl")
+                chapter_obj = ah_data.get("chapter", {})
+                hash_val = chapter_obj.get("hash")
+                files = (
+                    chapter_obj.get("dataSaver")
+                    or chapter_obj.get("data")
+                    or []
+                )
+                if base_url and hash_val and files:
+                    page_urls = [
+                        f"{base_url}/data-saver/{hash_val}/{file_name}"
+                        for file_name in files
+                    ]
+            except Exception:
+                page_urls = []
 
-            raw_title = attrs.get("title") or ""
-            display_title = raw_title if raw_title.strip() else f"Chapter {ch_num_str}"
-            external_url = attrs.get("externalUrl")
-
-            page_urls: list[str] = []
-            if not external_url:
-                try:
-                    ah_url = f"https://api.mangadex.org/at-home/server/{ch_id}"
-                    ah_resp = await at_home_client.get(ah_url, headers=PROVIDER_HEADERS)
-                    if ah_resp.status_code == 200:
-                        ah_data = ah_resp.json()
-                        base_url = ah_data.get("baseUrl")
-                        chapter_obj = ah_data.get("chapter", {})
-                        hash_val = chapter_obj.get("hash")
-                        files = (
-                            chapter_obj.get("dataSaver")
-                            or chapter_obj.get("data")
-                            or []
-                        )
-                        if base_url and hash_val and files:
-                            page_urls = [
-                                f"{base_url}/data-saver/{hash_val}/{file_name}"
-                                for file_name in files
-                            ]
-                except Exception:
-                    # Non-fatal panel resolution failure; fallback to empty list
-                    page_urls = []
-
-            chapter_dto = ChapterDTO(
-                id=uuid5(MANGA_NAMESPACE, f"mangadex_chapter:{ch_id}"),
-                story_id=story_uuid,
-                chapter_number=ch_num,
-                title=display_title,
-                content=external_url or "",
-                word_count=0,
-                created_at_utc=now,
-                page_urls=page_urls,
-            )
-            chapters.append(chapter_dto)
+        chapter_dto = ChapterDTO(
+            id=uuid5(MANGA_NAMESPACE, f"mangadex_chapter:{ch_id}"),
+            story_id=story_uuid,
+            chapter_number=ch_num,
+            title=display_title,
+            content=external_url or "",
+            word_count=0,
+            created_at_utc=now,
+            page_urls=page_urls,
+        )
+        chapters.append(chapter_dto)
 
     _set_in_cache(cache_key, chapters)
     return chapters
@@ -305,7 +315,7 @@ async def ingest_manga_story(manga_id: str) -> StoryDTO:
                         story_id_value, story.title[:120], story.author[:80], "Manga",
                         chapters[0].title if chapters else "Chapter 1",
                         story.synopsis, "", story.read_time_minutes, created_at, now_iso,
-                        story.cover_image_url, 0, len(chapters), "MANGA", "MANGADEX",
+                        story.cover_image_url, 1, len(chapters), "MANGA", "MANGADEX",
                         manga_id,
                     ),
                 )
