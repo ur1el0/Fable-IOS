@@ -274,3 +274,12 @@ This progress log tracks the transition of **Fable** from an editorial prototype
 - [x] Verified unconstrained global searches (e.g. *Sherlock Holmes*, *Dracula*, *Moby Dick*, *Frankenstein*) return live catalog records from Gutenberg gateway.
 - [x] Maintained 100% test pass rate: 36/36 tests passing in `backend/test_main.py`.
 
+## MangaDex Live Manga Search and Ingestion Gateway (2026-10-15)
+
+- [x] Implemented `fetchMangaStories(search:)` in `StoryAPIService.swift` connecting to MangaDex public API for titles, cover art, and author credits.
+- [x] Connected `fetchChapters` to MangaDex `@at-home` panel servers for `sourceProvider == "MANGADEX"`, streaming sequential high-resolution panel URLs to `MangaReaderView`.
+- [x] Aggregated search pipeline in `StoryStore.swift` to query both Project Gutenberg (prose classics) and MangaDex (graphic novels/manga) simultaneously on user search queries.
+- [x] Seeded initial catalog sync with top trending manga titles alongside public literature.
+- [x] Clean compilation verified via Xcode (`** BUILD SUCCEEDED **`) on iOS Simulator target.
+- [x] Backend test suite verified: 36/36 tests passing in `backend/test_main.py`.
+
