@@ -423,5 +423,26 @@ This progress log tracks the transition of **Fable** from an editorial prototype
   - Backend automated test suite passed: **39/39 tests passing** (`test_main.py`).
   - Xcode iOS build succeeded cleanly (`** BUILD SUCCEEDED **`) with 0 errors.
 
+## Production Hardening: Dual-Engine Literature & Manga Taxonomy, English Chapter Enforcement & Legacy Demo Purge (2026-10-15)
+
+- [x] **Manga Strict English Enforcement (`en`):**
+  - Eliminated unconstrained multi-language fallbacks in `_probe_direct_chapters` and `get_manga_chapters` in `backend/services/manga.py`.
+  - Strictly enforce `("translatedLanguage[]", "en")` across upstream MangaDex feed queries, preventing foreign scanlations from being substituted for licensed works.
+  - Prioritized direct SQLite chapter cache if ingested chapters with valid `page_urls` exist.
+- [x] **SwiftData Legacy Demo Purge & Accurate "Latest Releases":**
+  - Added `purgeLegacyDemoStories()` and `legacyDemoStoryIds` to `PersistenceService.swift` targeting retired demo UUIDs (`66666666-6666-6666-6666-666666666666` through `20202020-2020-2020-2020-202020202020`).
+  - Invoked `purgeLegacyDemoStories()` in `StoryStore.init()` and defended `fetchAllStories()` against legacy demo IDs.
+  - Fixed `isRecentSubmission: false` in `StoryStore.syncWithPersistence()`, ending the false marking of offline entities as fresh releases, and changed `stories.insert(userStory, at: 0)` to `stories.append(userStory)`.
+  - Filtered `legacyDemoStoryIds` out of `filteredRecentStories` and hero card resolution in `LibraryView.swift`.
+- [x] **Dual-Engine Identity & Category Taxonomy:**
+  - Merged dynamic backend genres (`liveGenres`) with catalog-synthesized literature taxonomy (`deriveGenresFromCatalog(stories)`) in `StoryStore.syncWithCloudBackend()`.
+  - Restored full literature genre taxonomy: `All`, `Manga`, `Fiction`, `Classics`, `Sci-Fi`, `Gothic`, `Romance`, `Adventure`, `Horror`.
+  - Implemented `storyMatchesCategory(_ story: Story, category: String) -> Bool` in `StoryStore.swift` with keyword and format matching.
+- [x] **Verification:**
+  - Backend tests: **39/39 passing** (`.venv/bin/pytest test_main.py`).
+  - Xcode build: **BUILD SUCCEEDED** for `iPhone 17 Pro` simulator.
+  - Live simulator execution: Verified via screenshot (`simulator_screen_purged_library.png`) with clean category pills, 71 valid titles, and zero legacy demo cards.
+
+
 
 
