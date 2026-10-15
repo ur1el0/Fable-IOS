@@ -893,12 +893,14 @@ public struct ReaderView: View {
             withAnimation(.easeInOut(duration: 0.2)) {
                 currentPage -= 1
             }
-            let wordCount = pages.indices.contains(currentPage - 1) ? pages[currentPage - 1].split(separator: " ").count : 180
+            let wordCount = pages.indices.contains(currentPage - 1) ? PacingEngine.countWords(in: pages[currentPage - 1]) : 180
             pacingEngine.recordPageTurn(wordsOnPage: wordCount)
             store.updateProgress(for: story.id, page: currentPage, totalPages: totalPages)
         } else if currentChapterIndex > 0 {
-            selectChapter(at: currentChapterIndex - 1)
-            currentPage = totalPages
+            if store.hapticFeedback {
+                HapticManager.notification(type: .success)
+            }
+            selectChapter(at: currentChapterIndex - 1, startAtLastPage: true)
         }
     }
 
@@ -910,29 +912,34 @@ public struct ReaderView: View {
             withAnimation(.easeInOut(duration: 0.2)) {
                 currentPage += 1
             }
-            let wordCount = pages.indices.contains(currentPage - 1) ? pages[currentPage - 1].split(separator: " ").count : 180
+            let wordCount = pages.indices.contains(currentPage - 1) ? PacingEngine.countWords(in: pages[currentPage - 1]) : 180
             pacingEngine.recordPageTurn(wordsOnPage: wordCount)
             store.updateProgress(for: story.id, page: currentPage, totalPages: totalPages)
         } else if currentChapterIndex < chapters.count - 1 {
-            selectChapter(at: currentChapterIndex + 1)
+            if store.hapticFeedback {
+                HapticManager.notification(type: .success)
+            }
+            selectChapter(at: currentChapterIndex + 1, startAtLastPage: false)
         }
     }
     
     // Multi-Chapter Synchronization Helpers
-    private func loadCurrentChapterPages(preserveCurrentPage: Bool = false) {
+    private func loadCurrentChapterPages(preserveCurrentPage: Bool = false, startAtLastPage: Bool = false) {
         let text = activeChapterText
         let chunked = PacingEngine.chunkIntoPages(text: text, fontSizePercentage: store.readerFontSize)
         self.pages = chunked
         self.totalPages = max(1, chunked.count)
         if preserveCurrentPage {
             self.currentPage = min(max(1, self.currentPage), self.totalPages)
+        } else if startAtLastPage {
+            self.currentPage = max(1, chunked.count)
         } else {
             self.currentPage = 1
         }
         store.loadAnnotations(for: story.id)
     }
     
-    private func selectChapter(at index: Int) {
+    private func selectChapter(at index: Int, startAtLastPage: Bool = false) {
         guard chapters.indices.contains(index) else { return }
         withAnimation(.easeInOut(duration: 0.25)) {
             currentChapterIndex = index
@@ -942,7 +949,7 @@ public struct ReaderView: View {
                 chapterId: chapter.id.uuidString,
                 chapterNumber: chapter.chapterNumber
             )
-            loadCurrentChapterPages()
+            loadCurrentChapterPages(startAtLastPage: startAtLastPage)
             if audioNarrator.isPlaying {
                 audioNarrator.speak(story: story, chapter: chapter)
             }
