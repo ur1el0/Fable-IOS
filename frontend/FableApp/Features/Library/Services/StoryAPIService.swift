@@ -199,6 +199,7 @@ public protocol StoryAPIServiceProtocol: Sendable {
     func fetchShelf(deviceId: UUID, token: String) async throws -> [ShelfSyncItem]
     func fetchGutenbergStories(topic: String?, search: String?) async throws -> [Story]
     func fetchGutenbergStory(providerId: String) async throws -> Story
+    func fetchMangaStories(search: String?) async throws -> [Story]
     func fetchChapters(for storyId: UUID, sourceProvider: String, providerId: String?) async throws -> [Chapter]
     func fetchGenres() async throws -> [GenreCategory]
     func fetchTopAuthors() async throws -> [Writer]
@@ -223,6 +224,10 @@ public extension StoryAPIServiceProtocol {
     
     func fetchGutenbergStories(topic: String? = nil, search: String? = nil) async throws -> [Story] {
         try await fetchGutenbergStories(topic: topic, search: search)
+    }
+
+    func fetchMangaStories(search: String? = nil) async throws -> [Story] {
+        try await fetchMangaStories(search: search)
     }
 }
 
@@ -373,31 +378,185 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
     }
 
     public func fetchChapters(for storyId: UUID, sourceProvider: String = "", providerId: String? = nil) async throws -> [Chapter] {
-        let url: URL
         if sourceProvider == "GUTENBERG", let providerId {
             guard let gutenbergId = Int(providerId), gutenbergId > 0 else {
                 throw URLError(.badURL)
             }
-            url = baseURL
+            let url = baseURL
                 .appendingPathComponent("public")
                 .appendingPathComponent("gutenberg")
                 .appendingPathComponent(String(gutenbergId))
                 .appendingPathComponent("chapters")
+            let (data, response) = try await session.data(from: url)
+            guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+                throw URLError(.badServerResponse)
+            }
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            return try decoder.decode([Chapter].self, from: data)
         } else if sourceProvider == "GUTENBERG" {
             throw URLError(.badURL)
+        } else if sourceProvider == "MANGADEX", let providerId, !providerId.isEmpty {
+            return try await fetchMangaChapters(mangaId: providerId, storyId: storyId)
         } else {
-            url = baseURL
+            let url = baseURL
                 .appendingPathComponent("stories")
                 .appendingPathComponent(storyId.uuidString)
                 .appendingPathComponent("chapters")
+            let (data, response) = try await session.data(from: url)
+            guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+                throw URLError(.badServerResponse)
+            }
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            return try decoder.decode([Chapter].self, from: data)
         }
-        let (data, response) = try await session.data(from: url)
+    }
+
+    public func fetchMangaStories(search: String? = nil) async throws -> [Story] {
+        var components = URLComponents(string: "https://api.mangadex.org/manga")!
+        var queryItems = [
+            URLQueryItem(name: "limit", value: "20"),
+            URLQueryItem(name: "includes[]", value: "cover_art"),
+            URLQueryItem(name: "includes[]", value: "author"),
+            URLQueryItem(name: "contentRating[]", value: "safe"),
+            URLQueryItem(name: "contentRating[]", value: "suggestive")
+        ]
+        if let search, !search.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            queryItems.append(URLQueryItem(name: "title", value: search.trimmingCharacters(in: .whitespacesAndNewlines)))
+        } else {
+            queryItems.append(URLQueryItem(name: "order[followedCount]", value: "desc"))
+        }
+        components.queryItems = queryItems
+        guard let targetURL = components.url else { throw URLError(.badURL) }
+
+        var request = URLRequest(url: targetURL)
+        request.setValue("Fable/1.0 (iOS client; https://github.com/ur1el0/Fable-IOS)", forHTTPHeaderField: "User-Agent")
+        request.timeoutInterval = 15.0
+
+        let (data, response) = try await session.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
             throw URLError(.badServerResponse)
         }
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        return try decoder.decode([Chapter].self, from: data)
+
+        guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let dataArray = root["data"] as? [[String: Any]] else {
+            return []
+        }
+
+        return dataArray.compactMap { item -> Story? in
+            guard let mangaId = item["id"] as? String,
+                  let attrs = item["attributes"] as? [String: Any] else {
+                return nil
+            }
+            let titleDict = attrs["title"] as? [String: String] ?? [:]
+            let title = titleDict["en"] ?? titleDict.values.first ?? "Untitled Manga"
+            guard !title.isEmpty else { return nil }
+
+            let descDict = attrs["description"] as? [String: String] ?? [:]
+            let synopsis = descDict["en"] ?? ""
+
+            var coverFileName: String?
+            var authorName = "Manga Artist"
+            if let relationships = item["relationships"] as? [[String: Any]] {
+                for rel in relationships {
+                    let type = rel["type"] as? String
+                    if type == "cover_art", let relAttrs = rel["attributes"] as? [String: Any] {
+                        coverFileName = relAttrs["fileName"] as? String
+                    }
+                    if type == "author", let relAttrs = rel["attributes"] as? [String: Any] {
+                        if let name = relAttrs["name"] as? String, !name.isEmpty {
+                            authorName = name
+                        }
+                    }
+                }
+            }
+
+            let coverUrl = coverFileName.map {
+                "https://uploads.mangadex.org/covers/\(mangaId)/\($0).256.jpg"
+            }
+
+            let deterministicId = UUID(uuidString: mangaId) ?? UUID()
+            return Story(
+                id: deterministicId,
+                title: String(title.prefix(120)),
+                author: String(authorName.prefix(80)),
+                genre: "Manga",
+                excerpt: synopsis,
+                coverImageUrl: coverUrl,
+                badgeText: "MANGA",
+                contentFormat: .manga,
+                sourceProvider: .mangadex,
+                providerId: mangaId
+            )
+        }
+    }
+
+    private func fetchMangaChapters(mangaId: String, storyId: UUID) async throws -> [Chapter] {
+        var components = URLComponents(string: "https://api.mangadex.org/manga/\(mangaId)/feed")!
+        components.queryItems = [
+            URLQueryItem(name: "translatedLanguage[]", value: "en"),
+            URLQueryItem(name: "order[chapter]", value: "asc"),
+            URLQueryItem(name: "limit", value: "10")
+        ]
+        guard let url = components.url else { throw URLError(.badURL) }
+
+        var request = URLRequest(url: url)
+        request.setValue("Fable/1.0 (iOS client; https://github.com/ur1el0/Fable-IOS)", forHTTPHeaderField: "User-Agent")
+        request.timeoutInterval = 15.0
+
+        let (data, response) = try await session.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+
+        guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let chaptersData = root["data"] as? [[String: Any]] else {
+            return []
+        }
+
+        var chapters: [Chapter] = []
+        for (index, ch) in chaptersData.enumerated() {
+            guard let chId = ch["id"] as? String,
+                  let attrs = ch["attributes"] as? [String: Any] else {
+                continue
+            }
+            let chTitle = attrs["title"] as? String ?? ""
+            let chNumStr = attrs["chapter"] as? String ?? "\(index + 1)"
+            let chNum = Int(chNumStr) ?? (index + 1)
+            let displayTitle = chTitle.isEmpty ? "Chapter \(chNumStr)" : "Ch. \(chNumStr) - \(chTitle)"
+
+            var pageUrls: [String] = []
+            if let atHomeURL = URL(string: "https://api.mangadex.org/at-home/server/\(chId)") {
+                var ahReq = URLRequest(url: atHomeURL)
+                ahReq.setValue("Fable/1.0 (iOS client; https://github.com/ur1el0/Fable-IOS)", forHTTPHeaderField: "User-Agent")
+                ahReq.timeoutInterval = 10.0
+                if let (ahData, ahResp) = try? await session.data(for: ahReq),
+                   let ahHttp = ahResp as? HTTPURLResponse, (200...299).contains(ahHttp.statusCode),
+                   let ahRoot = try? JSONSerialization.jsonObject(with: ahData) as? [String: Any],
+                   let base = ahRoot["baseUrl"] as? String,
+                   let chObj = ahRoot["chapter"] as? [String: Any],
+                   let hash = chObj["hash"] as? String {
+                    let files = (chObj["dataSaver"] as? [String]) ?? (chObj["data"] as? [String]) ?? []
+                    pageUrls = files.map { "\(base)/data-saver/\(hash)/\($0)" }
+                }
+            }
+
+            let chapterUUID = UUID(uuidString: chId) ?? UUID()
+            chapters.append(
+                Chapter(
+                    id: chapterUUID,
+                    storyId: storyId,
+                    chapterNumber: chNum,
+                    title: displayTitle,
+                    content: "",
+                    wordCount: 0,
+                    createdAtUtc: Date(),
+                    pageUrls: pageUrls
+                )
+            )
+        }
+        return chapters
     }
 
     public func fetchGenres() async throws -> [GenreCategory] {

@@ -583,6 +583,7 @@ public final class StoryStore: ObservableObject {
             }
 
             await fetchGutenbergPublicStories(topic: "fiction", search: nil)
+            await fetchMangaPublicStories(search: nil)
             
             // 2. Fetch live dynamic categories/genres from backend
             if let liveGenres = try? await apiService.fetchGenres(), !liveGenres.isEmpty {
@@ -705,6 +706,7 @@ public final class StoryStore: ObservableObject {
             }
         }
         await fetchGutenbergPublicStories(topic: nil, search: search)
+        await fetchMangaPublicStories(search: search)
     }
 
     func topStory(for writer: Writer) async -> Story? {
@@ -751,8 +753,33 @@ public final class StoryStore: ObservableObject {
         }
     }
 
+    func fetchMangaPublicStories(search: String? = nil) async {
+        do {
+            let fetched = try await apiService.fetchMangaStories(search: search)
+            for manga in fetched {
+                if let index = stories.firstIndex(where: { $0.id == manga.id }) {
+                    stories[index].synopsis = manga.synopsis
+                    stories[index].coverImageUrl = validCoverImageURL(manga.coverImageUrl)
+                    stories[index].contentFormat = manga.contentFormat
+                    stories[index].sourceProvider = manga.sourceProvider
+                    stories[index].providerId = manga.providerId
+                    stories[index].totalChapters = max(stories[index].chapters?.count ?? 0, manga.totalChapters)
+                    PersistenceService.shared.saveStory(stories[index])
+                } else {
+                    var liveManga = manga
+                    liveManga.coverImageUrl = validCoverImageURL(manga.coverImageUrl)
+                    stories.append(liveManga)
+                    PersistenceService.shared.saveStory(liveManga)
+                }
+            }
+        } catch {
+            // Keep existing catalog available
+        }
+    }
+
     private func deriveGenresFromCatalog(_ catalog: [Story]) -> [GenreCategory] {
         let candidates: [(name: String, matcher: (String) -> Bool)] = [
+            ("Manga", { $0.contains("manga") }),
             ("Fiction", { $0.contains("fiction") }),
             ("Classics", { $0.contains("classic") || $0.contains("19th century") || $0.contains("literature") }),
             ("Gothic", { $0.contains("gothic") || $0.contains("vampire") || $0.contains("monster") }),
