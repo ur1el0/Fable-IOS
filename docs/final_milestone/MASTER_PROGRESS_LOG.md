@@ -290,3 +290,12 @@ This progress log tracks the transition of **Fable** from an editorial prototype
 - [x] Scoped active milestones: Phase 1 (SwiftUI advanced reader with RTL, tap zones, and page scrubbing) and Phase 2 (FastAPI server-side proxy and ingestion engine).
 - [x] Scoped deferred milestone: Phase 3 (background offline download queue and disk quota management).
 
+## MangaDex Licensed External Publisher Chapters & Tier-3 Reader Resilience (2026-10-15)
+
+- [x] Identified MangaDex API distinction between community scanlations (`pages > 0`, `@at-home` CDN) and officially licensed simulpub releases (e.g., Square Enix *Manga UP*, Shueisha *MANGA Plus*, where `pages == 0` and `externalUrl` contains the reading link).
+- [x] Enhanced `StoryAPIService.swift` to extract `externalUrl` into `Chapter.content` and avoid redundant, failing `@at-home` CDN requests for licensed titles.
+- [x] Upgraded `MangaReaderView.swift` to present an interactive **Official Licensed Publisher Card** with cover art preview, publisher badge, and a direct `Link` button opening the official chapter on Manga UP/MangaPlus/Viz Media.
+- [x] Enforced Tier-3 cover art preview fallback when direct panel images are absent, preventing dead-end blank reader screens.
+- [x] Verified zero regressions: Xcode iOS build succeeded and backend pytest suite passed (36/36 tests green).
+
+
