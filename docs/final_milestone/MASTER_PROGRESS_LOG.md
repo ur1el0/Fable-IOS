@@ -476,3 +476,23 @@ This progress log tracks the transition of **Fable** from an editorial prototype
   - Added integration test `test_rate_limit_middleware_blocks_burst()` verifying live middleware rejection with HTTP 429 and `Retry-After` header.
   - Added contract test `test_cors_origin_whitelist_contract()` verifying trusted origin header reflection and untrusted origin exclusion.
   - All **42/42 backend tests passing** in 1.38s.
+
+## Frontend UI/UX Design Enhancement & Micro-Interactions (2026-10-15)
+
+- [x] **Design Tokens & Haptics Engine (`frontend/FableApp/Core/Theme/FableTheme.swift`):**
+  - Added `FableHaptics` providing UIKit impact (`light`, `medium`), selection, and notification feedback generators.
+  - Standardized continuous-curve card styling with hairline borders (`FableTheme.divider`) and soft multi-layer elevation shadows.
+- [x] **Library Discovery & Hero Card Polish (`frontend/FableApp/Features/Library/Views/LibraryView.swift`):**
+  - Upgraded Featured Hero Card with an elegant bottom-gradient scrim (`LinearGradient`) to ensure high-contrast legibility across all cover art.
+  - Added `photo.on.rectangle.angled` icon for Manga and `book.closed.fill` icon for Literature/Novels to give visual clarity to the dual-engine reading model.
+  - Integrated `FableHaptics.selection()` and spring transitions on category filter pills (`All`, `Manga`, `Fiction`, `Classics`, etc.).
+  - Added tactile haptic feedback on bookmark toggles and card taps.
+  - Enhanced "Continue Reading" card with animated gradient progress bar (`brandPrimary` to `brandAccent`) and distinct chapter/page indicators.
+- [x] **Search & Explore Experience (`frontend/FableApp/Features/Library/Views/ExploreView.swift`):**
+  - Refined search bar with continuous curvature, hairline borders, and tactile clear action.
+  - Enhanced curated filter chips with selection haptics and spring animations.
+- [x] **Verification:**
+  - Xcode build: **BUILD SUCCEEDED** for `iPhone 17 Pro` (`mseuf.edu.ph.FableApp`).
+  - Backend tests: **42/42 passing** (`pytest test_main.py`).
+  - Simulator capture: Verified live UI rendering via screenshot (`simulator_screen_ui_enhanced.png`).
+
