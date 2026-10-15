@@ -327,3 +327,21 @@ This progress log tracks the transition of **Fable** from an editorial prototype
   - Stale cached chapter sets containing zero image panels and no external links are now automatically bypassed and re-fetched live from the backend proxy.
   - Upgraded `externalChapterURL` in `MangaReaderView.swift` to search all available chapters for external licensed links if `currentChapter` is unset.
   - Verified 100% clean compilation via `xcodebuild` (`** BUILD SUCCEEDED **`) and backend test suite green (39/39 passing).
+
+## Direct Manga CDN Panel Resolution & Chapter Deduplication (2026-10-15)
+
+- [x] **Direct Panel Resolution Filtering (`includeExternalUrl=0`):**
+  - Updated `backend/services/manga.py` and `frontend/FableApp/Features/Library/Services/StoryAPIService.swift` to include `includeExternalUrl=0` in MangaDex chapter feed queries.
+  - Eliminated 0-page official publisher redirects (VIZ Media, MANGA Plus) from intercepting chapter slots when direct community scanlation panels exist.
+  - Added resilient fallback: if a title exclusively possesses official publisher links and zero scanlations, queries fall back dynamically to preserve external links.
+- [x] **Smart Chapter Deduplication:**
+  - Implemented chapter candidate grouping by `chapter_number`.
+  - When multiple translation groups upload releases for the same chapter, the engine selects the candidate with the highest page count (`pages > 0`) and discards duplicate/empty placeholders.
+  - Avoids redundant upstream requests to `@at-home` CDN servers for duplicate releases.
+- [x] **Fixed Prose ReaderView Compilation:**
+  - Implemented missing `turnPageBack()` and `turnPageForward()` helper methods in `ReaderView.swift` for the 3-zone tap overlay.
+- [x] **Verification & Live Validation:**
+  - Live query verified for *Chainsaw Man* (`/api/v1/public/manga/a77742b1-befd-49a4-bff5-1ad4e6b0ef7b/chapters`): Chapter 1 resolved with **53 direct panels**, Chapter 2 with **26 panels**, Chapter 3 with **24 panels**.
+  - Backend pytest test suite passed (39/39 tests green).
+  - Xcode compilation verified (`** BUILD SUCCEEDED **`) on iPhone 17 Simulator.
+
