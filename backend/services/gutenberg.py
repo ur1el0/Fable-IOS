@@ -237,7 +237,7 @@ def _story_from_gutenberg_metadata(book: dict, fallback_genre: Optional[str] = N
 
 async def get_gutenberg_story_by_id(gutenberg_id: int) -> StoryDTO:
     try:
-        async with httpx.AsyncClient(timeout=8.0) as client:
+        async with httpx.AsyncClient(timeout=15.0) as client:
             response = await client.get(
                 "https://gutendex.com/books/",
                 params={"ids": str(gutenberg_id)},
@@ -270,7 +270,7 @@ async def get_gutenberg_stories(
         params["search"] = search
 
     try:
-        async with httpx.AsyncClient(timeout=8.0) as client:
+        async with httpx.AsyncClient(timeout=15.0) as client:
             response = await client.get(
                 "https://gutendex.com/books/",
                 params=params,
