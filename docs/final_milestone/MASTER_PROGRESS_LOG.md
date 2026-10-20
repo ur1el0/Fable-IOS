@@ -496,3 +496,27 @@ This progress log tracks the transition of **Fable** from an editorial prototype
   - Backend tests: **42/42 passing** (`pytest test_main.py`).
   - Simulator capture: Verified live UI rendering via screenshot (`simulator_screen_ui_enhanced.png`).
 
+## Reader, Writer & Shelf Micro-Interactions & Chrome Continuity (2026-10-20)
+
+- [x] **Shelf View Polish (`frontend/FableApp/Features/Shelf/Views/ShelfView.swift`):**
+  - Integrated `FableHaptics.light()` on profile and settings sheet triggers.
+  - Added `FableHaptics.selection()` and spring animation (`.spring(response: 0.3, dampingFraction: 0.75)`) on shelf tab navigation.
+  - Applied continuous corner radius (`style: .continuous`) to tab pills and surface backgrounds.
+- [x] **Writer Studio Polish (`frontend/FableApp/Features/Write/Views/WriteView.swift`):**
+  - Added `FableHaptics.medium()` to story publishing action.
+  - Added `FableHaptics.selection()` to all manuscript formatting toolbar buttons (Bold, Italic, Block Quote, Scene Break).
+  - Enhanced Title, Synopsis, and Manuscript cards with continuous curvature (`cornerRadius: 18, style: .continuous`), hairline divider strokes (`FableTheme.divider.opacity(0.8)`), and soft elevation shadows.
+  - Upgraded floating footer pill with continuous curvature and subtle borders.
+- [x] **Prose Reader Ergonomics (`frontend/FableApp/Features/Reader/Views/ReaderView.swift`):**
+  - Integrated `FableHaptics.light()` on dismiss and bookmark toggle.
+  - Integrated `FableHaptics.selection()` on Table of Contents (TOC) sheet and typography options sheet triggers.
+  - Added `FableHaptics.medium()` to oral synthesizer audio narration toggle.
+  - Standardized top navigation bar action buttons with 36x36 circular touch targets and high-contrast tinted backgrounds.
+- [x] **Manga Reader Chrome & Scrubber (`frontend/FableApp/Features/Reader/Views/MangaReaderView.swift`):**
+  - Standardized circular floating action buttons with `FableHaptics.light()` and `FableHaptics.selection()`.
+  - Added spring transition to reading mode selector menu (`.spring(response: 0.3, dampingFraction: 0.75)`).
+  - Enhanced bottom floating HUD with multi-stop dark gradient overlay, active reading mode indicator with primary brand accent dot, and capsule-styled Next/Previous chapter buttons.
+- [x] **Verification:**
+  - Xcode compilation: **BUILD SUCCEEDED** (`FableApp.xcodeproj`).
+  - Backend test suite: **42/42 tests passing** (`backend/test_main.py`).
+
