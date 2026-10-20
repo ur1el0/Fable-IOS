@@ -272,18 +272,20 @@ public struct MangaReaderView: View {
                 }
             }
 
-            // Minimalist Overlay Top Chrome
+            // Minimalist Overlay Floating Chrome
             if isChromeVisible {
                 VStack(spacing: 0) {
-                    HStack(alignment: .center) {
+                    // Floating Top Navigation Bar
+                    HStack(alignment: .center, spacing: 12) {
                         Button(action: {
+                            FableHaptics.light()
                             dismiss()
                         }) {
                             Image(systemName: "chevron.left")
-                                .font(.system(size: 16, weight: .bold))
+                                .font(.system(size: 15, weight: .bold))
                                 .foregroundColor(.white)
-                                .padding(10)
-                                .background(Color.white.opacity(0.15))
+                                .frame(width: 38, height: 38)
+                                .background(Color.white.opacity(0.14))
                                 .clipShape(Circle())
                         }
 
@@ -295,12 +297,11 @@ public struct MangaReaderView: View {
 
                             if let chapter = currentChapter {
                                 Text(chapter.title.isEmpty ? "Chapter \(chapter.chapterNumber)" : chapter.title)
-                                    .font(.system(size: 12))
-                                    .foregroundColor(.gray)
+                                    .font(.system(size: 11, weight: .medium))
+                                    .foregroundColor(.white.opacity(0.7))
                                     .lineLimit(1)
                             }
                         }
-                        .padding(.leading, 6)
 
                         Spacer()
 
@@ -314,10 +315,10 @@ public struct MangaReaderView: View {
                             }
                         }) {
                             Image(systemName: isInvertedColor ? "circle.righthalf.filled.inverse" : "circle.righthalf.filled")
-                                .font(.system(size: 14, weight: .bold))
+                                .font(.system(size: 13, weight: .bold))
                                 .foregroundColor(isInvertedColor ? FableTheme.brandPrimary : .white)
-                                .padding(10)
-                                .background(Color.white.opacity(0.15))
+                                .frame(width: 38, height: 38)
+                                .background(Color.white.opacity(0.14))
                                 .clipShape(Circle())
                         }
 
@@ -328,7 +329,7 @@ public struct MangaReaderView: View {
                                     if store.hapticFeedback {
                                         HapticManager.selection()
                                     }
-                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
                                         readingMode = mode
                                     }
                                 }) {
@@ -343,37 +344,40 @@ public struct MangaReaderView: View {
                         } label: {
                             HStack(spacing: 5) {
                                 Image(systemName: readingMode.iconName)
-                                    .font(.system(size: 12, weight: .bold))
+                                    .font(.system(size: 11, weight: .bold))
                                 Text(readingMode.rawValue)
                                     .font(.system(size: 12, weight: .semibold))
                             }
                             .foregroundColor(.white)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(Color.white.opacity(0.18))
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 7)
+                            .background(Color.white.opacity(0.16))
                             .clipShape(Capsule())
                         }
 
                         // Chapter List Selector
                         if chapters.count > 1 {
                             Button(action: {
+                                if store.hapticFeedback {
+                                    HapticManager.selection()
+                                }
                                 isShowingChapterSheet = true
                             }) {
                                 Image(systemName: "list.bullet")
-                                    .font(.system(size: 14, weight: .bold))
+                                    .font(.system(size: 13, weight: .bold))
                                     .foregroundColor(.white)
-                                    .padding(10)
-                                    .background(Color.white.opacity(0.15))
+                                    .frame(width: 38, height: 38)
+                                    .background(Color.white.opacity(0.14))
                                     .clipShape(Circle())
                             }
                         }
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 50)
-                    .padding(.bottom, 14)
+                    .padding(.bottom, 16)
                     .background(
                         LinearGradient(
-                            colors: [Color.black.opacity(0.85), Color.black.opacity(0.0)],
+                            colors: [Color.black.opacity(0.9), Color.black.opacity(0.4), Color.clear],
                             startPoint: .top,
                             endPoint: .bottom
                         )
@@ -387,9 +391,9 @@ public struct MangaReaderView: View {
                         if activePageUrls.count > 1 {
                             HStack(spacing: 12) {
                                 Text("\(currentPageIndex + 1)")
-                                    .font(.system(size: 11, weight: .bold))
+                                    .font(.system(size: 12, weight: .heavy, design: .monospaced))
                                     .foregroundColor(.white)
-                                    .frame(width: 28, alignment: .trailing)
+                                    .frame(width: 32, alignment: .trailing)
 
                                 Slider(
                                     value: Binding(
@@ -410,9 +414,9 @@ public struct MangaReaderView: View {
                                 .tint(FableTheme.brandPrimary)
 
                                 Text("\(activePageUrls.count)")
-                                    .font(.system(size: 11, weight: .bold))
-                                    .foregroundColor(.gray)
-                                    .frame(width: 28, alignment: .leading)
+                                    .font(.system(size: 12, weight: .heavy, design: .monospaced))
+                                    .foregroundColor(.white.opacity(0.5))
+                                    .frame(width: 32, alignment: .leading)
                             }
                             .padding(.horizontal, 24)
                         }
@@ -428,9 +432,17 @@ public struct MangaReaderView: View {
                                     currentPageIndex = 0
                                 }
                             }) {
-                                Image(systemName: "backward.end.fill")
-                                    .font(.system(size: 14))
-                                    .foregroundColor(currentChapterIndex > 0 ? .white : .gray.opacity(0.4))
+                                HStack(spacing: 4) {
+                                    Image(systemName: "backward.end.fill")
+                                        .font(.system(size: 10))
+                                    Text("Prev")
+                                        .font(.system(size: 12, weight: .semibold))
+                                }
+                                .foregroundColor(currentChapterIndex > 0 ? .white : .white.opacity(0.3))
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 7)
+                                .background(Color.white.opacity(currentChapterIndex > 0 ? 0.12 : 0.04))
+                                .clipShape(Capsule())
                             }
                             .disabled(currentChapterIndex == 0)
 
@@ -438,22 +450,31 @@ public struct MangaReaderView: View {
 
                             // Page Counter or External Release Tag
                             if !activePageUrls.isEmpty {
-                                Text("\(readingMode.rawValue.uppercased()) • PAGE \(currentPageIndex + 1) OF \(activePageUrls.count)")
-                                    .font(.system(size: 11, weight: .heavy))
-                                    .tracking(1.0)
-                                    .foregroundColor(.white.opacity(0.9))
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 4)
-                                    .background(Color.white.opacity(0.15))
-                                    .clipShape(Capsule())
+                                HStack(spacing: 6) {
+                                    Circle()
+                                        .fill(FableTheme.brandPrimary)
+                                        .frame(width: 5, height: 5)
+                                    Text("\(readingMode.rawValue.uppercased()) • \(currentPageIndex + 1) / \(activePageUrls.count)")
+                                        .font(.system(size: 11, weight: .heavy))
+                                        .tracking(0.5)
+                                }
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 6)
+                                .background(Color.black.opacity(0.65))
+                                .overlay(
+                                    Capsule()
+                                        .stroke(Color.white.opacity(0.2), lineWidth: 0.8)
+                                )
+                                .clipShape(Capsule())
                             } else if externalChapterURL != nil {
                                 Text("OFFICIAL RELEASE")
                                     .font(.system(size: 10, weight: .heavy))
                                     .tracking(1.0)
                                     .foregroundColor(FableTheme.brandPrimary)
                                     .padding(.horizontal, 10)
-                                    .padding(.vertical, 4)
-                                    .background(FableTheme.brandPrimary.opacity(0.15))
+                                    .padding(.vertical, 5)
+                                    .background(FableTheme.brandPrimary.opacity(0.18))
                                     .clipShape(Capsule())
                             }
 
@@ -469,19 +490,27 @@ public struct MangaReaderView: View {
                                     currentPageIndex = 0
                                 }
                             }) {
-                                Image(systemName: "forward.end.fill")
-                                    .font(.system(size: 14))
-                                    .foregroundColor(currentChapterIndex < chapters.count - 1 ? .white : .gray.opacity(0.4))
+                                HStack(spacing: 4) {
+                                    Text("Next")
+                                        .font(.system(size: 12, weight: .semibold))
+                                    Image(systemName: "forward.end.fill")
+                                        .font(.system(size: 10))
+                                }
+                                .foregroundColor(currentChapterIndex < chapters.count - 1 ? .white : .white.opacity(0.3))
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 7)
+                                .background(Color.white.opacity(currentChapterIndex < chapters.count - 1 ? 0.12 : 0.04))
+                                .clipShape(Capsule())
                             }
                             .disabled(currentChapterIndex >= chapters.count - 1)
                         }
                         .padding(.horizontal, 24)
                     }
-                    .padding(.bottom, 36)
-                    .padding(.top, 16)
+                    .padding(.bottom, 38)
+                    .padding(.top, 18)
                     .background(
                         LinearGradient(
-                            colors: [Color.black.opacity(0.0), Color.black.opacity(0.85)],
+                            colors: [Color.clear, Color.black.opacity(0.5), Color.black.opacity(0.9)],
                             startPoint: .top,
                             endPoint: .bottom
                         )

@@ -97,14 +97,15 @@ public struct ReaderView: View {
                 if isChromeVisible {
                     HStack(spacing: 12) {
                         Button(action: {
+                            FableHaptics.light()
                             audioNarrator.stop()
                             dismiss()
                         }) {
                             Image(systemName: "chevron.left")
-                                .font(.system(size: 17, weight: .semibold))
+                                .font(.system(size: 15, weight: .bold))
                                 .foregroundColor(store.readerTheme.textColor)
-                                .padding(8)
-                                .background(store.readerTheme.textColor.opacity(0.06))
+                                .frame(width: 36, height: 36)
+                                .background(store.readerTheme.textColor.opacity(0.08))
                                 .clipShape(Circle())
                         }
                         
@@ -112,6 +113,7 @@ public struct ReaderView: View {
                         
                         // Chapter / Folio Tag (Interactive TOC Trigger)
                         Button(action: {
+                            FableHaptics.selection()
                             isShowingChapterSheet = true
                         }) {
                             VStack(spacing: 2) {
@@ -131,7 +133,7 @@ public struct ReaderView: View {
                                 
                                 Text(story.title)
                                     .font(.system(size: 13, weight: .medium, design: .serif))
-                                    .foregroundColor(store.readerTheme.textColor.opacity(0.8))
+                                    .foregroundColor(store.readerTheme.textColor.opacity(0.85))
                                     .lineLimit(1)
                             }
                         }
@@ -142,18 +144,20 @@ public struct ReaderView: View {
                         HStack(spacing: 8) {
                             // Table of Contents Sheet Button
                             Button(action: {
+                                FableHaptics.selection()
                                 isShowingChapterSheet = true
                             }) {
                                 Image(systemName: "list.bullet.rectangle")
                                     .font(.system(size: 14, weight: .semibold))
                                     .foregroundColor(store.readerTheme.textColor)
-                                    .padding(8)
-                                    .background(store.readerTheme.textColor.opacity(0.06))
+                                    .frame(width: 36, height: 36)
+                                    .background(store.readerTheme.textColor.opacity(0.08))
                                     .clipShape(Circle())
                             }
                             
                             // Oral Folklore Audio Synthesizer Toggle (Plan 04)
                             Button(action: {
+                                FableHaptics.medium()
                                 withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                     audioNarrator.togglePlayback(for: story, chapter: activeChapter)
                                 }
@@ -161,34 +165,36 @@ public struct ReaderView: View {
                                 Image(systemName: audioNarrator.isPlaying ? "speaker.wave.3.fill" : "speaker.wave.2")
                                     .font(.system(size: 14, weight: .semibold))
                                     .foregroundColor(audioNarrator.isPlaying ? FableTheme.brandPrimary : store.readerTheme.textColor)
-                                    .padding(8)
-                                    .background(audioNarrator.isPlaying ? FableTheme.brandPrimary.opacity(0.15) : store.readerTheme.textColor.opacity(0.06))
+                                    .frame(width: 36, height: 36)
+                                    .background(audioNarrator.isPlaying ? FableTheme.brandPrimary.opacity(0.15) : store.readerTheme.textColor.opacity(0.08))
                                     .clipShape(Circle())
                             }
                             
                             // Bookmark Toggle
                             Button(action: {
+                                FableHaptics.light()
                                 withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
                                     store.toggleBookmark(for: story)
                                 }
                             }) {
                                 Image(systemName: currentStoryBookmarked ? "bookmark.fill" : "bookmark")
-                                    .font(.system(size: 15, weight: .semibold))
+                                    .font(.system(size: 14, weight: .semibold))
                                     .foregroundColor(currentStoryBookmarked ? FableTheme.brandPrimary : store.readerTheme.textColor)
-                                    .padding(8)
-                                    .background(store.readerTheme.textColor.opacity(0.06))
+                                    .frame(width: 36, height: 36)
+                                    .background(currentStoryBookmarked ? FableTheme.brandPrimary.opacity(0.12) : store.readerTheme.textColor.opacity(0.08))
                                     .clipShape(Circle())
                             }
                             
                             // Typography Options
                             Button(action: {
+                                FableHaptics.selection()
                                 store.isShowingDisplayOptions = true
                             }) {
                                 Image(systemName: "textformat.size")
-                                    .font(.system(size: 15, weight: .semibold))
+                                    .font(.system(size: 14, weight: .semibold))
                                     .foregroundColor(store.readerTheme.textColor)
-                                    .padding(8)
-                                    .background(store.readerTheme.textColor.opacity(0.06))
+                                    .frame(width: 36, height: 36)
+                                    .background(store.readerTheme.textColor.opacity(0.08))
                                     .clipShape(Circle())
                             }
                             
@@ -199,8 +205,8 @@ public struct ReaderView: View {
                                 Image(systemName: "square.and.arrow.up")
                                     .font(.system(size: 14, weight: .semibold))
                                     .foregroundColor(store.readerTheme.textColor)
-                                    .padding(8)
-                                    .background(store.readerTheme.textColor.opacity(0.06))
+                                    .frame(width: 36, height: 36)
+                                    .background(store.readerTheme.textColor.opacity(0.08))
                                     .clipShape(Circle())
                             }
                         }
