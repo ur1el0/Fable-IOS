@@ -533,4 +533,22 @@ This progress log tracks the transition of **Fable** from an editorial prototype
   - Xcode compilation: **BUILD SUCCEEDED** for iOS Simulator (`iPhone 17 Pro`).
   - Git working tree: Clean and synchronizable.
 
+## On-Device Health Diagnostics Aggregation & E2E Simulator Verification (2026-10-21)
+
+- [x] **Unified On-Device Health Harness (`frontend/FableApp/Features/Shelf/Views/SystemDiagnosticsSheet.swift`):**
+  - Integrated all 5 specialized client domain test suites alongside `AppHealthTests`:
+    - `ReaderTests`: Pacing engine velocity clamping (100–600 WPM), Unicode multi-whitespace tokenization, dynamic font scaling, and page chunking.
+    - `WriteTests`: Manuscript split word tokenizer and reading time estimation.
+    - `ShelfTests`: Reading stats summary metrics, hours calculation parity, and `ShelfSyncItem` multi-tenant serialization contract.
+    - `AuthTests`: Asynchronous authentication boundary checks, invalid email rejection, password length rules, guest sessions, and sign-out cleanup.
+  - Standardized diagnostic reporting into high-fidelity `TestReport` cards with PASS/FAIL badges and monospace detail traces.
+- [x] **Live iOS Simulator Boot & Evidence Capture:**
+  - Successfully booted `iPhone 17 Pro` (iOS 26.5) and installed `mseuf.edu.ph.FableApp`.
+  - Verified live discovery feed rendering with real Gutenberg and MangaDex CDN panel ingestion against active FastAPI daemon (`127.0.0.1:8000`).
+  - Captured high-resolution verification screenshot: `docs/simulator_captures/01_library_feed.png`.
+- [x] **Verification:**
+  - Backend test suite: **42/42 passing** (`pytest test_main.py`).
+  - Xcode compilation: **BUILD SUCCEEDED** (`FableApp.xcodeproj`).
+
+
 
