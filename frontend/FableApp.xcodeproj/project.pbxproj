@@ -8,6 +8,7 @@
 
 /* Begin PBXFileReference section */
 		83D429203059253E000C5567 /* FableApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FableApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A10000010000000000000001 /* FableAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FableAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -16,10 +17,22 @@
 			path = FableApp;
 			sourceTree = "<group>";
 		};
+		A10000020000000000000002 /* FableAppTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = FableAppTests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		83D4291D3059253E000C5567 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A10000040000000000000004 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -33,6 +46,7 @@
 			isa = PBXGroup;
 			children = (
 				83D429223059253E000C5567 /* FableApp */,
+				A10000020000000000000002 /* FableAppTests */,
 				83D429213059253E000C5567 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -41,11 +55,30 @@
 			isa = PBXGroup;
 			children = (
 				83D429203059253E000C5567 /* FableApp.app */,
+				A10000010000000000000001 /* FableAppTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
+
+/* Begin PBXContainerItemProxy section */
+		A10000060000000000000006 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 83D429183059253E000C5567 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 83D4291F3059253E000C5567;
+			remoteInfo = FableApp;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXTargetDependency section */
+		A10000070000000000000007 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 83D4291F3059253E000C5567 /* FableApp */;
+			targetProxy = A10000060000000000000006 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin PBXNativeTarget section */
 		83D4291F3059253E000C5567 /* FableApp */ = {
@@ -70,6 +103,29 @@
 			productReference = 83D429203059253E000C5567 /* FableApp.app */;
 			productType = "com.apple.product-type.application";
 		};
+		A10000080000000000000008 /* FableAppTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A10000090000000000000009 /* Build configuration list for PBXNativeTarget "FableAppTests" */;
+			buildPhases = (
+				A10000030000000000000003 /* Sources */,
+				A10000040000000000000004 /* Frameworks */,
+				A10000050000000000000005 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A10000070000000000000007 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				A10000020000000000000002 /* FableAppTests */,
+			);
+			name = FableAppTests;
+			packageProductDependencies = (
+			);
+			productName = FableAppTests;
+			productReference = A10000010000000000000001 /* FableAppTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -82,6 +138,10 @@
 				TargetAttributes = {
 					83D4291F3059253E000C5567 = {
 						CreatedOnToolsVersion = 26.6;
+					};
+					A10000080000000000000008 = {
+						CreatedOnToolsVersion = 26.6;
+						TestTargetID = 83D4291F3059253E000C5567;
 					};
 				};
 			};
@@ -100,6 +160,7 @@
 			projectRoot = "";
 			targets = (
 				83D4291F3059253E000C5567 /* FableApp */,
+				A10000080000000000000008 /* FableAppTests */,
 			);
 		};
 /* End PBXProject section */
@@ -112,10 +173,24 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A10000050000000000000005 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		83D4291C3059253E000C5567 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A10000030000000000000003 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -314,6 +389,46 @@
 			};
 			name = Release;
 		};
+		A100000A000000000000000A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = mseuf.edu.ph.FableAppTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/FableApp.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/FableApp";
+			};
+			name = Debug;
+		};
+		A100000B000000000000000B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = mseuf.edu.ph.FableAppTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/FableApp.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/FableApp";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -331,6 +446,15 @@
 			buildConfigurations = (
 				83D4292C3059253F000C5567 /* Debug */,
 				83D4292D3059253F000C5567 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A10000090000000000000009 /* Build configuration list for PBXNativeTarget "FableAppTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A100000A000000000000000A /* Debug */,
+				A100000B000000000000000B /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
