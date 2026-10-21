@@ -550,5 +550,20 @@ This progress log tracks the transition of **Fable** from an editorial prototype
   - Backend test suite: **42/42 passing** (`pytest test_main.py`).
   - Xcode compilation: **BUILD SUCCEEDED** (`FableApp.xcodeproj`).
 
+## Native Xcode Test Target & Final Pull Request Baseline (2026-10-21)
+
+- [x] **Native Xcode Test Target & CLI Automation (`FableAppTests`):**
+  - Configured native unit test bundle target `FableAppTests` in `frontend/FableApp.xcodeproj/project.pbxproj` and shared scheme `FableApp.xcscheme`.
+  - Implemented `FableAppTests.swift` wrapping all 6 domain test suites (`AppHealthTests`, `LibraryTests`, `ReaderTests`, `WriteTests`, `ShelfTests`, `AuthTests`) in native `XCTestCase` assertions.
+  - Verified headless CLI test execution via `xcodebuild test`: **6/6 test suites passed with 0 failures** in 0.32s on `iPhone 17 Pro`.
+- [x] **Capstone Final Pull Request & Transition Audit (`docs/final_milestone/FINAL_PULL_REQUEST.md`):**
+  - Prepared comprehensive PR specification documenting 83 atomic conventional commits, 107 modified files, and zero-conflict fast-forward merge capability into `main`.
+  - Authored step-by-step transition guide for merging, tagging `v1.0.0-final`, and running dual Pytest/Xcodebuild verification gates.
+- [x] **Verification Matrix:**
+  - Backend pytest: **42/42 passing** in 1.35s (`pytest backend/test_main.py`).
+  - Xcode unit test suite: **`** TEST SUCCEEDED **`** via `xcodebuild test`.
+  - Git working tree: Clean and pushed to remote branch.
+
+
 
 

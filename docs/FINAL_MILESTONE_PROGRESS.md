@@ -388,6 +388,8 @@ $ curl -s http://127.0.0.1:8000/api/v1/stories | head -n 30
 | `498921a` | `fix(backend): synchronize cors origins parsing and rate limit env configuration` | `.env.example`, `backend/main.py` |
 | `13c728b` | `docs: record production readiness audit and final milestone completion` | `docs/FINAL_MILESTONE_PROGRESS.md`, `docs/final_milestone/MASTER_PROGRESS_LOG.md` |
 | `cd78c85` | `feat(diagnostics): aggregate domain test suites into system diagnostics sheet` | `SystemDiagnosticsSheet.swift`, `docs/simulator_captures/01_library_feed.png` |
+| `8eed656` | `docs: record on-device health aggregation and e2e simulator verification` | `docs/final_milestone/MASTER_PROGRESS_LOG.md`, `docs/FINAL_MILESTONE_PROGRESS.md` |
+| `a05c8c4` | `feat(test): configure native xcode test target and shared scheme` | `project.pbxproj`, `FableApp.xcscheme`, `FableAppTests.swift` |
 
 
 
