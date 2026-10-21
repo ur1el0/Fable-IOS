@@ -370,6 +370,22 @@ $ curl -s http://127.0.0.1:8000/api/v1/stories | head -n 30
 | `3b484f0` | `feat(ui): enforce image boundary clipping and add on-device system diagnostics sheet` | `FableImageView.swift`, `SystemDiagnosticsSheet.swift`, `SettingsView.swift` |
 | `855fca1` | `test: add internal health diagnostics and layout invariant verification suite` | `AppHealthTests.swift`, `LibraryTests.swift`, `backend/test_main.py` |
 | `2b7a452` | `docs: record Milestone 8 completion in master progress log` | `docs/final_milestone/MASTER_PROGRESS_LOG.md` |
+| `75a7e97` | `fix(backend): align trending authors with catalog creators and real portraits` | `backend/services/story_service.py` |
+| `9657754` | `feat(store): add multi-provider author matching and story ingestion` | `frontend/FableApp/Features/Library/ViewModels/StoryStore.swift` |
+| `9e7cbb7` | `feat(library): add AuthorDetailView and connect creator cards to interactive bibliography` | `AuthorDetailView.swift`, `ExploreView.swift` |
+| `2e790fb` | `docs: record trending creators and interactive bibliography milestone` | `docs/final_milestone/MASTER_PROGRESS_LOG.md` |
+| `f9306f8` | `fix(manga): enforce english language filter and eliminate foreign panel fallbacks` | `backend/services/manga.py` |
+| `567d4e4` | `fix(library): purge legacy demo stories and restore literature taxonomy` | `StoryStore.swift`, `PersistenceService.swift`, `LibraryView.swift` |
+| `8d07353` | `docs: record dual-engine taxonomy, english chapter enforcement, and demo purge` | `docs/final_milestone/MASTER_PROGRESS_LOG.md` |
+| `617fd6f` | `feat(reader): implement manga reading continuity, panel resumption, and multi-chapter progress` | `MangaReaderView.swift`, `StoryStore.swift`, `LibraryView.swift` |
+| `317f377` | `docs: record manga reading continuity and panel resumption milestone` | `docs/final_milestone/MASTER_PROGRESS_LOG.md` |
+| `482c570` | `feat(backend): enforce strict cors whitelist and sliding-window rate limiting` | `backend/core/rate_limit.py`, `backend/main.py`, `backend/test_main.py` |
+| `4654a87` | `docs: record cors origin whitelist and sliding-window rate limiting milestone` | `docs/final_milestone/MASTER_PROGRESS_LOG.md` |
+| `0952998` | `feat(ui): refine visual hierarchy, card elevation, and tactile micro-interactions` | `FableTheme.swift`, `LibraryView.swift`, `ExploreView.swift` |
+| `386ad00` | `docs: record frontend ui/ux design enhancements and micro-interactions` | `docs/final_milestone/MASTER_PROGRESS_LOG.md` |
+| `85ee78a` | `feat(ui): complete tactile micro-interactions and chrome polish across reader, shelf, and writer` | `ShelfView.swift`, `WriteView.swift`, `ReaderView.swift`, `MangaReaderView.swift` |
+| `f70f127` | `docs: record reader, writer, and shelf micro-interactions and chrome polish` | `docs/final_milestone/MASTER_PROGRESS_LOG.md` |
+| `498921a` | `fix(backend): synchronize cors origins parsing and rate limit env configuration` | `.env.example`, `backend/main.py` |
 
 
 
