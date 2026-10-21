@@ -29,9 +29,10 @@ default_origins = [
     "capacitor://localhost",
     "ionic://localhost",
 ]
-env_origins = os.environ.get("FABLE_CORS_ORIGINS")
+env_origins = os.environ.get("FABLE_CORS_ORIGINS") or os.environ.get("CORS_ORIGINS")
 if env_origins:
-    allowed_origins = [o.strip() for o in env_origins.split(",") if o.strip()]
+    cleaned = env_origins.strip("[]")
+    allowed_origins = [o.strip(" \"'") for o in cleaned.split(",") if o.strip(" \"'")]
 else:
     allowed_origins = default_origins
 
