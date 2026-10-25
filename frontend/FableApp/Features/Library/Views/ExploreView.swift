@@ -8,8 +8,6 @@ public struct ExploreView: View {
     @State private var selectedGenreForDetail: GenreCategory?
     @State private var selectedStoryToRead: Story?
     @State private var selectedWriter: Writer?
-    @State private var isFindingWriterTitle: Bool = false
-    @State private var writerTitleMessage: String?
     
     let filters = ["All", "Under 5 mins", "Community Favorites", "Quick Reads"]
     
@@ -97,6 +95,7 @@ public struct ExploreView: View {
                             
                             if !searchText.isEmpty {
                                 Button(action: {
+                                    FableHaptics.light()
                                     searchText = ""
                                 }) {
                                     Image(systemName: "xmark.circle.fill")
@@ -107,8 +106,12 @@ public struct ExploreView: View {
                         .padding(.horizontal, 16)
                         .padding(.vertical, 14)
                         .background(FableTheme.cardBackground)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
-                        .shadow(color: Color.black.opacity(0.03), radius: 6, y: 2)
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .stroke(FableTheme.divider.opacity(0.8), lineWidth: 0.8)
+                        )
+                        .shadow(color: Color.black.opacity(0.03), radius: 8, y: 2)
                         .padding(.horizontal, 20)
                         
                         // If searching, show search results
@@ -140,7 +143,7 @@ public struct ExploreView: View {
                                                 selectedStoryToRead = story
                                             }) {
                                                 HStack(spacing: 14) {
-                                                    FableImageView(name: story.effectiveCoverImage, placeholderIcon: "book.closed")
+                                                    FableImageView(name: story.effectiveCoverImage, title: story.title, placeholderIcon: "book.closed")
                                                         .frame(width: 50, height: 64)
                                                         .clipShape(RoundedRectangle(cornerRadius: 8))
                                                     
@@ -185,7 +188,8 @@ public struct ExploreView: View {
                             HStack(spacing: 8) {
                                 ForEach(filters, id: \.self) { filter in
                                     Button(action: {
-                                        withAnimation {
+                                        FableHaptics.selection()
+                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
                                             selectedFilter = filter
                                         }
                                     }) {
@@ -202,6 +206,7 @@ public struct ExploreView: View {
                                         .background(selectedFilter == filter ? FableTheme.brandPrimary : FableTheme.surfaceVariant)
                                         .foregroundColor(selectedFilter == filter ? .white : FableTheme.textPrimary)
                                         .clipShape(Capsule())
+                                        .shadow(color: selectedFilter == filter ? FableTheme.brandPrimary.opacity(0.25) : Color.clear, radius: 4, y: 2)
                                     }
                                 }
                             }
@@ -223,7 +228,7 @@ public struct ExploreView: View {
                                                 selectedStoryToRead = story
                                             }) {
                                                 VStack(alignment: .leading, spacing: 6) {
-                                                    FableImageView(name: story.effectiveCoverImage, placeholderIcon: "book")
+                                                    FableImageView(name: story.effectiveCoverImage, title: story.title, placeholderIcon: "book")
                                                         .frame(width: 120, height: 150)
                                                         .clipShape(RoundedRectangle(cornerRadius: 12))
                                                     
@@ -276,7 +281,7 @@ public struct ExploreView: View {
                                         selectedGenreForDetail = genre
                                     }) {
                                         ZStack(alignment: .bottomLeading) {
-                                            FableImageView(name: genre.effectiveImage, placeholderIcon: "books.vertical.fill")
+                                            FableImageView(name: genre.effectiveImage, title: genre.name, placeholderIcon: "books.vertical.fill")
                                                 .frame(height: 150)
                                                 .clipped()
                                             
@@ -333,7 +338,7 @@ public struct ExploreView: View {
                                             selectedWriter = writer
                                         }) {
                                             VStack(spacing: 8) {
-                                                FableImageView(name: writer.effectiveAvatar, placeholderIcon: "person.circle.fill")
+                                                FableImageView(name: writer.effectiveAvatar, title: writer.name, placeholderIcon: "person.circle.fill")
                                                     .frame(width: 68, height: 68)
                                                     .clipShape(Circle())
                                                     .shadow(color: Color.black.opacity(0.06), radius: 4, y: 2)
@@ -378,56 +383,17 @@ public struct ExploreView: View {
                     .environmentObject(store)
             }
             .fullScreenCover(item: $selectedStoryToRead) { story in
-                ReaderView(story: story)
-                    .environmentObject(store)
+                if story.contentFormat == .manga || story.sourceProvider == .mangadex {
+                    MangaReaderView(story: story)
+                        .environmentObject(store)
+                } else {
+                    ReaderView(story: story)
+                        .environmentObject(store)
+                }
             }
             .sheet(item: $selectedWriter) { writer in
-                VStack(spacing: 20) {
-                    FableImageView(name: writer.effectiveAvatar, placeholderIcon: "person.circle.fill")
-                        .frame(width: 84, height: 84)
-                        .clipShape(Circle())
-                        .padding(.top, 24)
-                    
-                    Text(writer.name)
-                        .font(.system(size: 22, weight: .bold))
-                        .foregroundColor(FableTheme.textPrimary)
-                    
-                    Text("Featured Creator • \(writer.storyCount) published titles")
-                        .font(.system(size: 14))
-                        .foregroundColor(FableTheme.textMuted)
-                    
-                    if let writerTitleMessage {
-                        Text(writerTitleMessage)
-                            .font(.system(size: 13))
-                            .foregroundColor(FableTheme.textMuted)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 24)
-                    }
-
-                    Button(isFindingWriterTitle ? "Searching…" : "Find a title") {
-                        isFindingWriterTitle = true
-                        Task {
-                            let story = await store.topStory(for: writer)
-                            isFindingWriterTitle = false
-                            if let story {
-                                selectedWriter = nil
-                                selectedStoryToRead = story
-                            } else {
-                                writerTitleMessage = "No titles by this author are available in the catalog yet."
-                            }
-                        }
-                    }
-                    .disabled(isFindingWriterTitle)
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 28)
-                    .padding(.vertical, 12)
-                    .background(FableTheme.brandPrimary)
-                    .clipShape(Capsule())
-                    
-                    Spacer()
-                }
-                .presentationDetents([.fraction(0.4)])
+                AuthorDetailView(writer: writer)
+                    .environmentObject(store)
             }
         }
     }

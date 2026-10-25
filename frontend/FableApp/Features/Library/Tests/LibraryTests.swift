@@ -18,6 +18,14 @@ public struct LibraryTests {
 
         let store = StoryStore()
 
+        let providerRequest = StoryAPIService.providerRequest(
+            for: URL(string: "https://example.org/catalog")!
+        )
+        assert(
+            providerRequest.timeoutInterval == 20.0,
+            "Provider Requests Allow Backend Provider Fetches to Complete"
+        )
+
         // Test 1: Cached provider records require stable provider identity.
         assert(store.stories.allSatisfy {
             $0.sourceProvider == .fableOriginal || $0.providerId?.isEmpty == false
@@ -91,7 +99,8 @@ public struct LibraryTests {
         }
         """.data(using: .utf8)!
 
-        if let liveBook = try? JSONDecoder().decode(Story.self, from: liveProviderJSON) {
+        let liveBook = try? JSONDecoder().decode(Story.self, from: liveProviderJSON)
+        if let liveBook {
             assert(liveBook.sourceProvider == .gutenberg, "Live Book Decodes Gutenberg Source")
             assert(liveBook.providerId == "1342", "Live Book Decodes Provider ID")
             assert(liveBook.genre.rawValue == "Historical Fiction", "Unknown Live Genre Is Preserved")
@@ -131,13 +140,39 @@ public struct LibraryTests {
         }
         """.data(using: .utf8)!
 
-        if let mangaStory = try? JSONDecoder().decode(Story.self, from: mangaJSON) {
+        let mangaStory = try? JSONDecoder().decode(Story.self, from: mangaJSON)
+        if let mangaStory {
             assert(mangaStory.contentFormat == .manga, "Manga Story Decodes ContentFormat Manga")
             assert(mangaStory.sourceProvider == .mangadex, "Manga Story Decodes SourceProvider MangaDex")
             assert(mangaStory.totalChapters == 12, "Manga Story Decodes Total Chapters")
         } else {
             assert(false, "Manga Story JSON Decoding Failed")
         }
+
+        let providerStoryWithSeededArtwork = Story(
+            title: "Live Provider Story",
+            author: "Provider Author",
+            genre: "Fiction",
+            excerpt: "",
+            heroImageName: "legacy-seed-cover",
+            sourceProvider: .gutenberg,
+            providerId: "1342"
+        )
+        let authoredStoryWithHero = Story(
+            title: "Fable Original",
+            author: "Fable Author",
+            genre: "Fiction",
+            excerpt: "",
+            heroImageName: "original-cover"
+        )
+        assert(
+            providerStoryWithSeededArtwork.effectiveHeroImage == nil,
+            "Provider Stories Do Not Fall Back to Seeded Artwork"
+        )
+        assert(
+            authoredStoryWithHero.effectiveHeroImage == "original-cover",
+            "Fable Originals Keep Their Authored Hero Artwork"
+        )
 
         // Test 7: Chapter JSON Page URLs Decoding (Panel Manifest & Fallback)
         let chapterWithPagesJSON = """
@@ -184,10 +219,10 @@ public struct LibraryTests {
         assert(cachedChapterRoundTrip == [cachedChapter], "Chapter Payload Can Be Persisted and Restored")
 
         // Test 8: Provider formats are decoded without requiring a bundled catalog.
-        assert(liveBook.contentFormat == .prose && mangaStory.contentFormat == .manga, "Live Prose and Manga Formats Decode")
+        assert(liveBook?.contentFormat == .prose && mangaStory?.contentFormat == .manga, "Live Prose and Manga Formats Decode")
 
         // Test 9: Provider identities survive decoding and can address live chapter endpoints.
-        assert(liveBook.providerId == "1342" && mangaStory.sourceProvider == .mangadex, "Live Provider Identity Decodes")
+        assert(liveBook?.providerId == "1342" && mangaStory?.sourceProvider == .mangadex, "Live Provider Identity Decodes")
 
         let createRequest = CreateStoryRequest(
             title: "Authored Story",

@@ -137,10 +137,71 @@ public struct SystemDiagnosticsSheet: View {
     }
 
     private func runDiagnostics() {
-        let result = AppHealthTests.runAllTests()
-        self.passed = result.passed
-        self.total = result.total
-        self.failures = result.failures
-        self.reports = result.reports
+        Task { @MainActor in
+            var allReports: [AppHealthTests.TestReport] = []
+            var allFailures: [String] = []
+            var passedCount = 0
+            var totalCount = 0
+
+            // 1. App Health Subsystem Contracts
+            let healthResult = AppHealthTests.runAllTests()
+            allReports.append(contentsOf: healthResult.reports)
+            allFailures.append(contentsOf: healthResult.failures)
+            passedCount += healthResult.passed
+            totalCount += healthResult.total
+
+            // 2. Reader Engine & Pacing Invariants
+            let readerResult = ReaderTests.runAllTests()
+            passedCount += readerResult.passed
+            totalCount += readerResult.total
+            allFailures.append(contentsOf: readerResult.failures)
+            allReports.append(AppHealthTests.TestReport(
+                name: "Reader Engine & Pacing Invariants",
+                description: "Validates WPM velocity clamping (100-600), Unicode tokenization, dynamic font scaling, and page chunking",
+                passed: readerResult.failures.isEmpty,
+                details: "\(readerResult.passed)/\(readerResult.total) pacing and pagination assertions passed."
+            ))
+
+            // 3. Manuscript Composer & Formatting
+            let writeResult = WriteTests.runAllTests()
+            passedCount += writeResult.passed
+            totalCount += writeResult.total
+            allFailures.append(contentsOf: writeResult.failures)
+            allReports.append(AppHealthTests.TestReport(
+                name: "Writer Word Tokenizer & Pacing Estimator",
+                description: "Validates whitespace/newline split tokenization and reading duration estimation",
+                passed: writeResult.failures.isEmpty,
+                details: "\(writeResult.passed)/\(writeResult.total) manuscript composer assertions passed."
+            ))
+
+            // 4. Shelf Multi-Tenant Contract & Statistics
+            let shelfResult = ShelfTests.runAllTests()
+            passedCount += shelfResult.passed
+            totalCount += shelfResult.total
+            allFailures.append(contentsOf: shelfResult.failures)
+            allReports.append(AppHealthTests.TestReport(
+                name: "Shelf Analytics & Multi-Tenant Sync Contract",
+                description: "Validates reading stats summary, hours formatting, and ShelfSyncItem serialization",
+                passed: shelfResult.failures.isEmpty,
+                details: "\(shelfResult.passed)/\(shelfResult.total) shelf domain assertions passed."
+            ))
+
+            // 5. Authentication & Session Security
+            let authResult = await AuthTests.runAllTests()
+            passedCount += authResult.passed
+            totalCount += authResult.total
+            allFailures.append(contentsOf: authResult.failures)
+            allReports.append(AppHealthTests.TestReport(
+                name: "Authentication & Session Security",
+                description: "Validates email format rejection, minimum password length, guest session, and signout cleanup",
+                passed: authResult.failures.isEmpty,
+                details: "\(authResult.passed)/\(authResult.total) authentication assertions passed."
+            ))
+
+            self.passed = passedCount
+            self.total = totalCount
+            self.failures = allFailures
+            self.reports = allReports
+        }
     }
 }

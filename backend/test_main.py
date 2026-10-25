@@ -4,9 +4,11 @@ from datetime import datetime, timezone, timedelta
 from uuid import uuid4
 from fastapi.testclient import TestClient
 
-# Ensure test uses a separate test database
+# Ensure test uses a separate test database and disables global rate limit by default
 os.environ["FABLE_DB_PATH"] = "test_fable.sqlite3"
-from main import app, init_db
+os.environ["FABLE_RATE_LIMIT_ENABLED"] = "false"
+from main import app, init_db, limiter
+from core.rate_limit import SlidingWindowRateLimiter
 
 @pytest.fixture(autouse=True)
 def setup_teardown_db():
@@ -974,3 +976,188 @@ def test_init_db_removes_only_legacy_demo_stories_and_chapters():
     assert legacy_story_count == 0
     assert legacy_chapter_count == 0
     assert authored_story["id"] == authored_story_id
+
+
+def test_get_manga_public_stories(monkeypatch):
+    import httpx
+    from services.manga import _CACHE
+    _CACHE.clear()
+
+    async def mock_get(self, url, params=None, headers=None):
+        if "api.mangadex.org/manga" in str(url):
+            return httpx.Response(200, json={
+                "data": [{
+                    "id": "manga-uuid-1234",
+                    "attributes": {
+                        "title": {"en": "Fable: The Graphic Novel"},
+                        "description": {"en": "An epic graphic tale."},
+                    },
+                    "relationships": [
+                        {"type": "author", "attributes": {"name": "Master Illustrator"}},
+                        {"type": "cover_art", "attributes": {"fileName": "cover123.jpg"}},
+                    ]
+                }]
+            })
+        return httpx.Response(404)
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", mock_get)
+    response = client.get("/api/v1/public/manga?search=Fable")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["title"] == "Fable: The Graphic Novel"
+    assert data[0]["author"] == "Master Illustrator"
+    assert data[0]["contentFormat"] == "MANGA"
+    assert data[0]["sourceProvider"] == "MANGADEX"
+    assert data[0]["providerId"] == "manga-uuid-1234"
+    assert "https://uploads.mangadex.org/covers/manga-uuid-1234/cover123.jpg.256.jpg" == data[0]["coverImageUrl"]
+
+
+def test_get_manga_by_id_endpoint(monkeypatch):
+    import httpx
+    from services.manga import _CACHE
+    _CACHE.clear()
+
+    async def mock_get(self, url, params=None, headers=None):
+        if "api.mangadex.org/manga/test-manga-id" in str(url):
+            return httpx.Response(200, json={
+                "data": {
+                    "id": "test-manga-id",
+                    "attributes": {
+                        "title": {"en": "Solo Manga Explorer"},
+                        "description": {"en": "Exploring dungeons."},
+                    },
+                    "relationships": [
+                        {"type": "author", "attributes": {"name": "Solo Author"}},
+                    ]
+                }
+            })
+        return httpx.Response(404)
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", mock_get)
+    response = client.get("/api/v1/public/manga/test-manga-id")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["title"] == "Solo Manga Explorer"
+    assert data["author"] == "Solo Author"
+    assert data["contentFormat"] == "MANGA"
+
+
+def test_get_manga_chapters_and_ingest(monkeypatch):
+    import httpx
+    from services.manga import _CACHE
+    _CACHE.clear()
+
+    async def mock_get(self, url, params=None, headers=None):
+        url_str = str(url)
+        if "api.mangadex.org/manga/ingest-manga-1" in url_str and "/feed" not in url_str:
+            return httpx.Response(200, json={
+                "data": {
+                    "id": "ingest-manga-1",
+                    "attributes": {
+                        "title": {"en": "Ingested Chronicles"},
+                        "description": {"en": "Chronicles of adventure."},
+                    },
+                    "relationships": [
+                        {"type": "author", "attributes": {"name": "Ingest Creator"}},
+                        {"type": "cover_art", "attributes": {"fileName": "ingest_cover.jpg"}},
+                    ]
+                }
+            })
+        if "/feed" in url_str:
+            return httpx.Response(200, json={
+                "data": [{
+                    "id": "ch-101",
+                    "attributes": {
+                        "chapter": "1",
+                        "title": "Prologue",
+                    }
+                }]
+            })
+        if "at-home/server/ch-101" in url_str:
+            return httpx.Response(200, json={
+                "baseUrl": "https://cdn.manga.test",
+                "chapter": {
+                    "hash": "hash123",
+                    "dataSaver": ["p1.jpg", "p2.jpg"]
+                }
+            })
+        return httpx.Response(404)
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", mock_get)
+
+    # 1. Test chapter fetching with panel resolution
+    ch_res = client.get("/api/v1/public/manga/ingest-manga-1/chapters")
+    assert ch_res.status_code == 200
+    ch_data = ch_res.json()
+    assert len(ch_data) == 1
+    assert ch_data[0]["chapterNumber"] == 1
+    assert ch_data[0]["title"] == "Prologue"
+    assert ch_data[0]["pageUrls"] == [
+        "https://cdn.manga.test/data-saver/hash123/p1.jpg",
+        "https://cdn.manga.test/data-saver/hash123/p2.jpg"
+    ]
+
+    # 2. Test ingestion into SQLite
+    ingest_res = client.post("/api/v1/stories/ingest/manga/ingest-manga-1")
+    assert ingest_res.status_code == 201
+    ingest_data = ingest_res.json()
+    assert ingest_data["title"] == "Ingested Chronicles"
+    assert ingest_data["contentFormat"] == "MANGA"
+    assert ingest_data["sourceProvider"] == "MANGADEX"
+    assert len(ingest_data["chapters"]) == 1
+    assert len(ingest_data["chapters"][0]["pageUrls"]) == 2
+
+
+def test_sliding_window_rate_limiter_unit():
+    test_limiter = SlidingWindowRateLimiter(auth_limit=2, auth_window=2)
+    allowed, retry = test_limiter.is_allowed("client-1", "auth")
+    assert allowed is True
+    assert retry == 0
+
+    allowed, retry = test_limiter.is_allowed("client-1", "auth")
+    assert allowed is True
+
+    # 3rd request in window is rejected
+    allowed, retry = test_limiter.is_allowed("client-1", "auth")
+    assert allowed is False
+    assert retry >= 1
+
+    # Isolated client is unaffected
+    allowed_other, _ = test_limiter.is_allowed("client-2", "auth")
+    assert allowed_other is True
+
+    # Reset cleans memory
+    test_limiter.reset()
+    allowed_after_reset, _ = test_limiter.is_allowed("client-1", "auth")
+    assert allowed_after_reset is True
+
+
+def test_rate_limit_middleware_blocks_burst(monkeypatch):
+    limiter.reset()
+    monkeypatch.setenv("FABLE_RATE_LIMIT_ENABLED", "true")
+    monkeypatch.setattr(limiter, "limits", {"auth": (3, 60), "general": (60, 60)})
+
+    for _ in range(3):
+        res = client.get("/api/v1/auth/me")
+        assert res.status_code == 401
+
+    blocked = client.get("/api/v1/auth/me")
+    assert blocked.status_code == 429
+    assert blocked.json()["detail"] == "Too many requests. Please slow down."
+    assert "Retry-After" in blocked.headers
+    assert int(blocked.headers["Retry-After"]) >= 1
+
+    limiter.reset()
+
+
+def test_cors_origin_whitelist_contract():
+    # Trusted localhost dev origin
+    res_allowed = client.get("/api/v1/health", headers={"Origin": "http://localhost:3000"})
+    assert res_allowed.headers.get("access-control-allow-origin") == "http://localhost:3000"
+    assert res_allowed.headers.get("access-control-allow-credentials") == "true"
+
+    # Untrusted external origin is not permitted
+    res_rejected = client.get("/api/v1/health", headers={"Origin": "https://malicious-domain.test"})
+    assert res_rejected.headers.get("access-control-allow-origin") != "https://malicious-domain.test"
+
