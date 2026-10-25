@@ -38,7 +38,7 @@ public struct ReaderView: View {
     }
     
     private var activeChapterText: String {
-        if let chap = activeChapter, !chap.content.isEmpty {
+        if let chap = activeChapter, chap.hasReadableText {
             return chap.content
         }
         return story.content.isEmpty ? story.synopsis : story.content
@@ -652,7 +652,7 @@ public struct ReaderView: View {
         .navigationBarBackButtonHidden(true)
         .onAppear {
             self.sessionStartTime = Date()
-            let isUsable = story.chapters?.contains(where: { !$0.pageUrls.isEmpty || (!$0.content.isEmpty && $0.content.lowercased().starts(with: "http")) }) ?? false
+            let isUsable = story.chapters?.contains(where: \.hasReadableText) ?? false
             if let existing = story.chapters, !existing.isEmpty, isUsable {
                 self.chapters = existing
                 restoreSavedChapter()

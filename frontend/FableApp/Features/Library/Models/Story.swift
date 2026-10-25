@@ -181,6 +181,26 @@ public struct Chapter: Identifiable, Hashable, Codable {
         self.pageUrls = pageUrls
     }
 
+    public var externalSourceURL: URL? {
+        let value = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard
+            !value.isEmpty,
+            !value.contains(where: \.isWhitespace),
+            let url = URL(string: value),
+            let scheme = url.scheme?.lowercased(),
+            scheme == "https" || scheme == "http",
+            url.host != nil,
+            url.absoluteString == value
+        else {
+            return nil
+        }
+        return url
+    }
+
+    public var hasReadableText: Bool {
+        !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && externalSourceURL == nil
+    }
+
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()

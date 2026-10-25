@@ -1,3 +1,4 @@
+import SafariServices
 import SwiftUI
 
 public enum MangaReadingMode: String, CaseIterable, Identifiable {
@@ -29,6 +30,7 @@ public struct MangaReaderView: View {
     @State private var isLoading: Bool = false
     @State private var zoomScale: CGFloat = 1.0
     @State private var isShowingChapterSheet: Bool = false
+    @State private var isShowingPublisherReader: Bool = false
     @State private var isInvertedColor: Bool = false
 
     private enum ReaderTapZone {
@@ -49,20 +51,7 @@ public struct MangaReaderView: View {
     }
 
     private var externalChapterURL: URL? {
-        let candidate = currentChapter?.content.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let candidate, !candidate.isEmpty,
-           let url = URL(string: candidate),
-           let scheme = url.scheme?.lowercased(),
-           scheme == "http" || scheme == "https" {
-            return url
-        }
-        if let first = chapters.first(where: { !$0.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }),
-           let url = URL(string: first.content.trimmingCharacters(in: .whitespacesAndNewlines)),
-           let scheme = url.scheme?.lowercased(),
-           scheme == "http" || scheme == "https" {
-            return url
-        }
-        return nil
+        currentChapter?.externalSourceURL
     }
 
     private var externalPublisherName: String {
@@ -84,13 +73,7 @@ public struct MangaReaderView: View {
     }
 
     private var activePageUrls: [String] {
-        if let chapter = currentChapter, !chapter.pageUrls.isEmpty {
-            return chapter.pageUrls
-        }
-        if let firstChap = chapters.first(where: { !$0.pageUrls.isEmpty }) {
-            return firstChap.pageUrls
-        }
-        return []
+        currentChapter?.pageUrls ?? []
     }
 
     public var body: some View {
@@ -144,21 +127,21 @@ public struct MangaReaderView: View {
                             .background(FableTheme.brandPrimary.opacity(0.15))
                             .clipShape(Capsule())
 
-                            Text("This chapter is licensed and published by \(externalPublisherName). Tap below to read the official release directly.")
+                            Text("This chapter is licensed and published by \(externalPublisherName). Read the official release here in Fable.")
                                 .font(.system(size: 13))
                                 .foregroundColor(.gray)
                                 .multilineTextAlignment(.center)
                                 .padding(.horizontal, 32)
                         }
 
-                        Link(destination: externalURL) {
+                        Button {
+                            isShowingPublisherReader = true
+                        } label: {
                             HStack(spacing: 8) {
                                 Image(systemName: "safari.fill")
                                     .font(.system(size: 14, weight: .semibold))
-                                Text("Read on \(externalPublisherName)")
+                                Text("Read in Fable")
                                     .font(.system(size: 14, weight: .bold))
-                                Image(systemName: "arrow.up.right")
-                                    .font(.system(size: 12, weight: .bold))
                             }
                             .foregroundColor(.white)
                             .padding(.horizontal, 22)
@@ -166,6 +149,13 @@ public struct MangaReaderView: View {
                             .background(FableTheme.brandPrimary)
                             .clipShape(Capsule())
                             .shadow(color: FableTheme.brandPrimary.opacity(0.4), radius: 10, x: 0, y: 4)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Read chapter on \(externalPublisherName) in Fable")
+                        .accessibilityHint("Opens the official publisher in an in-app browser.")
+                        .sheet(isPresented: $isShowingPublisherReader) {
+                            InAppPublisherBrowser(url: externalURL)
+                                .ignoresSafeArea()
                         }
                     }
                     .padding(.vertical, 40)
@@ -543,7 +533,7 @@ public struct MangaReaderView: View {
                                 Text(chap.title.isEmpty ? "Chapter \(chap.chapterNumber)" : chap.title)
                                     .font(.system(size: 15, weight: index == currentChapterIndex ? .bold : .medium))
                                     .foregroundColor(index == currentChapterIndex ? FableTheme.brandPrimary : FableTheme.textPrimary)
-                                if chap.pageUrls.isEmpty, !chap.content.isEmpty, chap.content.lowercased().starts(with: "http") {
+                                if chap.pageUrls.isEmpty, chap.externalSourceURL != nil {
                                     Text("Official Release")
                                         .font(.system(size: 12, weight: .semibold))
                                         .foregroundColor(FableTheme.brandPrimary)
@@ -630,8 +620,10 @@ public struct MangaReaderView: View {
 
     @MainActor
     private func loadMangaChapters() async {
-        let hasDirectPanels = story.chapters?.contains(where: { !$0.pageUrls.isEmpty }) ?? false
-        if let existing = story.chapters, !existing.isEmpty, hasDirectPanels {
+        let hasReadableChapter = story.chapters?.contains {
+            !$0.pageUrls.isEmpty || $0.externalSourceURL != nil
+        } ?? false
+        if let existing = story.chapters, !existing.isEmpty, hasReadableChapter {
             self.chapters = existing
             restoreSavedChapter()
             prefetchPanels(around: currentChapterIndex)
@@ -769,5 +761,17 @@ private extension View {
             self
         }
     }
+}
+
+private struct InAppPublisherBrowser: UIViewControllerRepresentable {
+    let url: URL
+
+    func makeUIViewController(context: Context) -> SFSafariViewController {
+        let browser = SFSafariViewController(url: url)
+        browser.dismissButtonStyle = .done
+        return browser
+    }
+
+    func updateUIViewController(_ browser: SFSafariViewController, context: Context) {}
 }
 
