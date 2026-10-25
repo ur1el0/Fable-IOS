@@ -30,10 +30,30 @@ public struct AuthTests {
         // Test 3: Guest session generation
         auth.continueAsGuest()
         assert(auth.isAuthenticated && auth.isGuestMode && auth.currentSession?.name == "Guest", "Guest Session Generation")
+        auth.signOut()
+
+        let authViewModel = AuthViewModel.shared
+        authViewModel.continueAsGuest()
+        let guestSession = authViewModel.currentUser
+        let hasGuestAuthState: Bool
+        if case .signedIn(let session) = authViewModel.authState {
+            hasGuestAuthState = session.isGuest && session.id == guestSession?.id
+        } else {
+            hasGuestAuthState = false
+        }
+        assert(
+            guestSession?.isGuest == true && hasGuestAuthState && AuthManager.shared.isGuestMode,
+            "Guest Session Generation Through Auth View Model"
+        )
 
         // Test 4: Sign-out state cleanup
-        auth.signOut()
-        assert(!auth.isAuthenticated && auth.currentSession == nil, "Sign Out State Cleanup")
+        authViewModel.logout()
+        assert(
+            authViewModel.currentUser == nil
+                && AuthManager.shared.currentSession == nil
+                && !AuthManager.shared.isAuthenticated,
+            "Sign Out State Cleanup"
+        )
 
         return (passed, total, failures)
     }
