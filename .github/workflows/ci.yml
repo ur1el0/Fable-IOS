@@ -36,14 +36,12 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-      - name: Install iOS Simulator runtime
-        run: xcodebuild -downloadPlatform iOS
       - name: Build and test iOS app
         run: >-
           xcodebuild
           -project frontend/FableApp.xcodeproj
           -scheme FableApp
-          -destination 'platform=iOS Simulator,name=iPhone 16'
+          -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.0'
           -derivedDataPath build/DerivedData
           CODE_SIGNING_ALLOWED=NO
           test
