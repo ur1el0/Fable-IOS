@@ -274,7 +274,7 @@ public struct LibraryView: View {
                                     selectedStoryToRead = inProgressStory
                                 }) {
                                     HStack(spacing: 14) {
-                                        FableImageView(name: inProgressStory.effectiveCoverImage ?? inProgressStory.heroImageName, placeholderIcon: "square.stack")
+                                        FableImageView(name: inProgressStory.effectiveCoverImage ?? inProgressStory.effectiveHeroImage, placeholderIcon: "square.stack")
                                             .frame(width: 64, height: 80)
                                             .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                                             .overlay(

@@ -291,6 +291,18 @@ public struct Story: Identifiable, Hashable, Codable {
         return url
     }
 
+    public var effectiveHeroImage: String? {
+        guard
+            sourceProvider == .fableOriginal,
+            providerId == nil || providerId?.isEmpty == true,
+            let heroImageName,
+            !heroImageName.isEmpty
+        else {
+            return nil
+        }
+        return heroImageName
+    }
+
     public var paragraphs: [String] {
         let split = content.components(separatedBy: "\n\n").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
         return split.isEmpty ? (synopsis.isEmpty ? [] : [synopsis]) : split

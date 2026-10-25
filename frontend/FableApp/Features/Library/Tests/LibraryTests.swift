@@ -149,6 +149,31 @@ public struct LibraryTests {
             assert(false, "Manga Story JSON Decoding Failed")
         }
 
+        let providerStoryWithSeededArtwork = Story(
+            title: "Live Provider Story",
+            author: "Provider Author",
+            genre: "Fiction",
+            excerpt: "",
+            heroImageName: "legacy-seed-cover",
+            sourceProvider: .gutenberg,
+            providerId: "1342"
+        )
+        let authoredStoryWithHero = Story(
+            title: "Fable Original",
+            author: "Fable Author",
+            genre: "Fiction",
+            excerpt: "",
+            heroImageName: "original-cover"
+        )
+        assert(
+            providerStoryWithSeededArtwork.effectiveHeroImage == nil,
+            "Provider Stories Do Not Fall Back to Seeded Artwork"
+        )
+        assert(
+            authoredStoryWithHero.effectiveHeroImage == "original-cover",
+            "Fable Originals Keep Their Authored Hero Artwork"
+        )
+
         // Test 7: Chapter JSON Page URLs Decoding (Panel Manifest & Fallback)
         let chapterWithPagesJSON = """
         {

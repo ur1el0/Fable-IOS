@@ -417,7 +417,7 @@ public struct ReaderView: View {
                             // Editorial Engraving Vignette (FIGMA.md Frame 2: 1:159)
                             VStack(spacing: 8) {
                                 ZStack(alignment: .topTrailing) {
-                                    FableImageView(name: story.effectiveCoverImage ?? story.heroImageName, placeholderIcon: "photo")
+                                    FableImageView(name: story.effectiveCoverImage ?? story.effectiveHeroImage, placeholderIcon: "photo")
                                         .frame(maxWidth: .infinity)
                                         .frame(height: 200)
                                         .clipShape(RoundedRectangle(cornerRadius: 16))
