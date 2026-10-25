@@ -246,7 +246,7 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
         self.session = URLSession(configuration: config)
     }
 
-    private func providerRequest(for url: URL) -> URLRequest {
+    static func providerRequest(for url: URL) -> URLRequest {
         var request = URLRequest(url: url)
         request.timeoutInterval = 20.0
         return request
@@ -273,7 +273,7 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
         if !queryItems.isEmpty { components.queryItems = queryItems }
 
         guard let targetURL = components.url else { throw URLError(.badURL) }
-        let (data, response) = try await session.data(for: providerRequest(for: targetURL))
+        let (data, response) = try await session.data(for: Self.providerRequest(for: targetURL))
         guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
             throw URLError(.badServerResponse)
         }
@@ -358,7 +358,7 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
         if !queryItems.isEmpty { components.queryItems = queryItems }
 
         guard let targetURL = components.url else { throw URLError(.badURL) }
-        let (data, response) = try await session.data(from: targetURL)
+        let (data, response) = try await session.data(for: Self.providerRequest(for: targetURL))
         guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
             throw URLError(.badServerResponse)
         }
@@ -374,7 +374,7 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
             .appendingPathComponent("public")
             .appendingPathComponent("gutenberg")
             .appendingPathComponent(String(gutenbergId))
-        let (data, response) = try await session.data(for: providerRequest(for: url))
+        let (data, response) = try await session.data(for: Self.providerRequest(for: url))
         guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
             throw URLError(.badServerResponse)
         }
@@ -393,7 +393,7 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
                 .appendingPathComponent("gutenberg")
                 .appendingPathComponent(String(gutenbergId))
                 .appendingPathComponent("chapters")
-            let (data, response) = try await session.data(for: providerRequest(for: url))
+            let (data, response) = try await session.data(for: Self.providerRequest(for: url))
             guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
                 throw URLError(.badServerResponse)
             }
@@ -433,7 +433,7 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
             ]
         }
         if let targetURL = backendComponents?.url {
-            let req = providerRequest(for: targetURL)
+            let req = Self.providerRequest(for: targetURL)
             if let (data, response) = try? await session.data(for: req),
                let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) {
                 let decoder = JSONDecoder()
@@ -530,7 +530,7 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
             .appendingPathComponent("manga")
             .appendingPathComponent(mangaId)
             .appendingPathComponent("chapters")
-        let backendReq = providerRequest(for: backendUrl)
+        let backendReq = Self.providerRequest(for: backendUrl)
         if let (data, response) = try? await session.data(for: backendReq),
            let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) {
             let decoder = JSONDecoder()

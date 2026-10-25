@@ -18,6 +18,14 @@ public struct LibraryTests {
 
         let store = StoryStore()
 
+        let providerRequest = StoryAPIService.providerRequest(
+            for: URL(string: "https://example.org/catalog")!
+        )
+        assert(
+            providerRequest.timeoutInterval == 20.0,
+            "Provider Requests Allow Backend Provider Fetches to Complete"
+        )
+
         // Test 1: Cached provider records require stable provider identity.
         assert(store.stories.allSatisfy {
             $0.sourceProvider == .fableOriginal || $0.providerId?.isEmpty == false
