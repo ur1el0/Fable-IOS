@@ -32,7 +32,7 @@ jobs:
         run: docker build -t fable-backend:test -f backend/Dockerfile .
 
   ios-verification:
-    runs-on: macos-15
+    runs-on: macos-15-intel
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -41,7 +41,7 @@ jobs:
           xcodebuild
           -project frontend/FableApp.xcodeproj
           -scheme FableApp
-          -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.0'
+          -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5'
           -derivedDataPath build/DerivedData
           CODE_SIGNING_ALLOWED=NO
           test
