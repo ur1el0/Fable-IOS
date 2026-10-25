@@ -61,11 +61,41 @@ public struct FableCardStyle: ViewModifier {
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(borderColor, lineWidth: 1)
+                    .stroke(borderColor, lineWidth: 0.8)
             )
             .shadow(color: Color.black.opacity(0.04), radius: 8, x: 0, y: 3)
     }
 }
+
+#if canImport(UIKit)
+import UIKit
+
+public enum FableHaptics {
+    public static func light() {
+        let generator = UIImpactFeedbackGenerator(style: .light)
+        generator.prepare()
+        generator.impactOccurred()
+    }
+    
+    public static func medium() {
+        let generator = UIImpactFeedbackGenerator(style: .medium)
+        generator.prepare()
+        generator.impactOccurred()
+    }
+    
+    public static func selection() {
+        let generator = UISelectionFeedbackGenerator()
+        generator.prepare()
+        generator.selectionChanged()
+    }
+    
+    public static func success() {
+        let generator = UINotificationFeedbackGenerator()
+        generator.prepare()
+        generator.notificationOccurred(.success)
+    }
+}
+#endif
 
 public extension View {
     func fableTag(isSelected: Bool = false) -> some View {
@@ -80,3 +110,4 @@ public extension View {
         self.modifier(FableCardStyle(backgroundColor: backgroundColor, cornerRadius: cornerRadius, borderColor: borderColor))
     }
 }
+

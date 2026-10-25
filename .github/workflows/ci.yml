@@ -32,7 +32,7 @@ jobs:
         run: docker build -t fable-backend:test -f backend/Dockerfile .
 
   ios-verification:
-    runs-on: macos-15
+    runs-on: macos-15-intel
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -51,14 +51,12 @@ jobs:
             exit 1
           fi
           CONFIGURATION=Release FABLE_API_BASE_URL=https://api.example.com/api/v1 scripts/validate_ios_release_config.sh
-      - name: Install iOS Simulator runtime
-        run: xcodebuild -downloadPlatform iOS
       - name: Build and test iOS app
         run: >-
           xcodebuild
           -project frontend/FableApp.xcodeproj
           -scheme FableApp
-          -destination 'platform=iOS Simulator,name=iPhone 16'
+          -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5'
           -derivedDataPath build/DerivedData
           CODE_SIGNING_ALLOWED=NO
           test

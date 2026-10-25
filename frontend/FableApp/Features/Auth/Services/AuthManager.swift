@@ -40,9 +40,13 @@ public final class AuthManager: ObservableObject {
                 return
             }
             if let encoded = try? JSONEncoder().encode(session) {
-                KeychainStore.shared.saveData(key: "userSession", data: encoded)
+                if KeychainStore.shared.saveData(key: "userSession", data: encoded) {
+                    UserDefaults.standard.removeObject(forKey: sessionStorageKey)
+                } else if !session.isGuest {
+                    UserDefaults.standard.removeObject(forKey: sessionStorageKey)
+                    return
+                }
             }
-            UserDefaults.standard.removeObject(forKey: sessionStorageKey)
             restore(session)
         } catch {
             UserDefaults.standard.removeObject(forKey: sessionStorageKey)
@@ -84,6 +88,18 @@ public final class AuthManager: ObservableObject {
     private func persistSession(_ session: UserSession, accessToken: String?) -> Bool {
         do {
             let data = try JSONEncoder().encode(session)
+            if session.isGuest {
+                // Guest metadata has no credentials and remains usable without Keychain access.
+                if KeychainStore.shared.saveData(key: "userSession", data: data) {
+                    UserDefaults.standard.removeObject(forKey: sessionStorageKey)
+                } else {
+                    UserDefaults.standard.set(data, forKey: sessionStorageKey)
+                }
+                KeychainStore.shared.deleteAccessToken()
+                acceptSession(session)
+                return true
+            }
+
             guard KeychainStore.shared.saveData(key: "userSession", data: data) else {
                 authErrorMessage = "Failed to secure local user session."
                 return false
@@ -94,8 +110,6 @@ public final class AuthManager: ObservableObject {
                     authErrorMessage = "Failed to secure the access token."
                     return false
                 }
-            } else if session.isGuest {
-                KeychainStore.shared.deleteAccessToken()
             }
             acceptSession(session)
             return true
@@ -171,6 +185,11 @@ public final class AuthManager: ObservableObject {
             authErrorMessage = "Account creation failed. Check your connection."
             return false
         }
+    }
+
+    public func continueAsGuest() {
+        let guest = UserSession.guest()
+        _ = persistSession(guest, accessToken: nil)
     }
 
     public func updateProfile(name: String, handle: String, bio: String, avatarName: String? = nil) async -> Bool {

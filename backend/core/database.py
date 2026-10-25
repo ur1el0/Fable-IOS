@@ -40,6 +40,12 @@ def _add_column_if_missing(conn, table_name, column_name, column_definition):
 def init_db():
     conn = get_db()
     try:
+        current_version = conn.execute("PRAGMA user_version").fetchone()[0]
+        if current_version > SCHEMA_VERSION:
+            raise RuntimeError(
+                f"Database schema version {current_version} is newer than supported version {SCHEMA_VERSION}."
+            )
+
         with conn:
             conn.execute("""
             CREATE TABLE IF NOT EXISTS stories (
@@ -109,6 +115,12 @@ def init_db():
                 PRIMARY KEY (device_id, story_id)
             );
             """)
+            _add_column_if_missing(
+                conn,
+                "shelf_items",
+                "device_id",
+                "TEXT NOT NULL DEFAULT ''",
+            )
             conn.execute("CREATE INDEX IF NOT EXISTS idx_shelf_items_device ON shelf_items (device_id);")
             conn.execute("""
             CREATE TABLE IF NOT EXISTS account_shelf_items (
@@ -172,12 +184,6 @@ def init_db():
                 );
             """)
             conn.execute("CREATE INDEX IF NOT EXISTS idx_auth_rate_limits_expiry ON auth_rate_limits (window_expires_at);")
-
-            current_version = conn.execute("PRAGMA user_version").fetchone()[0]
-            if current_version > SCHEMA_VERSION:
-                raise RuntimeError(
-                    f"Database schema version {current_version} is newer than supported version {SCHEMA_VERSION}."
-                )
 
             if current_version < 1:
                 placeholders = ", ".join("?" for _ in LEGACY_DEMO_STORY_IDS)

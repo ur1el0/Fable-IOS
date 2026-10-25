@@ -11,13 +11,14 @@ public struct ShelfView: View {
     let tabs = ["Saved", "Finished", "My Drafts"]
     
     var displayedStories: [Story] {
+        let activePool = store.stories.filter { !PersistenceService.legacyDemoStoryIds.contains($0.id) }
         switch selectedTab {
         case "Finished":
-            return store.stories.filter { $0.isCompleted || $0.progressPercent >= 100 }
+            return activePool.filter { $0.isCompleted || $0.progressPercent >= 100 }
         case "My Drafts":
             return store.profileStories
         default: // "Saved"
-            return store.stories.filter { $0.isBookmarked }
+            return activePool.filter { $0.isBookmarked }
         }
     }
     
@@ -56,6 +57,7 @@ public struct ShelfView: View {
                             
                             HStack(spacing: 16) {
                                 Button(action: {
+                                    FableHaptics.light()
                                     isShowingProfileSheet = true
                                 }) {
                                     Image(systemName: "chart.line.uptrend.xyaxis")
@@ -64,6 +66,7 @@ public struct ShelfView: View {
                                 }
                                 
                                 Button(action: {
+                                    FableHaptics.light()
                                     isShowingSettingsSheet = true
                                 }) {
                                     Image(systemName: "gearshape")
@@ -78,7 +81,8 @@ public struct ShelfView: View {
                         HStack(spacing: 0) {
                             ForEach(tabs, id: \.self) { tab in
                                 Button(action: {
-                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                    FableHaptics.selection()
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
                                         selectedTab = tab
                                     }
                                 }) {
@@ -88,14 +92,14 @@ public struct ShelfView: View {
                                         .padding(.vertical, 10)
                                         .background(selectedTab == tab ? Color.white : Color.clear)
                                         .foregroundColor(selectedTab == tab ? FableTheme.textPrimary : FableTheme.textMuted)
-                                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                                         .shadow(color: selectedTab == tab ? Color.black.opacity(0.06) : Color.clear, radius: 4, y: 1)
                                 }
                             }
                         }
                         .padding(4)
                         .background(FableTheme.surfaceVariant)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                         .padding(.horizontal, 20)
                         
                         // Monthly Reading Stats Card (FIGMA.md Frame 7: 1:1058)

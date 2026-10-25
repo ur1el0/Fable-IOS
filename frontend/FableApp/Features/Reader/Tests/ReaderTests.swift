@@ -55,6 +55,8 @@ public struct ReaderTests {
         // Test 7: MangaReadingMode Enums & Iconography
         assert(MangaReadingMode.webtoon.iconName == "arrow.up.and.down", "Webtoon Reading Mode Up/Down Icon")
         assert(MangaReadingMode.paged.iconName == "arrow.left.and.right", "Paged Reading Mode Left/Right Icon")
+        assert(MangaReadingMode.rightToLeft.iconName == "arrow.right.to.line", "RTL Reading Mode Icon")
+        assert(MangaReadingMode.allCases.count == 3, "All Three Manga Reading Modes Defined")
 
         // Test 8: Manga Panel and Cover Separation
         let testStoryId = UUID()
@@ -89,6 +91,28 @@ public struct ReaderTests {
         )
         assert(emptyChapter.pageUrls.isEmpty, "Manga Empty Panels Do Not Use Story Cover")
         assert(mangaWithPanels.effectiveCoverImage == "https://cdn.manga.org/cover.jpg", "Manga Story Cover Remains Available")
+
+        let textChapter = Chapter(
+            storyId: testStoryId,
+            chapterNumber: 3,
+            title: "Readable Chapter",
+            content: "The chapter text is available to the in-app reader."
+        )
+        let externalChapter = Chapter(
+            storyId: testStoryId,
+            chapterNumber: 4,
+            title: "Official Release",
+            content: "https://publisher.example/chapters/4"
+        )
+        assert(
+            textChapter.hasReadableText && textChapter.externalSourceURL == nil,
+            "Prose Chapter Text Is Cached for In-App Reading"
+        )
+        assert(
+            !externalChapter.hasReadableText
+                && externalChapter.externalSourceURL?.absoluteString == externalChapter.content,
+            "Publisher URL Is Distinguished from Chapter Text"
+        )
 
         // Test 9: Format-Based Reader Selection Protocol
         let proseStory = Story(

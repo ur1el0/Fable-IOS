@@ -225,7 +225,10 @@ private actor DiskImageCacheStorage {
 
 private func downloadImageData(from url: URL) async -> Data? {
     do {
-        let (data, response) = try await URLSession.shared.data(from: url)
+        var request = URLRequest(url: url)
+        request.setValue("Fable/1.0 (iOS client; https://github.com/ur1el0/Fable-IOS)", forHTTPHeaderField: "User-Agent")
+        request.timeoutInterval = 15.0
+        let (data, response) = try await URLSession.shared.data(for: request)
         guard
             let response = response as? HTTPURLResponse,
             (200..<300).contains(response.statusCode),

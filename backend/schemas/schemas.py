@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 class ChapterDTO(BaseModel):
     id: UUID
     story_id: UUID = Field(..., serialization_alias="storyId")
-    chapter_number: int = Field(..., ge=1, serialization_alias="chapterNumber")
+    chapter_number: int = Field(..., ge=0, serialization_alias="chapterNumber")
     title: str
     content: Optional[str] = ""
     word_count: int = Field(default=0, serialization_alias="wordCount")

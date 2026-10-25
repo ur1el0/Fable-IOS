@@ -36,6 +36,7 @@ public final class AuthViewModel: ObservableObject {
     private let keychain: KeychainStore
     private let apiService: StoryAPIServiceProtocol
     private let sessionKeychainKey = "userSession"
+    private let sessionDefaultsKey = "fable_persisted_session_v1"
 
     public init(keychain: KeychainStore = .shared, apiService: StoryAPIServiceProtocol = StoryAPIService()) {
         self.keychain = keychain
@@ -49,21 +50,27 @@ public final class AuthViewModel: ObservableObject {
 
         guard let sessionData = keychain.readData(key: sessionKeychainKey) else {
             // Check legacy fallback from UserDefaults if transitioning
-            if let legacyData = UserDefaults.standard.data(forKey: "fable_persisted_session_v1"),
+            if let legacyData = UserDefaults.standard.data(forKey: sessionDefaultsKey),
                let legacySession = try? JSONDecoder().decode(UserSession.self, from: legacyData) {
                 guard legacySession.isGuest || hasServerAccessToken else {
-                    UserDefaults.standard.removeObject(forKey: "fable_persisted_session_v1")
+                    UserDefaults.standard.removeObject(forKey: sessionDefaultsKey)
                     keychain.deleteData(key: sessionKeychainKey)
                     keychain.deleteAccessToken()
                     self.currentUser = nil
                     self.authState = .signedOut
                     return
                 }
-                // Migrate immediately to hardware Keychain
+                // Move legacy sessions to Keychain when it is available.
                 if let encoded = try? JSONEncoder().encode(legacySession) {
-                    keychain.saveData(key: sessionKeychainKey, data: encoded)
+                    if keychain.saveData(key: sessionKeychainKey, data: encoded) {
+                        UserDefaults.standard.removeObject(forKey: sessionDefaultsKey)
+                    } else if !legacySession.isGuest {
+                        UserDefaults.standard.removeObject(forKey: sessionDefaultsKey)
+                        self.currentUser = nil
+                        self.authState = .signedOut
+                        return
+                    }
                 }
-                UserDefaults.standard.removeObject(forKey: "fable_persisted_session_v1")
                 self.currentUser = legacySession
                 self.authState = .signedIn(legacySession)
                 syncToAuthManager(session: legacySession)
@@ -213,6 +220,20 @@ public final class AuthViewModel: ObservableObject {
     private func persistSession(_ session: UserSession, accessToken: String?) -> Bool {
         do {
             let data = try JSONEncoder().encode(session)
+            if session.isGuest {
+                if keychain.saveData(key: sessionKeychainKey, data: data) {
+                    UserDefaults.standard.removeObject(forKey: sessionDefaultsKey)
+                } else {
+                    UserDefaults.standard.set(data, forKey: sessionDefaultsKey)
+                }
+                keychain.deleteAccessToken()
+                currentUser = session
+                authState = .signedIn(session)
+                errorMessage = nil
+                AuthManager.shared.acceptSession(session)
+                return true
+            }
+
             guard keychain.saveData(key: sessionKeychainKey, data: data) else {
                 errorMessage = "Failed to store the local session securely."
                 return false
@@ -223,8 +244,6 @@ public final class AuthViewModel: ObservableObject {
                     errorMessage = "Failed to store the access token securely."
                     return false
                 }
-            } else {
-                keychain.deleteAccessToken()
             }
             currentUser = session
             authState = .signedIn(session)

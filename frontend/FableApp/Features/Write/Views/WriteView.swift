@@ -55,6 +55,7 @@ public struct WriteView: View {
                         
                         // Publish Button (Terracotta square with arrow up)
                         Button {
+                            FableHaptics.medium()
                             Task {
                                 guard let story = await store.publishStory() else { return }
                                 publishedStory = story
@@ -73,7 +74,7 @@ public struct WriteView: View {
                             .foregroundColor(.white)
                             .frame(width: 42, height: 42)
                             .background(FableTheme.brandPrimary)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                             .shadow(color: FableTheme.brandPrimary.opacity(0.35), radius: 6, y: 3)
                         }
                         .disabled(store.isPublishingStory)
@@ -157,8 +158,12 @@ public struct WriteView: View {
                             }
                             .padding(18)
                             .background(FableTheme.cardBackground)
-                            .clipShape(RoundedRectangle(cornerRadius: 18))
-                            .shadow(color: Color.black.opacity(0.03), radius: 6, y: 2)
+                            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                    .stroke(FableTheme.divider.opacity(0.8), lineWidth: 0.8)
+                            )
+                            .shadow(color: Color.black.opacity(0.03), radius: 8, y: 2)
                             .padding(.horizontal, 20)
                             
                             // SYNOPSIS CARD
@@ -182,7 +187,7 @@ public struct WriteView: View {
                                     .foregroundColor(FableTheme.textPrimary)
                                     .scrollContentBackground(.hidden)
                                     .lineSpacing(4)
-                                
+
                                 HStack {
                                     HStack(spacing: 4) {
                                         Image(systemName: "eye.circle")
@@ -201,8 +206,12 @@ public struct WriteView: View {
                             }
                             .padding(18)
                             .background(FableTheme.cardBackground)
-                            .clipShape(RoundedRectangle(cornerRadius: 18))
-                            .shadow(color: Color.black.opacity(0.03), radius: 6, y: 2)
+                            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                    .stroke(FableTheme.divider.opacity(0.8), lineWidth: 0.8)
+                            )
+                            .shadow(color: Color.black.opacity(0.03), radius: 8, y: 2)
                             .padding(.horizontal, 20)
                             
                             // MANUSCRIPT CARD WITH FORMATTING TOOLBAR (FIGMA.md Frame 4: 1:454)
@@ -218,50 +227,54 @@ public struct WriteView: View {
                                     // Formatting Toolbar
                                     HStack(spacing: 8) {
                                         Button(action: {
+                                            FableHaptics.selection()
                                             formattingRequest = ManuscriptFormattingRequest(style: .bold)
                                         }) {
                                             Text("B")
                                                 .font(.system(size: 12, weight: .bold))
-                                                .frame(width: 24, height: 24)
+                                                .frame(width: 26, height: 26)
                                                 .background(FableTheme.surface)
-                                                .clipShape(RoundedRectangle(cornerRadius: 4))
+                                                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                                                 .foregroundColor(FableTheme.textPrimary)
                                         }
                                         .accessibilityLabel("Insert bold formatting markers")
                                         
                                         Button(action: {
+                                            FableHaptics.selection()
                                             formattingRequest = ManuscriptFormattingRequest(style: .italic)
                                         }) {
                                             Text("I")
                                                 .font(.system(size: 12, weight: .semibold))
                                                 .italic()
-                                                .frame(width: 24, height: 24)
+                                                .frame(width: 26, height: 26)
                                                 .background(FableTheme.surface)
-                                                .clipShape(RoundedRectangle(cornerRadius: 4))
+                                                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                                                 .foregroundColor(FableTheme.textPrimary)
                                         }
                                         .accessibilityLabel("Insert italic formatting markers")
                                         
                                         Button(action: {
+                                            FableHaptics.selection()
                                             formattingRequest = ManuscriptFormattingRequest(style: .quote)
                                         }) {
                                             Image(systemName: "quote.opening")
                                                 .font(.system(size: 10))
-                                                .frame(width: 24, height: 24)
+                                                .frame(width: 26, height: 26)
                                                 .background(FableTheme.surface)
-                                                .clipShape(RoundedRectangle(cornerRadius: 4))
+                                                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                                                 .foregroundColor(FableTheme.textPrimary)
                                         }
                                         .accessibilityLabel("Insert a block quote marker")
                                         
                                         Button(action: {
+                                            FableHaptics.selection()
                                             formattingRequest = ManuscriptFormattingRequest(style: .sceneBreak)
                                         }) {
                                             Image(systemName: "divide")
                                                 .font(.system(size: 11))
-                                                .frame(width: 24, height: 24)
+                                                .frame(width: 26, height: 26)
                                                 .background(FableTheme.surface)
-                                                .clipShape(RoundedRectangle(cornerRadius: 4))
+                                                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                                                 .foregroundColor(FableTheme.textPrimary)
                                         }
                                         .accessibilityLabel("Insert a scene break")
@@ -277,8 +290,12 @@ public struct WriteView: View {
                             }
                             .padding(18)
                             .background(FableTheme.cardBackground)
-                            .clipShape(RoundedRectangle(cornerRadius: 18))
-                            .shadow(color: Color.black.opacity(0.03), radius: 6, y: 2)
+                            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                    .stroke(FableTheme.divider.opacity(0.8), lineWidth: 0.8)
+                            )
+                            .shadow(color: Color.black.opacity(0.03), radius: 8, y: 2)
                             .padding(.horizontal, 20)
                             
                             // Space for footer pill
@@ -323,8 +340,12 @@ public struct WriteView: View {
                 }
                 .padding(.vertical, 12)
                 .background(
-                    RoundedRectangle(cornerRadius: 26)
+                    RoundedRectangle(cornerRadius: 26, style: .continuous)
                         .fill(Color.white)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                                .stroke(FableTheme.divider.opacity(0.8), lineWidth: 0.8)
+                        )
                         .shadow(color: Color.black.opacity(0.08), radius: 10, y: 4)
                 )
                 .padding(.horizontal, 20)
