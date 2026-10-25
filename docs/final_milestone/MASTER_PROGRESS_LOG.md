@@ -190,6 +190,8 @@ This progress log tracks the transition of **Fable** from an editorial prototype
 - [x] Docker backend suite passed: 31 tests.
 
 
+
+
 ## Account-Scoped Shelf Synchronization (2026-09-26)
 
 - [x] Added account-owned shelf records keyed by user, device, and story while preserving legacy rows without exposing them through authenticated endpoints.
@@ -566,4 +568,19 @@ This progress log tracks the transition of **Fable** from an editorial prototype
 
 
 
+
+## Live Catalog and In-App Reader Reliability (2026-10-25)
+
+- [x] **Live Image Refresh (`frontend/FableApp/Core/Components/FableImageView.swift`, `frontend/FableApp/Features/Library/Models/Story.swift`):**
+  - Bound the loaded image state to its URL so recycled story cards cannot display a previous story's cover.
+  - Prevented provider-backed stories from falling back to bundled prototype hero art when a live cover URL is unavailable.
+- [x] **Provider Fetch and Chapter Reading (`frontend/FableApp/Features/Library/Services/StoryAPIService.swift`, `frontend/FableApp/Features/Library/ViewModels/StoryStore.swift`, `frontend/FableApp/Features/Reader/Views/ReaderView.swift`, `frontend/FableApp/Features/Reader/Views/MangaReaderView.swift`):**
+  - Applied a 20-second request timeout to Gutenberg catalog and chapter provider calls, allowing the backend's 15-second upstream fetch to complete.
+  - Kept parsed Gutenberg chapter text in the native reader and rejected cached source URLs as readable prose.
+  - Limited Manga panels to the selected chapter; when a chapter has only an official publisher URL, opened that page in Fable's in-app browser.
+- [x] **Guest Session Resilience (`frontend/FableApp/Features/Auth/Services/AuthManager.swift`, `frontend/FableApp/Features/Auth/ViewModels/AuthViewModel.swift`):**
+  - Preserved credential-free guest session metadata locally when Keychain access is unavailable; authenticated sessions and access tokens still require Keychain storage.
+- [x] **Verification:**
+  - Native Xcode simulator suite: **6 tests passed, 0 failures** on iPhone 16 / iOS 18.5.
+  - Backend suite: **42 passed**; Docker image build succeeded.
 
