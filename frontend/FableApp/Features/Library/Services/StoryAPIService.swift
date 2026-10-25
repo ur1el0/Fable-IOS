@@ -1,6 +1,12 @@
 import Foundation
 
 public struct CreateStoryRequest: Codable {
+    public static let maximumTitleLength = 120
+    public static let maximumGenreLength = 50
+    public static let maximumChapterLength = 120
+    public static let maximumSynopsisLength = 2_000
+    public static let maximumContentLength = 50_000
+
     public let title: String
     public let genre: String
     public let chapter: String?
@@ -34,12 +40,12 @@ public struct ShelfSyncItem: Codable, Equatable {
     public let isBookmarked: Bool
     public let isCompleted: Bool
     public let updatedAtUtc: Date
-    
+
     enum CodingKeys: String, CodingKey {
         case storyId, readingProgress, isBookmarked, isCompleted, updatedAtUtc
         case story_id, reading_progress, is_bookmarked, is_completed, updated_at_utc
     }
-    
+
     public init(storyId: UUID, readingProgress: Double, isBookmarked: Bool, isCompleted: Bool, updatedAtUtc: Date = Date()) {
         self.storyId = storyId
         self.readingProgress = readingProgress
@@ -47,7 +53,7 @@ public struct ShelfSyncItem: Codable, Equatable {
         self.isCompleted = isCompleted
         self.updatedAtUtc = updatedAtUtc
     }
-    
+
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.storyId = try (container.decodeIfPresent(UUID.self, forKey: .storyId)
@@ -61,7 +67,7 @@ public struct ShelfSyncItem: Codable, Equatable {
         self.updatedAtUtc = try (container.decodeIfPresent(Date.self, forKey: .updatedAtUtc)
             ?? container.decode(Date.self, forKey: .updated_at_utc))
     }
-    
+
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(storyId, forKey: .storyId)
@@ -75,24 +81,24 @@ public struct ShelfSyncItem: Codable, Equatable {
 public struct ShelfSyncPayload: Codable {
     public let deviceId: UUID
     public let items: [ShelfSyncItem]
-    
+
     enum CodingKeys: String, CodingKey {
         case deviceId, items
         case device_id
     }
-    
+
     public init(deviceId: UUID, items: [ShelfSyncItem]) {
         self.deviceId = deviceId
         self.items = items
     }
-    
+
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.deviceId = try (container.decodeIfPresent(UUID.self, forKey: .deviceId)
             ?? container.decode(UUID.self, forKey: .device_id))
         self.items = try container.decode([ShelfSyncItem].self, forKey: .items)
     }
-    
+
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(deviceId, forKey: .deviceId)
@@ -104,19 +110,19 @@ public struct ShelfSyncResponse: Codable {
     public let status: String
     public let reconciledItems: [ShelfSyncItem]
     public let serverTimeUtc: Date
-    
+
     enum CodingKeys: String, CodingKey {
         case status
         case reconciledItems, serverTimeUtc
         case reconciled_items, server_time_utc
     }
-    
+
     public init(status: String = "ok", reconciledItems: [ShelfSyncItem], serverTimeUtc: Date) {
         self.status = status
         self.reconciledItems = reconciledItems
         self.serverTimeUtc = serverTimeUtc
     }
-    
+
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.status = try container.decodeIfPresent(String.self, forKey: .status) ?? "ok"
@@ -125,7 +131,7 @@ public struct ShelfSyncResponse: Codable {
         self.serverTimeUtc = try (container.decodeIfPresent(Date.self, forKey: .serverTimeUtc)
             ?? container.decode(Date.self, forKey: .server_time_utc))
     }
-    
+
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(status, forKey: .status)
@@ -221,7 +227,7 @@ public extension StoryAPIServiceProtocol {
     func fetchStories(genre: String? = nil, search: String? = nil) async throws -> [Story] {
         try await fetchStories(genre: genre, search: search, since: nil)
     }
-    
+
     func fetchGutenbergStories(topic: String? = nil, search: String? = nil) async throws -> [Story] {
         try await fetchGutenbergStories(topic: topic, search: search)
     }
@@ -262,38 +268,50 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
     }
 
     public func fetchStories(genre: String? = nil, search: String? = nil, since: Date? = nil) async throws -> [Story] {
-        var components = URLComponents(url: baseURL.appendingPathComponent("stories"), resolvingAgainstBaseURL: true)!
-        var queryItems: [URLQueryItem] = []
-        if let genre, genre != "All" { queryItems.append(URLQueryItem(name: "genre", value: genre)) }
-        if let search, !search.isEmpty { queryItems.append(URLQueryItem(name: "search", value: search)) }
-        if let since {
-            let formatter = ISO8601DateFormatter()
-            queryItems.append(URLQueryItem(name: "since", value: formatter.string(from: since)))
-        }
-        if !queryItems.isEmpty { components.queryItems = queryItems }
-
-        guard let targetURL = components.url else { throw URLError(.badURL) }
-        let (data, response) = try await session.data(for: Self.providerRequest(for: targetURL))
-        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
-            throw URLError(.badServerResponse)
-        }
-
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        
-        // Supports both raw array and paged responses
-        if let directList = try? decoder.decode([Story].self, from: data) {
-            return directList
+        let pageSize = 50
+        var offset = 0
+        var stories: [Story] = []
+        var storyIDs = Set<UUID>()
+
+        while true {
+            var components = URLComponents(url: baseURL.appendingPathComponent("stories"), resolvingAgainstBaseURL: true)!
+            var queryItems = [
+                URLQueryItem(name: "limit", value: String(pageSize)),
+                URLQueryItem(name: "offset", value: String(offset))
+            ]
+            if let genre, genre != "All" { queryItems.append(URLQueryItem(name: "genre", value: genre)) }
+            if let search, !search.isEmpty { queryItems.append(URLQueryItem(name: "search", value: search)) }
+            if let since {
+                let formatter = ISO8601DateFormatter()
+                queryItems.append(URLQueryItem(name: "since", value: formatter.string(from: since)))
+            }
+            components.queryItems = queryItems
+
+            guard let targetURL = components.url else { throw URLError(.badURL) }
+            let (data, response) = try await session.data(for: Self.providerRequest(for: targetURL))
+            guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+                throw URLError(.badServerResponse)
+            }
+
+            let page: [Story]
+            if let directPage = try? decoder.decode([Story].self, from: data) {
+                page = directPage
+            } else {
+                struct PagedStoryWrapper: Decodable {
+                    let items: [Story]
+                }
+                page = try decoder.decode(PagedStoryWrapper.self, from: data).items
+            }
+
+            let newStories = page.filter { storyIDs.insert($0.id).inserted }
+            stories.append(contentsOf: newStories)
+            if page.count < pageSize || newStories.isEmpty {
+                return stories
+            }
+            offset += page.count
         }
-        
-        struct PagedStoryWrapper: Codable {
-            let items: [Story]
-        }
-        if let wrapped = try? decoder.decode(PagedStoryWrapper.self, from: data) {
-            return wrapped.items
-        }
-        
-        return try decoder.decode([Story].self, from: data)
     }
 
     public func createStory(_ request: CreateStoryRequest, token: String) async throws -> Story {
@@ -302,7 +320,7 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
         urlRequest.httpMethod = "POST"
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        
+
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         urlRequest.httpBody = try encoder.encode(request)
@@ -333,17 +351,17 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
         urlRequest.httpMethod = "POST"
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        
+
         let payload = ShelfSyncPayload(deviceId: deviceId, items: items)
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         urlRequest.httpBody = try encoder.encode(payload)
-        
+
         let (data, response) = try await session.data(for: urlRequest)
         guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
             throw URLError(.badServerResponse)
         }
-        
+
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         let result = try decoder.decode(ShelfSyncResponse.self, from: data)
@@ -689,12 +707,12 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
         guard let targetURL = components.url else { throw URLError(.badURL) }
         var request = URLRequest(url: targetURL)
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        
+
         let (data, response) = try await session.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
             throw URLError(.badServerResponse)
         }
-        
+
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         return try decoder.decode([ShelfSyncItem].self, from: data)
@@ -705,7 +723,7 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        
+
         let body: [String: String] = [
             "email": email,
             "password": password,
@@ -713,10 +731,10 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
             "handle": handle
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        
+
         let (data, response) = try await session.data(for: request)
         try validateResponse(response, data: data)
-        
+
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         return try decoder.decode(AuthTokenResponse.self, from: data)
@@ -727,16 +745,16 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        
+
         let body: [String: String] = [
             "email": email,
             "password": password
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        
+
         let (data, response) = try await session.data(for: request)
         try validateResponse(response, data: data)
-        
+
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         return try decoder.decode(AuthTokenResponse.self, from: data)
@@ -793,13 +811,12 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        
+
         let (data, response) = try await session.data(for: request)
         try validateResponse(response, data: data)
-        
+
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         return try decoder.decode(AuthUserDTO.self, from: data)
     }
 }
-

@@ -950,6 +950,7 @@ def test_init_db_removes_only_legacy_demo_stories_and_chapters():
                 "2026-01-01T00:00:00+00:00", "2026-01-01T00:00:00+00:00", str(uuid4()),
             ),
         )
+        connection.execute("PRAGMA user_version = 0")
         connection.commit()
     finally:
         connection.close()
@@ -1155,9 +1156,274 @@ def test_cors_origin_whitelist_contract():
     # Trusted localhost dev origin
     res_allowed = client.get("/api/v1/health", headers={"Origin": "http://localhost:3000"})
     assert res_allowed.headers.get("access-control-allow-origin") == "http://localhost:3000"
-    assert res_allowed.headers.get("access-control-allow-credentials") == "true"
+    assert res_allowed.headers.get("access-control-allow-credentials") is None
 
     # Untrusted external origin is not permitted
     res_rejected = client.get("/api/v1/health", headers={"Origin": "https://malicious-domain.test"})
     assert res_rejected.headers.get("access-control-allow-origin") != "https://malicious-domain.test"
 
+def test_story_catalog_paginates_and_returns_summaries():
+    headers = auth_headers()
+    for index in range(3):
+        response = client.post("/api/v1/stories", headers=headers, json={
+            "title": f"Paged Story {index}",
+            "genre": "Mystery",
+            "synopsis": "A short catalog summary.",
+            "content": "A long manuscript that should not be sent in the catalog response.",
+        })
+        assert response.status_code == 201
+
+    first_page = client.get("/api/v1/stories?limit=2&offset=0")
+    second_page = client.get("/api/v1/stories?limit=2&offset=2")
+
+    assert first_page.status_code == 200
+    assert second_page.status_code == 200
+    assert len(first_page.json()) == 2
+    assert len(second_page.json()) == 1
+    assert all(story["content"] == "" for story in first_page.json() + second_page.json())
+    assert client.get("/api/v1/stories?limit=101").status_code == 422
+    assert client.get("/api/v1/stories?offset=-1").status_code == 422
+    assert client.get(f"/api/v1/stories?search={'x' * 201}").status_code == 422
+
+def test_create_story_rejects_oversized_fields():
+    payload = {
+        "title": "Bounded Story",
+        "genre": "Mystery",
+        "synopsis": "A" * 2_001,
+        "content": "Valid content",
+    }
+    assert client.post("/api/v1/stories", json=payload).status_code == 422
+
+    payload["synopsis"] = "A valid synopsis"
+    payload["content"] = "B" * 50_001
+    assert client.post("/api/v1/stories", json=payload).status_code == 422
+
+    payload["content"] = "Valid content"
+    payload["genre"] = "G" * 51
+    assert client.post("/api/v1/stories", json=payload).status_code == 422
+
+def test_validation_errors_do_not_echo_submitted_password():
+    password = "928374"
+    response = client.post("/api/v1/auth/register", json={
+        "email": "reader@example.test",
+        "password": password,
+        "name": "Reader",
+    })
+    assert response.status_code == 422
+    assert password not in response.text
+
+def test_registration_rate_limit_returns_retry_after(monkeypatch):
+    from services import auth_rate_limit
+
+    monkeypatch.setattr(auth_rate_limit, "REGISTER_LIMIT_PER_IP", 1)
+    payload = {
+        "email": "first@example.test",
+        "password": "LongSecurePassword123!",
+        "name": "First Reader",
+    }
+    assert client.post("/api/v1/auth/register", json=payload).status_code == 201
+
+    payload["email"] = "second@example.test"
+    limited = client.post("/api/v1/auth/register", json=payload)
+    assert limited.status_code == 429
+    assert int(limited.headers["retry-after"]) > 0
+    assert "first@example.test" not in limited.text
+
+def test_request_body_size_limit_rejects_oversized_request():
+    oversized_body = b'{"payload":"' + (b"x" * 262_144) + b'"}'
+    response = client.post(
+        "/api/v1/auth/register",
+        content=oversized_body,
+        headers={"Content-Type": "application/json"},
+    )
+    assert response.status_code == 413
+    assert response.json() == {"detail": "Request body exceeds the configured size limit."}
+
+def test_cors_configuration_is_validated_and_normalized(monkeypatch):
+    from core.settings import load_cors_origins
+
+    monkeypatch.setenv("FABLE_ENV", "production")
+    monkeypatch.delenv("FABLE_CORS_ORIGINS", raising=False)
+    monkeypatch.setenv("CORS_ORIGINS", '["https://reader.example.test/"]')
+    assert load_cors_origins() == ["https://reader.example.test"]
+
+    monkeypatch.setenv(
+        "FABLE_CORS_ORIGINS",
+        "https://reader.example.test/,https://cdn.example.test",
+    )
+    assert load_cors_origins() == [
+        "https://reader.example.test",
+        "https://cdn.example.test",
+    ]
+    monkeypatch.delenv("FABLE_CORS_ORIGINS")
+
+    monkeypatch.setenv("CORS_ORIGINS", '["*"]')
+    with pytest.raises(RuntimeError, match="Wildcard CORS"):
+        load_cors_origins()
+
+    monkeypatch.setenv("FABLE_ENV", "staging")
+    with pytest.raises(RuntimeError, match="Wildcard CORS"):
+        load_cors_origins()
+
+    monkeypatch.setenv("CORS_ORIGINS", '["https://reader.example.test:invalid"]')
+    with pytest.raises(RuntimeError, match="Invalid CORS origin"):
+        load_cors_origins()
+
+    monkeypatch.setenv("FABLE_ENV", "development")
+    monkeypatch.setenv("FABLE_CORS_ORIGINS", "capacitor://localhost,ionic://localhost")
+    assert load_cors_origins() == ["capacitor://localhost", "ionic://localhost"]
+
+def test_sqlite_online_backup_and_integrity_check(tmp_path):
+    import sqlite3
+    from scripts.sqlite_backup import create_backup, verify_database
+
+    source = tmp_path / "source.sqlite3"
+    backup = tmp_path / "backups" / "snapshot.sqlite3"
+    with sqlite3.connect(source) as connection:
+        connection.execute("CREATE TABLE entries (value TEXT NOT NULL)")
+        connection.execute("INSERT INTO entries (value) VALUES ('preserved')")
+
+    create_backup(source, backup)
+    verify_database(backup)
+
+    with sqlite3.connect(backup) as connection:
+        assert connection.execute("SELECT value FROM entries").fetchone()[0] == "preserved"
+    assert backup.stat().st_mode & 0o777 == 0o600
+
+def test_init_db_migrates_legacy_demo_stories_and_shelf_references_once():
+    from core.database import LEGACY_DEMO_STORY_IDS, get_db
+
+    connection = get_db()
+    try:
+        for index, story_id in enumerate(LEGACY_DEMO_STORY_IDS):
+            connection.execute(
+                """
+                INSERT INTO stories (
+                    id, title, author, genre, chapter, synopsis, content,
+                    read_time_minutes, created_at_utc, updated_at_utc
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    story_id, f"Legacy {index}", "Demo Author", "Classic",
+                    "Chapter 1", "Legacy synopsis", "Legacy content", 1,
+                    "2026-01-01T00:00:00+00:00", "2026-01-01T00:00:00+00:00",
+                ),
+            )
+            connection.execute(
+                """
+                INSERT INTO chapters (
+                    id, story_id, chapter_number, title, content, word_count, created_at_utc
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    f"legacy-chapter-{index}", story_id, 1, "Demo Chapter",
+                    "Legacy chapter text", 3, "2026-01-01T00:00:00+00:00",
+                ),
+            )
+            connection.execute(
+                """INSERT INTO shelf_items (
+                    device_id, story_id, reading_progress, is_bookmarked,
+                    is_completed, updated_at_utc
+                ) VALUES (?, ?, ?, ?, ?, ?)""",
+                (
+                    "device-legacy", story_id, 0.25, 1, 0,
+                    "2026-01-01T00:00:00+00:00",
+                ),
+            )
+            connection.execute(
+                """INSERT INTO account_shelf_items (
+                    owner_user_id, device_id, story_id, reading_progress,
+                    is_bookmarked, is_completed, updated_at_utc
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    "owner-legacy", "device-legacy", story_id, 0.25, 1, 0,
+                    "2026-01-01T00:00:00+00:00",
+                ),
+            )
+            connection.execute(
+                """INSERT INTO reading_sessions (
+                    owner_user_id, id, story_id, seconds_read, read_at_utc, is_completed
+                ) VALUES (?, ?, ?, ?, ?, ?)""",
+                (
+                    "owner-legacy", f"reading-session-{index}", story_id, 60,
+                    "2026-01-01T00:00:00+00:00", 0,
+                ),
+            )
+        authored_story_id = str(uuid4())
+        connection.execute(
+            """
+            INSERT INTO stories (
+                id, title, author, genre, chapter, synopsis, content,
+                read_time_minutes, created_at_utc, updated_at_utc, owner_user_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                authored_story_id, "Dracula", "A Fable Author", "Mystery",
+                "Chapter 1", "Authored synopsis", "Authored content", 1,
+                "2026-01-01T00:00:00+00:00", "2026-01-01T00:00:00+00:00", str(uuid4()),
+            ),
+        )
+        connection.execute("PRAGMA user_version = 0")
+        connection.commit()
+    finally:
+        connection.close()
+
+    init_db()
+    init_db()
+
+    connection = get_db()
+    try:
+        legacy_story_count = connection.execute(
+            f"SELECT COUNT(*) FROM stories WHERE id IN ({', '.join('?' for _ in LEGACY_DEMO_STORY_IDS)})",
+            LEGACY_DEMO_STORY_IDS,
+        ).fetchone()[0]
+        legacy_chapter_count = connection.execute(
+            f"SELECT COUNT(*) FROM chapters WHERE story_id IN ({', '.join('?' for _ in LEGACY_DEMO_STORY_IDS)})",
+            LEGACY_DEMO_STORY_IDS,
+        ).fetchone()[0]
+        legacy_shelf_count = connection.execute(
+            f"SELECT COUNT(*) FROM shelf_items WHERE story_id IN ({', '.join('?' for _ in LEGACY_DEMO_STORY_IDS)})",
+            LEGACY_DEMO_STORY_IDS,
+        ).fetchone()[0]
+        legacy_account_shelf_count = connection.execute(
+            f"SELECT COUNT(*) FROM account_shelf_items WHERE story_id IN ({', '.join('?' for _ in LEGACY_DEMO_STORY_IDS)})",
+            LEGACY_DEMO_STORY_IDS,
+        ).fetchone()[0]
+        legacy_reading_session_count = connection.execute(
+            f"SELECT COUNT(*) FROM reading_sessions WHERE story_id IN ({', '.join('?' for _ in LEGACY_DEMO_STORY_IDS)})",
+            LEGACY_DEMO_STORY_IDS,
+        ).fetchone()[0]
+        authored_story = connection.execute(
+            "SELECT id FROM stories WHERE id = ?", (authored_story_id,)
+        ).fetchone()
+        schema_version = connection.execute("PRAGMA user_version").fetchone()[0]
+    finally:
+        connection.close()
+
+    assert legacy_story_count == 0
+    assert legacy_chapter_count == 0
+    assert legacy_shelf_count == 0
+    assert legacy_account_shelf_count == 0
+    assert legacy_reading_session_count == 0
+    assert authored_story["id"] == authored_story_id
+    assert schema_version == 1
+
+
+def test_init_db_rejects_newer_schema_without_mutation(tmp_path, monkeypatch):
+    import sqlite3
+
+    from core.database import init_db
+
+    database_path = tmp_path / "future-schema.sqlite3"
+    with sqlite3.connect(database_path) as connection:
+        connection.execute("PRAGMA user_version = 2")
+
+    monkeypatch.setenv("FABLE_DB_PATH", str(database_path))
+    with pytest.raises(RuntimeError, match="newer than supported"):
+        init_db()
+
+    with sqlite3.connect(database_path) as connection:
+        assert connection.execute("PRAGMA user_version").fetchone()[0] == 2
+        assert connection.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table'"
+        ).fetchall() == []

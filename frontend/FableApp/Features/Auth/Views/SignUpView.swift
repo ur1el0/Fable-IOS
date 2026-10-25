@@ -146,10 +146,10 @@ public struct SignUpView: View {
                                         .frame(width: 20)
 
                                     if isPasswordVisible {
-                                        TextField("Enter a password (min. 6 characters)", text: $password)
+                                        TextField("Enter a password (min. 12 characters)", text: $password)
                                             .font(.system(size: 15))
                                     } else {
-                                        SecureField("Enter a password (min. 6 characters)", text: $password)
+                                        SecureField("Enter a password (min. 12 characters)", text: $password)
                                             .font(.system(size: 15))
                                     }
 
@@ -294,8 +294,8 @@ public struct SignUpView: View {
             return
         }
 
-        guard password.count >= 6 else {
-            validationError = "Password must be at least 6 characters."
+        guard password.count >= 12 else {
+            validationError = "Password must be at least 12 characters."
             return
         }
 

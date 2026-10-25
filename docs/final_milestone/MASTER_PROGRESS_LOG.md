@@ -584,3 +584,10 @@ This progress log tracks the transition of **Fable** from an editorial prototype
   - Native Xcode simulator suite: **6 tests passed, 0 failures** on iPhone 16 / iOS 18.5.
   - Backend suite: **42 passed**; Docker image build succeeded.
 
+
+## Production API and Release Hardening (2026-10-25)
+
+- [x] Bounded API request bodies, validated CORS origins, sanitized validation errors, and added persistent IP/account authentication throttling.
+- [x] Added a versioned SQLite migration that removes only retired demo records and dependent shelf/reading references, plus online backup and integrity-check tooling.
+- [x] Paged story summaries, bounded story payload fields, and added CI checks for Release API URL validation and an HTTPS-configured Release build.
+- [x] Kept the newer provider image, chapter reader, simulator CI, and guest-session fixes while reconciling this hardening work with current `main`.

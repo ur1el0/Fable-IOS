@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Header, status
+from fastapi import APIRouter, Header, Request, status
 from schemas import (
     RegisterRequest,
     LoginRequest,
@@ -10,15 +10,20 @@ from schemas import (
     ReadingStatsDTO,
 )
 from services import auth_service, story_service, reading_stats
+from services.auth_rate_limit import enforce_auth_rate_limit
 
 router = APIRouter()
 
 @router.post("/auth/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
-def register(req: RegisterRequest):
+def register(req: RegisterRequest, request: Request):
+    client_host = request.client.host if request.client else "unknown"
+    enforce_auth_rate_limit("register", client_host)
     return auth_service.register_user(req)
 
 @router.post("/auth/login", response_model=AuthResponse)
-def login(req: LoginRequest):
+def login(req: LoginRequest, request: Request):
+    client_host = request.client.host if request.client else "unknown"
+    enforce_auth_rate_limit("login", client_host, req.email)
     return auth_service.login_user(req)
 
 @router.get("/auth/me", response_model=UserDTO)

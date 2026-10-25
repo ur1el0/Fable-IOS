@@ -15,7 +15,7 @@ public final class StoryStore: ObservableObject {
     @Published var isPublishingStory: Bool = false
     @Published var publishErrorMessage: String?
     @Published var selectedTab: FableTab = .library
-    
+
     // Reader Preferences (Persisted across launches)
     @Published var readerFont: ReaderFont = .serif {
         didSet { UserDefaults.standard.set(readerFont.rawValue, forKey: "fable_pref_reader_font") }
@@ -43,12 +43,12 @@ public final class StoryStore: ObservableObject {
     @Published var isPaginatedMode: Bool = false {
         didSet { UserDefaults.standard.set(isPaginatedMode, forKey: "fable_pref_reader_paginated") }
     }
-    
+
     // Cloud Synchronization Pipeline (Plan 05)
     @Published var isCloudSyncActive: Bool = false
     @Published var isBackendReachable: Bool = false
     private let apiService: StoryAPIServiceProtocol = StoryAPIService()
-    
+
     public var persistentDeviceId: UUID {
         let ownerKey = AuthManager.shared.currentSession?.id.uuidString ?? "guest"
         let key = "fable_device_id_\(ownerKey)"
@@ -59,14 +59,14 @@ public final class StoryStore: ObservableObject {
         UserDefaults.standard.set(newId.uuidString, forKey: key)
         return newId
     }
-    
+
     // Marginalia & Quotes (Plan 02)
     @Published var activeStoryAnnotations: [Annotation] = []
     @Published var pinnedQuotes: [Annotation] = []
-    
+
     // Living Reading Stats (Plan 03 & Mobile Hardening)
     @Published var readingStats: PersistenceService.ReadingStatsSummary = PersistenceService.ReadingStatsSummary(storiesReadCount: 0, totalMinutesRead: 0, streakDays: 0)
-    
+
     // Writing Draft
     @Published var draftTitle: String = "" { didSet { persistWriterDraft() } }
     @Published var draftGenre: String = "" { didSet { persistWriterDraft() } }
@@ -163,15 +163,15 @@ public final class StoryStore: ObservableObject {
         let synopsis: String
         let manuscript: String
     }
-    
+
     // These collections populate from the server; cached stories remain available offline.
     @Published var genres: [GenreCategory] = []
-    
+
     @Published var writers: [Writer] = []
-    
+
     // User Profile Stories
     @Published var profileStories: [Story] = []
-    
+
     init() {
         PersistenceService.shared.purgeLegacyDemoStories()
         loadReaderPreferences()
@@ -184,7 +184,7 @@ public final class StoryStore: ObservableObject {
             await self?.syncWithCloudBackend()
         }
     }
-    
+
     private func loadReaderPreferences() {
         if let fontRaw = UserDefaults.standard.string(forKey: "fable_pref_reader_font"),
            let font = ReaderFont(rawValue: fontRaw) {
@@ -211,18 +211,18 @@ public final class StoryStore: ObservableObject {
         }
     }
 
-    
+
     var draftWordCount: Int {
         draftManuscript.split { $0.isWhitespace || $0.isNewline }.count
     }
-    
+
     func resetDisplayOptions() {
         readerFont = .serif
         readerFontSize = 100.0
         readerTheme = .sepia
         readerLineSpacing = .normal
     }
-    
+
     private var writerDraftStorageKey: String {
         "fable_writer_draft_\(writerDraftOwnerKey)"
     }
@@ -285,10 +285,11 @@ public final class StoryStore: ObservableObject {
         publishErrorMessage = nil
         let title = draftTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         let genre = draftGenre.trimmingCharacters(in: .whitespacesAndNewlines)
+        let chapter = draftChapter.trimmingCharacters(in: .whitespacesAndNewlines)
         let synopsis = draftSynopsis.trimmingCharacters(in: .whitespacesAndNewlines)
         let manuscript = draftManuscript.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        guard !title.isEmpty, title.count <= 120 else {
+        guard !title.isEmpty, title.unicodeScalars.count <= CreateStoryRequest.maximumTitleLength else {
             publishErrorMessage = "Enter a title with 1 to 120 characters."
             return nil
         }
@@ -296,12 +297,28 @@ public final class StoryStore: ObservableObject {
             publishErrorMessage = "Choose or enter a genre."
             return nil
         }
+        guard genre.unicodeScalars.count <= CreateStoryRequest.maximumGenreLength else {
+            publishErrorMessage = "Keep the genre to 50 characters or fewer."
+            return nil
+        }
+        guard chapter.unicodeScalars.count <= CreateStoryRequest.maximumChapterLength else {
+            publishErrorMessage = "Keep the chapter title to 120 characters or fewer."
+            return nil
+        }
         guard !synopsis.isEmpty else {
             publishErrorMessage = "Add a synopsis before publishing."
             return nil
         }
+        guard synopsis.unicodeScalars.count <= CreateStoryRequest.maximumSynopsisLength else {
+            publishErrorMessage = "Keep the synopsis to 2,000 characters or fewer."
+            return nil
+        }
         guard !manuscript.isEmpty else {
             publishErrorMessage = "Add manuscript text before publishing."
+            return nil
+        }
+        guard manuscript.unicodeScalars.count <= CreateStoryRequest.maximumContentLength else {
+            publishErrorMessage = "Keep the manuscript to 50,000 characters or fewer."
             return nil
         }
         guard let session = AuthManager.shared.currentSession, !session.isGuest,
@@ -315,7 +332,7 @@ public final class StoryStore: ObservableObject {
         let request = CreateStoryRequest(
             title: title,
             genre: genre,
-            chapter: draftChapter.trimmingCharacters(in: .whitespacesAndNewlines),
+            chapter: chapter,
             synopsis: synopsis,
             content: manuscript,
             readTimeMinutes: max(1, draftWordCount / 150)
@@ -451,11 +468,11 @@ public final class StoryStore: ObservableObject {
                 }
             }
         }
-        
+
         reloadPinnedQuotes()
         reloadReadingStats()
     }
-    
+
     private var readingStatsCacheKey: String? {
         guard let session = AuthManager.shared.currentSession, !session.isGuest else { return nil }
         return "fable_reading_stats_\(session.id.uuidString)"
@@ -527,13 +544,13 @@ public final class StoryStore: ObservableObject {
             // Keep the account-specific statistics cache available offline.
         }
     }
-    
+
     func reloadPinnedQuotes() {
         self.pinnedQuotes = PersistenceService.shared.fetchAllPinnedAnnotations(
             ownerUserId: AuthManager.shared.currentSession?.id
         )
     }
-    
+
     private func restoreDiscoveryCache() {
         if let data = UserDefaults.standard.data(forKey: "fable_cached_genres"),
            let cached = try? JSONDecoder().decode([GenreCategory].self, from: data) {
@@ -554,7 +571,7 @@ public final class StoryStore: ObservableObject {
     func syncWithCloudBackend() async {
         isCloudSyncActive = true
         defer { isCloudSyncActive = false }
-        
+
         do {
             // 1. Fetch live remote stories from FastAPI
             let remoteStories = try await apiService.fetchStories(genre: nil, search: nil)
@@ -562,7 +579,7 @@ public final class StoryStore: ObservableObject {
             await AuthManager.shared.syncPendingProfile()
             await loadMyPublishedStories()
             await synchronizeReadingStats()
-            
+
             var synchronizedStoryIds = Set<UUID>()
             for remote in remoteStories {
                 if remote.sourceProvider != .fableOriginal && (remote.providerId?.isEmpty ?? true) {
@@ -600,7 +617,7 @@ public final class StoryStore: ObservableObject {
 
             await fetchGutenbergPublicStories(topic: "fiction", search: nil)
             await fetchMangaPublicStories(search: nil)
-            
+
             // 2. Fetch live dynamic categories/genres from backend and merge catalog taxonomy
             let liveGenres = (try? await apiService.fetchGenres()) ?? []
             let synthesized = deriveGenresFromCatalog(stories)
@@ -614,13 +631,13 @@ public final class StoryStore: ObservableObject {
                 self.genres = mergedGenres
                 persistDiscoveryCache(mergedGenres, key: "fable_cached_genres")
             }
-            
+
             // 3. Fetch live trending authors from backend/Open Library
             if let liveWriters = try? await apiService.fetchTopAuthors() {
                 self.writers = liveWriters
                 persistDiscoveryCache(liveWriters, key: "fable_cached_writers")
             }
-            
+
             // 4. Fetch live update feed (Tale of the Day, Curator Spotlight)
             if let feed = try? await apiService.fetchUpdateFeed() {
                 if let totd = feed.taleOfTheDay {
@@ -634,7 +651,7 @@ public final class StoryStore: ObservableObject {
                     }
                 }
             }
-            
+
             // 5. Reconcile account-owned shelf state; guests stay local-only.
             await reconcileShelfWithAccount()
         } catch {
@@ -642,7 +659,7 @@ public final class StoryStore: ObservableObject {
             self.isBackendReachable = false
         }
     }
-    
+
     private func liveStoryIndex(matching remote: Story, excluding matchedIds: Set<UUID>) -> Int? {
         if let exactIndex = stories.firstIndex(where: { $0.id == remote.id && !matchedIds.contains($0.id) }) {
             return exactIndex
@@ -715,7 +732,7 @@ public final class StoryStore: ObservableObject {
         }
     }
 
-    
+
     func searchCatalog(query: String) async {
         let search = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !search.isEmpty else { return }
@@ -916,7 +933,7 @@ public final class StoryStore: ObservableObject {
             return haystack.contains(lowerCat)
         }
     }
-    
+
     private var shelfStateStorageKey: String {
         "fable_shelf_state_\(activeShelfOwnerKey)"
     }
@@ -1123,7 +1140,7 @@ public final class StoryStore: ObservableObject {
             _ = await self.syncShelfToAccount([item])
         }
     }
-    
+
     func updateProgress(for storyId: UUID, page: Int, totalPages: Int) {
         if let idx = stories.firstIndex(where: { $0.id == storyId }) {
             stories[idx].currentPage = page
@@ -1146,7 +1163,7 @@ public final class StoryStore: ObservableObject {
             )
             reloadReadingStats()
             persistShelfState(for: stories[idx])
-            
+
             let currentBookmarked = stories[idx].isBookmarked
             Task { [weak self] in
                 guard let self = self else { return }
@@ -1161,7 +1178,7 @@ public final class StoryStore: ObservableObject {
             }
         }
     }
-    
+
     func updateReadingProgress(for storyId: UUID, chapterId: String, chapterNumber: Int) {
         if let index = stories.firstIndex(where: { $0.id == storyId }) {
             stories[index].lastReadChapterId = chapterId
@@ -1197,13 +1214,13 @@ public final class StoryStore: ObservableObject {
             stories[idx].totalPages = totalPages
             stories[idx].lastReadChapterId = chapterId
             stories[idx].lastReadChapterNumber = chapterNumber
-            
+
             let safeTotalChaps = max(1, totalChapters)
             let safeTotalPages = max(1, totalPages)
             let fraction = (Double(chapterIndex) / Double(safeTotalChaps)) + ((Double(page) / Double(safeTotalPages)) * (1.0 / Double(safeTotalChaps)))
             let pct = min(100, max(1, Int((fraction * 100.0).rounded())))
             stories[idx].progressPercent = pct
-            
+
             if pct >= 100 {
                 stories[idx].isCompleted = true
                 if autoArchiveCompletedStories {
@@ -1211,7 +1228,7 @@ public final class StoryStore: ObservableObject {
                     PersistenceService.shared.setBookmark(storyId: storyId, isBookmarked: false)
                 }
             }
-            
+
             PersistenceService.shared.updateProgress(
                 storyId: storyId,
                 progressPercent: pct,
@@ -1226,7 +1243,7 @@ public final class StoryStore: ObservableObject {
             )
             reloadReadingStats()
             persistShelfState(for: stories[idx])
-            
+
             let currentBookmarked = stories[idx].isBookmarked
             Task { [weak self] in
                 guard let self = self else { return }
@@ -1271,7 +1288,7 @@ public final class StoryStore: ObservableObject {
         }
         reloadReadingStats()
     }
-    
+
     private func archiveCompletedStories() {
         var updates: [ShelfSyncItem] = []
         for index in stories.indices where stories[index].isCompleted || stories[index].progressPercent >= 100 {
@@ -1315,7 +1332,7 @@ public final class StoryStore: ObservableObject {
             )
             reloadReadingStats()
             persistShelfState(for: stories[idx])
-            
+
             Task { [weak self] in
                 guard let self = self else { return }
                 let item = ShelfSyncItem(
@@ -1329,13 +1346,13 @@ public final class StoryStore: ObservableObject {
             }
         }
     }
-    
+
     func removeFromShelf(storyId: UUID) {
         if let idx = stories.firstIndex(where: { $0.id == storyId }) {
             stories[idx].isBookmarked = false
             PersistenceService.shared.setBookmark(storyId: storyId, isBookmarked: false)
             persistShelfState(for: stories[idx])
-            
+
             Task { [weak self] in
                 guard let self = self else { return }
                 let item = ShelfSyncItem(
@@ -1349,7 +1366,7 @@ public final class StoryStore: ObservableObject {
             }
         }
     }
-    
+
     // MARK: - Marginalia & Annotations (Plan 02)
     func loadAnnotations(for storyId: UUID) {
         self.activeStoryAnnotations = PersistenceService.shared.fetchAnnotations(
@@ -1357,7 +1374,7 @@ public final class StoryStore: ObservableObject {
             ownerUserId: AuthManager.shared.currentSession?.id
         )
     }
-    
+
     func addAnnotation(
         story: Story,
         text: String,
@@ -1387,7 +1404,7 @@ public final class StoryStore: ObservableObject {
             reloadPinnedQuotes()
         }
     }
-    
+
     func deleteAnnotation(id: UUID, storyId: UUID) {
         activeStoryAnnotations.removeAll(where: { $0.id == id })
         PersistenceService.shared.deleteAnnotation(
@@ -1396,7 +1413,7 @@ public final class StoryStore: ObservableObject {
         )
         reloadPinnedQuotes()
     }
-    
+
     func togglePinQuote(for annotation: Annotation) {
         var updated = annotation
         updated.isPinnedToJournal.toggle()
@@ -1409,7 +1426,7 @@ public final class StoryStore: ObservableObject {
         }
         reloadPinnedQuotes()
     }
-    
+
     func clearUserStateOnSignOut() {
         if activeShelfOwnerKey != "signed_out" {
             var states = loadShelfStateCache()

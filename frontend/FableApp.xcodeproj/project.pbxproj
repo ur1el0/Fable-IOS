@@ -85,6 +85,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 83D4292B3059253F000C5567 /* Build configuration list for PBXNativeTarget "FableApp" */;
 			buildPhases = (
+				A100000C000000000000000C /* Validate Release API URL */,
 				83D4291C3059253E000C5567 /* Sources */,
 				83D4291D3059253E000C5567 /* Frameworks */,
 				83D4291E3059253E000C5567 /* Resources */,
@@ -198,6 +199,25 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		A100000C000000000000000C /* Validate Release API URL */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/../scripts/validate_ios_release_config.sh",
+			);
+			name = "Validate Release API URL";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if [ \"$CONFIGURATION\" = \"Release\" ]; then\n  CONFIGURATION=\"$CONFIGURATION\" FABLE_API_BASE_URL=\"$FABLE_API_BASE_URL\" \"$SCRIPT_INPUT_FILE_0\"\nfi\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
 		83D429293059253F000C5567 /* Debug */ = {
@@ -362,7 +382,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
-				FABLE_API_BASE_URL = "http://127.0.0.1:8000/api/v1";
+				FABLE_API_BASE_URL = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_FABLE_API_BASE_URL = "$(FABLE_API_BASE_URL)";
 				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsArbitraryLoads = NO;

@@ -92,12 +92,12 @@ class UpdateFeedDTO(BaseModel):
 
 class CreateStoryRequest(BaseModel):
     title: str = Field(..., min_length=1, max_length=120)
-    genre: str
-    chapter: Optional[str] = None
-    synopsis: str
-    content: str
+    genre: str = Field(..., min_length=1, max_length=50)
+    chapter: Optional[str] = Field(default=None, max_length=120)
+    synopsis: str = Field(..., max_length=2_000)
+    content: str = Field(..., max_length=50_000)
     read_time_minutes: int = Field(default=0, ge=0, alias="readTimeMinutes")
-    content_format: Optional[str] = Field(default="PROSE", alias="contentFormat")
+    content_format: Optional[str] = Field(default="PROSE", max_length=20, alias="contentFormat")
 
     model_config = {
         "populate_by_name": True,
@@ -147,12 +147,12 @@ class UserDTO(BaseModel):
     }
 
 class LoginRequest(BaseModel):
-    email: str
-    password: str
+    email: str = Field(..., min_length=3, max_length=320)
+    password: str = Field(..., max_length=128)
 
 class RegisterRequest(BaseModel):
-    email: str
-    password: str = Field(..., min_length=6)
+    email: str = Field(..., min_length=3, max_length=320)
+    password: str = Field(..., min_length=12, max_length=128)
     name: str = Field(..., min_length=1, max_length=80)
     handle: str = Field(default="", max_length=40)
 
