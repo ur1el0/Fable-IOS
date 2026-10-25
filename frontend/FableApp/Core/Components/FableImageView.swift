@@ -215,6 +215,7 @@ public struct FableRemoteImageView<Placeholder: View>: View {
 
     private let placeholder: Placeholder
     @State private var cachedImage: UIImage?
+    @State private var cachedImageURL: URL?
 
     public init(
         url: URL,
@@ -228,7 +229,7 @@ public struct FableRemoteImageView<Placeholder: View>: View {
 
     public var body: some View {
         Group {
-            if let cachedImage {
+            if let cachedImage, cachedImageURL == url {
                 Image(uiImage: cachedImage)
                     .resizable()
                     .aspectRatio(contentMode: contentMode)
@@ -238,8 +239,16 @@ public struct FableRemoteImageView<Placeholder: View>: View {
             }
         }
         .task(id: url) {
+            guard !Task.isCancelled else {
+                return
+            }
+
+            cachedImage = nil
+            cachedImageURL = nil
+
             if let cachedImage = DiskImageCache.shared.image(for: url) {
                 self.cachedImage = cachedImage
+                cachedImageURL = url
                 return
             }
 
@@ -251,6 +260,7 @@ public struct FableRemoteImageView<Placeholder: View>: View {
             if let cached = DiskImageCache.shared.image(for: url) {
                 withAnimation(.easeIn(duration: 0.2)) {
                     self.cachedImage = cached
+                    cachedImageURL = url
                 }
             }
         }
@@ -273,6 +283,7 @@ public struct FableRemoteImageView<Placeholder: View>: View {
                         }
                         if let cachedImage = DiskImageCache.shared.image(for: url) {
                             self.cachedImage = cachedImage
+                            self.cachedImageURL = url
                         }
                     }
             case .empty:
