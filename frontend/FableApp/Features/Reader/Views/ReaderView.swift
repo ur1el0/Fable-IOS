@@ -603,15 +603,19 @@ public struct ReaderView: View {
 
                             Text("\(totalPages)")
                                 .font(.system(size: 12, weight: .bold, design: .monospaced))
-                                .foregroundColor(FableTheme.textMuted)
+                                .foregroundColor(store.readerTheme.isDark ? Color.white.opacity(0.7) : FableTheme.textMuted)
                                 .frame(width: 32, alignment: .leading)
                         }
                         .padding(.horizontal, 16)
                         .padding(.vertical, 8)
                         .background(
                             RoundedRectangle(cornerRadius: 18)
-                                .fill(Color.white)
-                                .shadow(color: Color.black.opacity(0.1), radius: 10, y: 3)
+                                .fill(store.readerTheme.isDark ? Color(red: 0.16, green: 0.18, blue: 0.22) : Color.white)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 18)
+                                        .stroke(store.readerTheme.isDark ? Color.white.opacity(0.12) : Color.black.opacity(0.06), lineWidth: 0.8)
+                                )
+                                .shadow(color: Color.black.opacity(store.readerTheme.isDark ? 0.35 : 0.08), radius: 10, y: 3)
                         )
                         .padding(.horizontal, 24)
                     }
@@ -624,9 +628,9 @@ public struct ReaderView: View {
                         }) {
                             Image(systemName: "chevron.left")
                                 .font(.system(size: 12, weight: .bold))
-                                .foregroundColor((currentPage > 1 || currentChapterIndex > 0) ? FableTheme.brandPrimary : Color.gray.opacity(0.4))
+                                .foregroundColor((currentPage > 1 || currentChapterIndex > 0) ? FableTheme.brandPrimary : (store.readerTheme.isDark ? Color.white.opacity(0.2) : Color.gray.opacity(0.4)))
                                 .frame(width: 28, height: 28)
-                                .background(Color.gray.opacity(0.08))
+                                .background(store.readerTheme.isDark ? Color.white.opacity(0.1) : Color.gray.opacity(0.08))
                                 .clipShape(Circle())
                         }
                         .disabled(currentPage <= 1 && currentChapterIndex <= 0)
@@ -636,12 +640,12 @@ public struct ReaderView: View {
                             Text("Ch. \(activeChapter?.chapterNumber ?? 1) • Page \(currentPage)/\(totalPages)")
                                 .font(.system(size: 12, weight: .semibold))
                                 .monospacedDigit()
-                                .foregroundColor(FableTheme.textPrimary)
+                                .foregroundColor(store.readerTheme.isDark ? Color.white : FableTheme.textPrimary)
                             
                             Text("~\(dynamicMinutesRemaining) mins left in chapter")
                                 .font(.system(size: 10, weight: .medium))
                                 .monospacedDigit()
-                                .foregroundColor(FableTheme.textMuted)
+                                .foregroundColor(store.readerTheme.isDark ? Color.white.opacity(0.65) : FableTheme.textMuted)
                         }
                         
                         // Page Forward Button
@@ -650,15 +654,15 @@ public struct ReaderView: View {
                         }) {
                             Image(systemName: "chevron.right")
                                 .font(.system(size: 12, weight: .bold))
-                                .foregroundColor((currentPage < totalPages || currentChapterIndex < chapters.count - 1) ? FableTheme.brandPrimary : Color.gray.opacity(0.4))
+                                .foregroundColor((currentPage < totalPages || currentChapterIndex < chapters.count - 1) ? FableTheme.brandPrimary : (store.readerTheme.isDark ? Color.white.opacity(0.2) : Color.gray.opacity(0.4)))
                                 .frame(width: 28, height: 28)
-                                .background(Color.gray.opacity(0.08))
+                                .background(store.readerTheme.isDark ? Color.white.opacity(0.1) : Color.gray.opacity(0.08))
                                 .clipShape(Circle())
                         }
                         .disabled(currentPage >= totalPages && currentChapterIndex >= chapters.count - 1)
                         
                         Text("•")
-                            .foregroundColor(Color.gray.opacity(0.4))
+                            .foregroundColor(store.readerTheme.isDark ? Color.white.opacity(0.3) : Color.gray.opacity(0.4))
                         
                         // Progress percentage
                         Text("\(readingProgressPercent)%")
@@ -670,27 +674,29 @@ public struct ReaderView: View {
                         
                         // Layout Mode Toggle Button (Scroll vs Paginated)
                         Button(action: {
+                            FableHaptics.selection()
                             withAnimation(.easeInOut(duration: 0.2)) {
                                 store.isPaginatedMode.toggle()
                             }
                         }) {
                             Image(systemName: store.isPaginatedMode ? "book.pages" : "scroll")
                                 .font(.system(size: 13, weight: .semibold))
-                                .foregroundColor(FableTheme.textPrimary)
+                                .foregroundColor(store.readerTheme.isDark ? Color.white : FableTheme.textPrimary)
                                 .frame(width: 32, height: 32)
-                                .background(FableTheme.surface)
+                                .background(store.readerTheme.isDark ? Color.white.opacity(0.12) : FableTheme.surface)
                                 .clipShape(Circle())
                         }
                         
                         // Display options toggle button
                         Button(action: {
+                            FableHaptics.selection()
                             store.isShowingDisplayOptions = true
                         }) {
                             Text("TT")
                                 .font(.system(size: 13, weight: .bold, design: .serif))
-                                .foregroundColor(FableTheme.textPrimary)
+                                .foregroundColor(store.readerTheme.isDark ? Color.white : FableTheme.textPrimary)
                                 .frame(width: 34, height: 34)
-                                .background(FableTheme.surface)
+                                .background(store.readerTheme.isDark ? Color.white.opacity(0.12) : FableTheme.surface)
                                 .clipShape(Circle())
                         }
                     }
@@ -698,8 +704,12 @@ public struct ReaderView: View {
                     .padding(.vertical, 10)
                     .background(
                         RoundedRectangle(cornerRadius: 30)
-                            .fill(Color.white)
-                            .shadow(color: Color.black.opacity(0.12), radius: 12, y: 4)
+                            .fill(store.readerTheme.isDark ? Color(red: 0.16, green: 0.18, blue: 0.22) : Color.white)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 30)
+                                    .stroke(store.readerTheme.isDark ? Color.white.opacity(0.12) : Color.black.opacity(0.06), lineWidth: 0.8)
+                            )
+                            .shadow(color: Color.black.opacity(store.readerTheme.isDark ? 0.35 : 0.1), radius: 12, y: 4)
                     )
                     .padding(.horizontal, 24)
                 }

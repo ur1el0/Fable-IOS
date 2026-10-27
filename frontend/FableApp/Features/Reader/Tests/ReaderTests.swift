@@ -126,9 +126,9 @@ public struct ReaderTests {
         assert(proseStory.contentFormat == .prose, "Prose Story Format Classification")
 
         // Test 10: Reader Font & Theme Invariants
-        assert(ReaderFont.allCases.count == 3, "Reader Font Option Count")
+        assert(ReaderFont.allCases.count == 4, "Reader Font Option Count")
         assert(ReaderFont.sans.displayName == "SF Pro", "Reader Sans Display Name SF Pro")
-        assert(ReaderTheme.allCases.count == 4, "Reader Theme Count (White, Sepia, Charcoal, OLED)")
+        assert(ReaderTheme.allCases.count == 6, "Reader Theme Count (White, Paper, Sepia, Midnight, Charcoal, OLED)")
         assert(ReaderLineSpacing.allCases.count == 3, "Reader Line Spacing Options Count")
 
         // Test 11: Multi-Chapter Progress Persistence & Restoration Invariant
@@ -169,6 +169,18 @@ public struct ReaderTests {
                 && saved?.isCompleted == false,
             "Multi-Chapter Prose Reading Progress Saves Exact Chapter and Page"
         )
+
+        // Test 11: ReaderFont Enum Coverage & Rounded Font Support
+        assert(ReaderFont.allCases.contains(.rounded), "ReaderFont Contains Rounded Option")
+        assert(ReaderFont.rounded.displayName == "SF Rounded", "ReaderFont Rounded Display Name")
+        assert(ReaderFont.allCases.count == 4, "ReaderFont Has All 4 Defined Typography Options")
+
+        // Test 12: ReaderTheme Extended Palette & Darkness Contrast Classification
+        assert(ReaderTheme.allCases.contains(.paper), "ReaderTheme Contains Paper Option")
+        assert(ReaderTheme.allCases.contains(.midnight), "ReaderTheme Contains Midnight Option")
+        assert(!ReaderTheme.white.isDark && !ReaderTheme.paper.isDark && !ReaderTheme.sepia.isDark, "Light Themes Correctly Classified")
+        assert(ReaderTheme.charcoal.isDark && ReaderTheme.midnight.isDark && ReaderTheme.oled.isDark, "Dark Themes Correctly Classified")
+        assert(ReaderTheme.allCases.count == 6, "ReaderTheme Has All 6 Reading Palettes")
 
         return (passed, total, failures)
     }
