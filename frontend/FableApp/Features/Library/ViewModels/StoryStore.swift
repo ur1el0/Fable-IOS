@@ -437,7 +437,13 @@ public final class StoryStore: ObservableObject {
                     let isUsableInitial = format == .manga
                         ? initialCached.contains { !$0.pageUrls.isEmpty }
                         : initialCached.contains(where: \.hasReadableText)
-                    if provider != .fableOriginal && !isUsableInitial && entity.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !entity.isBookmarked && !entity.isCompleted {
+                    if provider != .fableOriginal
+                        && !isUsableInitial
+                        && entity.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        && !entity.isBookmarked
+                        && !entity.isCompleted
+                        && entity.readingProgress <= 0
+                        && entity.lastReadChapterId == nil {
                         continue
                     }
                     let validInitial = isUsableInitial ? initialCached : nil
@@ -469,6 +475,13 @@ public final class StoryStore: ObservableObject {
                     )
                     stories.append(userStory)
                 }
+            }
+        }
+
+        let synthesized = deriveGenresFromCatalog(stories)
+        for item in synthesized {
+            if !genres.contains(where: { $0.name.caseInsensitiveCompare(item.name) == .orderedSame }) {
+                genres.append(item)
             }
         }
 
@@ -908,6 +921,12 @@ public final class StoryStore: ObservableObject {
                     PersistenceService.shared.saveStory(liveManga)
                 }
             }
+            let synthesized = deriveGenresFromCatalog(stories)
+            for item in synthesized {
+                if !genres.contains(where: { $0.name.caseInsensitiveCompare(item.name) == .orderedSame }) {
+                    genres.append(item)
+                }
+            }
         } catch {
             // Keep existing catalog available
         }
@@ -1178,6 +1197,15 @@ public final class StoryStore: ObservableObject {
         )
         Task { [weak self] in
             guard let self else { return }
+            if nextBookmarkState {
+                let chaps = await self.fetchChapters(for: current)
+                if current.contentFormat == .manga, let firstChap = chaps.first {
+                    let urls = firstChap.pageUrls.compactMap { URL(string: $0) }
+                    if !urls.isEmpty {
+                        await DiskImageCache.shared.prefetch(urls: urls)
+                    }
+                }
+            }
             _ = await self.syncShelfToAccount([item])
         }
     }

@@ -110,11 +110,15 @@ public struct LibraryView: View {
                                             .foregroundColor(selectedFilter == cat ? .white : FableTheme.textPrimary)
                                             .clipShape(Capsule())
                                             .shadow(color: selectedFilter == cat ? FableTheme.brandPrimary.opacity(0.25) : Color.clear, radius: 4, y: 2)
+                                            .contentShape(Capsule())
                                     }
+                                    .buttonStyle(.plain)
                                 }
                             }
                             .padding(.horizontal, 20)
+                            .padding(.vertical, 4)
                         }
+                        .zIndex(2)
                         
                         if store.stories.isEmpty {
                             VStack(spacing: 12) {
@@ -163,6 +167,10 @@ public struct LibraryView: View {
                                                 endPoint: .bottom
                                             )
                                         }
+                                        .frame(maxWidth: .infinity)
+                                        .frame(height: 220)
+                                        .clipped()
+                                        .contentShape(Rectangle())
                                     }
                                     .buttonStyle(.plain)
 
