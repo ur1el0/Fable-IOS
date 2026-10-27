@@ -838,6 +838,12 @@ def test_shelf_sync_requires_authentication_and_isolates_accounts():
     assert len(first_items.json()) == 1
     assert second_items.json() == []
 
+    # Second device signed into first_user account reconciles the account's shelf
+    device_2 = str(uuid4())
+    cross_device_items = client.get(f"/api/v1/shelf?deviceId={device_2}", headers=first_user)
+    assert len(cross_device_items.json()) == 1
+    assert cross_device_items.json()[0]["storyId"] == story_id
+
 
 def test_reading_statistics_are_authenticated_idempotent_and_account_scoped():
     user_a = auth_headers("Reading Stats A")
@@ -1576,7 +1582,9 @@ def test_security_headers_and_sqlite_foreign_keys_enforced():
     try:
         fk_enabled = conn.execute("PRAGMA foreign_keys").fetchone()[0]
         busy_timeout = conn.execute("PRAGMA busy_timeout").fetchone()[0]
+        journal_mode = conn.execute("PRAGMA journal_mode").fetchone()[0]
         assert fk_enabled == 1
         assert busy_timeout >= 5000
+        assert journal_mode.lower() == "wal"
     finally:
         conn.close()

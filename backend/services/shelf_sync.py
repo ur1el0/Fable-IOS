@@ -76,23 +76,31 @@ def sync_shelf(payload: ShelfSyncPayload, owner_user_id: UUID) -> ShelfSyncRespo
     )
 
 def get_shelf(device_id: UUID, owner_user_id: UUID) -> list[ShelfSyncItemDTO]:
-    """Retrieve shelf items belonging to this account and client device."""
+    """Retrieve shelf items belonging to this account, returning the latest state per story across account devices."""
     conn = get_db()
     cursor = conn.execute(
-        """SELECT * FROM account_shelf_items
-           WHERE owner_user_id = ? AND device_id = ?""",
-        (str(owner_user_id), str(device_id))
+        """SELECT story_id, reading_progress, is_bookmarked, is_completed, updated_at_utc
+           FROM account_shelf_items
+           WHERE owner_user_id = ?
+           ORDER BY updated_at_utc DESC""",
+        (str(owner_user_id),)
     )
     rows = cursor.fetchall()
     conn.close()
 
-    return [
-        ShelfSyncItemDTO(
-            story_id=UUID(row["story_id"]),
-            reading_progress=row["reading_progress"],
-            is_bookmarked=bool(row["is_bookmarked"]),
-            is_completed=bool(row["is_completed"]),
-            updated_at_utc=to_utc(datetime.fromisoformat(row["updated_at_utc"]))
-        )
-        for row in rows
-    ]
+    seen_stories = set()
+    result: list[ShelfSyncItemDTO] = []
+    for row in rows:
+        sid = row["story_id"]
+        if sid not in seen_stories:
+            seen_stories.add(sid)
+            result.append(
+                ShelfSyncItemDTO(
+                    story_id=UUID(sid),
+                    reading_progress=row["reading_progress"],
+                    is_bookmarked=bool(row["is_bookmarked"]),
+                    is_completed=bool(row["is_completed"]),
+                    updated_at_utc=to_utc(datetime.fromisoformat(row["updated_at_utc"]))
+                )
+            )
+    return result
