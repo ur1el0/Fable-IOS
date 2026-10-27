@@ -27,6 +27,7 @@ public struct WriteView: View {
                         }
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundColor(.red.opacity(0.85))
+                        .frame(minWidth: 44, minHeight: 44, alignment: .leading)
                         .alert("Discard Draft?", isPresented: $isShowingClearAlert) {
                             Button("Discard", role: .destructive) {
                                 store.clearWriterDraft()
@@ -41,7 +42,7 @@ public struct WriteView: View {
                         HStack(spacing: 6) {
                             Image(systemName: "pencil.and.scribble")
                                 .font(.system(size: 11))
-                            Text("DRAFT MODE")
+                            Text("WRITER'S STUDIO")
                                 .font(.system(size: 11, weight: .bold))
                                 .tracking(1.0)
                         }
@@ -112,7 +113,7 @@ public struct WriteView: View {
                                         .frame(width: 44, alignment: .leading)
                                     
                                     TextField("Story Title", text: $store.draftTitle)
-                                        .font(.system(size: 20, weight: .bold))
+                                        .font(.system(size: 22, weight: .bold, design: .serif))
                                         .foregroundColor(FableTheme.textPrimary)
                                 }
                                 
@@ -163,7 +164,8 @@ public struct WriteView: View {
                                 RoundedRectangle(cornerRadius: 18, style: .continuous)
                                     .stroke(FableTheme.divider.opacity(0.8), lineWidth: 0.8)
                             )
-                            .shadow(color: Color.black.opacity(0.03), radius: 8, y: 2)
+                            .shadow(color: Color.black.opacity(0.02), radius: 2, y: 1)
+                            .shadow(color: Color.black.opacity(0.04), radius: 8, y: 3)
                             .padding(.horizontal, 20)
                             
                             // SYNOPSIS CARD
@@ -211,10 +213,11 @@ public struct WriteView: View {
                                 RoundedRectangle(cornerRadius: 18, style: .continuous)
                                     .stroke(FableTheme.divider.opacity(0.8), lineWidth: 0.8)
                             )
-                            .shadow(color: Color.black.opacity(0.03), radius: 8, y: 2)
+                            .shadow(color: Color.black.opacity(0.02), radius: 2, y: 1)
+                            .shadow(color: Color.black.opacity(0.04), radius: 8, y: 3)
                             .padding(.horizontal, 20)
                             
-                            // MANUSCRIPT CARD WITH FORMATTING TOOLBAR (FIGMA.md Frame 4: 1:454)
+                            // MANUSCRIPT CARD WITH FORMATTING TOOLBAR
                             VStack(alignment: .leading, spacing: 14) {
                                 HStack {
                                     Text("MANUSCRIPT")
@@ -224,15 +227,15 @@ public struct WriteView: View {
                                     
                                     Spacer()
                                     
-                                    // Formatting Toolbar
-                                    HStack(spacing: 8) {
+                                    // Formatting Palette
+                                    HStack(spacing: 6) {
                                         Button(action: {
                                             FableHaptics.selection()
                                             formattingRequest = ManuscriptFormattingRequest(style: .bold)
                                         }) {
                                             Text("B")
                                                 .font(.system(size: 12, weight: .bold))
-                                                .frame(width: 26, height: 26)
+                                                .frame(width: 28, height: 28)
                                                 .background(FableTheme.surface)
                                                 .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                                                 .foregroundColor(FableTheme.textPrimary)
@@ -246,7 +249,7 @@ public struct WriteView: View {
                                             Text("I")
                                                 .font(.system(size: 12, weight: .semibold))
                                                 .italic()
-                                                .frame(width: 26, height: 26)
+                                                .frame(width: 28, height: 28)
                                                 .background(FableTheme.surface)
                                                 .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                                                 .foregroundColor(FableTheme.textPrimary)
@@ -258,8 +261,8 @@ public struct WriteView: View {
                                             formattingRequest = ManuscriptFormattingRequest(style: .quote)
                                         }) {
                                             Image(systemName: "quote.opening")
-                                                .font(.system(size: 10))
-                                                .frame(width: 26, height: 26)
+                                                .font(.system(size: 11))
+                                                .frame(width: 28, height: 28)
                                                 .background(FableTheme.surface)
                                                 .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                                                 .foregroundColor(FableTheme.textPrimary)
@@ -272,7 +275,7 @@ public struct WriteView: View {
                                         }) {
                                             Image(systemName: "divide")
                                                 .font(.system(size: 11))
-                                                .frame(width: 26, height: 26)
+                                                .frame(width: 28, height: 28)
                                                 .background(FableTheme.surface)
                                                 .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                                                 .foregroundColor(FableTheme.textPrimary)
@@ -295,29 +298,31 @@ public struct WriteView: View {
                                 RoundedRectangle(cornerRadius: 18, style: .continuous)
                                     .stroke(FableTheme.divider.opacity(0.8), lineWidth: 0.8)
                             )
-                            .shadow(color: Color.black.opacity(0.03), radius: 8, y: 2)
+                            .shadow(color: Color.black.opacity(0.02), radius: 2, y: 1)
+                            .shadow(color: Color.black.opacity(0.04), radius: 8, y: 3)
                             .padding(.horizontal, 20)
                             
-                            // Space for footer pill
-                            Spacer().frame(height: 120)
+                            // Bottom spacing so content clears the floating HUD and glass nav bar
+                            Spacer().frame(height: 140)
                         }
                     }
                 }
                 
-                // Floating Status Bar at Bottom
+                // Floating Translucent Glass Status HUD at Bottom
                 HStack(spacing: 0) {
                     HStack(spacing: 6) {
                         Image(systemName: "text.alignleft")
                             .font(.system(size: 11))
                         Text("\(store.draftWordCount) words")
-                            .font(.system(size: 12, weight: .semibold))
+                            .font(.system(size: 12, weight: .bold))
+                            .monospacedDigit()
                     }
                     .foregroundColor(FableTheme.brandPrimary)
                     .frame(maxWidth: .infinity)
                     
                     Divider().frame(height: 18)
                     
-                    HStack(spacing: 4) {
+                    HStack(spacing: 5) {
                         Image(systemName: "clock")
                             .font(.system(size: 11))
                         Text("~\(max(1, store.draftWordCount / 150)) min read")
@@ -328,10 +333,10 @@ public struct WriteView: View {
                     
                     Divider().frame(height: 18)
                     
-                    HStack(spacing: 4) {
-                        Image(systemName: "iphone")
-                            .font(.system(size: 11))
-                            .foregroundColor(FableTheme.brandPrimary)
+                    HStack(spacing: 5) {
+                        Circle()
+                            .fill(Color.green)
+                            .frame(width: 6, height: 6)
                         Text("Saved locally")
                             .font(.system(size: 11, weight: .medium))
                     }
@@ -340,16 +345,16 @@ public struct WriteView: View {
                 }
                 .padding(.vertical, 12)
                 .background(
-                    RoundedRectangle(cornerRadius: 26, style: .continuous)
-                        .fill(Color.white)
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .fill(.ultraThinMaterial)
                         .overlay(
-                            RoundedRectangle(cornerRadius: 26, style: .continuous)
-                                .stroke(FableTheme.divider.opacity(0.8), lineWidth: 0.8)
+                            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                                .stroke(Color.white.opacity(0.4), lineWidth: 0.8)
                         )
-                        .shadow(color: Color.black.opacity(0.08), radius: 10, y: 4)
+                        .shadow(color: Color.black.opacity(0.06), radius: 10, y: 4)
                 )
                 .padding(.horizontal, 20)
-                .padding(.bottom, 80) // above custom tab bar
+                .padding(.bottom, 82) // Positioned cleanly above the floating translucent navigation pill
             }
             .sheet(isPresented: $isShowingPublishSheet) {
                 if let publishedStory {
