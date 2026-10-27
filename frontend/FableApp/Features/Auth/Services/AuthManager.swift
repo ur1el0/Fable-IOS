@@ -100,15 +100,14 @@ public final class AuthManager: ObservableObject {
                 return true
             }
 
-            guard KeychainStore.shared.saveData(key: "userSession", data: data) else {
-                authErrorMessage = "Failed to secure local user session."
-                return false
+            if KeychainStore.shared.saveData(key: "userSession", data: data) {
+                UserDefaults.standard.removeObject(forKey: sessionStorageKey)
+            } else {
+                UserDefaults.standard.set(data, forKey: sessionStorageKey)
             }
             if let accessToken {
-                guard KeychainStore.shared.saveAccessToken(accessToken) else {
-                    KeychainStore.shared.deleteData(key: "userSession")
+                if !KeychainStore.shared.saveAccessToken(accessToken) {
                     authErrorMessage = "Failed to secure the access token."
-                    return false
                 }
             }
             acceptSession(session)
@@ -219,13 +218,16 @@ public final class AuthManager: ObservableObject {
 
         do {
             let user = try await apiService.updateProfile(request, token: token)
-            let updatedSession = makeSession(from: user)
+            var updatedSession = makeSession(from: user)
+            if let customAvatar = session.avatarName, !customAvatar.isEmpty {
+                updatedSession.avatarName = customAvatar
+            }
             guard persistSession(updatedSession, accessToken: token) else { return false }
             UserDefaults.standard.removeObject(forKey: pendingKey)
             return true
         } catch {
             authErrorMessage = "Profile saved locally and queued to sync when online."
-            return false
+            return true
         }
     }
 
