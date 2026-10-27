@@ -8,6 +8,7 @@ public struct ExploreView: View {
     @State private var selectedGenreForDetail: GenreCategory?
     @State private var selectedStoryToRead: Story?
     @State private var selectedWriter: Writer?
+    @FocusState private var isSearchFocused: Bool
     
     let filters = ["All", "Under 5 mins", "Community Favorites", "Quick Reads"]
     
@@ -50,48 +51,49 @@ public struct ExploreView: View {
                         HStack {
                             HStack(spacing: 8) {
                                 Image(systemName: "square.stack.3d.up.fill")
-                                    .font(.system(size: 14))
+                                    .font(.system(size: 13))
                                     .foregroundColor(.white)
                                     .padding(7)
                                     .background(FableTheme.brandPrimary)
                                     .clipShape(RoundedRectangle(cornerRadius: 8))
                                 
                                 Text("Fable")
-                                    .font(.system(size: 20, weight: .black))
+                                    .font(.system(size: 20, weight: .bold, design: .default))
                                     .foregroundColor(FableTheme.textPrimary)
                             }
                             
                             Spacer()
                             
-                            Text("Explore")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(FableTheme.textPrimary)
+                            Text("Discovery")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(FableTheme.textMuted)
                         }
                         .padding(.horizontal, 20)
                         .padding(.top, 12)
                         
-                        // Title Area
+                        // Editorial Title Area
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("DISCOVERY")
+                            Text("CURATED CATALOG")
                                 .font(.system(size: 11, weight: .bold))
                                 .tracking(1.2)
                                 .foregroundColor(FableTheme.brandPrimary)
                             
                             Text("Explore")
-                                .font(.system(size: 34, weight: .black))
+                                .font(.system(size: 34, weight: .bold, design: .serif))
                                 .foregroundColor(FableTheme.textPrimary)
                         }
                         .padding(.horizontal, 20)
                         
-                        // Search Bar (Live Filter)
+                        // Search Bar with Active Focus Indicator
                         HStack(spacing: 12) {
                             Image(systemName: "magnifyingglass")
                                 .font(.system(size: 16))
-                                .foregroundColor(FableTheme.textMuted)
+                                .foregroundColor(isSearchFocused ? FableTheme.brandPrimary : FableTheme.textMuted)
                             
                             TextField("Search stories, manga, or authors...", text: $searchText)
                                 .font(.system(size: 15))
                                 .foregroundColor(FableTheme.textPrimary)
+                                .focused($isSearchFocused)
                             
                             if !searchText.isEmpty {
                                 Button(action: {
@@ -100,45 +102,45 @@ public struct ExploreView: View {
                                 }) {
                                     Image(systemName: "xmark.circle.fill")
                                         .foregroundColor(FableTheme.textMuted)
-                                        .frame(width: 36, height: 36)
+                                        .frame(width: 44, height: 44)
                                         .contentShape(Rectangle())
                                 }
                                 .accessibilityLabel("Clear search")
                             }
                         }
                         .padding(.horizontal, 16)
-                        .padding(.vertical, 14)
+                        .padding(.vertical, 12)
                         .background(FableTheme.cardBackground)
                         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                         .overlay(
                             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .stroke(FableTheme.divider.opacity(0.8), lineWidth: 0.8)
+                                .stroke(isSearchFocused ? FableTheme.brandPrimary : FableTheme.divider.opacity(0.8), lineWidth: isSearchFocused ? 1.5 : 0.8)
                         )
-                        .shadow(color: Color.black.opacity(0.03), radius: 8, y: 2)
+                        .shadow(color: isSearchFocused ? FableTheme.brandPrimary.opacity(0.12) : Color.black.opacity(0.03), radius: isSearchFocused ? 10 : 8, y: 2)
                         .padding(.horizontal, 20)
                         
-                        // If searching, show search results
+                        // Search Results Section (Shown When Searching)
                         if !searchText.isEmpty {
                             VStack(alignment: .leading, spacing: 14) {
                                 HStack {
                                     Text("Search Results (\(searchResults.count))")
-                                        .font(.system(size: 18, weight: .bold))
+                                        .font(.system(size: 18, weight: .bold, design: .serif))
                                         .foregroundColor(FableTheme.textPrimary)
                                     Spacer()
                                 }
                                 .padding(.horizontal, 20)
                                 
                                 if searchResults.isEmpty {
-                                    VStack(spacing: 8) {
+                                    VStack(spacing: 10) {
                                         Image(systemName: "magnifyingglass")
-                                            .font(.system(size: 30))
-                                            .foregroundColor(FableTheme.textMuted)
+                                            .font(.system(size: 32))
+                                            .foregroundColor(FableTheme.textMuted.opacity(0.5))
                                         Text("No titles found matching \"\(searchText)\"")
-                                            .font(.system(size: 14))
+                                            .font(.system(size: 14, weight: .medium))
                                             .foregroundColor(FableTheme.textMuted)
                                     }
                                     .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 30)
+                                    .padding(.vertical, 32)
                                 } else {
                                     VStack(spacing: 10) {
                                         ForEach(searchResults) { story in
@@ -147,24 +149,29 @@ public struct ExploreView: View {
                                             }) {
                                                 HStack(spacing: 14) {
                                                     FableImageView(name: story.effectiveCoverImage, title: story.title, placeholderIcon: "book.closed")
-                                                        .frame(width: 50, height: 64)
+                                                        .frame(width: 52, height: 68)
                                                         .clipShape(RoundedRectangle(cornerRadius: 8))
+                                                        .shadow(color: Color.black.opacity(0.1), radius: 3, y: 1)
                                                     
                                                     VStack(alignment: .leading, spacing: 4) {
                                                         Text(story.title)
-                                                            .font(.system(size: 15, weight: .bold))
+                                                            .font(.system(size: 15, weight: .bold, design: .serif))
                                                             .foregroundColor(FableTheme.textPrimary)
+                                                            .lineLimit(1)
+                                                        
                                                         HStack(spacing: 6) {
                                                             Text(story.contentFormat.displayName.uppercased())
-                                                                .font(.system(size: 9, weight: .bold))
+                                                                .font(.system(size: 8, weight: .heavy))
                                                                 .padding(.horizontal, 6)
                                                                 .padding(.vertical, 2)
-                                                                .background(story.contentFormat == .manga ? FableTheme.brandPrimary.opacity(0.12) : FableTheme.surfaceVariant)
+                                                                .background(story.contentFormat == .manga ? FableTheme.brandPrimary.opacity(0.12) : FableTheme.surface)
                                                                 .foregroundColor(story.contentFormat == .manga ? FableTheme.brandPrimary : FableTheme.textSecondary)
                                                                 .clipShape(Capsule())
+                                                            
                                                             Text("\(story.author) • \(story.genre.rawValue)")
                                                                 .font(.system(size: 12))
                                                                 .foregroundColor(FableTheme.textMuted)
+                                                                .lineLimit(1)
                                                         }
                                                     }
                                                     
@@ -180,6 +187,7 @@ public struct ExploreView: View {
                                                 .shadow(color: Color.black.opacity(0.02), radius: 4, y: 1)
                                                 .padding(.horizontal, 20)
                                             }
+                                            .buttonStyle(.plain)
                                         }
                                     }
                                 }
@@ -196,7 +204,7 @@ public struct ExploreView: View {
                                             selectedFilter = filter
                                         }
                                     }) {
-                                        HStack(spacing: 4) {
+                                        HStack(spacing: 5) {
                                             Text(filter)
                                             if selectedFilter == filter && filter != "All" {
                                                 Image(systemName: "checkmark")
@@ -205,24 +213,31 @@ public struct ExploreView: View {
                                         }
                                         .font(.system(size: 13, weight: selectedFilter == filter ? .semibold : .medium))
                                         .padding(.horizontal, 16)
-                                        .padding(.vertical, 8)
-                                        .background(selectedFilter == filter ? FableTheme.brandPrimary : FableTheme.surfaceVariant)
+                                        .padding(.vertical, 9)
+                                        .background(
+                                            selectedFilter == filter
+                                                ? AnyView(LinearGradient(colors: [FableTheme.brandPrimary, FableTheme.brandPrimary.opacity(0.85)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                                : AnyView(FableTheme.surfaceVariant)
+                                        )
                                         .foregroundColor(selectedFilter == filter ? .white : FableTheme.textPrimary)
                                         .clipShape(Capsule())
-                                        .shadow(color: selectedFilter == filter ? FableTheme.brandPrimary.opacity(0.25) : Color.clear, radius: 4, y: 2)
+                                        .shadow(color: selectedFilter == filter ? FableTheme.brandPrimary.opacity(0.25) : Color.clear, radius: 6, y: 2)
                                     }
                                 }
                             }
                             .padding(.horizontal, 20)
                         }
                         
-                        // Curated Stories Horizontal Scroll (when a filter is selected)
+                        // Curated Stories Horizontal Scroll (when filter active)
                         if selectedFilter != "All" {
-                            VStack(alignment: .leading, spacing: 10) {
-                                Text("\(selectedFilter) (\(curatedStories.count))")
-                                    .font(.system(size: 18, weight: .bold))
-                                    .foregroundColor(FableTheme.textPrimary)
-                                    .padding(.horizontal, 20)
+                            VStack(alignment: .leading, spacing: 12) {
+                                HStack {
+                                    Text("\(selectedFilter) (\(curatedStories.count))")
+                                        .font(.system(size: 18, weight: .bold, design: .serif))
+                                        .foregroundColor(FableTheme.textPrimary)
+                                    Spacer()
+                                }
+                                .padding(.horizontal, 20)
                                 
                                 ScrollView(.horizontal, showsIndicators: false) {
                                     HStack(spacing: 14) {
@@ -232,11 +247,12 @@ public struct ExploreView: View {
                                             }) {
                                                 VStack(alignment: .leading, spacing: 6) {
                                                     FableImageView(name: story.effectiveCoverImage, title: story.title, placeholderIcon: "book")
-                                                        .frame(width: 120, height: 150)
+                                                        .frame(width: 124, height: 160)
                                                         .clipShape(RoundedRectangle(cornerRadius: 12))
+                                                        .shadow(color: Color.black.opacity(0.12), radius: 5, y: 2)
                                                     
                                                     Text(story.title)
-                                                        .font(.system(size: 13, weight: .bold))
+                                                        .font(.system(size: 13, weight: .bold, design: .serif))
                                                         .foregroundColor(FableTheme.textPrimary)
                                                         .lineLimit(1)
                                                     
@@ -245,7 +261,7 @@ public struct ExploreView: View {
                                                         .foregroundColor(FableTheme.textMuted)
                                                         .lineLimit(1)
                                                 }
-                                                .frame(width: 120)
+                                                .frame(width: 124)
                                             }
                                             .buttonStyle(.plain)
                                         }
@@ -255,11 +271,11 @@ public struct ExploreView: View {
                             }
                         }
                         
-                        // Popular Genres Section (FIGMA.md Frame 6: 1:752)
+                        // Popular Genres Section (2x2 Editorial Grid)
                         VStack(alignment: .leading, spacing: 14) {
                             HStack {
                                 Text("Popular Genres")
-                                    .font(.system(size: 20, weight: .bold))
+                                    .font(.system(size: 20, weight: .bold, design: .serif))
                                     .foregroundColor(FableTheme.textPrimary)
                                 
                                 Spacer()
@@ -278,7 +294,7 @@ public struct ExploreView: View {
                                     .padding(.horizontal, 20)
                             }
 
-                            // 2x2 Grid
+                            // 2x2 Grid with Gradient Scrims & Soft Shadows
                             LazyVGrid(columns: [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)], spacing: 14) {
                                 ForEach(store.genres) { genre in
                                     Button(action: {
@@ -286,29 +302,35 @@ public struct ExploreView: View {
                                     }) {
                                         ZStack(alignment: .bottomLeading) {
                                             FableImageView(name: genre.effectiveImage, title: genre.name, placeholderIcon: "books.vertical.fill")
-                                                .frame(height: 150)
+                                                .frame(height: 156)
                                                 .clipped()
                                             
-                                            // Soft gradient overlay for text readability
+                                            // Rich linear gradient scrim for maximum text legibility
                                             LinearGradient(
-                                                colors: [Color.clear, Color.black.opacity(0.75)],
+                                                colors: [Color.clear, Color.black.opacity(0.35), Color.black.opacity(0.85)],
                                                 startPoint: .top,
                                                 endPoint: .bottom
                                             )
                                             
-                                            VStack(alignment: .leading, spacing: 2) {
+                                            VStack(alignment: .leading, spacing: 3) {
                                                 Text(genre.name)
-                                                    .font(.system(size: 18, weight: .bold))
+                                                    .font(.system(size: 18, weight: .bold, design: .serif))
                                                     .foregroundColor(.white)
+                                                    .shadow(color: Color.black.opacity(0.4), radius: 2, y: 1)
                                                 
                                                 Text("\(genre.storyCount) stories")
-                                                    .font(.system(size: 12, weight: .medium))
-                                                    .foregroundColor(Color.white.opacity(0.85))
+                                                    .font(.system(size: 11, weight: .semibold))
+                                                    .foregroundColor(Color.white.opacity(0.9))
+                                                    .padding(.horizontal, 7)
+                                                    .padding(.vertical, 2)
+                                                    .background(Color.white.opacity(0.2))
+                                                    .clipShape(Capsule())
                                             }
                                             .padding(14)
                                         }
                                         .clipShape(RoundedRectangle(cornerRadius: 16))
-                                        .shadow(color: Color.black.opacity(0.08), radius: 8, y: 3)
+                                        .shadow(color: Color.black.opacity(0.04), radius: 2, y: 1)
+                                        .shadow(color: Color.black.opacity(0.08), radius: 10, y: 4)
                                     }
                                 }
                             }
@@ -319,7 +341,7 @@ public struct ExploreView: View {
                         VStack(alignment: .leading, spacing: 14) {
                             HStack(spacing: 6) {
                                 Text("Trending Creators")
-                                    .font(.system(size: 20, weight: .bold))
+                                    .font(.system(size: 20, weight: .bold, design: .serif))
                                     .foregroundColor(FableTheme.textPrimary)
                                 
                                 Image(systemName: "chart.line.uptrend.xyaxis")
@@ -345,18 +367,18 @@ public struct ExploreView: View {
                                                 FableImageView(name: writer.effectiveAvatar, title: writer.name, placeholderIcon: "person.circle.fill")
                                                     .frame(width: 68, height: 68)
                                                     .clipShape(Circle())
-                                                    .shadow(color: Color.black.opacity(0.06), radius: 4, y: 2)
+                                                    .overlay(Circle().stroke(Color.white, lineWidth: 2))
+                                                    .shadow(color: Color.black.opacity(0.08), radius: 5, y: 2)
                                                 
                                                 VStack(spacing: 2) {
                                                     Text(writer.name)
-                                                        .font(.system(size: 13, weight: .semibold))
+                                                        .font(.system(size: 13, weight: .bold, design: .serif))
                                                         .foregroundColor(FableTheme.textPrimary)
                                                         .lineLimit(1)
                                                     
                                                     Text("\(writer.storyCount) Stories")
-                                                        .font(.system(size: 11))
+                                                        .font(.system(size: 11, weight: .medium))
                                                         .foregroundColor(FableTheme.textMuted)
-                                                    
                                                 }
                                             }
                                             .frame(width: 95)
@@ -367,8 +389,8 @@ public struct ExploreView: View {
                                 .padding(.horizontal, 20)
                             }
                         }
-                        .padding(.top, 8)
-                        .padding(.bottom, 90) // spacing for custom tab bar
+                        .padding(.top, 6)
+                        .padding(.bottom, 100) // Spacing for floating glass navigation pill
                     }
                 }
                 .refreshable {
