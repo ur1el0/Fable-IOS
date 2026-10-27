@@ -1,8 +1,16 @@
 import os
+import sys
+from pathlib import Path
 import pytest
 from datetime import datetime, timezone, timedelta
 from uuid import uuid4
 from fastapi.testclient import TestClient
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+BACKEND_DIR = Path(__file__).resolve().parent
+for directory in (str(REPO_ROOT), str(BACKEND_DIR)):
+    if directory not in sys.path:
+        sys.path.insert(0, directory)
 
 # Ensure test uses a separate test database and disables global rate limit by default
 os.environ["FABLE_DB_PATH"] = "test_fable.sqlite3"
