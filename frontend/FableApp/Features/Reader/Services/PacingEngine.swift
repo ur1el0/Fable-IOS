@@ -76,7 +76,8 @@ public final class PacingEngine: ObservableObject {
         let scale = max(0.5, fontSizePercentage / 100.0)
         let effectiveTargetWords = max(50, Int(round(Double(baseWordsPerPage) / scale)))
         
-        let paragraphs = text.components(separatedBy: "\n\n")
+        let normalized = text.replacingOccurrences(of: "\r\n", with: "\n")
+        let paragraphs = normalized.components(separatedBy: "\n\n")
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
         

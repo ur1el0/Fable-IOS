@@ -424,7 +424,7 @@ public final class StoryStore: ObservableObject {
                     let cachedChapters = PersistenceService.shared.cachedChapters(storyId: entity.id)
                     let isUsable: Bool
                     if stories[idx].contentFormat == .manga {
-                        isUsable = cachedChapters.contains { !$0.pageUrls.isEmpty || $0.externalSourceURL != nil }
+                        isUsable = cachedChapters.contains { !$0.pageUrls.isEmpty }
                     } else {
                         isUsable = cachedChapters.contains(where: \.hasReadableText)
                     }
@@ -435,8 +435,11 @@ public final class StoryStore: ObservableObject {
                     let initialCached = PersistenceService.shared.cachedChapters(storyId: entity.id)
                     let format = ContentFormat(rawValue: entity.contentFormatRaw ?? "PROSE") ?? .prose
                     let isUsableInitial = format == .manga
-                        ? initialCached.contains { !$0.pageUrls.isEmpty || $0.externalSourceURL != nil }
+                        ? initialCached.contains { !$0.pageUrls.isEmpty }
                         : initialCached.contains(where: \.hasReadableText)
+                    if provider != .fableOriginal && !isUsableInitial && entity.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !entity.isBookmarked && !entity.isCompleted {
+                        continue
+                    }
                     let validInitial = isUsableInitial ? initialCached : nil
                     let userStory = Story(
                         id: entity.id,
@@ -701,7 +704,7 @@ public final class StoryStore: ObservableObject {
         let isUsable = { (chaps: [Chapter]?) -> Bool in
             guard let chaps, !chaps.isEmpty else { return false }
             if story.contentFormat == .manga {
-                return chaps.contains { !$0.pageUrls.isEmpty || $0.externalSourceURL != nil }
+                return chaps.contains { !$0.pageUrls.isEmpty }
             }
             return chaps.contains(where: \.hasReadableText)
         }
@@ -814,6 +817,16 @@ public final class StoryStore: ObservableObject {
             for book in fetched {
                 if let index = stories.firstIndex(where: { $0.id == book.id }) {
                     stories[index].synopsis = book.synopsis
+                    if !book.content.isEmpty {
+                        stories[index].content = book.content
+                    }
+                    if book.readTimeMinutes > 0 {
+                        stories[index].readTimeMinutes = book.readTimeMinutes
+                    }
+                    if let chaps = book.chapters, !chaps.isEmpty {
+                        stories[index].chapters = chaps
+                        PersistenceService.shared.saveCachedChapters(chaps, storyId: book.id)
+                    }
                     stories[index].coverImageUrl = validCoverImageURL(book.coverImageUrl)
                     stories[index].contentFormat = book.contentFormat
                     stories[index].sourceProvider = book.sourceProvider
@@ -826,6 +839,9 @@ public final class StoryStore: ObservableObject {
                     liveBook.coverImageUrl = validCoverImageURL(book.coverImageUrl)
                     stories.append(liveBook)
                     PersistenceService.shared.saveStory(liveBook)
+                    if let chaps = liveBook.chapters, !chaps.isEmpty {
+                        PersistenceService.shared.saveCachedChapters(chaps, storyId: liveBook.id)
+                    }
                 }
             }
         } catch {
@@ -836,6 +852,15 @@ public final class StoryStore: ObservableObject {
     func fetchMangaPublicStories(search: String? = nil) async {
         do {
             let fetched = try await apiService.fetchMangaStories(search: search)
+            if search == nil && !fetched.isEmpty {
+                let validProviderIds = Set(fetched.compactMap(\.providerId))
+                stories.removeAll {
+                    $0.sourceProvider == .mangadex
+                        && !$0.isBookmarked
+                        && !$0.isCompleted
+                        && ($0.badgeText == "OFFICIAL LINK" || ($0.providerId != nil && !validProviderIds.contains($0.providerId!)))
+                }
+            }
             for manga in fetched {
                 let matchingIndices = stories.indices.filter {
                     stories[$0].id == manga.id ||

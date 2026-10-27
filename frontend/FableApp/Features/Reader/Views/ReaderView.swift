@@ -39,16 +39,15 @@ public struct ReaderView: View {
     
     private var activeChapterText: String {
         if let chap = activeChapter, chap.hasReadableText {
-            return chap.content
+            return chap.content.replacingOccurrences(of: "\r\n", with: "\n")
         }
-        return story.content.isEmpty ? story.synopsis : story.content
+        return story.content.replacingOccurrences(of: "\r\n", with: "\n")
     }
     
     private var activeParagraphs: [String] {
-        let split = activeChapterText.components(separatedBy: "\n\n")
+        activeChapterText.components(separatedBy: "\n\n")
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
-        return split.isEmpty ? (story.synopsis.isEmpty ? [] : [story.synopsis]) : split
     }
     
     private var activeChapterTag: String {
@@ -434,24 +433,30 @@ public struct ReaderView: View {
                                         .padding(12)
                                 }
                                 
-                                Text("“\(story.synopsis.isEmpty ? story.excerpt : story.synopsis)”")
-                                    .font(.system(size: 13, weight: .regular, design: .serif))
-                                    .italic()
-                                    .foregroundColor(store.readerTheme.textColor.opacity(0.75))
-                                    .multilineTextAlignment(.center)
-                                    .padding(.horizontal, 30)
                             }
                             .padding(.horizontal, 20)
                             .padding(.vertical, 8)
                             
                             // Typographical Manuscript Body with Marginalia highlight capability
-                            VStack(alignment: .leading, spacing: 18 + store.readerLineSpacing.points) {
-                                ForEach(activeParagraphs, id: \.self) { para in
-                                    paragraphView(para)
+                            if isLoadingChapters && activeParagraphs.isEmpty {
+                                VStack(spacing: 12) {
+                                    ProgressView()
+                                        .tint(FableTheme.brandPrimary)
+                                    Text("Loading manuscript chapters...")
+                                        .font(.system(size: 13, weight: .medium))
+                                        .foregroundColor(store.readerTheme.textColor.opacity(0.7))
                                 }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 48)
+                            } else {
+                                VStack(alignment: .leading, spacing: 18 + store.readerLineSpacing.points) {
+                                    ForEach(activeParagraphs, id: \.self) { para in
+                                        paragraphView(para)
+                                    }
+                                }
+                                .padding(.horizontal, 24)
+                                .padding(.top, 8)
                             }
-                            .padding(.horizontal, 24)
-                            .padding(.top, 8)
                             
                             // Multi-Chapter Footer Navigation Controls
                             if chapters.count > 1 {
