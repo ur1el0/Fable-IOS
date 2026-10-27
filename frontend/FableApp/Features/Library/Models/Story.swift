@@ -3,6 +3,7 @@ import SwiftUI
 public enum ReaderFont: String, CaseIterable, Identifiable, Codable {
     case serif = "Serif"
     case sans = "Sans"
+    case rounded = "Rounded"
     case mono = "Mono"
     
     public var id: String { rawValue }
@@ -11,6 +12,7 @@ public enum ReaderFont: String, CaseIterable, Identifiable, Codable {
         switch self {
         case .serif: return "Source Serif 4"
         case .sans: return "SF Pro"
+        case .rounded: return "SF Rounded"
         case .mono: return "SF Mono"
         }
     }
@@ -19,6 +21,7 @@ public enum ReaderFont: String, CaseIterable, Identifiable, Codable {
         switch self {
         case .serif: return .system(size: size, design: .serif)
         case .sans: return .system(size: size, design: .default)
+        case .rounded: return .system(size: size, design: .rounded)
         case .mono: return .system(size: size, design: .monospaced)
         }
     }
@@ -26,8 +29,10 @@ public enum ReaderFont: String, CaseIterable, Identifiable, Codable {
 
 public enum ReaderTheme: String, CaseIterable, Identifiable, Codable {
     case white = "White"
+    case paper = "Paper"
     case sepia = "Sepia"
     case charcoal = "Charcoal"
+    case midnight = "Midnight"
     case oled = "OLED"
     
     public var id: String { rawValue }
@@ -35,8 +40,10 @@ public enum ReaderTheme: String, CaseIterable, Identifiable, Codable {
     public var backgroundColor: Color {
         switch self {
         case .white: return .white
+        case .paper: return FableTheme.paperBackground
         case .sepia: return FableTheme.sepiaBackground
         case .charcoal: return FableTheme.charcoalBackground
+        case .midnight: return FableTheme.midnightBackground
         case .oled: return FableTheme.oledBackground
         }
     }
@@ -44,8 +51,10 @@ public enum ReaderTheme: String, CaseIterable, Identifiable, Codable {
     public var textColor: Color {
         switch self {
         case .white: return FableTheme.deepCharcoal
+        case .paper: return FableTheme.paperText
         case .sepia: return FableTheme.sepiaText
         case .charcoal: return FableTheme.charcoalText
+        case .midnight: return FableTheme.midnightText
         case .oled: return FableTheme.oledText
         }
     }
@@ -53,9 +62,18 @@ public enum ReaderTheme: String, CaseIterable, Identifiable, Codable {
     public var swatchColor: Color {
         switch self {
         case .white: return .white
+        case .paper: return Color(red: 0.98, green: 0.96, blue: 0.92)
         case .sepia: return Color(red: 0.93, green: 0.86, blue: 0.77)
         case .charcoal: return Color(red: 0.22, green: 0.22, blue: 0.22)
+        case .midnight: return Color(red: 0.08, green: 0.11, blue: 0.14)
         case .oled: return .black
+        }
+    }
+
+    public var isDark: Bool {
+        switch self {
+        case .white, .paper, .sepia: return false
+        case .charcoal, .midnight, .oled: return true
         }
     }
 }

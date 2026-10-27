@@ -29,8 +29,14 @@ public enum FableTheme {
     public static let sepiaBackground = Color(red: 0.96, green: 0.95, blue: 0.93)
     public static let sepiaText = Color(red: 0.15, green: 0.15, blue: 0.18)
     
+    public static let paperBackground = Color(red: 0.98, green: 0.96, blue: 0.92)
+    public static let paperText = Color(red: 0.18, green: 0.15, blue: 0.13)
+    
     public static let charcoalBackground = Color(red: 0.12, green: 0.13, blue: 0.15)
     public static let charcoalText = Color(red: 0.92, green: 0.93, blue: 0.95)
+    
+    public static let midnightBackground = Color(red: 0.08, green: 0.11, blue: 0.14)
+    public static let midnightText = Color(red: 0.90, green: 0.93, blue: 0.95)
     
     public static let oledBackground = Color.black
     public static let oledText = Color(red: 0.92, green: 0.92, blue: 0.92)
