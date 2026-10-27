@@ -100,7 +100,10 @@ public struct ExploreView: View {
                                 }) {
                                     Image(systemName: "xmark.circle.fill")
                                         .foregroundColor(FableTheme.textMuted)
+                                        .frame(width: 36, height: 36)
+                                        .contentShape(Rectangle())
                                 }
+                                .accessibilityLabel("Clear search")
                             }
                         }
                         .padding(.horizontal, 16)
@@ -263,6 +266,7 @@ public struct ExploreView: View {
                                 
                                 Text("\(store.genres.count) categories")
                                     .font(.system(size: 13))
+                                    .monospacedDigit()
                                     .foregroundColor(FableTheme.textMuted)
                             }
                             .padding(.horizontal, 20)
@@ -383,11 +387,12 @@ public struct ExploreView: View {
                     .environmentObject(store)
             }
             .fullScreenCover(item: $selectedStoryToRead) { story in
-                if story.contentFormat == .manga || story.sourceProvider == .mangadex {
-                    MangaReaderView(story: story)
+                let currentStory = store.stories.first(where: { $0.id == story.id }) ?? story
+                if currentStory.contentFormat == .manga || currentStory.sourceProvider == .mangadex {
+                    MangaReaderView(story: currentStory)
                         .environmentObject(store)
                 } else {
-                    ReaderView(story: story)
+                    ReaderView(story: currentStory)
                         .environmentObject(store)
                 }
             }

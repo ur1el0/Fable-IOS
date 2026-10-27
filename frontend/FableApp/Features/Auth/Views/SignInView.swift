@@ -9,8 +9,9 @@ public struct SignInView: View {
     @State private var password: String = ""
     @State private var isPasswordVisible: Bool = false
 
-    public init(authVM: AuthViewModel = .shared, onNavigateToRegister: (() -> Void)? = nil) {
-        self.authVM = authVM
+    @MainActor
+    public init(authVM: AuthViewModel? = nil, onNavigateToRegister: (() -> Void)? = nil) {
+        self.authVM = authVM ?? .shared
         self.onNavigateToRegister = onNavigateToRegister
     }
 

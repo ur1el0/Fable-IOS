@@ -13,8 +13,9 @@ public struct SignUpView: View {
     @State private var isPasswordVisible: Bool = false
     @State private var validationError: String? = nil
 
-    public init(authVM: AuthViewModel = .shared, onNavigateToLogin: (() -> Void)? = nil) {
-        self.authVM = authVM
+    @MainActor
+    public init(authVM: AuthViewModel? = nil, onNavigateToLogin: (() -> Void)? = nil) {
+        self.authVM = authVM ?? .shared
         self.onNavigateToLogin = onNavigateToLogin
     }
 

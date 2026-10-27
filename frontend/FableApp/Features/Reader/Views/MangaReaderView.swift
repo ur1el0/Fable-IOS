@@ -296,10 +296,11 @@ public struct MangaReaderView: View {
                             Image(systemName: "chevron.left")
                                 .font(.system(size: 15, weight: .bold))
                                 .foregroundColor(.white)
-                                .frame(width: 38, height: 38)
+                                .frame(width: 40, height: 40)
                                 .background(Color.white.opacity(0.14))
                                 .clipShape(Circle())
                         }
+                        .accessibilityLabel("Close manga reader")
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text(story.title)
@@ -310,6 +311,7 @@ public struct MangaReaderView: View {
                             if let chapter = currentChapter {
                                 Text(chapter.title.isEmpty ? "Chapter \(chapter.chapterNumber)" : chapter.title)
                                     .font(.system(size: 11, weight: .medium))
+                                    .monospacedDigit()
                                     .foregroundColor(.white.opacity(0.7))
                                     .lineLimit(1)
                             }
@@ -329,10 +331,11 @@ public struct MangaReaderView: View {
                             Image(systemName: isInvertedColor ? "circle.righthalf.filled.inverse" : "circle.righthalf.filled")
                                 .font(.system(size: 13, weight: .bold))
                                 .foregroundColor(isInvertedColor ? FableTheme.brandPrimary : .white)
-                                .frame(width: 38, height: 38)
+                                .frame(width: 40, height: 40)
                                 .background(Color.white.opacity(0.14))
                                 .clipShape(Circle())
                         }
+                        .accessibilityLabel("Toggle contrast filter")
 
                         // Mode Selector Menu (Webtoon vs Paging vs RTL)
                         Menu {
@@ -471,6 +474,7 @@ public struct MangaReaderView: View {
                                         .frame(width: 5, height: 5)
                                     Text("\(readingMode.rawValue.uppercased()) • \(currentPageIndex + 1) / \(activePageUrls.count)")
                                         .font(.system(size: 11, weight: .heavy))
+                                        .monospacedDigit()
                                         .tracking(0.5)
                                 }
                                 .foregroundColor(.white)

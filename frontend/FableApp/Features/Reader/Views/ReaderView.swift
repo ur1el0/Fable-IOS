@@ -114,10 +114,11 @@ public struct ReaderView: View {
                             Image(systemName: "chevron.left")
                                 .font(.system(size: 15, weight: .bold))
                                 .foregroundColor(store.readerTheme.textColor)
-                                .frame(width: 36, height: 36)
+                                .frame(width: 40, height: 40)
                                 .background(store.readerTheme.textColor.opacity(0.08))
                                 .clipShape(Circle())
                         }
+                        .accessibilityLabel("Close reader")
                         
                         Spacer()
                         
@@ -148,6 +149,7 @@ public struct ReaderView: View {
                             }
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel("Chapters and table of contents")
                         
                         Spacer()
                         
@@ -160,10 +162,11 @@ public struct ReaderView: View {
                                 Image(systemName: "list.bullet.rectangle")
                                     .font(.system(size: 14, weight: .semibold))
                                     .foregroundColor(store.readerTheme.textColor)
-                                    .frame(width: 36, height: 36)
+                                    .frame(width: 40, height: 40)
                                     .background(store.readerTheme.textColor.opacity(0.08))
                                     .clipShape(Circle())
                             }
+                            .accessibilityLabel("Table of contents")
                             
                             // Oral Folklore Audio Synthesizer Toggle (Plan 04)
                             Button(action: {
@@ -175,10 +178,11 @@ public struct ReaderView: View {
                                 Image(systemName: audioNarrator.isPlaying ? "speaker.wave.3.fill" : "speaker.wave.2")
                                     .font(.system(size: 14, weight: .semibold))
                                     .foregroundColor(audioNarrator.isPlaying ? FableTheme.brandPrimary : store.readerTheme.textColor)
-                                    .frame(width: 36, height: 36)
+                                    .frame(width: 40, height: 40)
                                     .background(audioNarrator.isPlaying ? FableTheme.brandPrimary.opacity(0.15) : store.readerTheme.textColor.opacity(0.08))
                                     .clipShape(Circle())
                             }
+                            .accessibilityLabel(audioNarrator.isPlaying ? "Pause narration" : "Start audio narration")
                             
                             // Bookmark Toggle
                             Button(action: {
@@ -190,10 +194,11 @@ public struct ReaderView: View {
                                 Image(systemName: currentStoryBookmarked ? "bookmark.fill" : "bookmark")
                                     .font(.system(size: 14, weight: .semibold))
                                     .foregroundColor(currentStoryBookmarked ? FableTheme.brandPrimary : store.readerTheme.textColor)
-                                    .frame(width: 36, height: 36)
+                                    .frame(width: 40, height: 40)
                                     .background(currentStoryBookmarked ? FableTheme.brandPrimary.opacity(0.12) : store.readerTheme.textColor.opacity(0.08))
                                     .clipShape(Circle())
                             }
+                            .accessibilityLabel(currentStoryBookmarked ? "Remove bookmark" : "Bookmark story")
                             
                             // Typography Options
                             Button(action: {
@@ -203,10 +208,11 @@ public struct ReaderView: View {
                                 Image(systemName: "textformat.size")
                                     .font(.system(size: 14, weight: .semibold))
                                     .foregroundColor(store.readerTheme.textColor)
-                                    .frame(width: 36, height: 36)
+                                    .frame(width: 40, height: 40)
                                     .background(store.readerTheme.textColor.opacity(0.08))
                                     .clipShape(Circle())
                             }
+                            .accessibilityLabel("Reading appearance options")
                             
                             // Native Share Link
                             ShareLink(
@@ -215,10 +221,11 @@ public struct ReaderView: View {
                                 Image(systemName: "square.and.arrow.up")
                                     .font(.system(size: 14, weight: .semibold))
                                     .foregroundColor(store.readerTheme.textColor)
-                                    .frame(width: 36, height: 36)
+                                    .frame(width: 40, height: 40)
                                     .background(store.readerTheme.textColor.opacity(0.08))
                                     .clipShape(Circle())
                             }
+                            .accessibilityLabel("Share story")
                         }
                     }
                     .padding(.horizontal, 16)
@@ -628,10 +635,12 @@ public struct ReaderView: View {
                         VStack(alignment: .leading, spacing: 1) {
                             Text("Ch. \(activeChapter?.chapterNumber ?? 1) • Page \(currentPage)/\(totalPages)")
                                 .font(.system(size: 12, weight: .semibold))
+                                .monospacedDigit()
                                 .foregroundColor(FableTheme.textPrimary)
                             
                             Text("~\(dynamicMinutesRemaining) mins left in chapter")
                                 .font(.system(size: 10, weight: .medium))
+                                .monospacedDigit()
                                 .foregroundColor(FableTheme.textMuted)
                         }
                         
@@ -654,6 +663,7 @@ public struct ReaderView: View {
                         // Progress percentage
                         Text("\(readingProgressPercent)%")
                             .font(.system(size: 12, weight: .bold))
+                            .monospacedDigit()
                             .foregroundColor(FableTheme.brandPrimary)
                         
                         Spacer()

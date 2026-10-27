@@ -241,7 +241,7 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
     private let baseURL: URL
     private let session: URLSession
 
-    public init(baseURL: URL? = nil) {
+    nonisolated public init(baseURL: URL? = nil) {
         let infoBaseURL = Bundle.main.object(forInfoDictionaryKey: "FABLE_API_BASE_URL") as? String
         let configuredBaseURL = ProcessInfo.processInfo.environment["FABLE_API_BASE_URL"] ?? infoBaseURL
         self.baseURL = baseURL

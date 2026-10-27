@@ -55,7 +55,7 @@ public struct ShelfView: View {
                             
                             Spacer()
                             
-                            HStack(spacing: 16) {
+                            HStack(spacing: 8) {
                                 Button(action: {
                                     FableHaptics.light()
                                     isShowingProfileSheet = true
@@ -63,7 +63,10 @@ public struct ShelfView: View {
                                     Image(systemName: "chart.line.uptrend.xyaxis")
                                         .font(.system(size: 18))
                                         .foregroundColor(FableTheme.brandPrimary)
+                                        .frame(width: 40, height: 40)
+                                        .contentShape(Rectangle())
                                 }
+                                .accessibilityLabel("Reading analytics and profile")
                                 
                                 Button(action: {
                                     FableHaptics.light()
@@ -72,7 +75,10 @@ public struct ShelfView: View {
                                     Image(systemName: "gearshape")
                                         .font(.system(size: 18))
                                         .foregroundColor(FableTheme.textPrimary)
+                                        .frame(width: 40, height: 40)
+                                        .contentShape(Rectangle())
                                 }
+                                .accessibilityLabel("Settings")
                             }
                         }
                         .padding(.horizontal, 20)
@@ -117,6 +123,7 @@ public struct ShelfView: View {
                                 VStack(spacing: 2) {
                                     Text("\(store.readingStats.storiesReadCount)")
                                         .font(.system(size: 22, weight: .bold, design: .default))
+                                        .monospacedDigit()
                                         .foregroundColor(FableTheme.brandPrimary)
                                     Text("Completed")
                                         .font(.system(size: 11, weight: .medium))
@@ -131,6 +138,7 @@ public struct ShelfView: View {
                                     let formattedTime = mins >= 60 ? "\(mins / 60)h \(mins % 60)m" : "\(mins)m"
                                     Text(formattedTime)
                                         .font(.system(size: 22, weight: .bold, design: .default))
+                                        .monospacedDigit()
                                         .foregroundColor(FableTheme.brandPrimary)
                                     Text("Logged Time")
                                         .font(.system(size: 11, weight: .medium))
@@ -143,6 +151,7 @@ public struct ShelfView: View {
                                 VStack(spacing: 2) {
                                     Text("\(store.readingStats.streakDays)")
                                         .font(.system(size: 22, weight: .bold, design: .default))
+                                        .monospacedDigit()
                                         .foregroundColor(FableTheme.brandPrimary)
                                     Text("Days Streak")
                                         .font(.system(size: 11, weight: .medium))
@@ -219,6 +228,7 @@ public struct ShelfView: View {
                             HStack {
                                 Text("\(selectedTab.uppercased()) TITLES (\(displayedStories.count))")
                                     .font(.system(size: 11, weight: .bold))
+                                    .monospacedDigit()
                                     .tracking(1.0)
                                     .foregroundColor(FableTheme.textMuted)
                                 Spacer()
@@ -253,6 +263,10 @@ public struct ShelfView: View {
                                             FableImageView(name: story.effectiveCoverImage, placeholderIcon: "square.stack")
                                                 .frame(width: 52, height: 68)
                                                 .clipShape(RoundedRectangle(cornerRadius: 8))
+                                                .overlay(
+                                                    RoundedRectangle(cornerRadius: 8)
+                                                        .stroke(Color.black.opacity(0.08), lineWidth: 1)
+                                                )
                                             
                                             VStack(alignment: .leading, spacing: 4) {
                                                 HStack(spacing: 6) {
@@ -281,14 +295,17 @@ public struct ShelfView: View {
                                                 } else if let chapNum = story.lastReadChapterNumber, story.progressPercent > 0 {
                                                     Text("Ch. \(chapNum) • Page \(story.currentPage) of \(story.totalPages)")
                                                         .font(.system(size: 11, weight: .medium))
+                                                        .monospacedDigit()
                                                         .foregroundColor(FableTheme.brandPrimary)
                                                 } else if story.progressPercent > 0 {
                                                     Text("Page \(story.currentPage) of \(story.totalPages) • \(story.readingTimeMinutes)m left")
                                                         .font(.system(size: 11, weight: .medium))
+                                                        .monospacedDigit()
                                                         .foregroundColor(FableTheme.brandPrimary)
                                                 } else {
                                                     Text("\(story.readingTimeMinutes)m left")
                                                         .font(.system(size: 11, weight: .medium))
+                                                        .monospacedDigit()
                                                         .foregroundColor(FableTheme.brandPrimary)
                                                 }
                                             }
@@ -314,6 +331,7 @@ public struct ShelfView: View {
                                                     
                                                     Text("\(story.progressPercent)%")
                                                         .font(.system(size: 9, weight: .bold))
+                                                        .monospacedDigit()
                                                         .foregroundColor(FableTheme.brandPrimary)
                                                 }
                                             }
@@ -339,8 +357,10 @@ public struct ShelfView: View {
                                                 Image(systemName: "ellipsis")
                                                     .font(.system(size: 14))
                                                     .foregroundColor(FableTheme.textMuted)
-                                                    .padding(6)
+                                                    .frame(width: 40, height: 40)
+                                                    .contentShape(Rectangle())
                                             }
+                                            .accessibilityLabel("Story options for \(story.title)")
                                         }
                                         .padding(.horizontal, 16)
                                         .padding(.vertical, 12)
@@ -368,8 +388,14 @@ public struct ShelfView: View {
                 }
             }
             .fullScreenCover(item: $selectedStoryToRead) { story in
-                ReaderView(story: story)
-                    .environmentObject(store)
+                let currentStory = store.stories.first(where: { $0.id == story.id }) ?? story
+                if currentStory.contentFormat == .manga || currentStory.sourceProvider == .mangadex {
+                    MangaReaderView(story: currentStory)
+                        .environmentObject(store)
+                } else {
+                    ReaderView(story: currentStory)
+                        .environmentObject(store)
+                }
             }
             .sheet(isPresented: $isShowingSettingsSheet) {
                 SettingsView()

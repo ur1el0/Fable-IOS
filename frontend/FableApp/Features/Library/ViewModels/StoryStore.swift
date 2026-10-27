@@ -98,7 +98,7 @@ public final class StoryStore: ObservableObject {
             updatedAtUtc: .distantPast
         )
 
-        init(
+        nonisolated init(
             readingProgress: Double,
             isBookmarked: Bool,
             isCompleted: Bool,
