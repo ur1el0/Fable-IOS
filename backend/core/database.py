@@ -42,6 +42,7 @@ def _add_column_if_missing(conn, table_name, column_name, column_definition):
 def init_db():
     conn = get_db()
     try:
+        conn.execute("PRAGMA journal_mode = WAL;")
         current_version = conn.execute("PRAGMA user_version").fetchone()[0]
         if current_version > SCHEMA_VERSION:
             raise RuntimeError(
