@@ -1435,3 +1435,124 @@ def test_init_db_rejects_newer_schema_without_mutation(tmp_path, monkeypatch):
         assert connection.execute(
             "SELECT name FROM sqlite_master WHERE type = 'table'"
         ).fetchall() == []
+
+
+def test_gutenberg_strips_auto_generated_summaries_and_excludes_books_without_text(monkeypatch):
+    import httpx
+    from services import gutenberg as gutenberg_service
+    gutenberg_service._GUTENBERG_CHAPTER_CACHE.clear()
+
+    sample_text = """
+*** START OF THE PROJECT GUTENBERG EBOOK PRIDE AND PREJUDICE ***
+
+CHAPTER I.
+
+It is a truth universally acknowledged, that a single man in possession
+of a good fortune must be in want of a wife.
+
+However little known the feelings or views of such a man may be on his
+first entering a neighbourhood, this truth is so well fixed in the minds
+of the surrounding families, that he is considered the rightful property
+of some one or other of their daughters.
+*** END OF THE PROJECT GUTENBERG EBOOK PRIDE AND PREJUDICE ***
+"""
+
+    async def mock_get(self, url, params=None, headers=None):
+        url_str = str(url)
+        if "gutendex.com" in url_str:
+            return httpx.Response(200, json={
+                "results": [
+                    {
+                        "id": 1342,
+                        "title": "Pride and Prejudice",
+                        "authors": [{"name": "Austen, Jane"}],
+                        "subjects": ["Fiction"],
+                        "summaries": [
+                            "\"Pride and Prejudice\" is a novel. (This is an automatically generated summary.)"
+                        ],
+                        "download_count": 5000,
+                        "formats": {
+                            "image/jpeg": "https://www.gutenberg.org/cover1342.jpg",
+                            "text/plain; charset=utf-8": "https://www.gutenberg.org/ebooks/1342.txt.utf-8",
+                        },
+                    },
+                    {
+                        "id": 9999,
+                        "title": "Audio Only Edition",
+                        "authors": [{"name": "Narrator, Test"}],
+                        "subjects": ["Audiobooks"],
+                        "summaries": ["(This is an automatically generated summary.)"],
+                        "download_count": 100,
+                        "formats": {
+                            "image/jpeg": "https://www.gutenberg.org/cover9999.jpg",
+                        },
+                    },
+                ]
+            })
+        if "1342" in url_str:
+            return httpx.Response(200, text=sample_text)
+        return httpx.Response(404)
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", mock_get)
+    response = client.get("/api/v1/public/gutenberg?topic=fiction")
+    assert response.status_code == 200
+    stories = response.json()
+    assert len(stories) == 1
+    story = stories[0]
+    assert story["title"] == "Pride and Prejudice"
+    assert "automatically generated summary" not in story["synopsis"].lower()
+    assert "It is a truth universally acknowledged" in story["synopsis"]
+    assert "It is a truth universally acknowledged" in story["content"]
+    assert story["totalChapters"] == 1
+    assert len(story["chapters"]) == 1
+
+
+def test_manga_search_excludes_titles_without_direct_panels(monkeypatch):
+    import httpx
+    from services.manga import _CACHE
+    _CACHE.clear()
+
+    async def mock_get(self, url, params=None, headers=None):
+        url_str = str(url)
+        if url_str == "https://api.mangadex.org/manga":
+            return httpx.Response(200, json={
+                "data": [
+                    {
+                        "id": "direct-manga-1",
+                        "attributes": {
+                            "title": {"en": "Readable Manga"},
+                            "description": {"en": "Has actual panel pages."},
+                        },
+                        "relationships": [
+                            {"type": "author", "attributes": {"name": "Artist One"}},
+                            {"type": "cover_art", "attributes": {"fileName": "c1.jpg"}},
+                        ],
+                    },
+                    {
+                        "id": "external-only-manga-2",
+                        "attributes": {
+                            "title": {"en": "External Only Manga"},
+                            "description": {"en": "No hosted pages."},
+                        },
+                        "relationships": [
+                            {"type": "author", "attributes": {"name": "Artist Two"}},
+                            {"type": "cover_art", "attributes": {"fileName": "c2.jpg"}},
+                        ],
+                    },
+                ]
+            })
+        if "direct-manga-1/feed" in url_str:
+            return httpx.Response(200, json={
+                "data": [{"id": "ch-1", "attributes": {"chapter": "1", "pages": 24, "externalUrl": None}}]
+            })
+        if "external-only-manga-2/feed" in url_str:
+            return httpx.Response(200, json={"data": []})
+        return httpx.Response(404)
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", mock_get)
+    response = client.get("/api/v1/public/manga")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["title"] == "Readable Manga"
+    assert data[0]["badgeText"] == "DIRECT PANELS"
