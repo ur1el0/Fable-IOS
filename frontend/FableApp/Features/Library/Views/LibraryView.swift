@@ -328,7 +328,7 @@ public struct LibraryView: View {
                                             .frame(height: 5)
                                             .padding(.top, 2)
                                             
-                                            if inProgressStory.contentFormat == .manga, let chapNum = inProgressStory.lastReadChapterNumber {
+                                            if let chapNum = inProgressStory.lastReadChapterNumber {
                                                 Text("\(inProgressStory.progressPercent)% complete • Ch. \(chapNum) • Page \(inProgressStory.currentPage) of \(inProgressStory.totalPages)")
                                                     .font(.system(size: 11, weight: .medium))
                                                     .foregroundColor(FableTheme.textMuted)

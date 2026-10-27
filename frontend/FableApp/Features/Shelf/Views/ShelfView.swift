@@ -18,7 +18,7 @@ public struct ShelfView: View {
         case "My Drafts":
             return store.profileStories
         default: // "Saved"
-            return activePool.filter { $0.isBookmarked }
+            return activePool.filter { $0.isBookmarked || ($0.progressPercent > 0 && !$0.isCompleted) }
         }
     }
     
@@ -274,9 +274,23 @@ public struct ShelfView: View {
                                                     .font(.system(size: 12))
                                                     .foregroundColor(FableTheme.textMuted)
                                                 
-                                                Text(story.isCompleted ? "Completed" : "\(story.readingTimeMinutes)m left")
-                                                    .font(.system(size: 11, weight: .medium))
-                                                    .foregroundColor(story.isCompleted ? Color.green.opacity(0.8) : FableTheme.brandPrimary)
+                                                if story.isCompleted {
+                                                    Text("Completed")
+                                                        .font(.system(size: 11, weight: .medium))
+                                                        .foregroundColor(Color.green.opacity(0.8))
+                                                } else if let chapNum = story.lastReadChapterNumber, story.progressPercent > 0 {
+                                                    Text("Ch. \(chapNum) • Page \(story.currentPage) of \(story.totalPages)")
+                                                        .font(.system(size: 11, weight: .medium))
+                                                        .foregroundColor(FableTheme.brandPrimary)
+                                                } else if story.progressPercent > 0 {
+                                                    Text("Page \(story.currentPage) of \(story.totalPages) • \(story.readingTimeMinutes)m left")
+                                                        .font(.system(size: 11, weight: .medium))
+                                                        .foregroundColor(FableTheme.brandPrimary)
+                                                } else {
+                                                    Text("\(story.readingTimeMinutes)m left")
+                                                        .font(.system(size: 11, weight: .medium))
+                                                        .foregroundColor(FableTheme.brandPrimary)
+                                                }
                                             }
                                             
                                             Spacer()

@@ -32,6 +32,9 @@ public struct MangaReaderView: View {
     @State private var isShowingChapterSheet: Bool = false
     @State private var isShowingPublisherReader: Bool = false
     @State private var isInvertedColor: Bool = false
+    @State private var isRestoringWebtoonScroll: Bool = true
+    @State private var webtoonScrollTrigger: Int = 0
+    @State private var sessionStartTime: Date = Date()
 
     private enum ReaderTapZone {
         case left
@@ -190,18 +193,37 @@ public struct MangaReaderView: View {
                         Group {
                             if readingMode == .webtoon {
                                 // Vertical Webtoon Continuous Scroll
-                                ScrollView(showsIndicators: false) {
-                                    LazyVStack(spacing: 2) {
-                                        ForEach(Array(activePageUrls.enumerated()), id: \.offset) { index, urlString in
-                                            MangaPageView(urlString: urlString, pageNumber: index + 1)
-                                                .onTapGesture {
-                                                    withAnimation(.easeInOut(duration: 0.2)) {
-                                                        isChromeVisible.toggle()
+                                ScrollViewReader { scrollProxy in
+                                    ScrollView(showsIndicators: false) {
+                                        LazyVStack(spacing: 2) {
+                                            ForEach(Array(activePageUrls.enumerated()), id: \.offset) { index, urlString in
+                                                MangaPageView(urlString: urlString, pageNumber: index + 1)
+                                                    .id("panel-\(index)")
+                                                    .onAppear {
+                                                        if !isRestoringWebtoonScroll && currentPageIndex != index {
+                                                            currentPageIndex = index
+                                                        }
                                                     }
-                                                }
+                                                    .onTapGesture {
+                                                        withAnimation(.easeInOut(duration: 0.2)) {
+                                                            isChromeVisible.toggle()
+                                                        }
+                                                    }
+                                            }
+                                        }
+                                        .padding(.bottom, 80)
+                                    }
+                                    .onChange(of: webtoonScrollTrigger) { _, _ in
+                                        let targetIndex = min(max(0, currentPageIndex), max(0, activePageUrls.count - 1))
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
+                                            withAnimation(.easeInOut(duration: 0.2)) {
+                                                scrollProxy.scrollTo("panel-\(targetIndex)", anchor: .top)
+                                            }
+                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                                                isRestoringWebtoonScroll = false
+                                            }
                                         }
                                     }
-                                    .padding(.bottom, 80)
                                 }
                             } else {
                                 // Horizontal Page Flip (Paging LTR or RTL)
@@ -392,6 +414,9 @@ public struct MangaReaderView: View {
                                             let rounded = Int(newVal.rounded())
                                             if rounded != currentPageIndex && activePageUrls.indices.contains(rounded) {
                                                 currentPageIndex = rounded
+                                                if readingMode == .webtoon {
+                                                    triggerWebtoonScroll()
+                                                }
                                                 if store.hapticFeedback {
                                                     HapticManager.selection()
                                                 }
@@ -510,15 +535,28 @@ public struct MangaReaderView: View {
                 .transition(.opacity)
             }
         }
+        .onAppear {
+            self.sessionStartTime = Date()
+        }
+        .onDisappear {
+            let elapsed = Int(Date().timeIntervalSince(sessionStartTime))
+            store.logReadingSession(for: story, seconds: elapsed)
+        }
         .task {
             await loadMangaChapters()
         }
         .onChange(of: currentChapterIndex) { _, newIndex in
             prefetchPanels(around: newIndex)
             persistReadingProgress(chapterIndex: newIndex, pageIndex: currentPageIndex)
+            triggerWebtoonScroll()
         }
         .onChange(of: currentPageIndex) { _, newPage in
             persistReadingProgress(chapterIndex: currentChapterIndex, pageIndex: newPage)
+        }
+        .onChange(of: readingMode) { _, newMode in
+            if newMode == .webtoon {
+                triggerWebtoonScroll()
+            }
         }
         .sheet(isPresented: $isShowingChapterSheet) {
             NavigationStack {
@@ -665,7 +703,17 @@ public struct MangaReaderView: View {
             if activePageUrls.indices.contains(restoredPage) {
                 currentPageIndex = restoredPage
             }
+        } else {
+            currentPageIndex = 0
         }
+        persistReadingProgress(chapterIndex: currentChapterIndex, pageIndex: currentPageIndex)
+        triggerWebtoonScroll()
+    }
+
+    @MainActor
+    private func triggerWebtoonScroll() {
+        isRestoringWebtoonScroll = true
+        webtoonScrollTrigger += 1
     }
 
     @MainActor

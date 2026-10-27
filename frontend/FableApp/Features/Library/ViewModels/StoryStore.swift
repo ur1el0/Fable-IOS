@@ -833,10 +833,18 @@ public final class StoryStore: ObservableObject {
                     stories[index].providerId = book.providerId
                     stories[index].providerDownloadCount = book.providerDownloadCount
                     stories[index].totalChapters = max(stories[index].chapters?.count ?? 0, book.totalChapters)
+                    if stories[index].progressPercent == 0,
+                       let savedState = loadShelfStateCache()[stories[index].id.uuidString],
+                       !savedState.isEmpty {
+                        applyShelfState(savedState, to: &stories[index])
+                    }
                     PersistenceService.shared.saveStory(stories[index])
                 } else {
                     var liveBook = book
                     liveBook.coverImageUrl = validCoverImageURL(book.coverImageUrl)
+                    if let savedState = loadShelfStateCache()[liveBook.id.uuidString] {
+                        applyShelfState(savedState, to: &liveBook)
+                    }
                     stories.append(liveBook)
                     PersistenceService.shared.saveStory(liveBook)
                     if let chaps = liveBook.chapters, !chaps.isEmpty {
@@ -877,6 +885,11 @@ public final class StoryStore: ObservableObject {
                     stories[firstIdx].providerId = manga.providerId
                     if let badge = manga.badgeText { stories[firstIdx].badgeText = badge }
                     stories[firstIdx].totalChapters = max(stories[firstIdx].chapters?.count ?? 0, manga.totalChapters)
+                    if stories[firstIdx].progressPercent == 0,
+                       let savedState = loadShelfStateCache()[stories[firstIdx].id.uuidString],
+                       !savedState.isEmpty {
+                        applyShelfState(savedState, to: &stories[firstIdx])
+                    }
                     PersistenceService.shared.saveStory(stories[firstIdx])
 
                     if matchingIndices.count > 1 {
@@ -888,6 +901,9 @@ public final class StoryStore: ObservableObject {
                     liveManga.contentFormat = .manga
                     liveManga.isRecentSubmission = true
                     liveManga.coverImageUrl = validCoverImageURL(manga.coverImageUrl)
+                    if let savedState = loadShelfStateCache()[liveManga.id.uuidString] {
+                        applyShelfState(savedState, to: &liveManga)
+                    }
                     stories.append(liveManga)
                     PersistenceService.shared.saveStory(liveManga)
                 }
@@ -1166,11 +1182,41 @@ public final class StoryStore: ObservableObject {
         }
     }
 
-    func updateProgress(for storyId: UUID, page: Int, totalPages: Int) {
+    func updateProgress(
+        for storyId: UUID,
+        page: Int,
+        totalPages: Int,
+        chapterIndex: Int? = nil,
+        totalChapters: Int? = nil,
+        chapterId: String? = nil,
+        chapterNumber: Int? = nil
+    ) {
         if let idx = stories.firstIndex(where: { $0.id == storyId }) {
-            stories[idx].currentPage = page
-            stories[idx].totalPages = totalPages
-            let pct = min(100, max(0, Int((Double(page) / Double(max(1, totalPages))) * 100)))
+            let safePage = max(1, page)
+            let safeTotalPages = max(1, totalPages)
+            stories[idx].currentPage = safePage
+            stories[idx].totalPages = safeTotalPages
+            if let chapterId {
+                stories[idx].lastReadChapterId = chapterId
+            }
+            if let chapterNumber {
+                stories[idx].lastReadChapterNumber = chapterNumber
+            }
+
+            let safeTotalChaps = max(1, totalChapters ?? stories[idx].chapters?.count ?? stories[idx].totalChapters)
+            let resolvedChapIdx = min(
+                safeTotalChaps - 1,
+                max(0, chapterIndex ?? ((stories[idx].lastReadChapterNumber ?? 1) - 1))
+            )
+            let pct: Int
+            if safeTotalChaps > 1 {
+                let fraction = (Double(resolvedChapIdx) / Double(safeTotalChaps))
+                    + ((Double(safePage) / Double(safeTotalPages)) * (1.0 / Double(safeTotalChaps)))
+                pct = min(100, max(1, Int((fraction * 100.0).rounded())))
+            } else {
+                pct = min(100, max(1, Int(((Double(safePage) / Double(safeTotalPages)) * 100.0).rounded())))
+            }
+
             stories[idx].progressPercent = pct
             if pct >= 100 {
                 stories[idx].isCompleted = true
@@ -1183,9 +1229,17 @@ public final class StoryStore: ObservableObject {
                 storyId: storyId,
                 progressPercent: pct,
                 isCompleted: pct >= 100,
-                page: page,
-                totalPages: totalPages
+                page: safePage,
+                totalPages: safeTotalPages
             )
+            if let chapId = stories[idx].lastReadChapterId,
+               let chapNum = stories[idx].lastReadChapterNumber {
+                PersistenceService.shared.updateReadingProgress(
+                    storyId: storyId,
+                    chapterId: chapId,
+                    chapterNumber: chapNum
+                )
+            }
             reloadReadingStats()
             persistShelfState(for: stories[idx])
 
@@ -1208,6 +1262,18 @@ public final class StoryStore: ObservableObject {
         if let index = stories.firstIndex(where: { $0.id == storyId }) {
             stories[index].lastReadChapterId = chapterId
             stories[index].lastReadChapterNumber = chapterNumber
+            if stories[index].progressPercent == 0 {
+                let totalChaps = max(1, stories[index].chapters?.count ?? stories[index].totalChapters)
+                let pct = min(99, max(1, Int(((Double(max(1, chapterNumber)) - 0.5) / Double(totalChaps) * 100.0).rounded())))
+                stories[index].progressPercent = pct
+                PersistenceService.shared.updateProgress(
+                    storyId: storyId,
+                    progressPercent: pct,
+                    isCompleted: false,
+                    page: max(1, stories[index].currentPage),
+                    totalPages: max(1, stories[index].totalPages)
+                )
+            }
         }
 
         if let profileIndex = profileStories.firstIndex(where: { $0.id == storyId }) {
@@ -1375,16 +1441,27 @@ public final class StoryStore: ObservableObject {
     func removeFromShelf(storyId: UUID) {
         if let idx = stories.firstIndex(where: { $0.id == storyId }) {
             stories[idx].isBookmarked = false
+            stories[idx].progressPercent = 0
+            stories[idx].currentPage = 1
+            stories[idx].lastReadChapterId = nil
+            stories[idx].lastReadChapterNumber = nil
             PersistenceService.shared.setBookmark(storyId: storyId, isBookmarked: false)
+            PersistenceService.shared.updateProgress(
+                storyId: storyId,
+                progressPercent: 0,
+                isCompleted: false,
+                page: 1,
+                totalPages: max(1, stories[idx].totalPages)
+            )
             persistShelfState(for: stories[idx])
 
             Task { [weak self] in
                 guard let self = self else { return }
                 let item = ShelfSyncItem(
                     storyId: storyId,
-                    readingProgress: Double(self.stories[idx].progressPercent) / 100.0,
+                    readingProgress: 0.0,
                     isBookmarked: false,
-                    isCompleted: self.stories[idx].isCompleted,
+                    isCompleted: false,
                     updatedAtUtc: Date()
                 )
                 _ = await self.syncShelfToAccount([item])
