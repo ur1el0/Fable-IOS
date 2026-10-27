@@ -167,11 +167,16 @@ async def _probe_direct_chapters(manga_id: str) -> bool:
     params = [
         ("translatedLanguage[]", "en"),
         ("includeExternalUrl", "0"),
-        ("limit", "1"),
+        ("limit", "5"),
     ]
     try:
         data = await _fetch_json_with_fallback(url, params=params)
-        has_direct = len(data.get("data", [])) > 0
+        feed_items = data.get("data", [])
+        has_direct = any(
+            not (item.get("attributes") or {}).get("externalUrl")
+            and int((item.get("attributes") or {}).get("pages", 1) or 0) > 0
+            for item in feed_items
+        )
     except Exception:
         has_direct = False
 
@@ -191,7 +196,7 @@ async def search_manga(
 
     url = "https://api.mangadex.org/manga"
     params = [
-        ("limit", str(min(limit, 50))),
+        ("limit", str(min(max(limit * 2, 30), 50))),
         ("offset", str(offset)),
         ("includes[]", "cover_art"),
         ("includes[]", "author"),
@@ -214,23 +219,17 @@ async def search_manga(
         if dto:
             raw_results.append(dto)
 
-    # Probe direct panel availability concurrently
+    # Probe direct panel availability concurrently and exclude titles without readable panels
     probe_tasks = [_probe_direct_chapters(str(s.provider_id)) for s in raw_results]
     probe_results = await asyncio.gather(*probe_tasks, return_exceptions=True)
 
     direct_list: list[StoryDTO] = []
-    external_list: list[StoryDTO] = []
-
     for dto, has_direct in zip(raw_results, probe_results):
         if has_direct is True:
             dto.badge_text = "DIRECT PANELS"
             direct_list.append(dto)
-        else:
-            dto.badge_text = "OFFICIAL LINK"
-            external_list.append(dto)
 
-    # Prioritize titles with direct in-app reading panels
-    results = direct_list + external_list
+    results = direct_list[:limit]
     _set_in_cache(cache_key, results)
     return results
 
@@ -311,7 +310,6 @@ async def get_manga_chapters(manga_id: str, limit: int = 20) -> list[ChapterDTO]
         pass
 
     url = f"https://api.mangadex.org/manga/{manga_id}/feed"
-    # First attempt: request direct hosted English chapters (exclude external redirects)
     params = [
         ("translatedLanguage[]", "en"),
         ("order[chapter]", "asc"),
@@ -322,16 +320,6 @@ async def get_manga_chapters(manga_id: str, limit: int = 20) -> list[ChapterDTO]
     feed_json = await _fetch_json_with_fallback(url, params=params)
     feed_data = feed_json.get("data", [])
 
-    # Fallback: if no direct English chapters exist, allow external English publisher links
-    if not feed_data:
-        ext_params = [
-            ("translatedLanguage[]", "en"),
-            ("order[chapter]", "asc"),
-            ("limit", str(min(limit, 50))),
-        ]
-        ext_json = await _fetch_json_with_fallback(url, params=ext_params)
-        feed_data = ext_json.get("data", [])
-
     story_uuid = uuid5(MANGA_NAMESPACE, f"mangadex:{manga_id}")
     now = datetime.now(timezone.utc)
     chapters: list[ChapterDTO] = []
@@ -341,7 +329,7 @@ async def get_manga_chapters(manga_id: str, limit: int = 20) -> list[ChapterDTO]
     for idx, ch in enumerate(feed_data):
         ch_id = ch.get("id")
         attrs = ch.get("attributes", {})
-        if not ch_id or not attrs:
+        if not ch_id or not attrs or attrs.get("externalUrl"):
             continue
 
         ch_num_str = attrs.get("chapter") or f"{idx + 1}"
@@ -369,35 +357,36 @@ async def get_manga_chapters(manga_id: str, limit: int = 20) -> list[ChapterDTO]
         attrs = ch.get("attributes", {})
         raw_title = attrs.get("title") or ""
         display_title = raw_title if raw_title.strip() else f"Chapter {ch_num_str}"
-        external_url = attrs.get("externalUrl")
 
         page_urls: list[str] = []
-        if not external_url:
-            try:
-                ah_url = f"https://api.mangadex.org/at-home/server/{ch_id}"
-                ah_data = await _fetch_json_with_fallback(ah_url)
-                base_url = ah_data.get("baseUrl")
-                chapter_obj = ah_data.get("chapter", {})
-                hash_val = chapter_obj.get("hash")
-                files = (
-                    chapter_obj.get("dataSaver")
-                    or chapter_obj.get("data")
-                    or []
-                )
-                if base_url and hash_val and files:
-                    page_urls = [
-                        f"{base_url}/data-saver/{hash_val}/{file_name}"
-                        for file_name in files
-                    ]
-            except Exception:
-                page_urls = []
+        try:
+            ah_url = f"https://api.mangadex.org/at-home/server/{ch_id}"
+            ah_data = await _fetch_json_with_fallback(ah_url)
+            base_url = ah_data.get("baseUrl")
+            chapter_obj = ah_data.get("chapter", {})
+            hash_val = chapter_obj.get("hash")
+            files = (
+                chapter_obj.get("dataSaver")
+                or chapter_obj.get("data")
+                or []
+            )
+            if base_url and hash_val and files:
+                page_urls = [
+                    f"{base_url}/data-saver/{hash_val}/{file_name}"
+                    for file_name in files
+                ]
+        except Exception:
+            page_urls = []
+
+        if not page_urls:
+            continue
 
         chapter_dto = ChapterDTO(
             id=uuid5(MANGA_NAMESPACE, f"mangadex_chapter:{ch_id}"),
             story_id=story_uuid,
             chapter_number=ch_num,
             title=display_title,
-            content=external_url or "",
+            content="",
             word_count=0,
             created_at_utc=now,
             page_urls=page_urls,
