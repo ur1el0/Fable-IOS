@@ -131,6 +131,45 @@ public struct ReaderTests {
         assert(ReaderTheme.allCases.count == 4, "Reader Theme Count (White, Sepia, Charcoal, OLED)")
         assert(ReaderLineSpacing.allCases.count == 3, "Reader Line Spacing Options Count")
 
+        // Test 11: Multi-Chapter Progress Persistence & Restoration Invariant
+        let store = StoryStore()
+        let trackedStoryId = UUID()
+        let ch1 = Chapter(storyId: trackedStoryId, chapterNumber: 1, title: "Part I", content: "Chapter one text.")
+        let ch2 = Chapter(storyId: trackedStoryId, chapterNumber: 2, title: "Part II", content: "Chapter two text.")
+        let trackedStory = Story(
+            id: trackedStoryId,
+            title: "Tracked Odyssey",
+            author: "Homer",
+            genre: "Classics",
+            excerpt: "Sing in me, Muse.",
+            paragraphs: ["Chapter one text."],
+            totalPages: 4,
+            currentPage: 1,
+            progressPercent: 0,
+            contentFormat: .prose,
+            chapters: [ch1, ch2]
+        )
+        store.stories.append(trackedStory)
+        store.updateProgress(
+            for: trackedStoryId,
+            page: 2,
+            totalPages: 4,
+            chapterIndex: 1,
+            totalChapters: 2,
+            chapterId: ch2.id.uuidString,
+            chapterNumber: 2
+        )
+        let saved = store.stories.first(where: { $0.id == trackedStoryId })
+        assert(
+            saved?.currentPage == 2
+                && saved?.totalPages == 4
+                && saved?.lastReadChapterId == ch2.id.uuidString
+                && saved?.lastReadChapterNumber == 2
+                && saved?.progressPercent == 75
+                && saved?.isCompleted == false,
+            "Multi-Chapter Prose Reading Progress Saves Exact Chapter and Page"
+        )
+
         return (passed, total, failures)
     }
 }
