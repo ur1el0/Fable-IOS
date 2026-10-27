@@ -1556,3 +1556,27 @@ def test_manga_search_excludes_titles_without_direct_panels(monkeypatch):
     assert len(data) == 1
     assert data[0]["title"] == "Readable Manga"
     assert data[0]["badgeText"] == "DIRECT PANELS"
+
+
+def test_security_headers_and_sqlite_foreign_keys_enforced():
+    from core.database import get_db
+
+    health_res = client.get("/api/v1/health")
+    assert health_res.status_code == 200
+    assert health_res.headers.get("x-content-type-options") == "nosniff"
+    assert health_res.headers.get("x-frame-options") == "DENY"
+    assert health_res.headers.get("referrer-policy") == "strict-origin-when-cross-origin"
+    assert "default-src 'none'" in health_res.headers.get("content-security-policy", "")
+
+    auth_res = client.get("/api/v1/auth/me")
+    assert auth_res.status_code == 401
+    assert auth_res.headers.get("cache-control") == "no-store"
+
+    conn = get_db()
+    try:
+        fk_enabled = conn.execute("PRAGMA foreign_keys").fetchone()[0]
+        busy_timeout = conn.execute("PRAGMA busy_timeout").fetchone()[0]
+        assert fk_enabled == 1
+        assert busy_timeout >= 5000
+    finally:
+        conn.close()

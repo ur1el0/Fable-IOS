@@ -21,8 +21,10 @@ LEGACY_DEMO_STORY_IDS = (
 def get_db():
     # Dynamic lookup so tests can override os.environ["FABLE_DB_PATH"]
     current_db_path = os.environ.get("FABLE_DB_PATH", DB_PATH)
-    conn = sqlite3.connect(current_db_path)
+    conn = sqlite3.connect(current_db_path, timeout=10.0)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON;")
+    conn.execute("PRAGMA busy_timeout = 5000;")
     return conn
 
 
