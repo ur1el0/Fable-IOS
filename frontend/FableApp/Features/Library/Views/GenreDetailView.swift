@@ -65,10 +65,11 @@ public struct GenreDetailView: View {
                         Image(systemName: "chevron.left")
                             .font(.system(size: 18, weight: .semibold))
                             .foregroundColor(FableTheme.textPrimary)
-                            .padding(8)
+                            .frame(width: 40, height: 40)
                             .background(Color.white)
                             .clipShape(Circle())
                     }
+                    .accessibilityLabel("Back")
                     
                     Spacer()
                     
@@ -83,10 +84,11 @@ public struct GenreDetailView: View {
                             Image(systemName: isFollowing ? "bookmark.fill" : "bookmark")
                                 .font(.system(size: 15))
                                 .foregroundColor(isFollowing ? FableTheme.brandPrimary : FableTheme.textPrimary)
-                                .padding(8)
+                                .frame(width: 40, height: 40)
                                 .background(Color.white)
                                 .clipShape(Circle())
                         }
+                        .accessibilityLabel(isFollowing ? "Unfollow genre" : "Follow genre")
                     }
                 }
                 .padding(.horizontal, 20)
@@ -260,8 +262,14 @@ public struct GenreDetailView: View {
             isFollowing = followed.contains(genre.name)
         }
         .fullScreenCover(item: $selectedStoryToRead) { story in
-            ReaderView(story: story)
-                .environmentObject(store)
+            let currentStory = store.stories.first(where: { $0.id == story.id }) ?? story
+            if currentStory.contentFormat == .manga || currentStory.sourceProvider == .mangadex {
+                MangaReaderView(story: currentStory)
+                    .environmentObject(store)
+            } else {
+                ReaderView(story: currentStory)
+                    .environmentObject(store)
+            }
         }
     }
 }

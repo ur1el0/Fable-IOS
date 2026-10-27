@@ -18,6 +18,8 @@ public struct ReaderView: View {
     @State private var isShowingChapterSheet: Bool = false
     @State private var isLoadingChapters: Bool = false
     @State private var isChromeVisible: Bool = true
+    @State private var isRestoringScrollPosition: Bool = true
+    @State private var scrollRestoreTrigger: Int = 0
     
     // Marginalia & Highlight Sheet State (Plan 02)
     @State private var selectedTextToAnnotate: String? = nil
@@ -39,16 +41,15 @@ public struct ReaderView: View {
     
     private var activeChapterText: String {
         if let chap = activeChapter, chap.hasReadableText {
-            return chap.content
+            return chap.content.replacingOccurrences(of: "\r\n", with: "\n")
         }
-        return story.content.isEmpty ? story.synopsis : story.content
+        return story.content.replacingOccurrences(of: "\r\n", with: "\n")
     }
     
     private var activeParagraphs: [String] {
-        let split = activeChapterText.components(separatedBy: "\n\n")
+        activeChapterText.components(separatedBy: "\n\n")
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
-        return split.isEmpty ? (story.synopsis.isEmpty ? [] : [story.synopsis]) : split
     }
     
     private var activeChapterTag: String {
@@ -64,7 +65,16 @@ public struct ReaderView: View {
     }
     
     private var readingProgressPercent: Int {
-        min(100, max(0, Int((Double(currentPage) / Double(max(1, totalPages))) * 100)))
+        let safeTotalChaps = max(1, chapters.count)
+        let safeTotalPages = max(1, totalPages)
+        let safePage = min(safeTotalPages, max(1, currentPage))
+        let safeChapIdx = min(safeTotalChaps - 1, max(0, currentChapterIndex))
+        if safeTotalChaps > 1 {
+            let fraction = (Double(safeChapIdx) / Double(safeTotalChaps))
+                + ((Double(safePage) / Double(safeTotalPages)) * (1.0 / Double(safeTotalChaps)))
+            return min(100, max(1, Int((fraction * 100.0).rounded())))
+        }
+        return min(100, max(1, Int(((Double(safePage) / Double(safeTotalPages)) * 100.0).rounded())))
     }
     
     private var dynamicMinutesRemaining: Int {
@@ -104,10 +114,11 @@ public struct ReaderView: View {
                             Image(systemName: "chevron.left")
                                 .font(.system(size: 15, weight: .bold))
                                 .foregroundColor(store.readerTheme.textColor)
-                                .frame(width: 36, height: 36)
+                                .frame(width: 40, height: 40)
                                 .background(store.readerTheme.textColor.opacity(0.08))
                                 .clipShape(Circle())
                         }
+                        .accessibilityLabel("Close reader")
                         
                         Spacer()
                         
@@ -138,6 +149,7 @@ public struct ReaderView: View {
                             }
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel("Chapters and table of contents")
                         
                         Spacer()
                         
@@ -150,10 +162,11 @@ public struct ReaderView: View {
                                 Image(systemName: "list.bullet.rectangle")
                                     .font(.system(size: 14, weight: .semibold))
                                     .foregroundColor(store.readerTheme.textColor)
-                                    .frame(width: 36, height: 36)
+                                    .frame(width: 40, height: 40)
                                     .background(store.readerTheme.textColor.opacity(0.08))
                                     .clipShape(Circle())
                             }
+                            .accessibilityLabel("Table of contents")
                             
                             // Oral Folklore Audio Synthesizer Toggle (Plan 04)
                             Button(action: {
@@ -165,10 +178,11 @@ public struct ReaderView: View {
                                 Image(systemName: audioNarrator.isPlaying ? "speaker.wave.3.fill" : "speaker.wave.2")
                                     .font(.system(size: 14, weight: .semibold))
                                     .foregroundColor(audioNarrator.isPlaying ? FableTheme.brandPrimary : store.readerTheme.textColor)
-                                    .frame(width: 36, height: 36)
+                                    .frame(width: 40, height: 40)
                                     .background(audioNarrator.isPlaying ? FableTheme.brandPrimary.opacity(0.15) : store.readerTheme.textColor.opacity(0.08))
                                     .clipShape(Circle())
                             }
+                            .accessibilityLabel(audioNarrator.isPlaying ? "Pause narration" : "Start audio narration")
                             
                             // Bookmark Toggle
                             Button(action: {
@@ -180,10 +194,11 @@ public struct ReaderView: View {
                                 Image(systemName: currentStoryBookmarked ? "bookmark.fill" : "bookmark")
                                     .font(.system(size: 14, weight: .semibold))
                                     .foregroundColor(currentStoryBookmarked ? FableTheme.brandPrimary : store.readerTheme.textColor)
-                                    .frame(width: 36, height: 36)
+                                    .frame(width: 40, height: 40)
                                     .background(currentStoryBookmarked ? FableTheme.brandPrimary.opacity(0.12) : store.readerTheme.textColor.opacity(0.08))
                                     .clipShape(Circle())
                             }
+                            .accessibilityLabel(currentStoryBookmarked ? "Remove bookmark" : "Bookmark story")
                             
                             // Typography Options
                             Button(action: {
@@ -193,10 +208,11 @@ public struct ReaderView: View {
                                 Image(systemName: "textformat.size")
                                     .font(.system(size: 14, weight: .semibold))
                                     .foregroundColor(store.readerTheme.textColor)
-                                    .frame(width: 36, height: 36)
+                                    .frame(width: 40, height: 40)
                                     .background(store.readerTheme.textColor.opacity(0.08))
                                     .clipShape(Circle())
                             }
+                            .accessibilityLabel("Reading appearance options")
                             
                             // Native Share Link
                             ShareLink(
@@ -205,10 +221,11 @@ public struct ReaderView: View {
                                 Image(systemName: "square.and.arrow.up")
                                     .font(.system(size: 14, weight: .semibold))
                                     .foregroundColor(store.readerTheme.textColor)
-                                    .frame(width: 36, height: 36)
+                                    .frame(width: 40, height: 40)
                                     .background(store.readerTheme.textColor.opacity(0.08))
                                     .clipShape(Circle())
                             }
+                            .accessibilityLabel("Share story")
                         }
                     }
                     .padding(.horizontal, 16)
@@ -351,164 +368,202 @@ public struct ReaderView: View {
                     }
                 } else {
                     // Scrollable Editorial Manuscript Body
-                    ScrollView(showsIndicators: false) {
-                        VStack(alignment: .center, spacing: 20) {
-                            // Open Book Filigree Ornament
-                            HStack(spacing: 16) {
-                                Rectangle()
-                                    .fill(FableTheme.divider)
-                                    .frame(height: 1)
-                                
-                                Image(systemName: "book.pages")
-                                    .font(.system(size: 13))
-                                    .foregroundColor(FableTheme.brandPrimary)
-                                
-                                Rectangle()
-                                    .fill(FableTheme.divider)
-                                    .frame(height: 1)
-                            }
-                            .padding(.horizontal, 60)
-                            .padding(.top, 16)
-                            
-                            // Story Title
-                            Text(story.title)
-                                .font(store.readerFont.font(size: 30 * (store.readerFontSize / 100.0)))
-                                .fontWeight(.bold)
-                                .foregroundColor(store.readerTheme.textColor)
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal, 20)
-                            
-                            // Author & Read Time Metadata Pill
-                            HStack(spacing: 12) {
-                                HStack(spacing: 6) {
-                                    Circle()
-                                        .fill(FableTheme.brandPrimary.opacity(0.15))
-                                        .frame(width: 20, height: 20)
-                                        .overlay(
-                                            Text(String(story.author.prefix(1)))
-                                                .font(.system(size: 10, weight: .bold))
-                                                .foregroundColor(FableTheme.brandPrimary)
-                                        )
-                                    Text(story.author)
-                                        .font(.system(size: 13, weight: .medium))
-                                        .foregroundColor(store.readerTheme.textColor.opacity(0.85))
-                                }
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 5)
-                                .background(Color.gray.opacity(0.08))
-                                .clipShape(Capsule())
-                                
-                                Text("•")
-                                    .foregroundColor(FableTheme.textMuted)
-                                
-                                HStack(spacing: 4) {
-                                    Image(systemName: "clock")
-                                        .font(.system(size: 11))
-                                    Text("~\(dynamicMinutesRemaining)m remaining")
-                                        .font(.system(size: 12, weight: .medium))
-                                }
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 5)
-                                .background(Color.gray.opacity(0.08))
-                                .clipShape(Capsule())
-                                .foregroundColor(store.readerTheme.textColor.opacity(0.85))
-                            }
-                            
-                            // Editorial Engraving Vignette (FIGMA.md Frame 2: 1:159)
-                            VStack(spacing: 8) {
-                                ZStack(alignment: .topTrailing) {
-                                    FableImageView(name: story.effectiveCoverImage ?? story.effectiveHeroImage, placeholderIcon: "photo")
-                                        .frame(maxWidth: .infinity)
-                                        .frame(height: 200)
-                                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                                        .shadow(color: Color.black.opacity(0.06), radius: 8, y: 3)
+                    ScrollViewReader { scrollProxy in
+                        ScrollView(showsIndicators: false) {
+                            VStack(alignment: .center, spacing: 20) {
+                                // Open Book Filigree Ornament
+                                HStack(spacing: 16) {
+                                    Rectangle()
+                                        .fill(FableTheme.divider)
+                                        .frame(height: 1)
                                     
-                                    Text("FOLIO \(max(1, currentPage))")
-                                        .font(.system(size: 10, weight: .bold))
-                                        .tracking(1.0)
+                                    Image(systemName: "book.pages")
+                                        .font(.system(size: 13))
                                         .foregroundColor(FableTheme.brandPrimary)
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 4)
-                                        .background(Color.white.opacity(0.95))
-                                        .clipShape(RoundedRectangle(cornerRadius: 6))
-                                        .padding(12)
+                                    
+                                    Rectangle()
+                                        .fill(FableTheme.divider)
+                                        .frame(height: 1)
+                                }
+                                .padding(.horizontal, 60)
+                                .padding(.top, 16)
+                                
+                                // Story Title
+                                Text(story.title)
+                                    .font(store.readerFont.font(size: 30 * (store.readerFontSize / 100.0)))
+                                    .fontWeight(.bold)
+                                    .foregroundColor(store.readerTheme.textColor)
+                                    .multilineTextAlignment(.center)
+                                    .padding(.horizontal, 20)
+                                
+                                // Author & Read Time Metadata Pill
+                                HStack(spacing: 12) {
+                                    HStack(spacing: 6) {
+                                        Circle()
+                                            .fill(FableTheme.brandPrimary.opacity(0.15))
+                                            .frame(width: 20, height: 20)
+                                            .overlay(
+                                                Text(String(story.author.prefix(1)))
+                                                    .font(.system(size: 10, weight: .bold))
+                                                    .foregroundColor(FableTheme.brandPrimary)
+                                            )
+                                        Text(story.author)
+                                            .font(.system(size: 13, weight: .medium))
+                                            .foregroundColor(store.readerTheme.textColor.opacity(0.85))
+                                    }
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 5)
+                                    .background(Color.gray.opacity(0.08))
+                                    .clipShape(Capsule())
+                                    
+                                    Text("•")
+                                        .foregroundColor(FableTheme.textMuted)
+                                    
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "clock")
+                                            .font(.system(size: 11))
+                                        Text("~\(dynamicMinutesRemaining)m remaining")
+                                            .font(.system(size: 12, weight: .medium))
+                                    }
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 5)
+                                    .background(Color.gray.opacity(0.08))
+                                    .clipShape(Capsule())
+                                    .foregroundColor(store.readerTheme.textColor.opacity(0.85))
                                 }
                                 
-                                Text("“\(story.synopsis.isEmpty ? story.excerpt : story.synopsis)”")
-                                    .font(.system(size: 13, weight: .regular, design: .serif))
-                                    .italic()
-                                    .foregroundColor(store.readerTheme.textColor.opacity(0.75))
-                                    .multilineTextAlignment(.center)
-                                    .padding(.horizontal, 30)
-                            }
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 8)
-                            
-                            // Typographical Manuscript Body with Marginalia highlight capability
-                            VStack(alignment: .leading, spacing: 18 + store.readerLineSpacing.points) {
-                                ForEach(activeParagraphs, id: \.self) { para in
-                                    paragraphView(para)
-                                }
-                            }
-                            .padding(.horizontal, 24)
-                            .padding(.top, 8)
-                            
-                            // Multi-Chapter Footer Navigation Controls
-                            if chapters.count > 1 {
-                                VStack(spacing: 16) {
-                                    Divider()
-                                        .background(FableTheme.divider)
-                                        .padding(.horizontal, 24)
+                                // Editorial Engraving Vignette (FIGMA.md Frame 2: 1:159)
+                                VStack(spacing: 8) {
+                                    ZStack(alignment: .topTrailing) {
+                                        FableImageView(name: story.effectiveCoverImage ?? story.effectiveHeroImage, placeholderIcon: "photo")
+                                            .frame(maxWidth: .infinity)
+                                            .frame(height: 200)
+                                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                                            .shadow(color: Color.black.opacity(0.06), radius: 8, y: 3)
+                                        
+                                        Text("FOLIO \(max(1, currentPage))")
+                                            .font(.system(size: 10, weight: .bold))
+                                            .tracking(1.0)
+                                            .foregroundColor(FableTheme.brandPrimary)
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 4)
+                                            .background(Color.white.opacity(0.95))
+                                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                                            .padding(12)
+                                    }
                                     
-                                    HStack(spacing: 14) {
-                                        if currentChapterIndex > 0 {
-                                            Button(action: {
-                                                if store.hapticFeedback {
-                                                    HapticManager.impact(style: .light)
+                                }
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 8)
+                                .id("para-top")
+                                
+                                // Typographical Manuscript Body with Marginalia highlight capability
+                                if isLoadingChapters && activeParagraphs.isEmpty {
+                                    VStack(spacing: 12) {
+                                        ProgressView()
+                                            .tint(FableTheme.brandPrimary)
+                                        Text("Loading manuscript chapters...")
+                                            .font(.system(size: 13, weight: .medium))
+                                            .foregroundColor(store.readerTheme.textColor.opacity(0.7))
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 48)
+                                } else {
+                                    let paragraphs = activeParagraphs
+                                    LazyVStack(alignment: .leading, spacing: 18 + store.readerLineSpacing.points) {
+                                        ForEach(Array(paragraphs.enumerated()), id: \.offset) { index, para in
+                                            paragraphView(para)
+                                                .id("para-\(index)")
+                                                .onAppear {
+                                                    handleParagraphAppear(index: index, totalParagraphs: paragraphs.count)
                                                 }
-                                                selectChapter(at: currentChapterIndex - 1)
-                                            }) {
-                                                HStack(spacing: 6) {
-                                                    Image(systemName: "chevron.left")
-                                                    Text("Chapter \(chapters[currentChapterIndex - 1].chapterNumber)")
-                                                }
-                                                .font(.system(size: 12, weight: .semibold))
-                                                .foregroundColor(FableTheme.textPrimary)
-                                                .padding(.horizontal, 14)
-                                                .padding(.vertical, 8)
-                                                .background(FableTheme.surface)
-                                                .clipShape(Capsule())
-                                            }
-                                        }
-                                        
-                                        Spacer()
-                                        
-                                        if currentChapterIndex < chapters.count - 1 {
-                                            Button(action: {
-                                                if store.hapticFeedback {
-                                                    HapticManager.impact(style: .light)
-                                                }
-                                                selectChapter(at: currentChapterIndex + 1)
-                                            }) {
-                                                HStack(spacing: 6) {
-                                                    Text("Chapter \(chapters[currentChapterIndex + 1].chapterNumber)")
-                                                    Image(systemName: "chevron.right")
-                                                }
-                                                .font(.system(size: 12, weight: .semibold))
-                                                .foregroundColor(.white)
-                                                .padding(.horizontal, 14)
-                                                .padding(.vertical, 8)
-                                                .background(FableTheme.brandPrimary)
-                                                .clipShape(Capsule())
-                                            }
                                         }
                                     }
                                     .padding(.horizontal, 24)
+                                    .padding(.top, 8)
                                 }
-                                .padding(.top, 16)
+                                
+                                // Multi-Chapter Footer Navigation Controls
+                                if chapters.count > 1 {
+                                    VStack(spacing: 16) {
+                                        Divider()
+                                            .background(FableTheme.divider)
+                                            .padding(.horizontal, 24)
+                                        
+                                        HStack(spacing: 14) {
+                                            if currentChapterIndex > 0 {
+                                                Button(action: {
+                                                    if store.hapticFeedback {
+                                                        HapticManager.impact(style: .light)
+                                                    }
+                                                    selectChapter(at: currentChapterIndex - 1)
+                                                }) {
+                                                    HStack(spacing: 6) {
+                                                        Image(systemName: "chevron.left")
+                                                        Text("Chapter \(chapters[currentChapterIndex - 1].chapterNumber)")
+                                                    }
+                                                    .font(.system(size: 12, weight: .semibold))
+                                                    .foregroundColor(FableTheme.textPrimary)
+                                                    .padding(.horizontal, 14)
+                                                    .padding(.vertical, 8)
+                                                    .background(FableTheme.surface)
+                                                    .clipShape(Capsule())
+                                                }
+                                            }
+                                            
+                                            Spacer()
+                                            
+                                            if currentChapterIndex < chapters.count - 1 {
+                                                Button(action: {
+                                                    if store.hapticFeedback {
+                                                        HapticManager.impact(style: .light)
+                                                    }
+                                                    selectChapter(at: currentChapterIndex + 1)
+                                                }) {
+                                                    HStack(spacing: 6) {
+                                                        Text("Chapter \(chapters[currentChapterIndex + 1].chapterNumber)")
+                                                        Image(systemName: "chevron.right")
+                                                    }
+                                                    .font(.system(size: 12, weight: .semibold))
+                                                    .foregroundColor(.white)
+                                                    .padding(.horizontal, 14)
+                                                    .padding(.vertical, 8)
+                                                    .background(FableTheme.brandPrimary)
+                                                    .clipShape(Capsule())
+                                                }
+                                            }
+                                        }
+                                        .padding(.horizontal, 24)
+                                    }
+                                    .padding(.top, 16)
+                                }
+                                
+                                Spacer().frame(height: 130) // spacing for floating HUD
                             }
-                            
-                            Spacer().frame(height: 130) // spacing for floating HUD
+                        }
+                        .onChange(of: scrollRestoreTrigger) { _, _ in
+                            let totalParas = activeParagraphs.count
+                            if currentPage > 1 && totalParas > 1 {
+                                let targetIdx = min(
+                                    totalParas - 1,
+                                    max(0, Int(((Double(currentPage - 1) / Double(max(1, totalPages))) * Double(totalParas)).rounded()))
+                                )
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        scrollProxy.scrollTo("para-\(targetIdx)", anchor: .top)
+                                    }
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                                        isRestoringScrollPosition = false
+                                    }
+                                }
+                            } else {
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                                    scrollProxy.scrollTo("para-top", anchor: .top)
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                                        isRestoringScrollPosition = false
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -537,7 +592,7 @@ public struct ReaderView: View {
                                             }
                                             let wordCount = pages.indices.contains(currentPage - 1) ? PacingEngine.countWords(in: pages[currentPage - 1]) : 180
                                             pacingEngine.recordPageTurn(wordsOnPage: wordCount)
-                                            store.updateProgress(for: story.id, page: currentPage, totalPages: totalPages)
+                                            persistCurrentProseProgress()
                                         }
                                     }
                                 ),
@@ -580,10 +635,12 @@ public struct ReaderView: View {
                         VStack(alignment: .leading, spacing: 1) {
                             Text("Ch. \(activeChapter?.chapterNumber ?? 1) • Page \(currentPage)/\(totalPages)")
                                 .font(.system(size: 12, weight: .semibold))
+                                .monospacedDigit()
                                 .foregroundColor(FableTheme.textPrimary)
                             
                             Text("~\(dynamicMinutesRemaining) mins left in chapter")
                                 .font(.system(size: 10, weight: .medium))
+                                .monospacedDigit()
                                 .foregroundColor(FableTheme.textMuted)
                         }
                         
@@ -606,6 +663,7 @@ public struct ReaderView: View {
                         // Progress percentage
                         Text("\(readingProgressPercent)%")
                             .font(.system(size: 12, weight: .bold))
+                            .monospacedDigit()
                             .foregroundColor(FableTheme.brandPrimary)
                         
                         Spacer()
@@ -656,9 +714,12 @@ public struct ReaderView: View {
             if let existing = story.chapters, !existing.isEmpty, isUsable {
                 self.chapters = existing
                 restoreSavedChapter()
-                loadCurrentChapterPages()
+                loadCurrentChapterPages(preserveCurrentPage: true)
+                persistCurrentProseProgress()
+                triggerScrollRestore()
             } else {
-                loadCurrentChapterPages()
+                restoreSavedChapter()
+                loadCurrentChapterPages(preserveCurrentPage: true)
                 isLoadingChapters = true
                 Task {
                     let fetched = await store.fetchChapters(for: story)
@@ -667,10 +728,17 @@ public struct ReaderView: View {
                         if !fetched.isEmpty {
                             self.chapters = fetched
                             restoreSavedChapter()
-                            loadCurrentChapterPages()
+                            loadCurrentChapterPages(preserveCurrentPage: true)
                         }
+                        persistCurrentProseProgress()
+                        triggerScrollRestore()
                     }
                 }
+            }
+        }
+        .onChange(of: store.isPaginatedMode) { _, isPaginated in
+            if !isPaginated {
+                triggerScrollRestore()
             }
         }
         .onDisappear {
@@ -901,7 +969,7 @@ public struct ReaderView: View {
             }
             let wordCount = pages.indices.contains(currentPage - 1) ? PacingEngine.countWords(in: pages[currentPage - 1]) : 180
             pacingEngine.recordPageTurn(wordsOnPage: wordCount)
-            store.updateProgress(for: story.id, page: currentPage, totalPages: totalPages)
+            persistCurrentProseProgress()
         } else if currentChapterIndex > 0 {
             if store.hapticFeedback {
                 HapticManager.notification(type: .success)
@@ -920,7 +988,7 @@ public struct ReaderView: View {
             }
             let wordCount = pages.indices.contains(currentPage - 1) ? PacingEngine.countWords(in: pages[currentPage - 1]) : 180
             pacingEngine.recordPageTurn(wordsOnPage: wordCount)
-            store.updateProgress(for: story.id, page: currentPage, totalPages: totalPages)
+            persistCurrentProseProgress()
         } else if currentChapterIndex < chapters.count - 1 {
             if store.hapticFeedback {
                 HapticManager.notification(type: .success)
@@ -956,6 +1024,8 @@ public struct ReaderView: View {
                 chapterNumber: chapter.chapterNumber
             )
             loadCurrentChapterPages(startAtLastPage: startAtLastPage)
+            persistCurrentProseProgress()
+            triggerScrollRestore()
             if audioNarrator.isPlaying {
                 audioNarrator.speak(story: story, chapter: chapter)
             }
@@ -970,6 +1040,39 @@ public struct ReaderView: View {
         } else if let chapterNumber = progress.lastReadChapterNumber,
                   let savedIndex = chapters.firstIndex(where: { $0.chapterNumber == chapterNumber }) {
             currentChapterIndex = savedIndex
+        }
+        if progress.currentPage > 0 {
+            currentPage = progress.currentPage
+        }
+    }
+
+    private func persistCurrentProseProgress() {
+        let chap = activeChapter
+        store.updateProgress(
+            for: story.id,
+            page: currentPage,
+            totalPages: totalPages,
+            chapterIndex: currentChapterIndex,
+            totalChapters: max(1, chapters.count),
+            chapterId: chap?.id.uuidString,
+            chapterNumber: chap?.chapterNumber ?? (currentChapterIndex + 1)
+        )
+    }
+
+    private func triggerScrollRestore() {
+        isRestoringScrollPosition = true
+        scrollRestoreTrigger += 1
+    }
+
+    private func handleParagraphAppear(index: Int, totalParagraphs: Int) {
+        guard !store.isPaginatedMode, !isRestoringScrollPosition, totalParagraphs > 0 else { return }
+        let mappedPage = min(
+            totalPages,
+            max(1, Int(ceil((Double(index + 1) / Double(totalParagraphs)) * Double(max(1, totalPages)))))
+        )
+        if mappedPage != currentPage {
+            currentPage = mappedPage
+            persistCurrentProseProgress()
         }
     }
     

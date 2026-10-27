@@ -153,7 +153,7 @@ public struct AppHealthTests {
             name: "Top Creators Live Portraits",
             description: "Creator catalog represents absent ratings honestly and carries live portraits",
             passed: writerValid,
-            details: "Writer '\(writer.name)': \(writer.storyCount) stories, ★\(writer.rating), Avatar: \(writer.effectiveAvatar.prefix(35))..."
+            details: "Writer '\(writer.name)': \(writer.storyCount) stories, ★\(String(describing: writer.rating)), Avatar: \(writer.effectiveAvatar.prefix(35))..."
         )
 
         // =================================================================

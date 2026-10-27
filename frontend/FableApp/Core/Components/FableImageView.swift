@@ -20,7 +20,7 @@ public struct FableImageView: View {
     }
 
     public var body: some View {
-        Group {
+        GeometryReader { geo in
             if let name,
                let url = URL(string: name),
                url.scheme?.lowercased() == "https",
@@ -28,11 +28,16 @@ public struct FableImageView: View {
                 FableRemoteImageView(url: url, contentMode: contentMode) {
                     proceduralPlaceholder
                 }
+                .frame(width: max(1, geo.size.width), height: max(1, geo.size.height))
+                .clipped()
             } else {
                 proceduralPlaceholder
+                    .frame(width: max(1, geo.size.width), height: max(1, geo.size.height))
+                    .clipped()
             }
         }
         .clipped()
+        .contentShape(Rectangle())
     }
 
     private var semanticKey: String {

@@ -141,10 +141,20 @@ public struct WelcomeView: View {
             }
         }
         .sheet(isPresented: $isShowingSignIn) {
-            SignInView(authVM: authVM)
+            SignInView(authVM: authVM, onNavigateToRegister: {
+                isShowingSignIn = false
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                    isShowingSignUp = true
+                }
+            })
         }
         .sheet(isPresented: $isShowingSignUp) {
-            SignUpView(authVM: authVM)
+            SignUpView(authVM: authVM, onNavigateToLogin: {
+                isShowingSignUp = false
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                    isShowingSignIn = true
+                }
+            })
         }
     }
 }

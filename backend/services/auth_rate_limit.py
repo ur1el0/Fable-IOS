@@ -1,6 +1,7 @@
 import hashlib
 import os
 import time
+from typing import Optional
 from fastapi import HTTPException
 
 from core.database import get_db
@@ -27,7 +28,7 @@ def _bucket_key(action: str, dimension: str, value: str) -> str:
     return f"{action}:{dimension}:{digest}"
 
 
-def enforce_auth_rate_limit(action: str, client_host: str, identity: str | None = None) -> None:
+def enforce_auth_rate_limit(action: str, client_host: str, identity: Optional[str] = None) -> None:
     now = int(time.time())
     if action == "register":
         buckets = [

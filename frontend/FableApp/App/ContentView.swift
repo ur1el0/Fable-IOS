@@ -24,6 +24,15 @@ enum FableTab: Int, CaseIterable {
         case .shelf: return "bookmark"
         }
     }
+
+    var activeIconName: String {
+        switch self {
+        case .library: return "book.pages.fill"
+        case .explore: return "sparkle.magnifyingglass"
+        case .write: return "pencil.and.scribble"
+        case .shelf: return "bookmark.fill"
+        }
+    }
 }
 
 struct ContentView: View {
@@ -85,32 +94,55 @@ struct ContentView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            // Custom Prototype Bottom Tab Bar
-            VStack(spacing: 0) {
-                Divider()
-                    .background(FableTheme.lightBorder)
-
-                HStack(spacing: 0) {
-                    ForEach(FableTab.allCases, id: \.self) { tab in
-                        Button(action: {
+            // Modern Floating Translucent Glass Navigation Pill
+            HStack(spacing: 0) {
+                ForEach(FableTab.allCases, id: \.self) { tab in
+                    let isSelected = store.selectedTab == tab
+                    Button {
+                        FableHaptics.selection()
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.72)) {
                             store.selectedTab = tab
-                        }) {
-                            VStack(spacing: 4) {
-                                Image(systemName: tab.iconName)
-                                    .font(.system(size: 20, weight: store.selectedTab == tab ? .semibold : .regular))
-
-                                Text(tab.title)
-                                    .font(.system(size: 11, weight: store.selectedTab == tab ? .semibold : .medium))
-                            }
-                            .foregroundColor(store.selectedTab == tab ? FableTheme.terracotta : FableTheme.subtleSlate)
-                            .frame(maxWidth: .infinity)
-                            .padding(.top, 10)
-                            .padding(.bottom, 6)
                         }
+                    } label: {
+                        VStack(spacing: 3) {
+                            ZStack {
+                                if isSelected {
+                                    Circle()
+                                        .fill(FableTheme.brandPrimary.opacity(0.12))
+                                        .frame(width: 38, height: 38)
+                                }
+                                Image(systemName: isSelected ? tab.activeIconName : tab.iconName)
+                                    .font(.system(size: 18, weight: isSelected ? .bold : .medium))
+                                    .foregroundColor(isSelected ? FableTheme.brandPrimary : FableTheme.textMuted)
+                            }
+                            .frame(height: 38)
+
+                            Text(tab.title)
+                                .font(.system(size: 10, weight: isSelected ? .bold : .medium))
+                                .foregroundColor(isSelected ? FableTheme.brandPrimary : FableTheme.textMuted)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("\(tab.title) tab")
+                    .accessibilityAddTraits(isSelected ? [.isSelected] : [])
                 }
-                .background(Color.white.ignoresSafeArea(edges: .bottom))
             }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 32, style: .continuous)
+                    .fill(.ultraThinMaterial)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 32, style: .continuous)
+                            .stroke(Color.white.opacity(0.55), lineWidth: 0.8)
+                    )
+                    .shadow(color: Color.black.opacity(0.08), radius: 16, x: 0, y: 6)
+                    .shadow(color: Color.black.opacity(0.03), radius: 3, x: 0, y: 1)
+            )
+            .padding(.horizontal, 20)
+            .padding(.bottom, 8)
         }
     }
 }

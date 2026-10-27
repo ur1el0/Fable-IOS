@@ -304,8 +304,8 @@ public struct Story: Identifiable, Hashable, Codable {
     }
 
     public var paragraphs: [String] {
-        let split = content.components(separatedBy: "\n\n").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
-        return split.isEmpty ? (synopsis.isEmpty ? [] : [synopsis]) : split
+        let normalized = content.replacingOccurrences(of: "\r\n", with: "\n")
+        return normalized.components(separatedBy: "\n\n").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
     }
 
     enum CodingKeys: String, CodingKey {

@@ -341,8 +341,10 @@ public struct SettingsView: View {
                             .alert(auth.isGuestMode ? "Exit Guest Mode?" : "Sign Out?", isPresented: $isShowingSignOutAlert) {
                                 Button(auth.isGuestMode ? "Exit" : "Sign Out", role: .destructive) {
                                     dismiss()
-                                    auth.signOut()
-                                    store.clearUserStateOnSignOut()
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                                        auth.signOut()
+                                        store.clearUserStateOnSignOut()
+                                    }
                                 }
                                 Button("Cancel", role: .cancel) {}
                             } message: {

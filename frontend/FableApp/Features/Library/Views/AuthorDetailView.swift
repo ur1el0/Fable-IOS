@@ -203,11 +203,12 @@ public struct AuthorDetailView: View {
                 }
             }
             .fullScreenCover(item: $selectedStoryToRead) { story in
-                if story.contentFormat == .manga || story.sourceProvider == .mangadex {
-                    MangaReaderView(story: story)
+                let currentStory = store.stories.first(where: { $0.id == story.id }) ?? story
+                if currentStory.contentFormat == .manga || currentStory.sourceProvider == .mangadex {
+                    MangaReaderView(story: currentStory)
                         .environmentObject(store)
                 } else {
-                    ReaderView(story: story)
+                    ReaderView(story: currentStory)
                         .environmentObject(store)
                 }
             }

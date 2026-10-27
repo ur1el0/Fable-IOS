@@ -38,8 +38,8 @@ public final class AuthViewModel: ObservableObject {
     private let sessionKeychainKey = "userSession"
     private let sessionDefaultsKey = "fable_persisted_session_v1"
 
-    public init(keychain: KeychainStore = .shared, apiService: StoryAPIServiceProtocol = StoryAPIService()) {
-        self.keychain = keychain
+    public init(keychain: KeychainStore? = nil, apiService: StoryAPIServiceProtocol = StoryAPIService()) {
+        self.keychain = keychain ?? .shared
         self.apiService = apiService
     }
 

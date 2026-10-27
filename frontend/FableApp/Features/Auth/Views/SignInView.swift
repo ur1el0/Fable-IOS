@@ -9,8 +9,15 @@ public struct SignInView: View {
     @State private var password: String = ""
     @State private var isPasswordVisible: Bool = false
 
-    public init(authVM: AuthViewModel = .shared, onNavigateToRegister: (() -> Void)? = nil) {
-        self.authVM = authVM
+    private enum Field: Hashable {
+        case email
+        case password
+    }
+    @FocusState private var focusedField: Field?
+
+    @MainActor
+    public init(authVM: AuthViewModel? = nil, onNavigateToRegister: (() -> Void)? = nil) {
+        self.authVM = authVM ?? .shared
         self.onNavigateToRegister = onNavigateToRegister
     }
 
@@ -21,149 +28,14 @@ public struct SignInView: View {
                     .ignoresSafeArea()
 
                 ScrollView(showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 20) {
-                        // Header
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Sign In")
-                                .font(.system(size: 32, weight: .bold))
-                                .foregroundColor(FableTheme.textPrimary)
-
-                            Text("Enter your credentials to continue.")
-                                .font(.system(size: 14))
-                                .foregroundColor(FableTheme.textMuted)
-                                .lineSpacing(3)
-                        }
-                        .padding(.top, 16)
-
-                        // Error Banner
-                        if let error = authVM.errorMessage {
-                            HStack(spacing: 10) {
-                                Image(systemName: "exclamationmark.circle.fill")
-                                    .foregroundColor(.red)
-                                Text(error)
-                                    .font(.system(size: 13, weight: .medium))
-                                    .foregroundColor(.red)
-                            }
-                            .padding(12)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color.red.opacity(0.08))
-                            .clipShape(RoundedRectangle(cornerRadius: 10))
-                        }
-
-                        // Form Card
-                        VStack(spacing: 16) {
-                            // Email Field
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("EMAIL")
-                                    .font(.system(size: 11, weight: .bold))
-                                    .tracking(1.0)
-                                    .foregroundColor(FableTheme.textMuted)
-
-                                HStack {
-                                    Image(systemName: "envelope")
-                                        .foregroundColor(FableTheme.textMuted)
-                                        .frame(width: 20)
-
-                                    TextField("Enter your email", text: $email)
-                                        .keyboardType(.emailAddress)
-                                        .textInputAutocapitalization(.never)
-                                        .autocorrectionDisabled(true)
-                                        .font(.system(size: 15))
-                                }
-                                .padding(14)
-                                .background(FableTheme.surface.opacity(0.4))
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .stroke(FableTheme.lightBorder, lineWidth: 1)
-                                )
-                            }
-
-                            // Password Field
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("PASSWORD")
-                                    .font(.system(size: 11, weight: .bold))
-                                    .tracking(1.0)
-                                    .foregroundColor(FableTheme.textMuted)
-
-                                HStack {
-                                    Image(systemName: "lock")
-                                        .foregroundColor(FableTheme.textMuted)
-                                        .frame(width: 20)
-
-                                    if isPasswordVisible {
-                                        TextField("Enter your password", text: $password)
-                                            .font(.system(size: 15))
-                                    } else {
-                                        SecureField("Enter your password", text: $password)
-                                            .font(.system(size: 15))
-                                    }
-
-                                    Button(action: {
-                                        isPasswordVisible.toggle()
-                                    }) {
-                                        Image(systemName: isPasswordVisible ? "eye.slash" : "eye")
-                                            .foregroundColor(FableTheme.textMuted)
-                                    }
-                                }
-                                .padding(14)
-                                .background(FableTheme.surface.opacity(0.4))
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .stroke(FableTheme.lightBorder, lineWidth: 1)
-                                )
-                            }
-
-                            // Submit Button
-                            Button(action: {
-                                Task {
-                                    let success = await authVM.login(email: email, password: password)
-                                    if success {
-                                        dismiss()
-                                    }
-                                }
-                            }) {
-                                HStack(spacing: 8) {
-                                    if authVM.isLoading {
-                                        ProgressView()
-                                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                    } else {
-                                        Text("Sign In")
-                                            .font(.system(size: 16, weight: .semibold))
-                                        Image(systemName: "arrow.right")
-                                            .font(.system(size: 13, weight: .bold))
-                                    }
-                                }
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 15)
-                                .background(isSubmitDisabled ? FableTheme.brandPrimary.opacity(0.5) : FableTheme.brandPrimary)
-                                .foregroundColor(.white)
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                                .shadow(color: FableTheme.brandPrimary.opacity(0.25), radius: 8, y: 3)
-                            }
-                            .disabled(isSubmitDisabled || authVM.isLoading)
-                        }
-                        .padding(18)
-                        .fableCard()
-
-                        // Navigation switch to Register
-                        if let onNavigateToRegister {
-                            Button(action: onNavigateToRegister) {
-                                HStack(spacing: 4) {
-                                    Text("Don't have an account?")
-                                        .foregroundColor(FableTheme.textSecondary)
-                                    Text("Create Account")
-                                        .fontWeight(.bold)
-                                        .foregroundColor(FableTheme.brandPrimary)
-                                }
-                                .font(.system(size: 14))
-                                .frame(maxWidth: .infinity)
-                                .padding(.top, 4)
-                            }
-                        }
+                    VStack(alignment: .leading, spacing: 22) {
+                        headerSection
+                        errorBanner
+                        formCard
+                        navigationFooter
                     }
                     .padding(.horizontal, 20)
+                    .padding(.bottom, 24)
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -173,17 +45,250 @@ public struct SignInView: View {
                         Image(systemName: "xmark")
                             .font(.system(size: 13, weight: .bold))
                             .foregroundColor(FableTheme.textPrimary)
-                            .padding(6)
+                            .padding(8)
                             .background(Color.white)
                             .clipShape(Circle())
+                            .shadow(color: Color.black.opacity(0.05), radius: 3, y: 1)
                     }
+                    .accessibilityLabel("Close")
                 }
+            }
+        }
+    }
+
+    // MARK: - Subviews
+
+    @ViewBuilder
+    private var headerSection: some View {
+        VStack(alignment: .leading, spacing: 22) {
+            HStack(spacing: 8) {
+                Image(systemName: "square.stack.3d.up.fill")
+                    .font(.system(size: 13))
+                    .foregroundColor(.white)
+                    .padding(7)
+                    .background(FableTheme.brandPrimary)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                Text("Fable")
+                    .font(.system(size: 18, weight: .black))
+                    .foregroundColor(FableTheme.textPrimary)
+            }
+            .padding(.top, 16)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Welcome Back")
+                    .font(.system(size: 30, weight: .bold, design: .serif))
+                    .foregroundColor(FableTheme.textPrimary)
+
+                Text("Sign in to synchronize your reading progress, bookmarks, and drafts.")
+                    .font(.system(size: 14))
+                    .foregroundColor(FableTheme.textSecondary)
+                    .lineSpacing(3)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var errorBanner: some View {
+        if let error = authVM.errorMessage {
+            HStack(spacing: 10) {
+                Image(systemName: "exclamationmark.circle.fill")
+                    .foregroundColor(.red)
+                Text(error)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.red)
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.red.opacity(0.08))
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(Color.red.opacity(0.2), lineWidth: 0.8)
+            )
+        }
+    }
+
+    @ViewBuilder
+    private var formCard: some View {
+        VStack(spacing: 18) {
+            emailField
+            passwordField
+            submitButton
+        }
+        .padding(20)
+        .background(FableTheme.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(FableTheme.divider.opacity(0.8), lineWidth: 0.8)
+        )
+        .shadow(color: Color.black.opacity(0.02), radius: 3, x: 0, y: 1)
+        .shadow(color: Color.black.opacity(0.05), radius: 12, x: 0, y: 5)
+    }
+
+    @ViewBuilder
+    private var emailField: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("EMAIL")
+                .font(.system(size: 11, weight: .bold))
+                .tracking(1.0)
+                .foregroundColor(focusedField == .email ? FableTheme.brandPrimary : FableTheme.textMuted)
+
+            HStack(spacing: 12) {
+                Image(systemName: "envelope.fill")
+                    .font(.system(size: 14))
+                    .foregroundColor(focusedField == .email ? FableTheme.brandPrimary : FableTheme.textMuted)
+                    .frame(width: 20)
+
+                TextField("Enter your email", text: $email)
+                    .keyboardType(.emailAddress)
+                    .textContentType(.emailAddress)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled(true)
+                    .focused($focusedField, equals: .email)
+                    .font(.system(size: 15))
+                    .submitLabel(.next)
+                    .onSubmit {
+                        focusedField = .password
+                    }
+            }
+            .padding(14)
+            .background(FableTheme.surface.opacity(0.45))
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(focusedField == .email ? FableTheme.brandPrimary : FableTheme.divider.opacity(0.8), lineWidth: focusedField == .email ? 1.5 : 1)
+            )
+        }
+    }
+
+    @ViewBuilder
+    private var passwordField: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("PASSWORD")
+                .font(.system(size: 11, weight: .bold))
+                .tracking(1.0)
+                .foregroundColor(focusedField == .password ? FableTheme.brandPrimary : FableTheme.textMuted)
+
+            HStack(spacing: 12) {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 14))
+                    .foregroundColor(focusedField == .password ? FableTheme.brandPrimary : FableTheme.textMuted)
+                    .frame(width: 20)
+
+                if isPasswordVisible {
+                    TextField("Enter your password", text: $password)
+                        .textContentType(.password)
+                        .focused($focusedField, equals: .password)
+                        .font(.system(size: 15))
+                        .submitLabel(.go)
+                        .onSubmit {
+                            if !isSubmitDisabled {
+                                submitSignIn()
+                            }
+                        }
+                } else {
+                    SecureField("Enter your password", text: $password)
+                        .textContentType(.password)
+                        .focused($focusedField, equals: .password)
+                        .font(.system(size: 15))
+                        .submitLabel(.go)
+                        .onSubmit {
+                            if !isSubmitDisabled {
+                                submitSignIn()
+                            }
+                        }
+                }
+
+                Button {
+                    FableHaptics.light()
+                    isPasswordVisible.toggle()
+                } label: {
+                    Image(systemName: isPasswordVisible ? "eye.slash.fill" : "eye.fill")
+                        .font(.system(size: 14))
+                        .foregroundColor(FableTheme.textMuted)
+                        .frame(width: 40, height: 40)
+                        .contentShape(Rectangle())
+                }
+                .accessibilityLabel(isPasswordVisible ? "Hide password" : "Show password")
+            }
+            .padding(.leading, 14)
+            .padding(.trailing, 4)
+            .padding(.vertical, 4)
+            .background(FableTheme.surface.opacity(0.45))
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(focusedField == .password ? FableTheme.brandPrimary : FableTheme.divider.opacity(0.8), lineWidth: focusedField == .password ? 1.5 : 1)
+            )
+        }
+    }
+
+    @ViewBuilder
+    private var submitButton: some View {
+        Button(action: submitSignIn) {
+            HStack(spacing: 8) {
+                if authVM.isLoading {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                } else {
+                    Text("Sign In")
+                        .font(.system(size: 16, weight: .bold))
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 13, weight: .bold))
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 15)
+            .background(
+                LinearGradient(
+                    colors: isSubmitDisabled ? [FableTheme.brandPrimary.opacity(0.4), FableTheme.brandPrimary.opacity(0.4)] : [FableTheme.brandPrimary, FableTheme.brandAccent],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
+            .foregroundColor(.white)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .shadow(color: isSubmitDisabled ? Color.clear : FableTheme.brandPrimary.opacity(0.25), radius: 8, y: 3)
+        }
+        .disabled(isSubmitDisabled || authVM.isLoading)
+    }
+
+    @ViewBuilder
+    private var navigationFooter: some View {
+        if let onNavigateToRegister {
+            Button {
+                FableHaptics.light()
+                onNavigateToRegister()
+            } label: {
+                HStack(spacing: 4) {
+                    Text("Don't have an account?")
+                        .foregroundColor(FableTheme.textSecondary)
+                    Text("Create Account")
+                        .fontWeight(.bold)
+                        .foregroundColor(FableTheme.brandPrimary)
+                }
+                .font(.system(size: 14))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
             }
         }
     }
 
     private var isSubmitDisabled: Bool {
         email.trimmingCharacters(in: .whitespaces).isEmpty || password.isEmpty
+    }
+
+    private func submitSignIn() {
+        FableHaptics.medium()
+        focusedField = nil
+        Task {
+            let success = await authVM.login(email: email, password: password)
+            if success {
+                dismiss()
+            }
+        }
     }
 }
 

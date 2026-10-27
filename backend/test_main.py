@@ -1,8 +1,16 @@
 import os
+import sys
+from pathlib import Path
 import pytest
 from datetime import datetime, timezone, timedelta
 from uuid import uuid4
 from fastapi.testclient import TestClient
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+BACKEND_DIR = Path(__file__).resolve().parent
+for directory in (str(REPO_ROOT), str(BACKEND_DIR)):
+    if directory not in sys.path:
+        sys.path.insert(0, directory)
 
 # Ensure test uses a separate test database and disables global rate limit by default
 os.environ["FABLE_DB_PATH"] = "test_fable.sqlite3"
@@ -830,6 +838,12 @@ def test_shelf_sync_requires_authentication_and_isolates_accounts():
     assert len(first_items.json()) == 1
     assert second_items.json() == []
 
+    # Second device signed into first_user account reconciles the account's shelf
+    device_2 = str(uuid4())
+    cross_device_items = client.get(f"/api/v1/shelf?deviceId={device_2}", headers=first_user)
+    assert len(cross_device_items.json()) == 1
+    assert cross_device_items.json()[0]["storyId"] == story_id
+
 
 def test_reading_statistics_are_authenticated_idempotent_and_account_scoped():
     user_a = auth_headers("Reading Stats A")
@@ -1427,3 +1441,150 @@ def test_init_db_rejects_newer_schema_without_mutation(tmp_path, monkeypatch):
         assert connection.execute(
             "SELECT name FROM sqlite_master WHERE type = 'table'"
         ).fetchall() == []
+
+
+def test_gutenberg_strips_auto_generated_summaries_and_excludes_books_without_text(monkeypatch):
+    import httpx
+    from services import gutenberg as gutenberg_service
+    gutenberg_service._GUTENBERG_CHAPTER_CACHE.clear()
+
+    sample_text = """
+*** START OF THE PROJECT GUTENBERG EBOOK PRIDE AND PREJUDICE ***
+
+CHAPTER I.
+
+It is a truth universally acknowledged, that a single man in possession
+of a good fortune must be in want of a wife.
+
+However little known the feelings or views of such a man may be on his
+first entering a neighbourhood, this truth is so well fixed in the minds
+of the surrounding families, that he is considered the rightful property
+of some one or other of their daughters.
+*** END OF THE PROJECT GUTENBERG EBOOK PRIDE AND PREJUDICE ***
+"""
+
+    async def mock_get(self, url, params=None, headers=None):
+        url_str = str(url)
+        if "gutendex.com" in url_str:
+            return httpx.Response(200, json={
+                "results": [
+                    {
+                        "id": 1342,
+                        "title": "Pride and Prejudice",
+                        "authors": [{"name": "Austen, Jane"}],
+                        "subjects": ["Fiction"],
+                        "summaries": [
+                            "\"Pride and Prejudice\" is a novel. (This is an automatically generated summary.)"
+                        ],
+                        "download_count": 5000,
+                        "formats": {
+                            "image/jpeg": "https://www.gutenberg.org/cover1342.jpg",
+                            "text/plain; charset=utf-8": "https://www.gutenberg.org/ebooks/1342.txt.utf-8",
+                        },
+                    },
+                    {
+                        "id": 9999,
+                        "title": "Audio Only Edition",
+                        "authors": [{"name": "Narrator, Test"}],
+                        "subjects": ["Audiobooks"],
+                        "summaries": ["(This is an automatically generated summary.)"],
+                        "download_count": 100,
+                        "formats": {
+                            "image/jpeg": "https://www.gutenberg.org/cover9999.jpg",
+                        },
+                    },
+                ]
+            })
+        if "1342" in url_str:
+            return httpx.Response(200, text=sample_text)
+        return httpx.Response(404)
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", mock_get)
+    response = client.get("/api/v1/public/gutenberg?topic=fiction")
+    assert response.status_code == 200
+    stories = response.json()
+    assert len(stories) == 1
+    story = stories[0]
+    assert story["title"] == "Pride and Prejudice"
+    assert "automatically generated summary" not in story["synopsis"].lower()
+    assert "It is a truth universally acknowledged" in story["synopsis"]
+    assert "It is a truth universally acknowledged" in story["content"]
+    assert story["totalChapters"] == 1
+    assert len(story["chapters"]) == 1
+
+
+def test_manga_search_excludes_titles_without_direct_panels(monkeypatch):
+    import httpx
+    from services.manga import _CACHE
+    _CACHE.clear()
+
+    async def mock_get(self, url, params=None, headers=None):
+        url_str = str(url)
+        if url_str == "https://api.mangadex.org/manga":
+            return httpx.Response(200, json={
+                "data": [
+                    {
+                        "id": "direct-manga-1",
+                        "attributes": {
+                            "title": {"en": "Readable Manga"},
+                            "description": {"en": "Has actual panel pages."},
+                        },
+                        "relationships": [
+                            {"type": "author", "attributes": {"name": "Artist One"}},
+                            {"type": "cover_art", "attributes": {"fileName": "c1.jpg"}},
+                        ],
+                    },
+                    {
+                        "id": "external-only-manga-2",
+                        "attributes": {
+                            "title": {"en": "External Only Manga"},
+                            "description": {"en": "No hosted pages."},
+                        },
+                        "relationships": [
+                            {"type": "author", "attributes": {"name": "Artist Two"}},
+                            {"type": "cover_art", "attributes": {"fileName": "c2.jpg"}},
+                        ],
+                    },
+                ]
+            })
+        if "direct-manga-1/feed" in url_str:
+            return httpx.Response(200, json={
+                "data": [{"id": "ch-1", "attributes": {"chapter": "1", "pages": 24, "externalUrl": None}}]
+            })
+        if "external-only-manga-2/feed" in url_str:
+            return httpx.Response(200, json={"data": []})
+        return httpx.Response(404)
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", mock_get)
+    response = client.get("/api/v1/public/manga")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["title"] == "Readable Manga"
+    assert data[0]["badgeText"] == "DIRECT PANELS"
+
+
+def test_security_headers_and_sqlite_foreign_keys_enforced():
+    from core.database import get_db
+
+    health_res = client.get("/api/v1/health")
+    assert health_res.status_code == 200
+    assert health_res.headers.get("x-content-type-options") == "nosniff"
+    assert health_res.headers.get("x-frame-options") == "DENY"
+    assert health_res.headers.get("referrer-policy") == "strict-origin-when-cross-origin"
+    assert "default-src 'none'" in health_res.headers.get("content-security-policy", "")
+
+    auth_res = client.get("/api/v1/auth/me")
+    assert auth_res.status_code == 401
+    assert auth_res.headers.get("cache-control") == "no-store"
+
+    conn = get_db()
+    try:
+        fk_enabled = conn.execute("PRAGMA foreign_keys").fetchone()[0]
+        busy_timeout = conn.execute("PRAGMA busy_timeout").fetchone()[0]
+        journal_mode = conn.execute("PRAGMA journal_mode").fetchone()[0]
+        assert fk_enabled == 1
+        assert busy_timeout >= 5000
+        assert journal_mode.lower() == "wal"
+    finally:
+        conn.close()

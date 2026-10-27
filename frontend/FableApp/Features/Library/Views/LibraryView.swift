@@ -110,11 +110,15 @@ public struct LibraryView: View {
                                             .foregroundColor(selectedFilter == cat ? .white : FableTheme.textPrimary)
                                             .clipShape(Capsule())
                                             .shadow(color: selectedFilter == cat ? FableTheme.brandPrimary.opacity(0.25) : Color.clear, radius: 4, y: 2)
+                                            .contentShape(Capsule())
                                     }
+                                    .buttonStyle(.plain)
                                 }
                             }
                             .padding(.horizontal, 20)
+                            .padding(.vertical, 4)
                         }
+                        .zIndex(2)
                         
                         if store.stories.isEmpty {
                             VStack(spacing: 12) {
@@ -163,6 +167,10 @@ public struct LibraryView: View {
                                                 endPoint: .bottom
                                             )
                                         }
+                                        .frame(maxWidth: .infinity)
+                                        .frame(height: 220)
+                                        .clipped()
+                                        .contentShape(Rectangle())
                                     }
                                     .buttonStyle(.plain)
 
@@ -226,7 +234,7 @@ public struct LibraryView: View {
                                         }
 
                                         Text(featuredStory.title)
-                                            .font(.system(size: 22, weight: .bold, design: .default))
+                                            .font(.system(size: 24, weight: .bold, design: .serif))
                                             .foregroundColor(FableTheme.textPrimary)
 
                                         Text(featuredStory.excerpt)
@@ -241,12 +249,13 @@ public struct LibraryView: View {
                                 }
                                 .buttonStyle(.plain)
                             }
-                            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
                             .overlay(
-                                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                RoundedRectangle(cornerRadius: 20, style: .continuous)
                                     .stroke(FableTheme.divider.opacity(0.8), lineWidth: 0.8)
                             )
-                            .shadow(color: Color.black.opacity(0.04), radius: 10, y: 3)
+                            .shadow(color: Color.black.opacity(0.025), radius: 3, x: 0, y: 1)
+                            .shadow(color: Color.black.opacity(0.06), radius: 14, x: 0, y: 6)
                             .padding(.horizontal, 20)
                         }
 
@@ -303,7 +312,7 @@ public struct LibraryView: View {
                                             }
                                             
                                             Text(inProgressStory.title)
-                                                .font(.system(size: 15, weight: .bold, design: .default))
+                                                .font(.system(size: 16, weight: .bold, design: .serif))
                                                 .foregroundColor(FableTheme.textPrimary)
                                                 .lineLimit(1)
                                             
@@ -328,13 +337,15 @@ public struct LibraryView: View {
                                             .frame(height: 5)
                                             .padding(.top, 2)
                                             
-                                            if inProgressStory.contentFormat == .manga, let chapNum = inProgressStory.lastReadChapterNumber {
+                                            if let chapNum = inProgressStory.lastReadChapterNumber {
                                                 Text("\(inProgressStory.progressPercent)% complete • Ch. \(chapNum) • Page \(inProgressStory.currentPage) of \(inProgressStory.totalPages)")
                                                     .font(.system(size: 11, weight: .medium))
+                                                    .monospacedDigit()
                                                     .foregroundColor(FableTheme.textMuted)
                                             } else {
                                                 Text("\(inProgressStory.progressPercent)% complete • Page \(inProgressStory.currentPage) of \(inProgressStory.totalPages)")
                                                     .font(.system(size: 11, weight: .medium))
+                                                    .monospacedDigit()
                                                     .foregroundColor(FableTheme.textMuted)
                                             }
                                         }
@@ -355,7 +366,8 @@ public struct LibraryView: View {
                                         RoundedRectangle(cornerRadius: 16, style: .continuous)
                                             .stroke(FableTheme.divider.opacity(0.8), lineWidth: 0.8)
                                     )
-                                    .shadow(color: Color.black.opacity(0.04), radius: 8, y: 2)
+                                    .shadow(color: Color.black.opacity(0.02), radius: 3, x: 0, y: 1)
+                                    .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 4)
                                     .padding(.horizontal, 20)
                                 }
                                 .buttonStyle(.plain)
@@ -397,7 +409,7 @@ public struct LibraryView: View {
                                                     storyBadge(for: story)
 
                                                     Text(story.title)
-                                                        .font(.system(size: 16, weight: .bold, design: .default))
+                                                        .font(.system(size: 16, weight: .bold, design: .serif))
                                                         .foregroundColor(FableTheme.textPrimary)
                                                         .lineLimit(1)
 
@@ -425,11 +437,12 @@ public struct LibraryView: View {
                                             }
                                         } label: {
                                             Image(systemName: story.isBookmarked ? "bookmark.fill" : "bookmark")
-                                                .font(.system(size: 13, weight: .semibold))
+                                                .font(.system(size: 14, weight: .semibold))
                                                 .foregroundColor(story.isBookmarked ? FableTheme.brandPrimary : FableTheme.textMuted)
-                                                .padding(8)
+                                                .frame(width: 40, height: 40)
                                                 .background(story.isBookmarked ? FableTheme.brandPrimary.opacity(0.1) : Color.clear)
                                                 .clipShape(Circle())
+                                                .contentShape(Rectangle())
                                         }
                                         .accessibilityLabel(story.isBookmarked ? "Remove bookmark" : "Bookmark story")
                                     }
@@ -441,7 +454,8 @@ public struct LibraryView: View {
                                         RoundedRectangle(cornerRadius: 16, style: .continuous)
                                             .stroke(FableTheme.divider.opacity(0.8), lineWidth: 0.8)
                                     )
-                                    .shadow(color: Color.black.opacity(0.035), radius: 8, y: 2)
+                                    .shadow(color: Color.black.opacity(0.02), radius: 2, x: 0, y: 1)
+                                    .shadow(color: Color.black.opacity(0.045), radius: 8, x: 0, y: 3)
                                     .padding(.horizontal, 20)
                                 }
                             }
@@ -455,8 +469,14 @@ public struct LibraryView: View {
                 }
             }
             .fullScreenCover(item: $selectedStoryToRead) { story in
-                ReaderView(story: story)
-                    .environmentObject(store)
+                let currentStory = store.stories.first(where: { $0.id == story.id }) ?? story
+                if currentStory.contentFormat == .manga || currentStory.sourceProvider == .mangadex {
+                    MangaReaderView(story: currentStory)
+                        .environmentObject(store)
+                } else {
+                    ReaderView(story: currentStory)
+                        .environmentObject(store)
+                }
             }
             .sheet(isPresented: $isShowingProfileSheet) {
                 ProfileView()
