@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 public struct SignUpView: View {
     @ObservedObject var authVM: AuthViewModel
@@ -46,6 +47,10 @@ public struct SignUpView: View {
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
+            .onChange(of: displayedError) { _, error in
+                guard let error else { return }
+                UIAccessibility.post(notification: .announcement, argument: error)
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(action: { dismiss() }) {
@@ -77,18 +82,18 @@ public struct SignUpView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 8))
 
                 Text("Fable")
-                    .font(.system(size: 18, weight: .black))
+                    .font(.headline.weight(.black))
                     .foregroundColor(FableTheme.textPrimary)
             }
             .padding(.top, 16)
 
             VStack(alignment: .leading, spacing: 6) {
                 Text("Create Account")
-                    .font(.system(size: 30, weight: .bold, design: .serif))
+                    .font(.system(.largeTitle, design: .serif).weight(.bold))
                     .foregroundColor(FableTheme.textPrimary)
 
                 Text("Sign up to start reading, syncing shelves, and publishing tales.")
-                    .font(.system(size: 14))
+                    .font(.subheadline)
                     .foregroundColor(FableTheme.textSecondary)
                     .lineSpacing(3)
             }
@@ -102,9 +107,12 @@ public struct SignUpView: View {
                 Image(systemName: "exclamationmark.circle.fill")
                     .foregroundColor(.red)
                 Text(error)
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.callout.weight(.medium))
                     .foregroundColor(.red)
             }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Error: \(error)")
+            .accessibilityAddTraits(.isStaticText)
             .padding(14)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Color.red.opacity(0.08))
@@ -142,7 +150,7 @@ public struct SignUpView: View {
     private var nameField: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("FULL NAME")
-                .font(.system(size: 11, weight: .bold))
+                .font(.caption.weight(.bold))
                 .tracking(1.0)
                 .foregroundColor(focusedField == .name ? FableTheme.brandPrimary : FableTheme.textMuted)
 
@@ -155,7 +163,7 @@ public struct SignUpView: View {
                 TextField("Enter your full name", text: $name)
                     .textContentType(.name)
                     .focused($focusedField, equals: .name)
-                    .font(.system(size: 15))
+                    .font(.body)
                     .submitLabel(.next)
                     .onSubmit { focusedField = .handle }
             }
@@ -173,7 +181,7 @@ public struct SignUpView: View {
     private var handleField: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("USERNAME")
-                .font(.system(size: 11, weight: .bold))
+                .font(.caption.weight(.bold))
                 .tracking(1.0)
                 .foregroundColor(focusedField == .handle ? FableTheme.brandPrimary : FableTheme.textMuted)
 
@@ -188,7 +196,7 @@ public struct SignUpView: View {
                     .textInputAutocapitalization(.never)
                     .textContentType(.username)
                     .focused($focusedField, equals: .handle)
-                    .font(.system(size: 15))
+                    .font(.body)
                     .submitLabel(.next)
                     .onSubmit { focusedField = .email }
             }
@@ -206,7 +214,7 @@ public struct SignUpView: View {
     private var emailField: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("EMAIL")
-                .font(.system(size: 11, weight: .bold))
+                .font(.caption.weight(.bold))
                 .tracking(1.0)
                 .foregroundColor(focusedField == .email ? FableTheme.brandPrimary : FableTheme.textMuted)
 
@@ -222,7 +230,7 @@ public struct SignUpView: View {
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled(true)
                     .focused($focusedField, equals: .email)
-                    .font(.system(size: 15))
+                    .font(.body)
                     .submitLabel(.next)
                     .onSubmit { focusedField = .password }
             }
@@ -240,7 +248,7 @@ public struct SignUpView: View {
     private var passwordField: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("PASSWORD")
-                .font(.system(size: 11, weight: .bold))
+                .font(.caption.weight(.bold))
                 .tracking(1.0)
                 .foregroundColor(focusedField == .password ? FableTheme.brandPrimary : FableTheme.textMuted)
 
@@ -254,14 +262,14 @@ public struct SignUpView: View {
                     TextField("Min. 12 characters", text: $password)
                         .textContentType(.newPassword)
                         .focused($focusedField, equals: .password)
-                        .font(.system(size: 15))
+                        .font(.body)
                         .submitLabel(.next)
                         .onSubmit { focusedField = .confirmPassword }
                 } else {
                     SecureField("Min. 12 characters", text: $password)
                         .textContentType(.newPassword)
                         .focused($focusedField, equals: .password)
-                        .font(.system(size: 15))
+                        .font(.body)
                         .submitLabel(.next)
                         .onSubmit { focusedField = .confirmPassword }
                 }
@@ -294,7 +302,7 @@ public struct SignUpView: View {
     private var confirmPasswordField: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("CONFIRM PASSWORD")
-                .font(.system(size: 11, weight: .bold))
+                .font(.caption.weight(.bold))
                 .tracking(1.0)
                 .foregroundColor(focusedField == .confirmPassword ? FableTheme.brandPrimary : FableTheme.textMuted)
 
@@ -307,7 +315,7 @@ public struct SignUpView: View {
                 SecureField("Re-enter password", text: $confirmPassword)
                     .textContentType(.newPassword)
                     .focused($focusedField, equals: .confirmPassword)
-                    .font(.system(size: 15))
+                    .font(.body)
                     .submitLabel(.go)
                     .onSubmit {
                         if !isSubmitDisabled {
@@ -334,7 +342,7 @@ public struct SignUpView: View {
                 .padding(.top, 2)
 
             Text("By creating an account, you agree to our Terms of Service and Privacy Policy.")
-                .font(.system(size: 11))
+                .font(.footnote)
                 .foregroundColor(FableTheme.textMuted)
                 .lineSpacing(2)
         }
@@ -352,7 +360,7 @@ public struct SignUpView: View {
                         .progressViewStyle(CircularProgressViewStyle(tint: .white))
                 } else {
                     Text("Create Account")
-                        .font(.system(size: 16, weight: .bold))
+                        .font(.headline.weight(.bold))
                     Image(systemName: "arrow.right")
                         .font(.system(size: 13, weight: .bold))
                 }
@@ -387,7 +395,7 @@ public struct SignUpView: View {
                         .fontWeight(.bold)
                         .foregroundColor(FableTheme.brandPrimary)
                 }
-                .font(.system(size: 14))
+                .font(.footnote)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 10)
             }
@@ -399,6 +407,10 @@ public struct SignUpView: View {
         email.trimmingCharacters(in: .whitespaces).isEmpty ||
         password.isEmpty ||
         confirmPassword.isEmpty
+    }
+
+    private var displayedError: String? {
+        validationError ?? authVM.errorMessage
     }
 
     private func validateAndSubmit() {

@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 public struct SignInView: View {
     @ObservedObject var authVM: AuthViewModel
@@ -39,6 +40,10 @@ public struct SignInView: View {
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
+            .onChange(of: displayedError) { _, error in
+                guard let error else { return }
+                UIAccessibility.post(notification: .announcement, argument: error)
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(action: { dismiss() }) {
@@ -70,18 +75,18 @@ public struct SignInView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 8))
 
                 Text("Fable")
-                    .font(.system(size: 18, weight: .black))
+                    .font(.headline.weight(.black))
                     .foregroundColor(FableTheme.textPrimary)
             }
             .padding(.top, 16)
 
             VStack(alignment: .leading, spacing: 6) {
                 Text("Welcome Back")
-                    .font(.system(size: 30, weight: .bold, design: .serif))
+                    .font(.system(.largeTitle, design: .serif).weight(.bold))
                     .foregroundColor(FableTheme.textPrimary)
 
                 Text("Sign in to synchronize your reading progress, bookmarks, and drafts.")
-                    .font(.system(size: 14))
+                    .font(.subheadline)
                     .foregroundColor(FableTheme.textSecondary)
                     .lineSpacing(3)
             }
@@ -95,9 +100,12 @@ public struct SignInView: View {
                 Image(systemName: "exclamationmark.circle.fill")
                     .foregroundColor(.red)
                 Text(error)
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.callout.weight(.medium))
                     .foregroundColor(.red)
             }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Error: \(error)")
+            .accessibilityAddTraits(.isStaticText)
             .padding(14)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Color.red.opacity(0.08))
@@ -131,7 +139,7 @@ public struct SignInView: View {
     private var emailField: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("EMAIL")
-                .font(.system(size: 11, weight: .bold))
+                .font(.caption.weight(.bold))
                 .tracking(1.0)
                 .foregroundColor(focusedField == .email ? FableTheme.brandPrimary : FableTheme.textMuted)
 
@@ -147,7 +155,7 @@ public struct SignInView: View {
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled(true)
                     .focused($focusedField, equals: .email)
-                    .font(.system(size: 15))
+                    .font(.body)
                     .submitLabel(.next)
                     .onSubmit {
                         focusedField = .password
@@ -167,7 +175,7 @@ public struct SignInView: View {
     private var passwordField: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("PASSWORD")
-                .font(.system(size: 11, weight: .bold))
+                .font(.caption.weight(.bold))
                 .tracking(1.0)
                 .foregroundColor(focusedField == .password ? FableTheme.brandPrimary : FableTheme.textMuted)
 
@@ -181,7 +189,7 @@ public struct SignInView: View {
                     TextField("Enter your password", text: $password)
                         .textContentType(.password)
                         .focused($focusedField, equals: .password)
-                        .font(.system(size: 15))
+                        .font(.body)
                         .submitLabel(.go)
                         .onSubmit {
                             if !isSubmitDisabled {
@@ -192,7 +200,7 @@ public struct SignInView: View {
                     SecureField("Enter your password", text: $password)
                         .textContentType(.password)
                         .focused($focusedField, equals: .password)
-                        .font(.system(size: 15))
+                        .font(.body)
                         .submitLabel(.go)
                         .onSubmit {
                             if !isSubmitDisabled {
@@ -234,7 +242,7 @@ public struct SignInView: View {
                         .progressViewStyle(CircularProgressViewStyle(tint: .white))
                 } else {
                     Text("Sign In")
-                        .font(.system(size: 16, weight: .bold))
+                        .font(.headline.weight(.bold))
                     Image(systemName: "arrow.right")
                         .font(.system(size: 13, weight: .bold))
                 }
@@ -269,7 +277,7 @@ public struct SignInView: View {
                         .fontWeight(.bold)
                         .foregroundColor(FableTheme.brandPrimary)
                 }
-                .font(.system(size: 14))
+                .font(.footnote)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 10)
             }
@@ -278,6 +286,10 @@ public struct SignInView: View {
 
     private var isSubmitDisabled: Bool {
         email.trimmingCharacters(in: .whitespaces).isEmpty || password.isEmpty
+    }
+
+    private var displayedError: String? {
+        authVM.errorMessage
     }
 
     private func submitSignIn() {

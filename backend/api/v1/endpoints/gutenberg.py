@@ -1,12 +1,18 @@
 from typing import Optional
-from fastapi import APIRouter, Path, Query, status
+from fastapi import APIRouter, Depends, Path, Query, status
 
+from core.operator_auth import require_ingestion_api_key
 from schemas import ChapterDTO, StoryDTO
 from services import gutenberg as gutenberg_service
 
 router = APIRouter()
 
-@router.post("/stories/ingest/{gutenberg_id}", response_model=StoryDTO, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/stories/ingest/{gutenberg_id}",
+    response_model=StoryDTO,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_ingestion_api_key)],
+)
 async def ingest_gutenberg_book(
     gutenberg_id: int = Path(ge=1, le=2_147_483_647),
     genre: Optional[str] = Query(default="Folklore", max_length=50),
