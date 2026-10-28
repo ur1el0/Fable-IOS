@@ -1,5 +1,7 @@
 import asyncio
 import httpx
+import time
+from collections import OrderedDict
 from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID, uuid5
@@ -12,7 +14,51 @@ from services.story_service import row_to_story_dto
 
 GUTENBERG_CHAPTER_NAMESPACE = UUID("d3675b18-25d3-5aa7-9c4f-65ea90fb89b2")
 PROVIDER_HEADERS = {"User-Agent": "FableReader/1.0 (public-domain-text-client)"}
-_GUTENBERG_CHAPTER_CACHE: dict[int, list[ChapterDTO]] = {}
+GUTENBERG_MAX_TEXT_BYTES = 8 * 1024 * 1024
+GUTENBERG_CHAPTER_CACHE_TTL_SECONDS = 600.0
+GUTENBERG_CHAPTER_CACHE_MAX_ENTRIES = 32
+GUTENBERG_CHAPTER_CACHE_MAX_BYTES = 16 * 1024 * 1024
+GUTENBERG_MAX_CONCURRENT_FETCHES = 3
+_GUTENBERG_CHAPTER_CACHE: OrderedDict[int, tuple[float, list[ChapterDTO]]] = OrderedDict()
+_GUTENBERG_FETCH_SEMAPHORE = asyncio.Semaphore(GUTENBERG_MAX_CONCURRENT_FETCHES)
+
+
+def _cached_gutenberg_chapters(gutenberg_id: int) -> Optional[list[ChapterDTO]]:
+    cached = _GUTENBERG_CHAPTER_CACHE.get(gutenberg_id)
+    if cached is None:
+        return None
+    cached_at, chapters = cached
+    if time.monotonic() - cached_at >= GUTENBERG_CHAPTER_CACHE_TTL_SECONDS:
+        del _GUTENBERG_CHAPTER_CACHE[gutenberg_id]
+        return None
+    _GUTENBERG_CHAPTER_CACHE.move_to_end(gutenberg_id)
+    return chapters
+
+
+def _cache_gutenberg_chapters(gutenberg_id: int, chapters: list[ChapterDTO]) -> None:
+    now = time.monotonic()
+    payload_bytes = sum(len(chapter.content.encode("utf-8")) for chapter in chapters)
+    if payload_bytes > GUTENBERG_CHAPTER_CACHE_MAX_BYTES:
+        return
+
+    for cached_id, (cached_at, _) in list(_GUTENBERG_CHAPTER_CACHE.items()):
+        if now - cached_at >= GUTENBERG_CHAPTER_CACHE_TTL_SECONDS:
+            del _GUTENBERG_CHAPTER_CACHE[cached_id]
+
+    _GUTENBERG_CHAPTER_CACHE.pop(gutenberg_id, None)
+    current_bytes = sum(
+        len(chapter.content.encode("utf-8"))
+        for _, cached_chapters in _GUTENBERG_CHAPTER_CACHE.values()
+        for chapter in cached_chapters
+    )
+    while _GUTENBERG_CHAPTER_CACHE and (
+        len(_GUTENBERG_CHAPTER_CACHE) >= GUTENBERG_CHAPTER_CACHE_MAX_ENTRIES
+        or current_bytes + payload_bytes > GUTENBERG_CHAPTER_CACHE_MAX_BYTES
+    ):
+        _, (_, evicted_chapters) = _GUTENBERG_CHAPTER_CACHE.popitem(last=False)
+        current_bytes -= sum(len(chapter.content.encode("utf-8")) for chapter in evicted_chapters)
+
+    _GUTENBERG_CHAPTER_CACHE[gutenberg_id] = (now, chapters)
 
 
 def _has_plain_text_format(book: dict) -> bool:
@@ -57,15 +103,34 @@ async def _fetch_gutenberg_text(gutenberg_id: int) -> str:
     try:
         async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
             for url in urls:
-                response = await client.get(url, headers=PROVIDER_HEADERS)
-                last_status = response.status_code
-                if response.status_code == 200:
-                    if not response.text.strip():
-                        raise HTTPException(status_code=422, detail="Gutenberg book has no readable text")
-                    return response.text
-                if response.status_code == 404:
-                    continue
-                break
+                async with client.stream("GET", url, headers=PROVIDER_HEADERS) as response:
+                    last_status = response.status_code
+                    if response.status_code == 200:
+                        content_length = response.headers.get("content-length")
+                        if (
+                            content_length
+                            and content_length.isdigit()
+                            and int(content_length) > GUTENBERG_MAX_TEXT_BYTES
+                        ):
+                            raise HTTPException(
+                                status_code=502,
+                                detail="Gutenberg text exceeds the supported size limit",
+                            )
+
+                        chunks = bytearray()
+                        async for chunk in response.aiter_bytes():
+                            if len(chunks) + len(chunk) > GUTENBERG_MAX_TEXT_BYTES:
+                                raise HTTPException(
+                                    status_code=502,
+                                    detail="Gutenberg text exceeds the supported size limit",
+                                )
+                            chunks.extend(chunk)
+                        response_text = chunks.decode(response.encoding or "utf-8", errors="replace")
+                        if not response_text.strip():
+                            raise HTTPException(status_code=422, detail="Gutenberg book has no readable text")
+                        return response_text
+                    if response.status_code != 404:
+                        break
     except HTTPException:
         raise
     except httpx.HTTPError as error:
@@ -79,34 +144,39 @@ async def _fetch_gutenberg_text(gutenberg_id: int) -> str:
 
 
 async def get_gutenberg_chapters(gutenberg_id: int) -> list[ChapterDTO]:
-    cached = _GUTENBERG_CHAPTER_CACHE.get(gutenberg_id)
-    if cached:
+    cached = _cached_gutenberg_chapters(gutenberg_id)
+    if cached is not None:
         return cached
 
-    raw_text = await _fetch_gutenberg_text(gutenberg_id)
-    parsed_chapters = extract_chapters_from_text(raw_text)
-    if not parsed_chapters or not any(chapter["content"].strip() for chapter in parsed_chapters):
-        raise HTTPException(status_code=422, detail="Unable to extract readable chapters from Gutenberg text")
+    async with _GUTENBERG_FETCH_SEMAPHORE:
+        cached = _cached_gutenberg_chapters(gutenberg_id)
+        if cached is not None:
+            return cached
 
-    story_id = UUID(int=gutenberg_id)
-    now = datetime.now(timezone.utc)
-    chapters = [
-        ChapterDTO(
-            id=uuid5(GUTENBERG_CHAPTER_NAMESPACE, f"{gutenberg_id}:{chapter['chapter_number']}"),
-            story_id=story_id,
-            chapter_number=chapter["chapter_number"],
-            title=chapter["title"],
-            content=chapter["content"],
-            word_count=chapter["word_count"],
-            created_at_utc=now,
-        )
-        for chapter in parsed_chapters
-        if chapter["content"].strip()
-    ]
-    if not chapters:
-        raise HTTPException(status_code=422, detail="Unable to extract readable chapters from Gutenberg text")
-    _GUTENBERG_CHAPTER_CACHE[gutenberg_id] = chapters
-    return chapters
+        raw_text = await _fetch_gutenberg_text(gutenberg_id)
+        parsed_chapters = extract_chapters_from_text(raw_text)
+        if not parsed_chapters or not any(chapter["content"].strip() for chapter in parsed_chapters):
+            raise HTTPException(status_code=422, detail="Unable to extract readable chapters from Gutenberg text")
+
+        story_id = UUID(int=gutenberg_id)
+        now = datetime.now(timezone.utc)
+        chapters = [
+            ChapterDTO(
+                id=uuid5(GUTENBERG_CHAPTER_NAMESPACE, f"{gutenberg_id}:{chapter['chapter_number']}"),
+                story_id=story_id,
+                chapter_number=chapter["chapter_number"],
+                title=chapter["title"],
+                content=chapter["content"],
+                word_count=chapter["word_count"],
+                created_at_utc=now,
+            )
+            for chapter in parsed_chapters
+            if chapter["content"].strip()
+        ]
+        if not chapters:
+            raise HTTPException(status_code=422, detail="Unable to extract readable chapters from Gutenberg text")
+        _cache_gutenberg_chapters(gutenberg_id, chapters)
+        return chapters
 
 
 async def ingest_gutenberg_book(
@@ -114,7 +184,6 @@ async def ingest_gutenberg_book(
     genre: Optional[str] = None,
 ) -> StoryDTO:
     metadata_url = "https://gutendex.com/books/"
-    text_url = f"https://www.gutenberg.org/ebooks/{gutenberg_id}.txt.utf-8"
     try:
         async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
             metadata_response = await client.get(
@@ -129,14 +198,10 @@ async def ingest_gutenberg_book(
             if not book:
                 raise HTTPException(status_code=404, detail="Gutenberg book was not found")
 
-            text_response = await client.get(text_url, headers=PROVIDER_HEADERS)
-            if text_response.status_code == 404:
-                raise HTTPException(status_code=404, detail="Gutenberg text was not found")
-            if text_response.status_code != 200:
-                raise HTTPException(status_code=502, detail="Gutenberg text service returned an error")
-            raw_text = text_response.text
     except httpx.HTTPError as error:
         raise HTTPException(status_code=502, detail="Gutenberg services are unavailable") from error
+
+    raw_text = await _fetch_gutenberg_text(gutenberg_id)
 
     parsed_chapters = extract_chapters_from_text(raw_text)
     if not parsed_chapters or not any(chapter["content"].strip() for chapter in parsed_chapters):

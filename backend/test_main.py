@@ -1,5 +1,6 @@
 import os
 import sys
+from contextlib import asynccontextmanager
 from pathlib import Path
 import pytest
 from datetime import datetime, timezone, timedelta
@@ -28,6 +29,24 @@ def setup_teardown_db():
         os.remove("test_fable.sqlite3")
 
 client = TestClient(app)
+
+
+@pytest.fixture
+def ingestion_headers(monkeypatch):
+    key = "test-ingestion-secret-with-more-than-32-bytes"
+    monkeypatch.setenv("FABLE_INGESTION_API_KEY", key)
+    return {"X-Fable-Ingestion-Key": key}
+
+
+def patch_async_client_stream_with_get(monkeypatch):
+    import httpx
+
+    @asynccontextmanager
+    async def stream(self, method, url, params=None, headers=None):
+        response = await self.get(url, params=params, headers=headers)
+        yield response
+
+    monkeypatch.setattr(httpx.AsyncClient, "stream", stream)
 
 
 def auth_headers(name="Test Author"):
@@ -76,6 +95,26 @@ def test_story_creation_requires_auth_and_server_owned_author():
     created = client.post("/api/v1/stories", headers=headers, json=payload)
     assert created.status_code == 201
     assert created.json()["author"] == "Verified Writer"
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/api/v1/stories/ingest/99",
+        "/api/v1/stories/ingest/manga/operator-auth-test",
+    ],
+)
+def test_provider_ingestion_routes_fail_closed_without_operator_key(monkeypatch, path):
+    key = "configured-ingestion-secret-with-more-than-32-bytes"
+    monkeypatch.delenv("FABLE_INGESTION_API_KEY", raising=False)
+    unconfigured = client.post(path, headers={"X-Fable-Ingestion-Key": key})
+    assert unconfigured.status_code == 503
+
+    monkeypatch.setenv("FABLE_INGESTION_API_KEY", key)
+    missing = client.post(path)
+    invalid = client.post(path, headers={"X-Fable-Ingestion-Key": "incorrect-secret"})
+    assert missing.status_code == 401
+    assert invalid.status_code == 401
 
 
 def test_authenticated_story_listing_is_isolated_by_owner():
@@ -522,7 +561,63 @@ This is the complete source text for the second chapter. It also has enough word
     assert second_response.status_code == 200
     assert chapters[0]["id"] == second_response.json()[0]["id"]
 
-def test_gutenberg_ingest_uses_live_metadata_and_is_idempotent(monkeypatch):
+
+def test_gutenberg_chapter_cache_expires_and_evicts_old_entries(monkeypatch):
+    from services import gutenberg
+    from schemas.schemas import ChapterDTO
+
+    now = [1_000.0]
+    monkeypatch.setattr(gutenberg.time, "monotonic", lambda: now[0])
+    monkeypatch.setattr(gutenberg, "GUTENBERG_CHAPTER_CACHE_MAX_ENTRIES", 1)
+    monkeypatch.setattr(gutenberg, "GUTENBERG_CHAPTER_CACHE_MAX_BYTES", 1_024)
+    gutenberg._GUTENBERG_CHAPTER_CACHE.clear()
+
+    def chapter(story_id):
+        return ChapterDTO(
+            id=uuid4(),
+            story_id=story_id,
+            chapter_number=1,
+            title="Chapter One",
+            content="A short chapter body.",
+            word_count=4,
+            created_at_utc=datetime.now(timezone.utc),
+        )
+
+    first = chapter(uuid4())
+    second = chapter(uuid4())
+    gutenberg._cache_gutenberg_chapters(101, [first])
+    assert gutenberg._cached_gutenberg_chapters(101) == [first]
+    gutenberg._cache_gutenberg_chapters(202, [second])
+    assert gutenberg._cached_gutenberg_chapters(101) is None
+    assert gutenberg._cached_gutenberg_chapters(202) == [second]
+
+    oversized = chapter(uuid4()).model_copy(update={"content": "x" * 1_025})
+    gutenberg._cache_gutenberg_chapters(303, [oversized])
+    assert gutenberg._cached_gutenberg_chapters(303) is None
+
+    now[0] += gutenberg.GUTENBERG_CHAPTER_CACHE_TTL_SECONDS + 1
+    assert gutenberg._cached_gutenberg_chapters(202) is None
+
+
+@pytest.mark.anyio
+async def test_gutenberg_stream_rejects_text_above_byte_limit(monkeypatch):
+    import httpx
+    from fastapi import HTTPException
+    from services import gutenberg
+
+    monkeypatch.setattr(gutenberg, "GUTENBERG_MAX_TEXT_BYTES", 8)
+
+    @asynccontextmanager
+    async def oversized_stream(self, method, url, headers=None):
+        yield httpx.Response(200, content=b"123456789", headers={"content-length": "1"})
+
+    monkeypatch.setattr(httpx.AsyncClient, "stream", oversized_stream)
+    with pytest.raises(HTTPException) as error:
+        await gutenberg._fetch_gutenberg_text(12)
+    assert error.value.status_code == 502
+    assert "size limit" in error.value.detail
+
+def test_gutenberg_ingest_uses_live_metadata_and_is_idempotent(monkeypatch, ingestion_headers):
     import httpx
 
     source_text = """
@@ -550,8 +645,9 @@ A second complete chapter also comes from the provider and has sufficient text c
         return httpx.Response(200, text=source_text)
 
     monkeypatch.setattr(httpx.AsyncClient, "get", mock_get)
-    first = client.post("/api/v1/stories/ingest/99")
-    second = client.post("/api/v1/stories/ingest/99")
+    patch_async_client_stream_with_get(monkeypatch)
+    first = client.post("/api/v1/stories/ingest/99", headers=ingestion_headers)
+    second = client.post("/api/v1/stories/ingest/99", headers=ingestion_headers)
 
     assert first.status_code == 201
     assert second.status_code == 201
@@ -1016,6 +1112,7 @@ def test_get_manga_public_stories(monkeypatch):
         return httpx.Response(404)
 
     monkeypatch.setattr(httpx.AsyncClient, "get", mock_get)
+    patch_async_client_stream_with_get(monkeypatch)
     response = client.get("/api/v1/public/manga?search=Fable")
     assert response.status_code == 200
     data = response.json()
@@ -1050,6 +1147,7 @@ def test_get_manga_by_id_endpoint(monkeypatch):
         return httpx.Response(404)
 
     monkeypatch.setattr(httpx.AsyncClient, "get", mock_get)
+    patch_async_client_stream_with_get(monkeypatch)
     response = client.get("/api/v1/public/manga/test-manga-id")
     assert response.status_code == 200
     data = response.json()
@@ -1058,7 +1156,7 @@ def test_get_manga_by_id_endpoint(monkeypatch):
     assert data["contentFormat"] == "MANGA"
 
 
-def test_get_manga_chapters_and_ingest(monkeypatch):
+def test_get_manga_chapters_and_ingest(monkeypatch, ingestion_headers):
     import httpx
     from services.manga import _CACHE
     _CACHE.clear()
@@ -1100,6 +1198,7 @@ def test_get_manga_chapters_and_ingest(monkeypatch):
         return httpx.Response(404)
 
     monkeypatch.setattr(httpx.AsyncClient, "get", mock_get)
+    patch_async_client_stream_with_get(monkeypatch)
 
     # 1. Test chapter fetching with panel resolution
     ch_res = client.get("/api/v1/public/manga/ingest-manga-1/chapters")
@@ -1114,7 +1213,10 @@ def test_get_manga_chapters_and_ingest(monkeypatch):
     ]
 
     # 2. Test ingestion into SQLite
-    ingest_res = client.post("/api/v1/stories/ingest/manga/ingest-manga-1")
+    ingest_res = client.post(
+        "/api/v1/stories/ingest/manga/ingest-manga-1",
+        headers=ingestion_headers,
+    )
     assert ingest_res.status_code == 201
     ingest_data = ingest_res.json()
     assert ingest_data["title"] == "Ingested Chronicles"
@@ -1122,6 +1224,71 @@ def test_get_manga_chapters_and_ingest(monkeypatch):
     assert ingest_data["sourceProvider"] == "MANGADEX"
     assert len(ingest_data["chapters"]) == 1
     assert len(ingest_data["chapters"][0]["pageUrls"]) == 2
+
+
+def test_manga_cache_enforces_ttl_lru_and_byte_bounds(monkeypatch):
+    from services import manga
+
+    now = [2_000.0]
+    monkeypatch.setattr(manga.time, "monotonic", lambda: now[0])
+    monkeypatch.setattr(manga, "CACHE_MAX_ENTRIES", 2)
+    monkeypatch.setattr(manga, "CACHE_MAX_BYTES", 1_024)
+    manga._CACHE.clear()
+
+    manga._set_in_cache("first", {"value": "first"})
+    manga._set_in_cache("second", {"value": "second"})
+    assert manga._get_from_cache("first") == {"value": "first"}
+    manga._set_in_cache("third", {"value": "third"})
+    assert manga._get_from_cache("second") is None
+    assert manga._get_from_cache("third") == {"value": "third"}
+    assert len(manga._CACHE) == 2
+    manga._set_in_cache("oversized", {"value": "x" * 1_025})
+    assert manga._get_from_cache("oversized") is None
+
+    now[0] += manga.CACHE_TTL_SECONDS + 1
+    assert manga._get_from_cache("first") is None
+    assert manga._get_from_cache("third") is None
+
+
+@pytest.mark.anyio
+async def test_manga_provider_stream_rejects_oversized_json(monkeypatch):
+    import httpx
+    from fastapi import HTTPException
+    from services import manga
+
+    monkeypatch.setattr(manga, "MANGA_MAX_PROVIDER_RESPONSE_BYTES", 8)
+
+    @asynccontextmanager
+    async def oversized_stream(self, method, url, params=None, headers=None):
+        yield httpx.Response(200, content=b"123456789", headers={"content-length": "1"})
+
+    monkeypatch.setattr(httpx.AsyncClient, "stream", oversized_stream)
+    with pytest.raises(HTTPException) as error:
+        await manga._fetch_json_with_fallback("https://api.mangadex.org/manga")
+    assert error.value.status_code == 502
+    assert "size limit" in error.value.detail
+
+
+@pytest.mark.anyio
+async def test_manga_curl_fallback_stops_and_reaps_oversized_process(monkeypatch):
+    import asyncio
+    from fastapi import HTTPException
+    from services import manga
+
+    monkeypatch.setattr(manga, "MANGA_MAX_PROVIDER_RESPONSE_BYTES", 8)
+    process = await asyncio.create_subprocess_exec(
+        sys.executable,
+        "-c",
+        "import sys; sys.stdout.buffer.write(b'x' * 100000)",
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.DEVNULL,
+    )
+
+    with pytest.raises(HTTPException) as error:
+        await manga._read_limited_process_output(process)
+
+    assert error.value.status_code == 502
+    assert process.returncode is not None
 
 
 def test_sliding_window_rate_limiter_unit():
@@ -1148,7 +1315,49 @@ def test_sliding_window_rate_limiter_unit():
     assert allowed_after_reset is True
 
 
+def test_rate_limiter_caps_client_buckets_and_prunes_expired_entries(monkeypatch):
+    now = [1_000.0]
+    monkeypatch.setattr("core.rate_limit.time.time", lambda: now[0])
+    test_limiter = SlidingWindowRateLimiter(general_limit=5, general_window=10, max_client_buckets=2)
+
+    assert test_limiter.is_allowed("client-1")[0] is True
+    assert test_limiter.is_allowed("client-2")[0] is True
+    assert test_limiter.is_allowed("client-3")[0] is False
+    assert len(test_limiter._history) == 2
+
+    now[0] += 11
+    assert test_limiter.is_allowed("client-3")[0] is True
+    assert len(test_limiter._history) == 1
+
+
 def test_rate_limit_middleware_blocks_burst(monkeypatch):
+    limiter.reset()
+
+
+def test_rate_limit_ignores_untrusted_forwarded_for(monkeypatch):
+    limiter.reset()
+    monkeypatch.setenv("FABLE_RATE_LIMIT_ENABLED", "true")
+    monkeypatch.setattr(limiter, "limits", {"auth": (10, 60), "general": (1, 60)})
+
+    first = client.get("/api/v1/stories", headers={"X-Forwarded-For": "198.51.100.10"})
+    second = client.get("/api/v1/stories", headers={"X-Forwarded-For": "203.0.113.20"})
+
+    assert first.status_code == 200
+    assert second.status_code == 429
+    limiter.reset()
+
+
+def test_provider_ingestion_uses_the_stricter_rate_limit_tier(monkeypatch):
+    limiter.reset()
+    monkeypatch.setenv("FABLE_RATE_LIMIT_ENABLED", "true")
+    monkeypatch.delenv("FABLE_INGESTION_API_KEY", raising=False)
+    monkeypatch.setattr(limiter, "limits", {"auth": (1, 60), "general": (60, 60)})
+
+    first = client.post("/api/v1/stories/ingest/99")
+    second = client.post("/api/v1/stories/ingest/99")
+
+    assert first.status_code == 503
+    assert second.status_code == 429
     limiter.reset()
     monkeypatch.setenv("FABLE_RATE_LIMIT_ENABLED", "true")
     monkeypatch.setattr(limiter, "limits", {"auth": (3, 60), "general": (60, 60)})
@@ -1500,6 +1709,7 @@ of some one or other of their daughters.
         return httpx.Response(404)
 
     monkeypatch.setattr(httpx.AsyncClient, "get", mock_get)
+    patch_async_client_stream_with_get(monkeypatch)
     response = client.get("/api/v1/public/gutenberg?topic=fiction")
     assert response.status_code == 200
     stories = response.json()
@@ -1556,6 +1766,7 @@ def test_manga_search_excludes_titles_without_direct_panels(monkeypatch):
         return httpx.Response(404)
 
     monkeypatch.setattr(httpx.AsyncClient, "get", mock_get)
+    patch_async_client_stream_with_get(monkeypatch)
     response = client.get("/api/v1/public/manga")
     assert response.status_code == 200
     data = response.json()

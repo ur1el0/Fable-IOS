@@ -2,8 +2,9 @@ import asyncio
 import json
 import time
 import urllib.parse
+from collections import OrderedDict
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Any, Optional
 from uuid import UUID, uuid5
 import httpx
 from fastapi import HTTPException
@@ -17,23 +18,103 @@ PROVIDER_HEADERS = {
     "User-Agent": "FableReader/1.0 (manga-ingestion-proxy; https://github.com/ur1el0/Fable-IOS)"
 }
 
-# In-memory TTL cache to protect upstream provider from rate limits (5 req/sec limit)
-_CACHE: dict[str, tuple[float, any]] = {}
-CACHE_TTL_SECONDS = 600.0  # 10 minutes cache
+# In-memory TTL/LRU cache to protect upstream provider from rate limits.
+_CACHE: OrderedDict[str, tuple[float, Any, int]] = OrderedDict()
+CACHE_TTL_SECONDS = 600.0
+CACHE_MAX_ENTRIES = 128
+CACHE_MAX_BYTES = 16 * 1024 * 1024
+MANGA_MAX_PROVIDER_RESPONSE_BYTES = 2 * 1024 * 1024
+MANGA_MAX_CONCURRENT_UPSTREAM_REQUESTS = 5
+_UPSTREAM_SEMAPHORE = asyncio.Semaphore(MANGA_MAX_CONCURRENT_UPSTREAM_REQUESTS)
 
 
 def _get_from_cache(key: str):
     cached = _CACHE.get(key)
-    if cached:
-        timestamp, data = cached
-        if time.time() - timestamp < CACHE_TTL_SECONDS:
+    if cached is not None:
+        timestamp, data, _ = cached
+        if time.monotonic() - timestamp < CACHE_TTL_SECONDS:
+            _CACHE.move_to_end(key)
             return data
         del _CACHE[key]
     return None
 
 
-def _set_in_cache(key: str, data: any):
-    _CACHE[key] = (time.time(), data)
+def _cache_value_size(data: Any) -> int:
+    def serialize(value: Any):
+        if hasattr(value, "model_dump"):
+            return value.model_dump(mode="json")
+        return str(value)
+
+    return len(json.dumps(data, default=serialize, ensure_ascii=False).encode("utf-8"))
+
+
+def _set_in_cache(key: str, data: Any) -> None:
+    now = time.monotonic()
+    size_bytes = _cache_value_size(data)
+    if size_bytes > CACHE_MAX_BYTES:
+        return
+
+    for cached_key, (timestamp, _, _) in list(_CACHE.items()):
+        if now - timestamp >= CACHE_TTL_SECONDS:
+            del _CACHE[cached_key]
+
+    _CACHE.pop(key, None)
+    current_bytes = sum(size for _, _, size in _CACHE.values())
+    while _CACHE and (
+        len(_CACHE) >= CACHE_MAX_ENTRIES or current_bytes + size_bytes > CACHE_MAX_BYTES
+    ):
+        _, (_, _, evicted_bytes) = _CACHE.popitem(last=False)
+        current_bytes -= evicted_bytes
+    _CACHE[key] = (now, data, size_bytes)
+
+
+async def _read_limited_response(response: httpx.Response) -> bytes:
+    content_length = response.headers.get("content-length")
+    if (
+        content_length
+        and content_length.isdigit()
+        and int(content_length) > MANGA_MAX_PROVIDER_RESPONSE_BYTES
+    ):
+        raise HTTPException(
+            status_code=502,
+            detail="Manga provider response exceeds the supported size limit",
+        )
+
+    content = bytearray()
+    async for chunk in response.aiter_bytes():
+        if len(content) + len(chunk) > MANGA_MAX_PROVIDER_RESPONSE_BYTES:
+            raise HTTPException(
+                status_code=502,
+                detail="Manga provider response exceeds the supported size limit",
+            )
+        content.extend(chunk)
+    return bytes(content)
+
+
+async def _read_limited_process_output(process: asyncio.subprocess.Process) -> bytes:
+    if process.stdout is None:
+        raise HTTPException(status_code=502, detail="Manga upstream service unavailable")
+
+    content = bytearray()
+    try:
+        while chunk := await process.stdout.read(64 * 1024):
+            if len(content) + len(chunk) > MANGA_MAX_PROVIDER_RESPONSE_BYTES:
+                process.kill()
+                await process.communicate()
+                raise HTTPException(
+                    status_code=502,
+                    detail="Manga provider response exceeds the supported size limit",
+                )
+            content.extend(chunk)
+        return_code = await process.wait()
+    except BaseException:
+        if process.returncode is None:
+            process.kill()
+            await process.communicate()
+        raise
+    if return_code != 0:
+        raise HTTPException(status_code=502, detail="Manga upstream service unavailable")
+    return bytes(content)
 
 
 async def _fetch_json_with_fallback(url: str, params: Optional[list] = None) -> dict:
@@ -41,33 +122,39 @@ async def _fetch_json_with_fallback(url: str, params: Optional[list] = None) -> 
     Attempts to fetch upstream JSON via HTTPX. If Python's TLS stack lacks modern
     handshake ciphers (e.g. LibreSSL on macOS), gracefully falls back to system curl.
     """
-    try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.get(url, params=params, headers=PROVIDER_HEADERS)
-            if resp.status_code == 200:
-                return resp.json()
-            if resp.status_code == 404:
-                return {}
-    except Exception:
-        pass
+    async with _UPSTREAM_SEMAPHORE:
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                async with client.stream("GET", url, params=params, headers=PROVIDER_HEADERS) as response:
+                    if response.status_code == 200:
+                        content = await _read_limited_response(response)
+                        return json.loads(content.decode("utf-8"))
+                    if response.status_code == 404:
+                        return {}
+        except HTTPException:
+            raise
+        except Exception:
+            pass
 
-    try:
-        full_url = url
-        if params:
-            query_str = urllib.parse.urlencode(params)
-            full_url = f"{url}?{query_str}"
-        proc = await asyncio.create_subprocess_exec(
-            "curl", "-s", "--max-time", "15",
-            "-H", f"User-Agent: {PROVIDER_HEADERS['User-Agent']}",
-            full_url,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
-        )
-        stdout, _ = await proc.communicate()
-        if stdout:
-            return json.loads(stdout.decode("utf-8"))
-    except Exception as err:
-        raise HTTPException(status_code=502, detail="Manga upstream service unavailable") from err
+        try:
+            full_url = url
+            if params:
+                query_str = urllib.parse.urlencode(params)
+                full_url = f"{url}?{query_str}"
+            proc = await asyncio.create_subprocess_exec(
+                "curl", "-s", "--max-time", "15",
+                "-H", f"User-Agent: {PROVIDER_HEADERS['User-Agent']}",
+                full_url,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.DEVNULL,
+            )
+            stdout = await _read_limited_process_output(proc)
+            if stdout:
+                return json.loads(stdout.decode("utf-8"))
+        except HTTPException:
+            raise
+        except Exception as err:
+            raise HTTPException(status_code=502, detail="Manga upstream service unavailable") from err
 
     raise HTTPException(status_code=502, detail="Manga upstream service unavailable")
 
@@ -220,7 +307,13 @@ async def search_manga(
             raw_results.append(dto)
 
     # Probe direct panel availability concurrently and exclude titles without readable panels
-    probe_tasks = [_probe_direct_chapters(str(s.provider_id)) for s in raw_results]
+    probe_semaphore = asyncio.Semaphore(MANGA_MAX_CONCURRENT_UPSTREAM_REQUESTS)
+
+    async def _bounded_probe(story: StoryDTO):
+        async with probe_semaphore:
+            return await _probe_direct_chapters(str(story.provider_id))
+
+    probe_tasks = [_bounded_probe(story) for story in raw_results]
     probe_results = await asyncio.gather(*probe_tasks, return_exceptions=True)
 
     direct_list: list[StoryDTO] = []

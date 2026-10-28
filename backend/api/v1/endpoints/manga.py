@@ -1,6 +1,7 @@
 from typing import Optional
-from fastapi import APIRouter, Path, Query, status
+from fastapi import APIRouter, Depends, Path, Query, status
 
+from core.operator_auth import require_ingestion_api_key
 from schemas import ChapterDTO, StoryDTO
 from services import manga as manga_service
 
@@ -40,7 +41,12 @@ async def get_manga_chapters(
     return await manga_service.get_manga_chapters(manga_id=manga_id, limit=limit)
 
 
-@router.post("/stories/ingest/manga/{manga_id}", response_model=StoryDTO, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/stories/ingest/manga/{manga_id}",
+    response_model=StoryDTO,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_ingestion_api_key)],
+)
 async def ingest_manga_story(
     manga_id: str = Path(..., description="External manga identifier to persist into Fable")
 ):
