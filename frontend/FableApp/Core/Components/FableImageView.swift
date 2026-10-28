@@ -240,7 +240,7 @@ public struct FableRemoteImageView<Placeholder: View>: View {
                     .aspectRatio(contentMode: contentMode)
                     .clipped()
             } else {
-                asyncImageFallback
+                placeholder
             }
         }
         .task(id: url) {
@@ -267,36 +267,6 @@ public struct FableRemoteImageView<Placeholder: View>: View {
                     self.cachedImage = cached
                     cachedImageURL = url
                 }
-            }
-        }
-        .clipped()
-    }
-
-    @ViewBuilder
-    private var asyncImageFallback: some View {
-        AsyncImage(url: url) { phase in
-            switch phase {
-            case .success(let image):
-                image
-                    .resizable()
-                    .aspectRatio(contentMode: contentMode)
-                    .clipped()
-                    .task(id: url) {
-                        await DiskImageCache.shared.prefetch(urls: [url])
-                        guard !Task.isCancelled else {
-                            return
-                        }
-                        if let cachedImage = DiskImageCache.shared.image(for: url) {
-                            self.cachedImage = cachedImage
-                            self.cachedImageURL = url
-                        }
-                    }
-            case .empty:
-                placeholder
-            case .failure:
-                placeholder
-            @unknown default:
-                placeholder
             }
         }
         .clipped()

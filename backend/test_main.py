@@ -1513,6 +1513,65 @@ def test_sqlite_online_backup_and_integrity_check(tmp_path):
         assert connection.execute("SELECT value FROM entries").fetchone()[0] == "preserved"
     assert backup.stat().st_mode & 0o777 == 0o600
 
+    existing_snapshot = backup.read_bytes()
+    with pytest.raises(FileExistsError):
+        create_backup(source, backup)
+    assert backup.read_bytes() == existing_snapshot
+    assert list(backup.parent.glob(".snapshot.sqlite3.*.partial")) == []
+
+
+def test_scheduled_sqlite_backup_verifies_snapshot_and_prunes_only_expired_backups(tmp_path):
+    import sqlite3
+    from scripts.sqlite_backup import create_scheduled_backup, verify_database
+
+    source = tmp_path / "source.sqlite3"
+    backup_directory = tmp_path / "backups"
+    backup_directory.mkdir()
+    with sqlite3.connect(source) as connection:
+        connection.execute("CREATE TABLE entries (value TEXT NOT NULL)")
+        connection.execute("INSERT INTO entries (value) VALUES ('preserved')")
+
+    now = datetime(2026, 10, 29, tzinfo=timezone.utc)
+    expired_backup = backup_directory / "fable-expired.sqlite3"
+    retained_backup = backup_directory / "fable-retained.sqlite3"
+    unrelated_file = backup_directory / "notes.sqlite3"
+    for path in (expired_backup, retained_backup, unrelated_file):
+        path.write_text("placeholder")
+    os.utime(expired_backup, (now.timestamp() - 31 * 86_400,) * 2)
+    os.utime(retained_backup, (now.timestamp() - 2 * 86_400,) * 2)
+    os.utime(unrelated_file, (now.timestamp() - 31 * 86_400,) * 2)
+
+    backup = create_scheduled_backup(source, backup_directory, retention_days=30, now=now)
+
+    assert backup.name == "fable-20261029T000000.000000Z.sqlite3"
+    verify_database(backup)
+    assert not expired_backup.exists()
+    assert retained_backup.exists()
+    assert unrelated_file.exists()
+    with sqlite3.connect(backup) as connection:
+        assert connection.execute("SELECT value FROM entries").fetchone()[0] == "preserved"
+
+
+def test_scheduled_sqlite_backup_requires_timezone_and_positive_retention(tmp_path):
+    import sqlite3
+    from datetime import datetime
+    from scripts.sqlite_backup import create_scheduled_backup
+
+    source = tmp_path / "source.sqlite3"
+    with sqlite3.connect(source) as connection:
+        connection.execute("CREATE TABLE entries (value TEXT NOT NULL)")
+
+    with pytest.raises(ValueError, match="at least one day"):
+        create_scheduled_backup(source, tmp_path / "backups", retention_days=0)
+    with pytest.raises(ValueError, match="include a timezone"):
+        create_scheduled_backup(
+            source,
+            tmp_path / "backups",
+            retention_days=30,
+            now=datetime(2026, 10, 29),
+        )
+
+
 def test_init_db_migrates_legacy_demo_stories_and_shelf_references_once():
     from core.database import LEGACY_DEMO_STORY_IDS, get_db
 

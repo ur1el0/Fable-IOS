@@ -30,6 +30,13 @@ jobs:
         uses: actions/checkout@v4
       - name: Build backend image
         run: docker build -t fable-backend:test -f backend/Dockerfile .
+      - name: Verify backup runner is packaged
+        run: docker run --rm --entrypoint python fable-backend:test /app/scripts/sqlite_backup.py --help
+      - name: Verify Docker Compose configuration
+        run: |
+          cp .env.example .env
+          trap 'rm -f .env' EXIT
+          docker compose config --quiet
 
   ios-verification:
     runs-on: macos-15-intel

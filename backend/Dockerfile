@@ -18,12 +18,13 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --gid "${FABLE_GID}" fable \
     && useradd --system --uid "${FABLE_UID}" --gid fable --home-dir /app --shell /usr/sbin/nologin fableuser \
-    && mkdir -p /app/data \
+    && mkdir -p /app/data /app/scripts \
     && chown -R fableuser:fable /app
 
 COPY --from=dependencies /install/ /usr/local/
 WORKDIR /app
 COPY backend/ ./
+COPY --chown=fableuser:fable scripts/sqlite_backup.py /app/scripts/sqlite_backup.py
 
 USER fableuser
 

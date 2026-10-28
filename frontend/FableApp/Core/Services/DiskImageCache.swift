@@ -10,7 +10,7 @@ public final class DiskImageCache {
     private let cacheDirectoryURL: URL
     private let diskStorage: DiskImageCacheStorage
     private var inFlightDownloads: [URL: Task<Data?, Never>] = [:]
-    private let maximumConcurrentDownloads = 4
+    private let maximumConcurrentDownloads = 2
 
     private init() {
         let directoryURL = FileManager.default.urls(
@@ -73,7 +73,7 @@ public final class DiskImageCache {
         let uncachedURLs = urls.filter { url in
             guard
                 let scheme = url.scheme?.lowercased(),
-                scheme == "https" || scheme == "http",
+                scheme == "https",
                 seen.insert(url).inserted
             else {
                 return false
@@ -97,7 +97,7 @@ public final class DiskImageCache {
 
             for url in batch {
                 let task = inFlightDownloads[url] ?? Task.detached(priority: .utility) {
-                    await downloadImageData(from: url)
+                    await RemoteImageDownloader.downloadData(from: url)
                 }
                 inFlightDownloads[url] = task
                 pendingDownloads.append((url, task))
@@ -220,25 +220,5 @@ private actor DiskImageCacheStorage {
                 continue
             }
         }
-    }
-}
-
-private func downloadImageData(from url: URL) async -> Data? {
-    do {
-        var request = URLRequest(url: url)
-        request.setValue("Fable/1.0 (iOS client; https://github.com/ur1el0/Fable-IOS)", forHTTPHeaderField: "User-Agent")
-        request.timeoutInterval = 15.0
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard
-            let response = response as? HTTPURLResponse,
-            (200..<300).contains(response.statusCode),
-            !data.isEmpty
-        else {
-            return nil
-        }
-
-        return data
-    } catch {
-        return nil
     }
 }

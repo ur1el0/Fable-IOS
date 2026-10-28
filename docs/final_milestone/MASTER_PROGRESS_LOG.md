@@ -3,13 +3,13 @@
 **Course:** ITWM101 (Integrative Programming & Technologies 2)  
 **Developer:** Roosc Zaño  
 **Role:** Lead Systems Engineer & Solutions Architect  
-**Active Feature Branch:** `fix/build-and-test-integrity`
+**Active Feature Branch:** `codex/close-production-audit-gaps`
 
 ---
 
 ## Executive Summary & System Objectives
 
-This progress log tracks the transition of **Fable** from an editorial prototype to a provider-backed, offline-first reading platform. The backend has **42/42 passing automated tests** covering content contracts, account isolation, live statistics, persistent sessions, sliding-window rate limiting, and CORS origin whitelisting. The iOS application has been compiled cleanly with Xcode for iOS Simulator (`iPhone 17 Pro`) with zero errors. All legacy demo stories and chapters have been purged, and the app operates with 100% offline-first resilience backed by SwiftData SQLite.
+This progress log tracks the transition of **Fable** from an editorial prototype to a provider-backed, offline-first reading platform. The latest backend and iOS verification results are recorded in the dated entries below; the backend suite now covers content contracts, account isolation, live statistics, persistent sessions, rate limiting, CORS, provider bounds, and backup retention. The iOS application uses SwiftData for offline reading and the provider-backed API for live catalog content.
 
 ### The 8 Core Architectural Domains
 
@@ -21,7 +21,7 @@ This progress log tracks the transition of **Fable** from an editorial prototype
 | **4. UI Interactions & Voice Accessibility** | [`04_UI_INTERACTIONS_AND_AUDIO_ACCESSIBILITY.md`](file:///Users/maclab/Documents/roosc/Fable-IOS/docs/final_milestone/04_UI_INTERACTIONS_AND_AUDIO_ACCESSIBILITY.md) | **Complete & Verified** | Actions are wired across writing, profile, library, reader, shelf, and settings; `AVSpeechSynthesizer` uses installed OS voices with tactile micro-interactions and haptics. |
 | **5. Live Metadata & Pure User-State Isolation** | [`03_LIVE_METADATA_AND_USER_STATE_PURGING.md`](file:///Users/maclab/Documents/roosc/Fable-IOS/docs/final_milestone/03_LIVE_METADATA_AND_USER_STATE_PURGING.md) | **Complete & Verified** | Fresh installs have no bundled story catalog; provider and authored content uses live metadata and account-owned shelf/profile state with legacy demo stories purged. |
 | **6. Multi-Format & Manga Architecture** | [`05_MULTI_FORMAT_AND_MANGA_ARCHITECTURE.md`](file:///Users/maclab/Documents/roosc/Fable-IOS/docs/final_milestone/05_MULTI_FORMAT_AND_MANGA_ARCHITECTURE.md) | **Complete & Verified** | Polymorphic reader dispatch, continuous vertical Webtoon scroll, horizontal swipe paging, Tachiyomi-style 3-zone tap overlay, and MangaDex direct CDN panel ingestion. |
-| **7. Testing Suites & ADR Baseline** | [`04_UI_INTERACTIONS_AND_AUDIO_ACCESSIBILITY.md`](file:///Users/maclab/Documents/roosc/Fable-IOS/docs/final_milestone/04_UI_INTERACTIONS_AND_AUDIO_ACCESSIBILITY.md) | **Complete & Verified** | 42/42 backend tests pass in pytest. Swift compilation verified via Xcode on iOS Simulator (`** BUILD SUCCEEDED **`). |
+| **7. Testing Suites & ADR Baseline** | [`04_UI_INTERACTIONS_AND_AUDIO_ACCESSIBILITY.md`](file:///Users/maclab/Documents/roosc/Fable-IOS/docs/final_milestone/04_UI_INTERACTIONS_AND_AUDIO_ACCESSIBILITY.md) | **Complete & Verified** | Backend and iOS verification results are tracked in dated entries; GitHub Actions runs the backend suite and native iOS simulator tests/build. |
 | **8. App Health Diagnostics & Anti-Overlap Invariants** | [`MASTER_PROGRESS_LOG.md`](file:///Users/maclab/Documents/roosc/Fable-IOS/docs/final_milestone/MASTER_PROGRESS_LOG.md) | **Complete & Verified** | Image boundary clipping, `SystemDiagnosticsSheet`, and `AppHealthTests` verified in source and live Simulator executions. |
 
 ---
@@ -598,4 +598,14 @@ This progress log tracks the transition of **Fable** from an editorial prototype
 - [x] Removed application trust in raw `X-Forwarded-For`, capped rate-limit client buckets, and bounded provider response bytes, fetch concurrency, and in-memory caches.
 - [x] Improved VoiceOver error announcements and Dynamic Type support on sign-in and sign-up screens; removed stale README test counts and branch links.
 - [x] Verification: backend suite **64/64 passed** in the project Python environment and in the Python 3.11 container; Docker image build, Compose configuration, and iOS Release URL guard passed.
-- [ ] Native Xcode build and simulator tests are left to the macOS CI runner because this workspace does not have `xcodebuild`.
+- [x] Native Xcode build and simulator tests passed on the macOS CI runner; this Fedora workspace does not have `xcodebuild`.
+
+## Production Audit Follow-up (2026-10-29)
+
+- [x] Replaced the unbounded SwiftUI `AsyncImage` fallback with a single streaming downloader that rejects non-HTTPS URLs, insecure redirects, non-image responses, oversized bodies, and images with excessive decoded dimensions.
+- [x] Added image downloader regression tests for valid image responses, invalid content types, byte limits, URL policy, and dimension limits.
+- [x] Added an opt-in Compose backup service that creates integrity-checked online SQLite snapshots, retries failures, and prunes expired Fable snapshots by retention policy.
+- [x] Added versioned GitHub Container Registry image tags and digest-based deploy/rollback instructions; release publication waits for backend, Docker/Compose, and iOS checks.
+- [x] Clarified that provider-only licensed MangaDex chapters open in an in-app browser, and refreshed the stale progress summary.
+- [x] Verification: backend suite **66 passed** in the rebuilt Python 3.11 image; Docker build, Compose validation, packaged backup CLI, and a read-only/no-network backup container check passed.
+- [ ] Native Xcode tests, including the new image downloader cases, and the Release build are pending macOS CI because this workspace has no `xcodebuild`.

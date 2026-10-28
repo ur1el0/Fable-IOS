@@ -130,7 +130,7 @@ public struct MangaReaderView: View {
                             .background(FableTheme.brandPrimary.opacity(0.15))
                             .clipShape(Capsule())
 
-                            Text("This chapter is licensed and published by \(externalPublisherName). Read the official release here in Fable.")
+                            Text("This chapter is licensed and published by \(externalPublisherName). Open the official release in Fable’s in-app browser.")
                                 .font(.system(size: 13))
                                 .foregroundColor(.gray)
                                 .multilineTextAlignment(.center)
@@ -143,7 +143,7 @@ public struct MangaReaderView: View {
                             HStack(spacing: 8) {
                                 Image(systemName: "safari.fill")
                                     .font(.system(size: 14, weight: .semibold))
-                                Text("Read in Fable")
+                                Text("Open official release")
                                     .font(.system(size: 14, weight: .bold))
                             }
                             .foregroundColor(.white)
@@ -154,8 +154,8 @@ public struct MangaReaderView: View {
                             .shadow(color: FableTheme.brandPrimary.opacity(0.4), radius: 10, x: 0, y: 4)
                         }
                         .buttonStyle(.plain)
-                        .accessibilityLabel("Read chapter on \(externalPublisherName) in Fable")
-                        .accessibilityHint("Opens the official publisher in an in-app browser.")
+                        .accessibilityLabel("Open the official release from \(externalPublisherName)")
+                        .accessibilityHint("Opens the publisher page in Fable’s in-app browser.")
                         .sheet(isPresented: $isShowingPublisherReader) {
                             InAppPublisherBrowser(url: externalURL)
                                 .ignoresSafeArea()

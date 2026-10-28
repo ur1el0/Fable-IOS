@@ -1,0 +1,102 @@
+name: Publish backend release image
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  verify-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install backend dependencies
+        run: pip install -r backend/requirements.txt
+      - name: Run backend suite
+        run: PYTHONPATH=.:backend pytest backend/test_main.py -v
+      - name: Build backend image
+        run: docker build -t fable-backend:release-check -f backend/Dockerfile .
+      - name: Verify backup runner is packaged
+        run: docker run --rm --entrypoint python fable-backend:release-check /app/scripts/sqlite_backup.py --help
+      - name: Verify Docker Compose configuration
+        run: |
+          cp .env.example .env
+          trap 'rm -f .env' EXIT
+          docker compose config --quiet
+
+  verify-ios:
+    runs-on: macos-15-intel
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Verify Release API URL guard
+        run: |
+          if CONFIGURATION=Release FABLE_API_BASE_URL=http://127.0.0.1:8000/api/v1 scripts/validate_ios_release_config.sh; then
+            echo "The Release URL guard accepted an HTTP loopback URL."
+            exit 1
+          fi
+          if CONFIGURATION=Release FABLE_API_BASE_URL= scripts/validate_ios_release_config.sh; then
+            echo "The Release URL guard accepted a missing API URL."
+            exit 1
+          fi
+          CONFIGURATION=Release FABLE_API_BASE_URL=https://api.example.com/api/v1 scripts/validate_ios_release_config.sh
+      - name: Build and test iOS app
+        run: >-
+          xcodebuild
+          -project frontend/FableApp.xcodeproj
+          -scheme FableApp
+          -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5'
+          -derivedDataPath build/DerivedData
+          CODE_SIGNING_ALLOWED=NO
+          test
+      - name: Verify Release build
+        run: >-
+          xcodebuild
+          -project frontend/FableApp.xcodeproj
+          -scheme FableApp
+          -configuration Release
+          -destination 'generic/platform=iOS Simulator'
+          -derivedDataPath build/ReleaseDerivedData
+          FABLE_API_BASE_URL=https://api.example.com/api/v1
+          CODE_SIGNING_ALLOWED=NO
+          build
+
+  publish:
+    needs: [verify-backend, verify-ios]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Publish versioned images and report the registry digest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${GITHUB_REPOSITORY,,}"
+          docker buildx create --name fable-release --use
+          docker buildx inspect --bootstrap
+          printf '%s' "$GITHUB_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          docker buildx build \
+            --file backend/Dockerfile \
+            --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
+            --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
+            --label "org.opencontainers.image.version=${GITHUB_REF_NAME}" \
+            --tag "${image}:${GITHUB_REF_NAME}" \
+            --tag "${image}:${GITHUB_SHA}" \
+            --metadata-file /tmp/fable-image-metadata.json \
+            --push \
+            .
+          digest="$(python -c 'import json; print(json.load(open("/tmp/fable-image-metadata.json"))["containerimage.digest"])')"
+          printf 'Published image: `%s@%s`\n' "$image" "$digest" >> "$GITHUB_STEP_SUMMARY"
