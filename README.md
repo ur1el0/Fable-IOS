@@ -7,7 +7,7 @@
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI%200.110+-009688.svg)](https://fastapi.tiangolo.com)
 [![Pydantic v2](https://img.shields.io/badge/Contract-Pydantic%20v2-e92063.svg)](https://docs.pydantic.dev/)
 [![Database](https://img.shields.io/badge/Database-SQLite-4169E1.svg)](https://www.sqlite.org/)
-[![Pytest](https://img.shields.io/badge/Tests-36%2F36%20Passing-brightgreen.svg)](https://pytest.org)
+[![Pytest](https://img.shields.io/badge/Backend%20Tests-Automated-brightgreen.svg)](https://pytest.org)
 [![Multi-Format](https://img.shields.io/badge/Format-Prose%20%7C%20Manga-indigo.svg)](https://developer.apple.com)
 [![Figma Prototype](https://img.shields.io/badge/Figma-100%25%20Prototype-pink.svg)](https://www.figma.com/proto/fable-ios-prototype-midterm)
 
@@ -36,9 +36,9 @@
 * **Data Validation & Contracts:** Pydantic v2 with `serialization_alias` (Strict camelCase client / snake_case server parity)
 * **Database & Persistence:** SQLite 3 with additive schema initialization and account-scoped shelf, reading-session, and user records.
 * **HTTP Client:** HTTPX for live Gutendex/Project Gutenberg and Open Library requests.
-* **Security:** Salted PBKDF2-HMAC-SHA256 password hashes, SHA-256 digests of random bearer tokens, 30-day session expiry, and server-side logout revocation.
+* **Security:** Salted PBKDF2-HMAC-SHA256 password hashes, SHA-256 digests of random bearer tokens, 30-day session expiry, server-side logout revocation, and operator-key protected provider ingestion.
 * **ASGI Web Server:** Uvicorn.
-* **Automated Testing:** Pytest with FastAPI `TestClient` (36 backend tests passing in the container).
+* **Automated Testing:** Pytest with FastAPI `TestClient`, plus native iOS XCTest verification in CI.
 
 ---
 
@@ -222,5 +222,5 @@ Fable-IOS/
 ## 6. Official Submission References
 
 * **Figma Interactive Prototype:** [https://www.figma.com/proto/fable-ios-prototype-midterm](https://www.figma.com/proto/fable-ios-prototype-midterm)
-* **GitHub Repository URL:** [Fable-IOS](https://github.com/ur1el0/Fable-IOS/tree/feature/live-data-and-button-wiring)
+* **GitHub Repository URL:** [Fable-IOS](https://github.com/ur1el0/Fable-IOS)
 * **Author / Developer:** Roosc Zaño (ITWM101 | M090)

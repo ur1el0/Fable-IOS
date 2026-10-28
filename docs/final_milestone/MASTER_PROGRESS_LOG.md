@@ -591,3 +591,11 @@ This progress log tracks the transition of **Fable** from an editorial prototype
 - [x] Added a versioned SQLite migration that removes only retired demo records and dependent shelf/reading references, plus online backup and integrity-check tooling.
 - [x] Paged story summaries, bounded story payload fields, and added CI checks for Release API URL validation and an HTTPS-configured Release build.
 - [x] Kept the newer provider image, chapter reader, simulator CI, and guest-session fixes while reconciling this hardening work with current `main`.
+
+## Production Hardening Continuation (2026-10-29)
+
+- [x] Protected Gutenberg and MangaDex ingestion with a dedicated operator key that is compared in constant time and fails closed when unconfigured; documented trusted Uvicorn proxy addresses and kept the key out of the iOS client.
+- [x] Removed application trust in raw `X-Forwarded-For`, capped rate-limit client buckets, and bounded provider response bytes, fetch concurrency, and in-memory caches.
+- [x] Improved VoiceOver error announcements and Dynamic Type support on sign-in and sign-up screens; removed stale README test counts and branch links.
+- [x] Verification: backend suite **64/64 passed** in the project Python environment and in the Python 3.11 container; Docker image build, Compose configuration, and iOS Release URL guard passed.
+- [ ] Native Xcode build and simulator tests are left to the macOS CI runner because this workspace does not have `xcodebuild`.
