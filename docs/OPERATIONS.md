@@ -29,7 +29,33 @@ python3 scripts/sqlite_backup.py backup data/fable.sqlite3 backups/fable-YYYY-MM
 python3 scripts/sqlite_backup.py verify backups/fable-YYYY-MM-DD.sqlite3
 ```
 
-Use the actual path configured by `FABLE_DB_PATH` if it differs. Store backups outside the application data directory, restrict access to them, and copy them to durable storage. This repository does not configure scheduled off-host backups or retention; the hosting operator must provide those.
+Use the actual path configured by `FABLE_DB_PATH` if it differs. Store backups outside the application data directory and restrict access to them. The scheduled Compose service can maintain a host-mounted snapshot history; the hosting operator must mount durable off-host storage at that path for disaster recovery.
+
+### Scheduled backups in Docker Compose
+
+The optional `backup` profile runs the same verified SQLite backup utility once at startup and then at the configured interval. It removes matching `fable-*.sqlite3` snapshots older than the configured retention window; the default is one day between backups and 30 days of retention.
+
+Set `FABLE_BACKUP_HOST_DIR` in `.env` to a mounted durable location. Ensure that directory exists and is writable only by the container's Fable UID/GID (defaults to `1000:1000`); for example, `sudo install -d -o 1000 -g 1000 -m 0700 /srv/fable/backups`. The backup container has no network access, a read-only root filesystem, and read-only access to the live database. Then start both services:
+
+```bash
+docker compose --profile backup up -d --build
+docker compose --profile backup logs -f fable-backup
+```
+
+The sample `./backups` path is on the application host and is not an off-site backup by itself. Mount a separate durable or off-host filesystem at the configured path and monitor backup logs. If the destination is unavailable or a backup fails, the service logs the failure and retries within five minutes. Keep `FABLE_BACKUP_INTERVAL_SECONDS` at least 60 and `FABLE_BACKUP_RETENTION_DAYS` at least 1.
+
+### Versioned image release and rollback
+
+After CI passes on the commit, pushing a `v*` tag runs the backend, Docker/Compose, and iOS verification jobs before publishing the backend image to GitHub Container Registry with both a version tag and source commit SHA tag. The workflow reports the registry digest in its run summary; use that digest for deployments and rollback because tags can be moved. The workflow creates an image artifact; it does not deploy to a hosting provider.
+
+Before upgrading, create and verify a database backup. Then set `FABLE_BACKEND_IMAGE` in `.env` to the new image digest reported by the release workflow, authenticate the host to `ghcr.io` if the package is private, and run:
+
+```bash
+docker compose --profile backup pull
+docker compose --profile backup up -d --no-build
+```
+
+To roll back the application, set `FABLE_BACKEND_IMAGE` to the previous release image digest and run the same pull and `up` commands. Restore the pre-upgrade database backup only if the new version applied a migration that is incompatible with the previous image. Keep schema changes backward compatible where possible and verify the health endpoint plus a known account and story after either deployment or rollback.
 
 ## Restore
 

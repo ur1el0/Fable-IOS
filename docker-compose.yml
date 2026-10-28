@@ -1,5 +1,7 @@
 services:
   fable-backend:
+    image: ${FABLE_BACKEND_IMAGE:-fable-backend:local}
+    user: "${FABLE_UID:-1000}:${FABLE_GID:-1000}"
     build:
       context: .
       dockerfile: backend/Dockerfile
@@ -14,4 +16,34 @@ services:
       - .env
     environment:
       FABLE_DB_PATH: /app/data/fable.sqlite3
+    restart: unless-stopped
+
+  fable-backup:
+    image: ${FABLE_BACKEND_IMAGE:-fable-backend:local}
+    user: "${FABLE_UID:-1000}:${FABLE_GID:-1000}"
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      args:
+        FABLE_UID: ${FABLE_UID:-1000}
+        FABLE_GID: ${FABLE_GID:-1000}
+    profiles: ["backup"]
+    depends_on:
+      fable-backend:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data:ro
+      - ${FABLE_BACKUP_HOST_DIR:-./backups}:/app/backups
+    environment:
+      FABLE_DB_PATH: /app/data/fable.sqlite3
+      FABLE_BACKUP_INTERVAL_SECONDS: ${FABLE_BACKUP_INTERVAL_SECONDS:-86400}
+      FABLE_BACKUP_RETENTION_DAYS: ${FABLE_BACKUP_RETENTION_DAYS:-30}
+    command: ["python", "/app/scripts/sqlite_backup.py", "schedule", "/app/data/fable.sqlite3", "/app/backups"]
+    network_mode: none
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      disable: true
     restart: unless-stopped
