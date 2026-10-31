@@ -19,7 +19,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install backend dependencies
-        run: pip install -r backend/requirements.txt pytest
+        run: pip install -r backend/requirements-test.txt
       - name: Run backend tests
         run: PYTHONPATH=.:backend pytest backend/test_main.py -v
 
@@ -30,6 +30,10 @@ jobs:
         uses: actions/checkout@v4
       - name: Build backend image
         run: docker build -t fable-backend:test -f backend/Dockerfile .
+      - name: Verify test tooling and source are excluded from runtime image
+        run: >-
+          docker run --rm --entrypoint python fable-backend:test -c
+          "import importlib.util; from pathlib import Path; assert importlib.util.find_spec('pytest') is None; assert not Path('/app/test_main.py').exists()"
       - name: Verify backup runner is packaged
         run: docker run --rm --entrypoint python fable-backend:test /app/scripts/sqlite_backup.py --help
       - name: Verify Docker Compose configuration
