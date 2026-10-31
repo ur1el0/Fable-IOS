@@ -9,6 +9,10 @@ from core.database import get_db
 from schemas.schemas import UserDTO, RegisterRequest, LoginRequest, AuthResponse, ProfileUpdateRequest
 
 SESSION_LIFETIME = timedelta(days=30)
+PASSWORD_HASH_ITERATIONS = 600_000
+LEGACY_PASSWORD_HASH_ITERATIONS = 100_000
+MAX_PASSWORD_HASH_ITERATIONS = 10_000_000
+PASSWORD_HASH_ALGORITHM = "pbkdf2_sha256"
 
 
 def _avatar_image_name(row) -> Optional[str]:
@@ -37,19 +41,54 @@ def _normalized_handle(value: str) -> str:
     return handle if handle.startswith("@") else f"@{handle}"
 
 def hash_password(password: str) -> str:
-    """Hash password using PBKDF2-HMAC-SHA256 with 100,000 iterations and 16-byte random salt."""
-    salt = secrets.token_hex(16)
-    key = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt.encode("utf-8"), 100000)
-    return f"{salt}${key.hex()}"
+    """Hash passwords with a versioned PBKDF2-HMAC-SHA256 format."""
+    salt = secrets.token_bytes(16)
+    key = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, PASSWORD_HASH_ITERATIONS)
+    return f"{PASSWORD_HASH_ALGORITHM}${PASSWORD_HASH_ITERATIONS}${salt.hex()}${key.hex()}"
+
+
+def _password_hash_parameters(stored_hash: str) -> tuple[bytes, bytes, int] | None:
+    try:
+        parts = stored_hash.split("$")
+        if len(parts) == 2:
+            salt_hex, digest_hex = parts
+            salt = salt_hex.encode("utf-8")
+            digest = bytes.fromhex(digest_hex)
+            iterations = LEGACY_PASSWORD_HASH_ITERATIONS
+        elif len(parts) == 4 and parts[0] == PASSWORD_HASH_ALGORITHM:
+            iterations = int(parts[1])
+            if not 1 <= iterations <= MAX_PASSWORD_HASH_ITERATIONS:
+                return None
+            salt = bytes.fromhex(parts[2])
+            digest = bytes.fromhex(parts[3])
+            if not 16 <= len(salt) <= 64:
+                return None
+        else:
+            return None
+
+        if len(digest) != hashlib.sha256().digest_size:
+            return None
+        return salt, digest, iterations
+    except (ValueError, AttributeError, TypeError):
+        return None
 
 def verify_password(stored_hash: str, password: str) -> bool:
-    """Verify password against stored salt$hash using constant-time comparison."""
-    try:
-        salt, key = stored_hash.split("$", 1)
-        calculated = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt.encode("utf-8"), 100000)
-        return hmac.compare_digest(key, calculated.hex())
-    except (ValueError, AttributeError):
+    """Verify a versioned hash or the legacy salt$hash format."""
+    parameters = _password_hash_parameters(stored_hash)
+    if parameters is None:
         return False
+    salt, digest, iterations = parameters
+    calculated = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, iterations)
+    return hmac.compare_digest(digest, calculated)
+
+
+def password_needs_rehash(stored_hash: str) -> bool:
+    """Return whether a verified credential should be upgraded to current parameters."""
+    parts = stored_hash.split("$")
+    if len(parts) != 4 or parts[0] != PASSWORD_HASH_ALGORITHM:
+        return True
+    parameters = _password_hash_parameters(stored_hash)
+    return parameters is None or parameters[2] < PASSWORD_HASH_ITERATIONS
 
 def _token_digest(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
@@ -117,14 +156,32 @@ def login_user(req: LoginRequest) -> AuthResponse:
     """Authenticate user with email and password, issuing a bearer session token."""
     normalized_email = req.email.strip().lower()
     conn = get_db()
-    row = conn.execute("SELECT * FROM users WHERE email = ?", (normalized_email,)).fetchone()
-    conn.close()
+    try:
+        row = conn.execute("SELECT * FROM users WHERE email = ?", (normalized_email,)).fetchone()
+        if not row or not verify_password(row["password_hash"], req.password):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid email or password"
+            )
 
-    if not row or not verify_password(row["password_hash"], req.password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password"
-        )
+        if password_needs_rehash(row["password_hash"]):
+            replacement_hash = hash_password(req.password)
+            with conn:
+                updated = conn.execute(
+                    "UPDATE users SET password_hash = ? WHERE id = ? AND password_hash = ?",
+                    (replacement_hash, row["id"], row["password_hash"]),
+                ).rowcount
+            if updated != 1:
+                current = conn.execute(
+                    "SELECT password_hash FROM users WHERE id = ?", (row["id"],)
+                ).fetchone()
+                if not current or not verify_password(current["password_hash"], req.password):
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail="Invalid email or password"
+                    )
+    finally:
+        conn.close()
 
     token = _issue_session(row["id"])
     user_dto = _to_user_dto(row)

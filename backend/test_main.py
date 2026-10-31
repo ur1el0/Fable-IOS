@@ -675,6 +675,72 @@ def test_gutenberg_catalog_failure_does_not_return_local_catalog(monkeypatch):
     assert response.json()["detail"] == "Gutenberg catalog service is unavailable"
 
 
+def test_password_hashes_upgrade_legacy_credentials_on_login():
+    import hashlib
+    import secrets
+    from services import auth_service
+    from core.database import get_db
+
+    password = "MigrationPassword123!"
+    current_hash = auth_service.hash_password(password)
+    assert current_hash.startswith("pbkdf2_sha256$600000$")
+    assert auth_service.verify_password(current_hash, password)
+    assert not auth_service.verify_password(current_hash, "incorrect-password")
+    assert not auth_service.password_needs_rehash(current_hash)
+
+    salt = secrets.token_hex(16)
+    legacy_digest = hashlib.pbkdf2_hmac(
+        "sha256", password.encode("utf-8"), salt.encode("utf-8"), 100_000
+    ).hex()
+    legacy_hash = f"{salt}${legacy_digest}"
+    assert auth_service.verify_password(legacy_hash, password)
+    assert auth_service.password_needs_rehash(legacy_hash)
+
+    user_id = str(uuid4())
+    now = datetime.now(timezone.utc).isoformat()
+    conn = get_db()
+    try:
+        with conn:
+            conn.execute(
+                """INSERT INTO users
+                   (id, email, password_hash, name, handle, bio, avatar_image_name,
+                    avatar_image_url, created_at_utc, updated_at_utc)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    user_id,
+                    "legacy-reader@example.test",
+                    legacy_hash,
+                    "Legacy Reader",
+                    "@legacy-reader",
+                    "",
+                    None,
+                    None,
+                    now,
+                    now,
+                ),
+            )
+    finally:
+        conn.close()
+
+    login = client.post("/api/v1/auth/login", json={
+        "email": "legacy-reader@example.test",
+        "password": password,
+    })
+    assert login.status_code == 200
+
+    conn = get_db()
+    try:
+        upgraded_hash = conn.execute(
+            "SELECT password_hash FROM users WHERE id = ?", (user_id,)
+        ).fetchone()["password_hash"]
+    finally:
+        conn.close()
+
+    assert upgraded_hash.startswith("pbkdf2_sha256$600000$")
+    assert auth_service.verify_password(upgraded_hash, password)
+    assert not auth_service.password_needs_rehash(upgraded_hash)
+
+
 def test_register_and_login_auth_flow():
     reg_payload = {
         "email": "reader@example.test",
