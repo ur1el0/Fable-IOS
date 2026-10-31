@@ -16,6 +16,25 @@ public struct LibraryTests {
             }
         }
 
+        var providerStatus = ProviderCatalogStatus()
+        assert(providerStatus.warningMessage == nil, "Provider Catalog Starts Current")
+        providerStatus.record(.gutenberg, succeeded: false)
+        assert(
+            providerStatus.warningMessage?.contains("Project Gutenberg") == true,
+            "Provider Refresh Failure Is Visible"
+        )
+        providerStatus.record(.mangaDex, succeeded: false)
+        assert(
+            providerStatus.warningMessage?.contains("Project Gutenberg and MangaDex") == true,
+            "Multiple Provider Refresh Failures Are Identified"
+        )
+        providerStatus.record(.gutenberg, succeeded: true)
+        assert(
+            providerStatus.warningMessage?.contains("Project Gutenberg") == false
+                && providerStatus.warningMessage?.contains("MangaDex") == true,
+            "Successful Provider Refresh Clears Its Warning"
+        )
+
         let store = StoryStore()
 
         let providerRequest = StoryAPIService.providerRequest(

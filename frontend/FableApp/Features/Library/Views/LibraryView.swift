@@ -91,6 +91,8 @@ public struct LibraryView: View {
                         }
                         .padding(.horizontal, 20)
                         .padding(.top, 12)
+
+                        ProviderCatalogStatusView()
                         
                         // Category Filter Pills
                         ScrollView(.horizontal, showsIndicators: false) {

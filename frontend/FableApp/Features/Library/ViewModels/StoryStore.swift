@@ -47,6 +47,8 @@ public final class StoryStore: ObservableObject {
     // Cloud Synchronization Pipeline (Plan 05)
     @Published var isCloudSyncActive: Bool = false
     @Published var isBackendReachable: Bool = false
+    @Published private(set) var providerCatalogStatus = ProviderCatalogStatus()
+    @Published private(set) var isRefreshingProviderCatalogs = false
     private let apiService: StoryAPIServiceProtocol = StoryAPIService()
 
     public var persistentDeviceId: UUID {
@@ -76,6 +78,12 @@ public final class StoryStore: ObservableObject {
     private var isRestoringWriterDraft = false
     private var writerDraftOwnerKey = AuthManager.shared.currentSession?.id.uuidString ?? "guest"
     private var activeShelfOwnerKey = AuthManager.shared.currentSession?.id.uuidString ?? "signed_out"
+
+    private func recordProviderCatalogResult(_ provider: CatalogProvider, succeeded: Bool) {
+        var status = providerCatalogStatus
+        status.record(provider, succeeded: succeeded)
+        providerCatalogStatus = status
+    }
 
     private struct LocalShelfState: Codable {
         var readingProgress: Double
@@ -631,8 +639,7 @@ public final class StoryStore: ObservableObject {
                 }
             }
 
-            await fetchGutenbergPublicStories(topic: "fiction", search: nil)
-            await fetchMangaPublicStories(search: nil)
+            await refreshProviderCatalogs()
 
             // 2. Fetch live dynamic categories/genres from backend and merge catalog taxonomy
             let liveGenres = (try? await apiService.fetchGenres()) ?? []
@@ -827,6 +834,7 @@ public final class StoryStore: ObservableObject {
     func fetchGutenbergPublicStories(topic: String? = nil, search: String? = nil) async {
         do {
             let fetched = try await apiService.fetchGutenbergStories(topic: topic, search: search)
+            recordProviderCatalogResult(.gutenberg, succeeded: true)
             for book in fetched {
                 if let index = stories.firstIndex(where: { $0.id == book.id }) {
                     stories[index].synopsis = book.synopsis
@@ -866,13 +874,14 @@ public final class StoryStore: ObservableObject {
                 }
             }
         } catch {
-            // Keep the last persisted catalog available when the provider cannot be reached.
+            recordProviderCatalogResult(.gutenberg, succeeded: false)
         }
     }
 
     func fetchMangaPublicStories(search: String? = nil) async {
         do {
             let fetched = try await apiService.fetchMangaStories(search: search)
+            recordProviderCatalogResult(.mangaDex, succeeded: true)
             if search == nil && !fetched.isEmpty {
                 let validProviderIds = Set(fetched.compactMap(\.providerId))
                 stories.removeAll {
@@ -928,8 +937,16 @@ public final class StoryStore: ObservableObject {
                 }
             }
         } catch {
-            // Keep existing catalog available
+            recordProviderCatalogResult(.mangaDex, succeeded: false)
         }
+    }
+
+    func refreshProviderCatalogs() async {
+        guard !isRefreshingProviderCatalogs else { return }
+        isRefreshingProviderCatalogs = true
+        defer { isRefreshingProviderCatalogs = false }
+        await fetchGutenbergPublicStories(topic: "fiction", search: nil)
+        await fetchMangaPublicStories(search: nil)
     }
 
     private func deriveGenresFromCatalog(_ catalog: [Story]) -> [GenreCategory] {

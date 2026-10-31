@@ -83,6 +83,8 @@ public struct ExploreView: View {
                                 .foregroundColor(FableTheme.textPrimary)
                         }
                         .padding(.horizontal, 20)
+
+                        ProviderCatalogStatusView()
                         
                         // Search Bar with Active Focus Indicator
                         HStack(spacing: 12) {
