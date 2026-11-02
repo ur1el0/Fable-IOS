@@ -15,7 +15,7 @@ jobs:
       - name: Check out tagged source
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11"
       - name: Install backend dependencies
