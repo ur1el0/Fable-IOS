@@ -23,7 +23,12 @@ RUN apt-get update \
 
 COPY --from=dependencies /install/ /usr/local/
 WORKDIR /app
-COPY backend/ ./
+COPY backend/main.py ./main.py
+COPY backend/api/ ./api/
+COPY backend/core/ ./core/
+COPY backend/models/ ./models/
+COPY backend/schemas/ ./schemas/
+COPY backend/services/ ./services/
 COPY --chown=fableuser:fable scripts/sqlite_backup.py /app/scripts/sqlite_backup.py
 
 USER fableuser

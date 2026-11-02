@@ -1,25 +1,56 @@
 import Foundation
 import ImageIO
 
+enum PublicHTTPSURLPolicy {
+    static func allows(_ url: URL) -> Bool {
+        guard url.scheme?.lowercased() == "https",
+              let rawHost = url.host?.lowercased(),
+              !rawHost.isEmpty,
+              url.user == nil,
+              url.password == nil,
+              url.port == nil || url.port == 443 else {
+            return false
+        }
+
+        let host = rawHost.trimmingCharacters(in: CharacterSet(charactersIn: "."))
+        let labels = host.split(separator: ".")
+        let isNumericAddress = !labels.isEmpty && labels.allSatisfy { Int($0) != nil }
+        let isLocalName = host == "localhost"
+            || host.hasSuffix(".localhost")
+            || host.hasSuffix(".local")
+            || host.hasSuffix(".internal")
+            || host.hasSuffix(".test")
+            || host.hasSuffix(".invalid")
+            || host.hasSuffix(".example")
+            || host.hasSuffix(".lan")
+            || host.hasSuffix(".home")
+            || host.hasSuffix(".arpa")
+            || host.hasSuffix(".corp")
+            || host.hasSuffix(".private")
+
+        return labels.count >= 2 && !isNumericAddress && !host.contains(":") && !isLocalName
+    }
+}
+
 enum RemoteImagePayloadPolicy {
     static let maximumResponseBytes = 20 * 1024 * 1024
     static let maximumDimension = 8_192
     static let maximumPixelCount = 16_000_000
 
     static func allows(url: URL) -> Bool {
-        url.scheme?.lowercased() == "https"
-            && url.host?.isEmpty == false
-            && url.user == nil
-            && url.password == nil
+        PublicHTTPSURLPolicy.allows(url)
     }
 
     static func allows(statusCode: Int, mimeType: String?, expectedContentLength: Int64) -> Bool {
-        guard (200..<300).contains(statusCode),
-              let mimeType,
-              mimeType.lowercased().hasPrefix("image/") else {
+        guard (200..<300).contains(statusCode) else {
             return false
         }
-        return expectedContentLength < 0 || expectedContentLength <= maximumResponseBytes
+        let hasSupportedLength = expectedContentLength < 0 || expectedContentLength <= maximumResponseBytes
+        guard hasSupportedLength else { return false }
+
+        // Provider CDNs may omit or mislabel MIME; ImageIO validates the bounded payload before use.
+        _ = mimeType
+        return true
     }
 
     static func canAppend(currentByteCount: Int, incomingByteCount: Int, maximumBytes: Int) -> Bool {

@@ -47,7 +47,13 @@ public final class StoryStore: ObservableObject {
     // Cloud Synchronization Pipeline (Plan 05)
     @Published var isCloudSyncActive: Bool = false
     @Published var isBackendReachable: Bool = false
+    @Published private(set) var providerCatalogStatus = ProviderCatalogStatus()
+    @Published private(set) var isRefreshingProviderCatalogs = false
     private let apiService: StoryAPIServiceProtocol = StoryAPIService()
+
+    private func providerCatalogRefreshKey(_ provider: CatalogProvider) -> String {
+        "fable_provider_catalog_last_success_\(provider.rawValue)"
+    }
 
     public var persistentDeviceId: UUID {
         let ownerKey = AuthManager.shared.currentSession?.id.uuidString ?? "guest"
@@ -76,6 +82,25 @@ public final class StoryStore: ObservableObject {
     private var isRestoringWriterDraft = false
     private var writerDraftOwnerKey = AuthManager.shared.currentSession?.id.uuidString ?? "guest"
     private var activeShelfOwnerKey = AuthManager.shared.currentSession?.id.uuidString ?? "signed_out"
+
+    private func recordProviderCatalogResult(_ provider: CatalogProvider, succeeded: Bool) {
+        var status = providerCatalogStatus
+        status.record(provider, succeeded: succeeded)
+        providerCatalogStatus = status
+        if succeeded, let refreshedAt = status.lastSuccessfulRefresh[provider] {
+            UserDefaults.standard.set(refreshedAt, forKey: providerCatalogRefreshKey(provider))
+        }
+    }
+
+    private func restoreProviderCatalogStatus() {
+        var refreshedDates: [CatalogProvider: Date] = [:]
+        for provider in CatalogProvider.allCases {
+            if let date = UserDefaults.standard.object(forKey: providerCatalogRefreshKey(provider)) as? Date {
+                refreshedDates[provider] = date
+            }
+        }
+        providerCatalogStatus = ProviderCatalogStatus(lastSuccessfulRefresh: refreshedDates)
+    }
 
     private struct LocalShelfState: Codable {
         var readingProgress: Double
@@ -174,6 +199,7 @@ public final class StoryStore: ObservableObject {
 
     init() {
         PersistenceService.shared.purgeLegacyDemoStories()
+        restoreProviderCatalogStatus()
         loadReaderPreferences()
         restoreDiscoveryCache()
         restoreWriterDraft()
@@ -631,8 +657,7 @@ public final class StoryStore: ObservableObject {
                 }
             }
 
-            await fetchGutenbergPublicStories(topic: "fiction", search: nil)
-            await fetchMangaPublicStories(search: nil)
+            await refreshProviderCatalogs()
 
             // 2. Fetch live dynamic categories/genres from backend and merge catalog taxonomy
             let liveGenres = (try? await apiService.fetchGenres()) ?? []
@@ -713,11 +738,11 @@ public final class StoryStore: ObservableObject {
     }
 
     /// Loads authentic chapters on demand for the active reading story
-    func fetchChapters(for story: Story) async -> [Chapter] {
+    func fetchChapters(for story: Story) async throws -> [Chapter] {
         let isUsable = { (chaps: [Chapter]?) -> Bool in
             guard let chaps, !chaps.isEmpty else { return false }
             if story.contentFormat == .manga {
-                return chaps.contains { !$0.pageUrls.isEmpty }
+                return chaps.contains { !$0.pageUrls.isEmpty || $0.externalSourceURL != nil }
             }
             return chaps.contains(where: \.hasReadableText)
         }
@@ -729,23 +754,23 @@ public final class StoryStore: ObservableObject {
         if isUsable(cached) {
             return cached
         }
-        do {
-            let fetched = try await apiService.fetchChapters(for: story.id, sourceProvider: story.sourceProvider.rawValue, providerId: story.providerId)
-            if let idx = stories.firstIndex(where: { $0.id == story.id }) {
-                stories[idx].chapters = fetched
-                stories[idx].totalChapters = max(1, fetched.count)
-            }
-            if activeReaderStory?.id == story.id {
-                activeReaderStory?.chapters = fetched
-                activeReaderStory?.totalChapters = max(1, fetched.count)
-            }
-            let updatedStory = stories.first(where: { $0.id == story.id }) ?? story
-            PersistenceService.shared.saveStory(updatedStory)
-            PersistenceService.shared.saveCachedChapters(fetched, storyId: story.id)
-            return fetched
-        } catch {
-            return []
+        let fetched = try await apiService.fetchChapters(
+            for: story.id,
+            sourceProvider: story.sourceProvider.rawValue,
+            providerId: story.providerId
+        )
+        if let idx = stories.firstIndex(where: { $0.id == story.id }) {
+            stories[idx].chapters = fetched
+            stories[idx].totalChapters = max(1, fetched.count)
         }
+        if activeReaderStory?.id == story.id {
+            activeReaderStory?.chapters = fetched
+            activeReaderStory?.totalChapters = max(1, fetched.count)
+        }
+        let updatedStory = stories.first(where: { $0.id == story.id }) ?? story
+        PersistenceService.shared.saveStory(updatedStory)
+        PersistenceService.shared.saveCachedChapters(fetched, storyId: story.id)
+        return fetched
     }
 
 
@@ -827,6 +852,7 @@ public final class StoryStore: ObservableObject {
     func fetchGutenbergPublicStories(topic: String? = nil, search: String? = nil) async {
         do {
             let fetched = try await apiService.fetchGutenbergStories(topic: topic, search: search)
+            recordProviderCatalogResult(.gutenberg, succeeded: true)
             for book in fetched {
                 if let index = stories.firstIndex(where: { $0.id == book.id }) {
                     stories[index].synopsis = book.synopsis
@@ -866,22 +892,14 @@ public final class StoryStore: ObservableObject {
                 }
             }
         } catch {
-            // Keep the last persisted catalog available when the provider cannot be reached.
+            recordProviderCatalogResult(.gutenberg, succeeded: false)
         }
     }
 
     func fetchMangaPublicStories(search: String? = nil) async {
         do {
             let fetched = try await apiService.fetchMangaStories(search: search)
-            if search == nil && !fetched.isEmpty {
-                let validProviderIds = Set(fetched.compactMap(\.providerId))
-                stories.removeAll {
-                    $0.sourceProvider == .mangadex
-                        && !$0.isBookmarked
-                        && !$0.isCompleted
-                        && ($0.badgeText == "OFFICIAL LINK" || ($0.providerId != nil && !validProviderIds.contains($0.providerId!)))
-                }
-            }
+            recordProviderCatalogResult(.mangaDex, succeeded: true)
             for manga in fetched {
                 let matchingIndices = stories.indices.filter {
                     stories[$0].id == manga.id ||
@@ -928,8 +946,16 @@ public final class StoryStore: ObservableObject {
                 }
             }
         } catch {
-            // Keep existing catalog available
+            recordProviderCatalogResult(.mangaDex, succeeded: false)
         }
+    }
+
+    func refreshProviderCatalogs() async {
+        guard !isRefreshingProviderCatalogs else { return }
+        isRefreshingProviderCatalogs = true
+        defer { isRefreshingProviderCatalogs = false }
+        await fetchGutenbergPublicStories(topic: "fiction", search: nil)
+        await fetchMangaPublicStories(search: nil)
     }
 
     private func deriveGenresFromCatalog(_ catalog: [Story]) -> [GenreCategory] {
@@ -1198,8 +1224,8 @@ public final class StoryStore: ObservableObject {
         Task { [weak self] in
             guard let self else { return }
             if nextBookmarkState {
-                let chaps = await self.fetchChapters(for: current)
-                if current.contentFormat == .manga, let firstChap = chaps.first {
+                let chaps = try? await self.fetchChapters(for: current)
+                if current.contentFormat == .manga, let firstChap = chaps?.first {
                     let urls = firstChap.pageUrls.compactMap { URL(string: $0) }
                     if !urls.isEmpty {
                         await DiskImageCache.shared.prefetch(urls: urls)

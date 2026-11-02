@@ -2,7 +2,7 @@
 
 **Target Environment:** Academic Mac Lab Computers (macOS Sonoma / Sequoia, Xcode 15/16)  
 **Target Hardware:** Apple Silicon / Intel iMacs or Mac Minis in School Labs  
-**Target Objective:** 100% Consistent, Error-Free Clone, Build, Run, and Demo on Any Shared Lab Machine
+**Target Objective:** Reproducible clone, build, and verification on a shared lab Mac, with live-service checks before production release
 
 ---
 
@@ -13,7 +13,7 @@ Shared campus computers have unique quirks: shared user profiles, stale build ca
 1. **Clone to a Local User Directory:** Always clone into `~/Desktop` or `~/Documents` (avoid network-mounted shared drives which cause Xcode file-lock errors).
 2. **Never Save GitHub Credentials in Lab Keychain:** Avoid `git config --global credential.helper store`. Use temporary in-memory credential caching instead.
 3. **Always Verify Destination is an iOS Simulator:** Xcode on lab machines often defaults to *"My Mac (Mac Catalyst)"*, which will fail to compile iOS-only SwiftUI components. Always switch to **iPhone 16 Pro** or **iPhone 15 Pro**.
-4. **Zero-Network Grading Guarantee:** Fable does not require Wi-Fi during presentation. If the school Wi-Fi drops or requires a captive portal login, Fable’s in-memory mock store runs with 100% fidelity offline.
+4. **Offline Reading:** Previously cached stories remain available without a network connection. Authentication, cloud synchronization, and uncached live catalogs require the configured backend and provider services.
 
 ---
 
@@ -53,11 +53,11 @@ Before running, clear any potential cache conflicts from previous students:
 
 ## 3. Final Capstone Grading & Demonstration Runbook ("The Hero Path")
 
-When demonstrating the complete application to your professor or grading committee in the lab, follow this sequence to showcase **100% completed enterprise architecture**:
+When demonstrating the application to your professor or grading committee in the lab, follow this sequence and report any live-service limitations accurately:
 
 | Step | Action on Simulator | What It Proves to the Grader |
 |---|---|---|
-| **1. Cold Launch & Auth** | App opens to `WelcomeView` with modern typography; register a new student account (`evaluator@university.edu`). | Proves secure multi-tenant authentication pipeline, BCrypt password hashing, and device token isolation. |
+| **1. Cold Launch & Auth** | App opens to `WelcomeView`; register a test account (`evaluator@university.edu`). | Exercises account-scoped authentication and secure device token storage. Passwords use versioned PBKDF2-HMAC-SHA256 hashes; successful logins upgrade legacy hashes. |
 | **2. Pure Zero-Baseline State** | Switch to **"Shelf"** tab immediately upon registration. | Proves zero ghost data: authentic empty states render with 0 saved, 0 finished, and 0 reading streak days. |
 | **3. Multi-Format Library Feed** | Switch to **"Library"** tab. Observe mix of prose novels and graphic manga. | Demonstrates multi-format ingestion architecture (`ContentFormat`: `PROSE`, `MANGA`; `SourceProvider`: `GUTENBERG`, `STANDARD_EBOOKS`, `MANGADEX`). |
 | **4. Format Filter Pills** | Tap the **"Manga"** chip, then **"Novels"**, then **"All"**. | Proves reactive format filtering and clean sans-serif UI tag architecture. |
@@ -90,6 +90,16 @@ The final capstone report requires clear, uncompressed retina screenshots of the
 ---
 
 ## 5. Troubleshooting & Recovery on Lab Macs
+
+### Production Release Readiness Gate
+
+Complete these checks against the actual release environment before publishing a production build:
+
+1. Configure the iOS Release build with the production HTTPS API URL. Build and install it on a physical iPhone; verify sign-in, live catalog refresh, remote covers, readable provider chapters, and shelf synchronization. Provider-only chapters that do not expose readable text must open their official source in the in-app browser.
+2. Configure the Compose backup destination as durable off-host storage with encryption at rest and restricted access. The backup script creates SQLite snapshots but does not encrypt them itself.
+3. Restore a recent snapshot into an isolated database, run the SQLite integrity check, and verify representative accounts, stories, chapters, and shelf state before treating backups as recoverable.
+4. Enable GitHub Dependabot security alerts in the repository's **Settings → Code security and analysis**. `.github/dependabot.yml` also requests weekly dependency and GitHub Actions version updates; version update PRs do not enable security alerts.
+5. Confirm the tagged release workflow has passed backend, Docker/Compose, iOS simulator, and Release build checks. The workflow publishes an image; deployment and the physical-device checks above remain operator tasks.
 
 ### Problem 1: Xcode says "No such module" or Package Dependencies Failed
 - **Fix:** In Xcode menu, choose **File ➔ Packages ➔ Reset Package Caches**, then **File ➔ Packages ➔ Resolve Package Versions**.

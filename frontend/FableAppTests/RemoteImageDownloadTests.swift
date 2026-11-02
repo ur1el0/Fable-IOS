@@ -14,7 +14,7 @@ final class RemoteImageDownloadTests: XCTestCase {
         )
 
         let data = await makeLoader(maximumBytes: imageData.count + 1)
-            .load(URL(string: "https://images.example.test/cover.png")!)
+            .load(URL(string: "https://images.example.com/cover.png")!)
 
         XCTAssertEqual(data, imageData)
     }
@@ -31,7 +31,7 @@ final class RemoteImageDownloadTests: XCTestCase {
         )
 
         let result = await makeLoader(maximumBytes: imageData.count - 1)
-            .load(URL(string: "https://images.example.test/large.png")!)
+            .load(URL(string: "https://images.example.com/large.png")!)
 
         XCTAssertNil(result)
     }
@@ -45,14 +45,16 @@ final class RemoteImageDownloadTests: XCTestCase {
         )
 
         let result = await makeLoader(maximumBytes: 1_024)
-            .load(URL(string: "https://images.example.test/response")!)
+            .load(URL(string: "https://images.example.com/response")!)
 
         XCTAssertNil(result)
     }
 
     func testImagePolicyRejectsUnsafeURLsAndOversizedDimensions() {
-        XCTAssertFalse(RemoteImagePayloadPolicy.allows(url: URL(string: "http://images.example.test/cover.png")!))
-        XCTAssertFalse(RemoteImagePayloadPolicy.allows(url: URL(string: "https://user:pass@images.example.test/cover.png")!))
+        XCTAssertFalse(RemoteImagePayloadPolicy.allows(url: URL(string: "http://images.example.com/cover.png")!))
+        XCTAssertFalse(RemoteImagePayloadPolicy.allows(url: URL(string: "https://user:pass@images.example.com/cover.png")!))
+        XCTAssertFalse(RemoteImagePayloadPolicy.allows(url: URL(string: "https://127.0.0.1/cover.png")!))
+        XCTAssertFalse(RemoteImagePayloadPolicy.allows(url: URL(string: "https://localhost/cover.png")!))
         XCTAssertTrue(RemoteImagePayloadPolicy.allowsImageDimensions(width: 4_000, height: 4_000))
         XCTAssertFalse(RemoteImagePayloadPolicy.allowsImageDimensions(width: 8_193, height: 1))
         XCTAssertFalse(RemoteImagePayloadPolicy.allowsImageDimensions(width: 8_000, height: 8_000))
@@ -61,6 +63,22 @@ final class RemoteImageDownloadTests: XCTestCase {
             incomingByteCount: 1,
             maximumBytes: RemoteImagePayloadPolicy.maximumResponseBytes
         ))
+    }
+
+    func testBoundedDownloaderAcceptsValidImageWithoutMIMEHeader() async throws {
+        let imageData = try XCTUnwrap(
+            Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGNgAAAAAgABSK+kcQAAAABJRU5ErkJggg==")
+        )
+        ImageDownloadStubURLProtocol.setResponse(
+            statusCode: 200,
+            mimeType: nil,
+            body: imageData
+        )
+
+        let data = await makeLoader(maximumBytes: imageData.count + 1)
+            .load(URL(string: "https://images.example.com/no-mime")!)
+
+        XCTAssertEqual(data, imageData)
     }
 
     override func tearDown() {
@@ -80,7 +98,7 @@ private final class ImageDownloadStubURLProtocol: URLProtocol, @unchecked Sendab
 
     static func setResponse(
         statusCode: Int,
-        mimeType: String,
+        mimeType: String?,
         body: Data,
         includeContentLength: Bool = true
     ) {
@@ -97,7 +115,7 @@ private final class ImageDownloadStubURLProtocol: URLProtocol, @unchecked Sendab
     }
 
     override class func canInit(with request: URLRequest) -> Bool {
-        request.url?.host == "images.example.test"
+        request.url?.host == "images.example.com"
     }
 
     override class func canonicalRequest(for request: URLRequest) -> URLRequest {
@@ -110,7 +128,10 @@ private final class ImageDownloadStubURLProtocol: URLProtocol, @unchecked Sendab
             client?.urlProtocol(self, didFailWithError: URLError(.badServerResponse))
             return
         }
-        var headers = ["Content-Type": stub.mimeType]
+        var headers: [String: String] = [:]
+        if let mimeType = stub.mimeType {
+            headers["Content-Type"] = mimeType
+        }
         if stub.includeContentLength {
             headers["Content-Length"] = String(stub.body.count)
         }
@@ -133,7 +154,7 @@ private final class ImageDownloadStubURLProtocol: URLProtocol, @unchecked Sendab
 
 private struct ImageStubResponse: Sendable {
     let statusCode: Int
-    let mimeType: String
+    let mimeType: String?
     let body: Data
     let includeContentLength: Bool
 }

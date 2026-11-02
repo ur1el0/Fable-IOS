@@ -13,7 +13,7 @@ This directory contains formal, critical system design and technical implementat
 
 All plans are formulated under **strict critical system design tenets**:
 1. **Asset-Decoupled Visual Invariant:** Zero external binary bitmap dependencies; visual representations use procedural geometry, parchment fills, hairline borders, and serif monograms.
-2. **Offline-First Determinism:** The client functions with 100% feature parity without internet connectivity.
+2. **Offline-First Resilience:** Previously cached stories and local reading state remain available offline; authentication, cloud synchronization, and uncached live catalog data require network services.
 3. **Rigorous Concurrency & Thread Isolation:** Strict separation between UI main-thread rendering (`@MainActor`) and background persistence/sync tasks (`@ModelActor` / async background tasks).
 4. **Negligible Heap Footprint:** Designed for micro-narratives (<5,000 words per story) ensuring total resident application memory remains strictly under **25 MB**.
 5. **No Blind Source Code Edits:** All specifications provide complete architectural contracts, mathematical algorithms, data schemas, and test plans for the developer to inspect, learn from, and implement.

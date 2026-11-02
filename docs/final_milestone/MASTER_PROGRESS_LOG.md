@@ -609,3 +609,12 @@ This progress log tracks the transition of **Fable** from an editorial prototype
 - [x] Clarified that provider-only licensed MangaDex chapters open in an in-app browser, and refreshed the stale progress summary.
 - [x] Verification: backend suite **66 passed** in the rebuilt Python 3.11 image; Docker build, Compose validation, packaged backup CLI, and a read-only/no-network backup container check passed.
 - [ ] Native Xcode tests, including the new image downloader cases, and the Release build are pending macOS CI because this workspace has no `xcodebuild`.
+
+## Production Audit Improvements (2026-10-31)
+
+- [x] Versioned password hashes now use 600,000-round PBKDF2-HMAC-SHA256; valid legacy credentials are upgraded during login with a compare-and-swap database update.
+- [x] Split runtime and test dependencies, excluded test modules and repository-only content from the production image, and configured weekly Dependabot version updates.
+- [x] Kept provider catalog data available offline while exposing provider refresh failures and a retry action in Library and Explore.
+- [x] Added production release gates for HTTPS/device validation, encrypted off-host backups, restore drills, Dependabot alerts, and tagged release checks.
+- [x] Backend suite: **67/67 passed** in the project Python environment; Docker Compose configuration and `git diff --check` passed.
+- [ ] Local Docker image build could not resolve the pinned `pydantic` distribution from its package index; native Xcode simulator verification also requires macOS CI because this workspace lacks `xcodebuild`.

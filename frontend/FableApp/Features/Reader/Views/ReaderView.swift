@@ -17,6 +17,7 @@ public struct ReaderView: View {
     @State private var currentChapterIndex: Int = 0
     @State private var isShowingChapterSheet: Bool = false
     @State private var isLoadingChapters: Bool = false
+    @State private var chapterLoadError: String?
     @State private var isChromeVisible: Bool = true
     @State private var isRestoringScrollPosition: Bool = true
     @State private var scrollRestoreTrigger: Int = 0
@@ -468,6 +469,19 @@ public struct ReaderView: View {
                                     }
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 48)
+                                } else if let chapterLoadError, activeParagraphs.isEmpty {
+                                    VStack(spacing: 12) {
+                                        Text(chapterLoadError)
+                                            .font(.system(size: 14, weight: .medium))
+                                            .foregroundColor(store.readerTheme.textColor.opacity(0.75))
+                                            .multilineTextAlignment(.center)
+                                        Button("Retry") {
+                                            Task { await loadChapters() }
+                                        }
+                                        .frame(minWidth: 44, minHeight: 44)
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 48)
                                 } else {
                                     let paragraphs = activeParagraphs
                                     LazyVStack(alignment: .leading, spacing: 18 + store.readerLineSpacing.points) {
@@ -730,19 +744,8 @@ public struct ReaderView: View {
             } else {
                 restoreSavedChapter()
                 loadCurrentChapterPages(preserveCurrentPage: true)
-                isLoadingChapters = true
                 Task {
-                    let fetched = await store.fetchChapters(for: story)
-                    await MainActor.run {
-                        self.isLoadingChapters = false
-                        if !fetched.isEmpty {
-                            self.chapters = fetched
-                            restoreSavedChapter()
-                            loadCurrentChapterPages(preserveCurrentPage: true)
-                        }
-                        persistCurrentProseProgress()
-                        triggerScrollRestore()
-                    }
+                    await loadChapters()
                 }
             }
         }
@@ -1008,6 +1011,27 @@ public struct ReaderView: View {
     }
     
     // Multi-Chapter Synchronization Helpers
+    @MainActor
+    private func loadChapters() async {
+        guard !isLoadingChapters else { return }
+        isLoadingChapters = true
+        chapterLoadError = nil
+        defer { isLoadingChapters = false }
+
+        do {
+            let fetched = try await store.fetchChapters(for: story)
+            if !fetched.isEmpty {
+                chapters = fetched
+                restoreSavedChapter()
+                loadCurrentChapterPages(preserveCurrentPage: true)
+            }
+            persistCurrentProseProgress()
+            triggerScrollRestore()
+        } catch {
+            chapterLoadError = "Couldn't load chapters. Check your connection and try again."
+        }
+    }
+
     private func loadCurrentChapterPages(preserveCurrentPage: Bool = false, startAtLastPage: Bool = false) {
         let text = activeChapterText
         let chunked = PacingEngine.chunkIntoPages(text: text, fontSizePercentage: store.readerFontSize)
@@ -1125,6 +1149,19 @@ public struct ReaderView: View {
                             .foregroundColor(FableTheme.textMuted)
                     }
                     .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.vertical, 36)
+                } else if let chapterLoadError {
+                    VStack(spacing: 12) {
+                        Text(chapterLoadError)
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(FableTheme.textPrimary)
+                            .multilineTextAlignment(.center)
+                        Button("Retry") {
+                            Task { await loadChapters() }
+                        }
+                        .frame(minWidth: 44, minHeight: 44)
+                    }
+                    .frame(maxWidth: .infinity)
                     .padding(.vertical, 36)
                 } else if chapters.isEmpty {
                     VStack(spacing: 8) {

@@ -205,9 +205,7 @@ public struct Chapter: Identifiable, Hashable, Codable {
             !value.isEmpty,
             !value.contains(where: \.isWhitespace),
             let url = URL(string: value),
-            let scheme = url.scheme?.lowercased(),
-            scheme == "https" || scheme == "http",
-            url.host != nil,
+            PublicHTTPSURLPolicy.allows(url),
             url.absoluteString == value
         else {
             return nil

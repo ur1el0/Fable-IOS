@@ -121,7 +121,7 @@ Fable is architected around **Feature-Driven Vertical Slices** combined with **M
 3. **Install Dependencies:**
    ```bash
    pip install --upgrade pip
-   pip install -r backend/requirements.txt
+   pip install -r backend/requirements-test.txt
    ```
 
 4. **Execute Backend Verification Tests:**
@@ -173,8 +173,9 @@ Fable-IOS/
 ├── Package.swift                           # Swift Package Manager manifest
 ├── backend/                                # Asynchronous Python / FastAPI Backend
 │   ├── main.py                             # Application entrypoint & middleware configuration
-│   ├── requirements.txt                    # Python dependencies (FastAPI, Uvicorn, Pydantic, HTTPX, pytest)
-│   ├── test_main.py                        # Backend contract and service tests (35 passing)
+│   ├── requirements.txt                    # Runtime dependencies (FastAPI, Uvicorn, Pydantic, HTTPX)
+│   ├── requirements-test.txt               # Runtime plus pytest for local and CI verification
+│   ├── test_main.py                        # Backend contract and service tests
 │   ├── api/v1/
 │   │   ├── api.py                          # Unified API router mounting
 │   │   └── endpoints/                      # Route controllers (auth, stories, shelf, gutenberg, health)

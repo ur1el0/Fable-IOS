@@ -16,6 +16,46 @@ public struct LibraryTests {
             }
         }
 
+        var providerStatus = ProviderCatalogStatus()
+        assert(providerStatus.warningMessage == nil, "Provider Catalog Starts Current")
+        providerStatus.record(.gutenberg, succeeded: false)
+        assert(
+            providerStatus.warningMessage?.contains("Project Gutenberg") == true,
+            "Provider Refresh Failure Is Visible"
+        )
+        providerStatus.record(.mangaDex, succeeded: false)
+        assert(
+            providerStatus.warningMessage?.contains("Project Gutenberg and MangaDex") == true,
+            "Multiple Provider Refresh Failures Are Identified"
+        )
+        providerStatus.record(.gutenberg, succeeded: true)
+        assert(
+            providerStatus.warningMessage?.contains("Project Gutenberg") == false
+                && providerStatus.warningMessage?.contains("MangaDex") == true,
+            "Successful Provider Refresh Clears Its Warning"
+        )
+        let oldRefresh = Date(timeIntervalSinceNow: -(ProviderCatalogStatus.maximumFreshnessInterval + 1))
+        var staleProviderStatus = ProviderCatalogStatus(lastSuccessfulRefresh: [.gutenberg: oldRefresh])
+        assert(
+            staleProviderStatus.warningMessage?.contains("Project Gutenberg") == true,
+            "Old Provider Snapshot Is Reported As Stale"
+        )
+        staleProviderStatus.record(.gutenberg, succeeded: true)
+        assert(staleProviderStatus.warningMessage == nil, "Successful Refresh Clears Stale Snapshot Warning")
+
+        assert(
+            RemoteImagePayloadPolicy.allows(url: URL(string: "https://uploads.mangadex.org/cover.jpg")!),
+            "Remote Image Allows HTTPS Provider Host"
+        )
+        assert(
+            !RemoteImagePayloadPolicy.allows(url: URL(string: "https://127.0.0.1/image.jpg")!),
+            "Remote Image Rejects Loopback Address"
+        )
+        assert(
+            RemoteImagePayloadPolicy.allows(statusCode: 200, mimeType: nil, expectedContentLength: -1),
+            "Remote Image Accepts Missing MIME Before Payload Decode"
+        )
+
         let store = StoryStore()
 
         let providerRequest = StoryAPIService.providerRequest(
