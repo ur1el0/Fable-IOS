@@ -618,3 +618,10 @@ This progress log tracks the transition of **Fable** from an editorial prototype
 - [x] Added production release gates for HTTPS/device validation, encrypted off-host backups, restore drills, Dependabot alerts, and tagged release checks.
 - [x] Backend suite: **67/67 passed** in the project Python environment; Docker Compose configuration and `git diff --check` passed.
 - [ ] Local Docker image build could not resolve the pinned `pydantic` distribution from its package index; native Xcode simulator verification also requires macOS CI because this workspace lacks `xcodebuild`.
+
+## Production Audit Follow-up (2026-11-02)
+
+- [x] Raised muted text contrast across the light design surfaces and kept prose-reader hints theme-aware for dark backgrounds.
+- [x] Added a native XCTest regression asserting at least 4.5:1 contrast for muted text against all shared light surfaces; the minimum measured ratio is 5.01:1.
+- [x] Upgraded pytest to 9.2.0 to address the reported dependency vulnerability; merged through PR #19.
+- [x] Verification: backend suite **68/68 passed** with pytest 9.2.0; macOS CI passed the iOS simulator tests and Release build.
