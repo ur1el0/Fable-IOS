@@ -102,7 +102,7 @@ public struct ReaderTests {
             storyId: testStoryId,
             chapterNumber: 4,
             title: "Official Release",
-            content: "https://publisher.example/chapters/4"
+            content: "https://publisher.com/chapters/4"
         )
         assert(
             textChapter.hasReadableText && textChapter.externalSourceURL == nil,
@@ -113,6 +113,27 @@ public struct ReaderTests {
                 && externalChapter.externalSourceURL?.absoluteString == externalChapter.content,
             "Publisher URL Is Distinguished from Chapter Text"
         )
+        let insecurePublisherChapter = Chapter(
+            storyId: testStoryId,
+            chapterNumber: 5,
+            title: "Insecure Release",
+            content: "http://publisher.com/chapters/5"
+        )
+        let localPublisherChapter = Chapter(
+            storyId: testStoryId,
+            chapterNumber: 6,
+            title: "Local Release",
+            content: "https://localhost/chapters/6"
+        )
+        let credentialedPublisherChapter = Chapter(
+            storyId: testStoryId,
+            chapterNumber: 7,
+            title: "Credentialed Release",
+            content: "https://reader:password@publisher.com/chapters/7"
+        )
+        assert(insecurePublisherChapter.externalSourceURL == nil, "External Chapter Requires HTTPS")
+        assert(localPublisherChapter.externalSourceURL == nil, "External Chapter Rejects Local Hosts")
+        assert(credentialedPublisherChapter.externalSourceURL == nil, "External Chapter Rejects Embedded Credentials")
 
         // Test 9: Format-Based Reader Selection Protocol
         let proseStory = Story(

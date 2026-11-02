@@ -28,6 +28,7 @@ public struct MangaReaderView: View {
     @State private var readingMode: MangaReadingMode = .webtoon
     @State private var isChromeVisible: Bool = true
     @State private var isLoading: Bool = false
+    @State private var chapterLoadError: String?
     @State private var zoomScale: CGFloat = 1.0
     @State private var isShowingChapterSheet: Bool = false
     @State private var isShowingPublisherReader: Bool = false
@@ -92,6 +93,22 @@ public struct MangaReaderView: View {
                     Text("Loading panels...")
                         .font(.system(size: 13, weight: .medium))
                         .foregroundColor(.gray)
+                }
+            } else if let chapterLoadError {
+                VStack(spacing: 14) {
+                    Image(systemName: "wifi.exclamationmark")
+                        .font(.system(size: 28))
+                        .foregroundColor(FableTheme.brandPrimary)
+                        .accessibilityHidden(true)
+                    Text(chapterLoadError)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.white.opacity(0.8))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 30)
+                    Button("Retry") {
+                        Task { await loadMangaChapters() }
+                    }
+                    .frame(minWidth: 44, minHeight: 44)
                 }
             } else if activePageUrls.isEmpty {
                 if let externalURL = externalChapterURL {
@@ -662,6 +679,7 @@ public struct MangaReaderView: View {
 
     @MainActor
     private func loadMangaChapters() async {
+        guard !isLoading else { return }
         let hasReadableChapter = story.chapters?.contains {
             !$0.pageUrls.isEmpty || $0.externalSourceURL != nil
         } ?? false
@@ -672,7 +690,16 @@ public struct MangaReaderView: View {
             return
         }
         isLoading = true
-        let fetched = await store.fetchChapters(for: story)
+        chapterLoadError = nil
+        defer { isLoading = false }
+
+        let fetched: [Chapter]
+        do {
+            fetched = try await store.fetchChapters(for: story)
+        } catch {
+            chapterLoadError = "Couldn't load chapters. Check your connection and try again."
+            return
+        }
         if !fetched.isEmpty {
             self.chapters = fetched
         } else {
@@ -687,7 +714,6 @@ public struct MangaReaderView: View {
             )
             self.chapters = [single]
         }
-        isLoading = false
         restoreSavedChapter()
         prefetchPanels(around: currentChapterIndex)
     }

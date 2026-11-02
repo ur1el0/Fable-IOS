@@ -25,6 +25,7 @@ struct ProviderCatalogStatusView: View {
                         }
                     }
                     .font(.system(size: 13, weight: .semibold))
+                    .frame(minWidth: 44, minHeight: 44)
                     .disabled(store.isRefreshingProviderCatalogs)
                     .accessibilityLabel(store.isRefreshingProviderCatalogs ? "Refreshing catalogs" : "Retry catalog update")
                     .accessibilityHint("Fetch the latest live catalog data.")
