@@ -307,7 +307,7 @@ public struct ReaderView: View {
                                                 Spacer()
                                                 Text("Tap paragraph to annotate")
                                                     .font(.system(size: 11))
-                                                    .foregroundColor(FableTheme.textMuted)
+                                                    .foregroundColor(store.readerTheme.isDark ? Color.white.opacity(0.75) : FableTheme.textMuted)
                                             }
                                             .padding(.top, 14)
                                             
@@ -418,7 +418,7 @@ public struct ReaderView: View {
                                     .clipShape(Capsule())
                                     
                                     Text("•")
-                                        .foregroundColor(FableTheme.textMuted)
+                                        .foregroundColor(store.readerTheme.isDark ? Color.white.opacity(0.75) : FableTheme.textMuted)
                                     
                                     HStack(spacing: 4) {
                                         Image(systemName: "clock")
