@@ -358,7 +358,7 @@ public struct SettingsView: View {
                                     .foregroundColor(FableTheme.textMuted)
                                 Text("Inspired by high-end independent editorial journals.")
                                     .font(.system(size: 11))
-                                    .foregroundColor(FableTheme.textMuted.opacity(0.7))
+                                    .foregroundColor(FableTheme.textMuted)
                             }
                             .padding(.top, 8)
                         }
