@@ -11,7 +11,7 @@ public enum FableTheme {
     public static let surfaceVariant = Color(red: 0.910, green: 0.922, blue: 0.941) // #E8EBF0 Clean interactive pill background
     public static let textPrimary = Color(red: 0.07, green: 0.09, blue: 0.13) // #111721 Sharp high-contrast text
     public static let textSecondary = Color(red: 0.30, green: 0.35, blue: 0.43) // #4D596E Clean slate secondary
-    public static let textMuted = Color(red: 0.58, green: 0.62, blue: 0.70) // #949EB2 Crisp metadata text
+    public static let textMuted = Color(red: 0.353, green: 0.392, blue: 0.455) // #5A6474 Muted text with WCAG AA contrast on light surfaces
     public static let cardBackground = Color.white // #FFFFFF Clean surface
     public static let divider = Color(red: 0.89, green: 0.91, blue: 0.93) // #E3E8ED Fine hairline divider
 
