@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out tagged source
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
@@ -40,7 +40,7 @@ jobs:
     runs-on: macos-15-intel
     steps:
       - name: Check out tagged source
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Verify Release API URL guard
         run: |
           if CONFIGURATION=Release FABLE_API_BASE_URL=http://127.0.0.1:8000/api/v1 scripts/validate_ios_release_config.sh; then
@@ -83,7 +83,7 @@ jobs:
       packages: write
     steps:
       - name: Check out tagged source
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
       - name: Publish versioned images and report the registry digest
         env:
