@@ -840,6 +840,28 @@ def test_login_invalid_password():
     assert res.status_code == 401
     assert "Invalid email or password" in res.json()["detail"]
 
+
+def test_login_missing_user_performs_password_verification(monkeypatch):
+    from services import auth_service
+
+    verifications = []
+
+    def verify(stored_hash, password):
+        verifications.append((stored_hash, password))
+        return False
+
+    monkeypatch.setattr(auth_service, "verify_password", verify)
+    response = client.post("/api/v1/auth/login", json={
+        "email": "missing-reader@example.test",
+        "password": "SameLengthPassword123!",
+    })
+
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Invalid email or password"}
+    assert len(verifications) == 1
+    assert verifications[0][0].startswith("pbkdf2_sha256$600000$")
+    assert verifications[0][1] == "SameLengthPassword123!"
+
 def test_auth_me_unauthorized():
     # Missing header
     res1 = client.get("/api/v1/auth/me")

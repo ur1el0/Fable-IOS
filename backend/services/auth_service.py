@@ -13,6 +13,10 @@ PASSWORD_HASH_ITERATIONS = 600_000
 LEGACY_PASSWORD_HASH_ITERATIONS = 100_000
 MAX_PASSWORD_HASH_ITERATIONS = 10_000_000
 PASSWORD_HASH_ALGORITHM = "pbkdf2_sha256"
+DUMMY_PASSWORD_HASH = (
+    f"{PASSWORD_HASH_ALGORITHM}${PASSWORD_HASH_ITERATIONS}$"
+    f"{'00' * 16}${'00' * hashlib.sha256().digest_size}"
+)
 
 
 def _avatar_image_name(row) -> Optional[str]:
@@ -158,7 +162,13 @@ def login_user(req: LoginRequest) -> AuthResponse:
     conn = get_db()
     try:
         row = conn.execute("SELECT * FROM users WHERE email = ?", (normalized_email,)).fetchone()
-        if not row or not verify_password(row["password_hash"], req.password):
+        if not row:
+            verify_password(DUMMY_PASSWORD_HASH, req.password)
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid email or password"
+            )
+        if not verify_password(row["password_hash"], req.password):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid email or password"
