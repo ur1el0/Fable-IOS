@@ -1,4 +1,6 @@
 import XCTest
+import SwiftUI
+import UIKit
 @testable import FableApp
 
 final class FableAppTests: XCTestCase {
@@ -42,5 +44,52 @@ final class FableAppTests: XCTestCase {
         let result = await AuthTests.runAllTests()
         XCTAssertTrue(result.failures.isEmpty, "Authentication test failures: \(result.failures)")
         XCTAssertEqual(result.passed, result.total, "All authentication assertions must pass")
+    }
+
+    func testMutedTextMeetsWCAGAAContrastOnLightSurfaces() {
+        let lightSurfaces: [(String, Color)] = [
+            ("background", FableTheme.background),
+            ("surface", FableTheme.surface),
+            ("surface variant", FableTheme.surfaceVariant),
+            ("card background", FableTheme.cardBackground)
+        ]
+
+        for (name, surface) in lightSurfaces {
+            guard let ratio = contrastRatio(UIColor(FableTheme.textMuted), UIColor(surface)) else {
+                XCTFail("Unable to resolve colors for \(name)")
+                continue
+            }
+
+            XCTAssertGreaterThanOrEqual(ratio, 4.5, "Muted text must meet WCAG AA contrast on \(name)")
+        }
+    }
+
+    private func contrastRatio(_ first: UIColor, _ second: UIColor) -> Double? {
+        guard let firstLuminance = relativeLuminance(first),
+              let secondLuminance = relativeLuminance(second) else {
+            return nil
+        }
+
+        let lighter = max(firstLuminance, secondLuminance)
+        let darker = min(firstLuminance, secondLuminance)
+        return (lighter + 0.05) / (darker + 0.05)
+    }
+
+    private func relativeLuminance(_ color: UIColor) -> Double? {
+        var red: CGFloat = 0
+        var green: CGFloat = 0
+        var blue: CGFloat = 0
+        var alpha: CGFloat = 0
+
+        guard color.getRed(&red, green: &green, blue: &blue, alpha: &alpha), alpha >= 0.999 else {
+            return nil
+        }
+
+        func linearize(_ component: CGFloat) -> Double {
+            let value = Double(component)
+            return value <= 0.04045 ? value / 12.92 : pow((value + 0.055) / 1.055, 2.4)
+        }
+
+        return 0.2126 * linearize(red) + 0.7152 * linearize(green) + 0.0722 * linearize(blue)
     }
 }
