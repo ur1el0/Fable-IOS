@@ -2,27 +2,21 @@ import SwiftUI
 import UIKit
 
 struct PasswordRecoveryView: View {
-    @ObservedObject private var authViewModel: AuthViewModel
+    @StateObject private var viewModel: PasswordRecoveryViewModel
     @Environment(\.dismiss) private var dismiss
 
-    @State private var email: String
-    @State private var token = ""
-    @State private var password = ""
-    @State private var confirmation = ""
-    @State private var stage: Stage = .request
-    @State private var isLoading = false
-    @State private var errorMessage: String?
-    @State private var statusMessage: String?
-
-    private enum Stage {
-        case request
-        case confirm
-        case complete
-    }
-
     init(authViewModel: AuthViewModel, initialEmail: String) {
-        self.authViewModel = authViewModel
-        _email = State(initialValue: initialEmail)
+        _viewModel = StateObject(
+            wrappedValue: PasswordRecoveryViewModel(
+                initialEmail: initialEmail,
+                requestReset: { email in
+                    try await authViewModel.requestPasswordReset(email: email)
+                },
+                confirmReset: { token, password in
+                    try await authViewModel.confirmPasswordReset(token: token, newPassword: password)
+                }
+            )
+        )
     }
 
     var body: some View {
@@ -40,20 +34,20 @@ struct PasswordRecoveryView: View {
                             .font(.body)
                             .foregroundStyle(FableTheme.textSecondary)
 
-                        if let statusMessage {
+                        if let statusMessage = viewModel.statusMessage {
                             Text(statusMessage)
                                 .font(.body)
                                 .foregroundStyle(FableTheme.brandSecondary)
                         }
 
-                        if let errorMessage {
+                        if let errorMessage = viewModel.errorMessage {
                             Text(errorMessage)
                                 .font(.body)
                                 .foregroundStyle(.red)
                                 .accessibilityLabel("Error: \(errorMessage)")
                         }
 
-                        switch stage {
+                        switch viewModel.stage {
                         case .request:
                             requestForm
                         case .confirm:
@@ -79,11 +73,11 @@ struct PasswordRecoveryView: View {
                         .frame(minWidth: 44, minHeight: 44)
                 }
             }
-            .onChange(of: statusMessage) { _, message in
+            .onChange(of: viewModel.statusMessage) { _, message in
                 guard let message else { return }
                 UIAccessibility.post(notification: .announcement, argument: message)
             }
-            .onChange(of: errorMessage) { _, message in
+            .onChange(of: viewModel.errorMessage) { _, message in
                 guard let message else { return }
                 UIAccessibility.post(notification: .announcement, argument: message)
             }
@@ -92,7 +86,7 @@ struct PasswordRecoveryView: View {
 
     private var requestForm: some View {
         VStack(alignment: .leading, spacing: 16) {
-            TextField("Email address", text: $email)
+            TextField("Email address", text: $viewModel.email)
                 .textContentType(.emailAddress)
                 .keyboardType(.emailAddress)
                 .textInputAutocapitalization(.never)
@@ -101,58 +95,56 @@ struct PasswordRecoveryView: View {
                 .accessibilityLabel("Email address")
 
             Button {
-                Task { await sendRecoveryCode() }
+                Task { await viewModel.requestCode() }
             } label: {
                 buttonLabel("Send recovery code")
             }
             .buttonStyle(.borderedProminent)
             .frame(maxWidth: .infinity, minHeight: 48)
-            .accessibilityLabel(isLoading ? "Sending recovery code" : "Send recovery code")
-            .disabled(isLoading || email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .accessibilityLabel(viewModel.isLoading ? "Sending recovery code" : "Send recovery code")
+            .disabled(viewModel.isLoading || viewModel.email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
     }
 
     private var confirmationForm: some View {
         VStack(alignment: .leading, spacing: 16) {
-            TextField("Recovery code", text: $token)
+            TextField("Recovery code", text: $viewModel.token)
                 .textContentType(.oneTimeCode)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .textFieldStyle(.roundedBorder)
                 .accessibilityLabel("One-time recovery code")
 
-            SecureField("New password", text: $password)
+            SecureField("New password", text: $viewModel.password)
                 .textContentType(.newPassword)
                 .textFieldStyle(.roundedBorder)
                 .accessibilityLabel("New password, at least 12 characters")
 
-            SecureField("Confirm new password", text: $confirmation)
+            SecureField("Confirm new password", text: $viewModel.confirmation)
                 .textContentType(.newPassword)
                 .textFieldStyle(.roundedBorder)
                 .accessibilityLabel("Confirm new password")
 
             Button {
-                Task { await confirmRecovery() }
+                Task { await viewModel.confirmPassword() }
             } label: {
                 buttonLabel("Update password")
             }
             .buttonStyle(.borderedProminent)
             .frame(maxWidth: .infinity, minHeight: 48)
-            .accessibilityLabel(isLoading ? "Updating password" : "Update password")
-            .disabled(isLoading || !canSubmitPassword)
+            .accessibilityLabel(viewModel.isLoading ? "Updating password" : "Update password")
+            .disabled(viewModel.isLoading || !viewModel.canSubmitPassword)
 
             Button("Send another code") {
-                stage = .request
-                statusMessage = nil
-                errorMessage = nil
-                token = ""
+                viewModel.requestAnotherCode()
             }
             .frame(maxWidth: .infinity, minHeight: 44)
+            .disabled(viewModel.isLoading)
         }
     }
 
     private var title: String {
-        switch stage {
+        switch viewModel.stage {
         case .request: "Reset your password"
         case .confirm: "Choose a new password"
         case .complete: "Password updated"
@@ -160,7 +152,7 @@ struct PasswordRecoveryView: View {
     }
 
     private var description: String {
-        switch stage {
+        switch viewModel.stage {
         case .request:
             "Enter your account email. If it belongs to a Fable account, we’ll send a one-time recovery code."
         case .confirm:
@@ -170,60 +162,12 @@ struct PasswordRecoveryView: View {
         }
     }
 
-    private var canSubmitPassword: Bool {
-        token.count >= 43 && password.count >= 12 && password == confirmation
-    }
-
     @ViewBuilder
     private func buttonLabel(_ title: String) -> some View {
-        if isLoading {
+        if viewModel.isLoading {
             ProgressView().frame(minHeight: 24)
         } else {
             Text(title).frame(minHeight: 24)
-        }
-    }
-
-    @MainActor
-    private func sendRecoveryCode() async {
-        isLoading = true
-        errorMessage = nil
-        statusMessage = nil
-        defer { isLoading = false }
-
-        do {
-            try await authViewModel.requestPasswordReset(email: email)
-            stage = .confirm
-            statusMessage = "If an account uses this address, recovery instructions will arrive shortly."
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    @MainActor
-    private func confirmRecovery() async {
-        guard password == confirmation else {
-            errorMessage = "The passwords do not match."
-            return
-        }
-        guard password.count >= 12 else {
-            errorMessage = "Password must be at least 12 characters."
-            return
-        }
-
-        isLoading = true
-        errorMessage = nil
-        statusMessage = nil
-        defer { isLoading = false }
-
-        do {
-            try await authViewModel.confirmPasswordReset(token: token, newPassword: password)
-            token = ""
-            password = ""
-            confirmation = ""
-            stage = .complete
-            statusMessage = "Password updated."
-        } catch {
-            errorMessage = error.localizedDescription
         }
     }
 }
