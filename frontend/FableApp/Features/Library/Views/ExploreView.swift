@@ -51,21 +51,21 @@ public struct ExploreView: View {
                         HStack {
                             HStack(spacing: 8) {
                                 Image(systemName: "square.stack.3d.up.fill")
-                                    .font(.system(size: 13))
+                                    .fableFont(size: 13)
                                     .foregroundColor(.white)
                                     .padding(7)
                                     .background(FableTheme.brandPrimary)
                                     .clipShape(RoundedRectangle(cornerRadius: 8))
                                 
                                 Text("Fable")
-                                    .font(.system(size: 20, weight: .bold, design: .default))
+                                    .fableFont(size: 20, weight: .bold, design: .default)
                                     .foregroundColor(FableTheme.textPrimary)
                             }
                             
                             Spacer()
                             
                             Text("Discovery")
-                                .font(.system(size: 14, weight: .semibold))
+                                .fableFont(size: 14, weight: .semibold)
                                 .foregroundColor(FableTheme.textMuted)
                         }
                         .padding(.horizontal, 20)
@@ -74,12 +74,12 @@ public struct ExploreView: View {
                         // Editorial Title Area
                         VStack(alignment: .leading, spacing: 4) {
                             Text("CURATED CATALOG")
-                                .font(.system(size: 11, weight: .bold))
+                                .fableFont(size: 11, weight: .bold)
                                 .tracking(1.2)
                                 .foregroundColor(FableTheme.brandPrimary)
                             
                             Text("Explore")
-                                .font(.system(size: 34, weight: .bold, design: .serif))
+                                .fableFont(size: 34, weight: .bold, design: .serif)
                                 .foregroundColor(FableTheme.textPrimary)
                         }
                         .padding(.horizontal, 20)
@@ -89,11 +89,11 @@ public struct ExploreView: View {
                         // Search Bar with Active Focus Indicator
                         HStack(spacing: 12) {
                             Image(systemName: "magnifyingglass")
-                                .font(.system(size: 16))
+                                .fableFont(size: 16)
                                 .foregroundColor(isSearchFocused ? FableTheme.brandPrimary : FableTheme.textMuted)
                             
                             TextField("Search stories, manga, or authors...", text: $searchText)
-                                .font(.system(size: 15))
+                                .fableFont(size: 15)
                                 .foregroundColor(FableTheme.textPrimary)
                                 .focused($isSearchFocused)
                             
@@ -126,7 +126,7 @@ public struct ExploreView: View {
                             VStack(alignment: .leading, spacing: 14) {
                                 HStack {
                                     Text("Search Results (\(searchResults.count))")
-                                        .font(.system(size: 18, weight: .bold, design: .serif))
+                                        .fableFont(size: 18, weight: .bold, design: .serif)
                                         .foregroundColor(FableTheme.textPrimary)
                                     Spacer()
                                 }
@@ -135,10 +135,10 @@ public struct ExploreView: View {
                                 if searchResults.isEmpty {
                                     VStack(spacing: 10) {
                                         Image(systemName: "magnifyingglass")
-                                            .font(.system(size: 32))
+                                            .fableFont(size: 32)
                                             .foregroundColor(FableTheme.textMuted.opacity(0.5))
                                         Text("No titles found matching \"\(searchText)\"")
-                                            .font(.system(size: 14, weight: .medium))
+                                            .fableFont(size: 14, weight: .medium)
                                             .foregroundColor(FableTheme.textMuted)
                                     }
                                     .frame(maxWidth: .infinity)
@@ -157,13 +157,13 @@ public struct ExploreView: View {
                                                     
                                                     VStack(alignment: .leading, spacing: 4) {
                                                         Text(story.title)
-                                                            .font(.system(size: 15, weight: .bold, design: .serif))
+                                                            .fableFont(size: 15, weight: .bold, design: .serif)
                                                             .foregroundColor(FableTheme.textPrimary)
                                                             .lineLimit(1)
                                                         
                                                         HStack(spacing: 6) {
                                                             Text(story.contentFormat.displayName.uppercased())
-                                                                .font(.system(size: 8, weight: .heavy))
+                                                                .fableFont(size: 8, weight: .heavy)
                                                                 .padding(.horizontal, 6)
                                                                 .padding(.vertical, 2)
                                                                 .background(story.contentFormat == .manga ? FableTheme.brandPrimary.opacity(0.12) : FableTheme.surface)
@@ -171,7 +171,7 @@ public struct ExploreView: View {
                                                                 .clipShape(Capsule())
                                                             
                                                             Text("\(story.author) • \(story.genre.rawValue)")
-                                                                .font(.system(size: 12))
+                                                                .fableFont(size: 12)
                                                                 .foregroundColor(FableTheme.textMuted)
                                                                 .lineLimit(1)
                                                         }
@@ -180,7 +180,7 @@ public struct ExploreView: View {
                                                     Spacer()
                                                     
                                                     Image(systemName: "chevron.right")
-                                                        .font(.system(size: 12))
+                                                        .fableFont(size: 12)
                                                         .foregroundColor(FableTheme.textMuted)
                                                 }
                                                 .padding(12)
@@ -210,10 +210,10 @@ public struct ExploreView: View {
                                             Text(filter)
                                             if selectedFilter == filter && filter != "All" {
                                                 Image(systemName: "checkmark")
-                                                    .font(.system(size: 10, weight: .bold))
+                                                    .fableFont(size: 10, weight: .bold)
                                             }
                                         }
-                                        .font(.system(size: 13, weight: selectedFilter == filter ? .semibold : .medium))
+                                        .fableFont(size: 13, weight: selectedFilter == filter ? .semibold : .medium)
                                         .padding(.horizontal, 16)
                                         .padding(.vertical, 9)
                                         .background(
@@ -235,7 +235,7 @@ public struct ExploreView: View {
                             VStack(alignment: .leading, spacing: 12) {
                                 HStack {
                                     Text("\(selectedFilter) (\(curatedStories.count))")
-                                        .font(.system(size: 18, weight: .bold, design: .serif))
+                                        .fableFont(size: 18, weight: .bold, design: .serif)
                                         .foregroundColor(FableTheme.textPrimary)
                                     Spacer()
                                 }
@@ -254,12 +254,12 @@ public struct ExploreView: View {
                                                         .shadow(color: Color.black.opacity(0.12), radius: 5, y: 2)
                                                     
                                                     Text(story.title)
-                                                        .font(.system(size: 13, weight: .bold, design: .serif))
+                                                        .fableFont(size: 13, weight: .bold, design: .serif)
                                                         .foregroundColor(FableTheme.textPrimary)
                                                         .lineLimit(1)
                                                     
                                                     Text(story.author)
-                                                        .font(.system(size: 11))
+                                                        .fableFont(size: 11)
                                                         .foregroundColor(FableTheme.textMuted)
                                                         .lineLimit(1)
                                                 }
@@ -277,13 +277,13 @@ public struct ExploreView: View {
                         VStack(alignment: .leading, spacing: 14) {
                             HStack {
                                 Text("Popular Genres")
-                                    .font(.system(size: 20, weight: .bold, design: .serif))
+                                    .fableFont(size: 20, weight: .bold, design: .serif)
                                     .foregroundColor(FableTheme.textPrimary)
                                 
                                 Spacer()
                                 
                                 Text("\(store.genres.count) categories")
-                                    .font(.system(size: 13))
+                                    .fableFont(size: 13)
                                     .monospacedDigit()
                                     .foregroundColor(FableTheme.textMuted)
                             }
@@ -291,7 +291,7 @@ public struct ExploreView: View {
                             
                             if store.genres.isEmpty {
                                 Text("Live genres will appear here after the catalog syncs.")
-                                    .font(.system(size: 14))
+                                    .fableFont(size: 14)
                                     .foregroundColor(FableTheme.textMuted)
                                     .padding(.horizontal, 20)
                             }
@@ -316,12 +316,12 @@ public struct ExploreView: View {
                                             
                                             VStack(alignment: .leading, spacing: 3) {
                                                 Text(genre.name)
-                                                    .font(.system(size: 18, weight: .bold, design: .serif))
+                                                    .fableFont(size: 18, weight: .bold, design: .serif)
                                                     .foregroundColor(.white)
                                                     .shadow(color: Color.black.opacity(0.4), radius: 2, y: 1)
                                                 
                                                 Text("\(genre.storyCount) stories")
-                                                    .font(.system(size: 11, weight: .semibold))
+                                                    .fableFont(size: 11, weight: .semibold)
                                                     .foregroundColor(Color.white.opacity(0.9))
                                                     .padding(.horizontal, 7)
                                                     .padding(.vertical, 2)
@@ -343,11 +343,11 @@ public struct ExploreView: View {
                         VStack(alignment: .leading, spacing: 14) {
                             HStack(spacing: 6) {
                                 Text("Trending Creators")
-                                    .font(.system(size: 20, weight: .bold, design: .serif))
+                                    .fableFont(size: 20, weight: .bold, design: .serif)
                                     .foregroundColor(FableTheme.textPrimary)
                                 
                                 Image(systemName: "chart.line.uptrend.xyaxis")
-                                    .font(.system(size: 14))
+                                    .fableFont(size: 14)
                                     .foregroundColor(FableTheme.brandPrimary)
                                 
                                 Spacer()
@@ -358,7 +358,7 @@ public struct ExploreView: View {
                                 HStack(spacing: 18) {
                                     if store.writers.isEmpty {
                                         Text("Live author profiles will appear here after sync.")
-                                            .font(.system(size: 14))
+                                            .fableFont(size: 14)
                                             .foregroundColor(FableTheme.textMuted)
                                     }
                                     ForEach(store.writers) { writer in
@@ -374,12 +374,12 @@ public struct ExploreView: View {
                                                 
                                                 VStack(spacing: 2) {
                                                     Text(writer.name)
-                                                        .font(.system(size: 13, weight: .bold, design: .serif))
+                                                        .fableFont(size: 13, weight: .bold, design: .serif)
                                                         .foregroundColor(FableTheme.textPrimary)
                                                         .lineLimit(1)
                                                     
                                                     Text("\(writer.storyCount) Stories")
-                                                        .font(.system(size: 11, weight: .medium))
+                                                        .fableFont(size: 11, weight: .medium)
                                                         .foregroundColor(FableTheme.textMuted)
                                                 }
                                             }

@@ -34,14 +34,14 @@ public struct ShelfView: View {
                         // Brand Logo Header
                         HStack(spacing: 8) {
                             Image(systemName: "square.stack.3d.up.fill")
-                                .font(.system(size: 13))
+                                .fableFont(size: 13)
                                 .foregroundColor(.white)
                                 .padding(7)
                                 .background(FableTheme.brandPrimary)
                                 .clipShape(RoundedRectangle(cornerRadius: 8))
                             
                             Text("Fable")
-                                .font(.system(size: 20, weight: .bold, design: .default))
+                                .fableFont(size: 20, weight: .bold, design: .default)
                                 .foregroundColor(FableTheme.textPrimary)
                         }
                         .padding(.horizontal, 20)
@@ -50,7 +50,7 @@ public struct ShelfView: View {
                         // Title Row with Profile & Settings
                         HStack {
                             Text("My Shelf")
-                                .font(.system(size: 32, weight: .bold, design: .serif))
+                                .fableFont(size: 32, weight: .bold, design: .serif)
                                 .foregroundColor(FableTheme.textPrimary)
                             
                             Spacer()
@@ -66,7 +66,7 @@ public struct ShelfView: View {
                                             .frame(width: 40, height: 40)
                                         
                                         Image(systemName: "person.crop.circle")
-                                            .font(.system(size: 19))
+                                            .fableFont(size: 19)
                                             .foregroundColor(FableTheme.brandPrimary)
                                     }
                                     .frame(width: 44, height: 44)
@@ -84,7 +84,7 @@ public struct ShelfView: View {
                                             .frame(width: 40, height: 40)
                                         
                                         Image(systemName: "gearshape")
-                                            .font(.system(size: 17))
+                                            .fableFont(size: 17)
                                             .foregroundColor(FableTheme.textPrimary)
                                     }
                                     .frame(width: 44, height: 44)
@@ -105,7 +105,7 @@ public struct ShelfView: View {
                                     }
                                 }) {
                                     Text(tab)
-                                        .font(.system(size: 14, weight: selectedTab == tab ? .semibold : .medium))
+                                        .fableFont(size: 14, weight: selectedTab == tab ? .semibold : .medium)
                                         .frame(maxWidth: .infinity)
                                         .padding(.vertical, 10)
                                         .background(selectedTab == tab ? Color.white : Color.clear)
@@ -129,16 +129,16 @@ public struct ShelfView: View {
                             HStack {
                                 HStack(spacing: 6) {
                                     Image(systemName: "chart.line.uptrend.xyaxis")
-                                        .font(.system(size: 13, weight: .bold))
+                                        .fableFont(size: 13, weight: .bold)
                                         .foregroundColor(FableTheme.brandPrimary)
                                     Text("Reading Journal & Stats")
-                                        .font(.system(size: 15, weight: .bold))
+                                        .fableFont(size: 15, weight: .bold)
                                         .foregroundColor(FableTheme.textPrimary)
                                 }
                                 Spacer()
                                 
                                 Text("THIS MONTH")
-                                    .font(.system(size: 10, weight: .heavy))
+                                    .fableFont(size: 10, weight: .heavy)
                                     .tracking(0.8)
                                     .foregroundColor(FableTheme.textMuted)
                             }
@@ -152,17 +152,17 @@ public struct ShelfView: View {
                                             .fill(Color.green.opacity(0.12))
                                             .frame(width: 44, height: 44)
                                         Image(systemName: "checkmark.seal.fill")
-                                            .font(.system(size: 20))
+                                            .fableFont(size: 20)
                                             .foregroundColor(.green)
                                     }
                                     
                                     Text("\(store.readingStats.storiesReadCount)")
-                                        .font(.system(size: 22, weight: .bold))
+                                        .fableFont(size: 22, weight: .bold)
                                         .monospacedDigit()
                                         .foregroundColor(FableTheme.textPrimary)
                                     
                                     Text("Completed")
-                                        .font(.system(size: 11, weight: .medium))
+                                        .fableFont(size: 11, weight: .medium)
                                         .foregroundColor(FableTheme.textMuted)
                                 }
                                 .frame(maxWidth: .infinity)
@@ -179,17 +179,17 @@ public struct ShelfView: View {
                                             .fill(FableTheme.brandPrimary.opacity(0.12))
                                             .frame(width: 44, height: 44)
                                         Image(systemName: "clock.fill")
-                                            .font(.system(size: 18))
+                                            .fableFont(size: 18)
                                             .foregroundColor(FableTheme.brandPrimary)
                                     }
                                     
                                     Text(formattedTime)
-                                        .font(.system(size: 22, weight: .bold))
+                                        .fableFont(size: 22, weight: .bold)
                                         .monospacedDigit()
                                         .foregroundColor(FableTheme.textPrimary)
                                     
                                     Text("Logged Time")
-                                        .font(.system(size: 11, weight: .medium))
+                                        .fableFont(size: 11, weight: .medium)
                                         .foregroundColor(FableTheme.textMuted)
                                 }
                                 .frame(maxWidth: .infinity)
@@ -203,17 +203,17 @@ public struct ShelfView: View {
                                             .fill(Color.orange.opacity(0.12))
                                             .frame(width: 44, height: 44)
                                         Image(systemName: "flame.fill")
-                                            .font(.system(size: 20))
+                                            .fableFont(size: 20)
                                             .foregroundColor(.orange)
                                     }
                                     
                                     Text("\(store.readingStats.streakDays)")
-                                        .font(.system(size: 22, weight: .bold))
+                                        .fableFont(size: 22, weight: .bold)
                                         .monospacedDigit()
                                         .foregroundColor(FableTheme.textPrimary)
                                     
                                     Text("Day Streak")
-                                        .font(.system(size: 11, weight: .medium))
+                                        .fableFont(size: 11, weight: .medium)
                                         .foregroundColor(FableTheme.textMuted)
                                 }
                                 .frame(maxWidth: .infinity)
@@ -224,10 +224,10 @@ public struct ShelfView: View {
                                 VStack(alignment: .leading, spacing: 8) {
                                     HStack {
                                         Image(systemName: "quote.opening")
-                                            .font(.system(size: 11, weight: .bold))
+                                            .fableFont(size: 11, weight: .bold)
                                             .foregroundColor(FableTheme.brandPrimary)
                                         Text("PINNED PASSAGES")
-                                            .font(.system(size: 10, weight: .bold))
+                                            .fableFont(size: 10, weight: .bold)
                                             .tracking(1.0)
                                             .foregroundColor(FableTheme.textMuted)
                                         Spacer()
@@ -243,12 +243,12 @@ public struct ShelfView: View {
                                                 VStack(alignment: .leading, spacing: 8) {
                                                     HStack(alignment: .top, spacing: 6) {
                                                         Text("“")
-                                                            .font(.system(size: 34, weight: .bold, design: .serif))
+                                                            .fableFont(size: 34, weight: .bold, design: .serif)
                                                             .foregroundColor(quote.color.displayColor)
                                                             .offset(y: -6)
                                                         
                                                         Text(quote.selectedText)
-                                                            .font(.system(size: 13, weight: .medium, design: .serif))
+                                                            .fableFont(size: 13, weight: .medium, design: .serif)
                                                             .foregroundColor(FableTheme.textPrimary)
                                                             .lineSpacing(3)
                                                             .lineLimit(3)
@@ -261,7 +261,7 @@ public struct ShelfView: View {
                                                             .joined(separator: " • ")
                                                         if !attribution.isEmpty {
                                                             Text("— \(attribution)")
-                                                                .font(.system(size: 11, weight: .medium))
+                                                                .fableFont(size: 11, weight: .medium)
                                                                 .foregroundColor(FableTheme.textMuted)
                                                                 .lineLimit(1)
                                                         }
@@ -270,10 +270,10 @@ public struct ShelfView: View {
                                                         
                                                         HStack(spacing: 3) {
                                                             Text("OPEN")
-                                                                .font(.system(size: 9, weight: .bold))
+                                                                .fableFont(size: 9, weight: .bold)
                                                                 .tracking(0.8)
                                                             Image(systemName: "chevron.right")
-                                                                .font(.system(size: 8, weight: .bold))
+                                                                .fableFont(size: 8, weight: .bold)
                                                         }
                                                         .foregroundColor(FableTheme.brandPrimary)
                                                         .padding(.horizontal, 8)
@@ -300,10 +300,10 @@ public struct ShelfView: View {
                             } else {
                                 HStack(spacing: 10) {
                                     Image(systemName: "text.quote")
-                                        .font(.system(size: 16))
+                                        .fableFont(size: 16)
                                         .foregroundColor(FableTheme.brandPrimary)
                                     Text("Highlight and pin memorable passages while reading to view them here.")
-                                        .font(.system(size: 12, weight: .medium))
+                                        .fableFont(size: 12, weight: .medium)
                                         .foregroundColor(FableTheme.textSecondary)
                                 }
                                 .padding(12)
@@ -323,7 +323,7 @@ public struct ShelfView: View {
                         VStack(alignment: .leading, spacing: 12) {
                             HStack {
                                 Text("\(selectedTab.uppercased()) TITLES (\(displayedStories.count))")
-                                    .font(.system(size: 11, weight: .bold))
+                                    .fableFont(size: 11, weight: .bold)
                                     .monospacedDigit()
                                     .tracking(1.0)
                                     .foregroundColor(FableTheme.textMuted)
@@ -335,15 +335,15 @@ public struct ShelfView: View {
                                 if displayedStories.isEmpty {
                                     VStack(spacing: 14) {
                                         Image(systemName: selectedTab == "Finished" ? "checkmark.circle" : (selectedTab == "My Drafts" ? "square.and.pencil" : "books.vertical"))
-                                            .font(.system(size: 38))
+                                            .fableFont(size: 38)
                                             .foregroundColor(FableTheme.textMuted.opacity(0.5))
                                         
                                         Text(selectedTab == "My Drafts" ? "No drafts yet" : (selectedTab == "Finished" ? "No finished stories yet" : "Your shelf is empty"))
-                                            .font(.system(size: 16, weight: .bold, design: .serif))
+                                            .fableFont(size: 16, weight: .bold, design: .serif)
                                             .foregroundColor(FableTheme.textPrimary)
                                         
                                         Text(selectedTab == "My Drafts" ? "Head to the Write tab to begin drafting your first tale." : "Explore the library to discover novels, short fiction, and manga.")
-                                            .font(.system(size: 13))
+                                            .fableFont(size: 13)
                                             .foregroundColor(FableTheme.textMuted)
                                             .multilineTextAlignment(.center)
                                             .padding(.horizontal, 32)
@@ -353,7 +353,7 @@ public struct ShelfView: View {
                                                 store.selectedTab = .library
                                             }) {
                                                 Text("Browse Library")
-                                                    .font(.system(size: 13, weight: .bold))
+                                                    .fableFont(size: 13, weight: .bold)
                                                     .foregroundColor(.white)
                                                     .padding(.horizontal, 18)
                                                     .padding(.vertical, 9)
@@ -385,7 +385,7 @@ public struct ShelfView: View {
                                                     // Genre / Format Pill
                                                     HStack(spacing: 6) {
                                                         Text(story.contentFormat == .manga ? "MANGA" : (story.sourceProvider == .standardEbooks ? "STANDARD EBOOKS" : story.genre.rawValue.uppercased()))
-                                                            .font(.system(size: 8, weight: .heavy))
+                                                            .fableFont(size: 8, weight: .heavy)
                                                             .foregroundColor(FableTheme.brandPrimary)
                                                             .padding(.horizontal, 6)
                                                             .padding(.vertical, 2)
@@ -395,36 +395,36 @@ public struct ShelfView: View {
                                                     
                                                     // Serif Title
                                                     Text(story.title)
-                                                        .font(.system(size: 15, weight: .bold, design: .serif))
+                                                        .fableFont(size: 15, weight: .bold, design: .serif)
                                                         .foregroundColor(FableTheme.textPrimary)
                                                         .lineLimit(1)
                                                     
                                                     Text(story.author)
-                                                        .font(.system(size: 12))
+                                                        .fableFont(size: 12)
                                                         .foregroundColor(FableTheme.textMuted)
                                                     
                                                     // Reading Progress Indicator
                                                     if story.isCompleted {
                                                         HStack(spacing: 4) {
                                                             Image(systemName: "checkmark.circle.fill")
-                                                                .font(.system(size: 11))
+                                                                .fableFont(size: 11)
                                                             Text("Completed")
-                                                                .font(.system(size: 11, weight: .medium))
+                                                                .fableFont(size: 11, weight: .medium)
                                                         }
                                                         .foregroundColor(Color.green.opacity(0.9))
                                                     } else if let chapNum = story.lastReadChapterNumber, story.progressPercent > 0 {
                                                         Text("Ch. \(chapNum) • Page \(story.currentPage) of \(story.totalPages)")
-                                                            .font(.system(size: 11, weight: .medium))
+                                                            .fableFont(size: 11, weight: .medium)
                                                             .monospacedDigit()
                                                             .foregroundColor(FableTheme.brandPrimary)
                                                     } else if story.progressPercent > 0 {
                                                         Text("Page \(story.currentPage) of \(story.totalPages) • \(story.readingTimeMinutes)m left")
-                                                            .font(.system(size: 11, weight: .medium))
+                                                            .fableFont(size: 11, weight: .medium)
                                                             .monospacedDigit()
                                                             .foregroundColor(FableTheme.brandPrimary)
                                                     } else {
                                                         Text("\(story.readingTimeMinutes)m read")
-                                                            .font(.system(size: 11, weight: .medium))
+                                                            .fableFont(size: 11, weight: .medium)
                                                             .monospacedDigit()
                                                             .foregroundColor(FableTheme.brandPrimary)
                                                     }
@@ -440,7 +440,7 @@ public struct ShelfView: View {
                                                     
                                                     if story.isCompleted {
                                                         Image(systemName: "checkmark")
-                                                            .font(.system(size: 13, weight: .bold))
+                                                            .fableFont(size: 13, weight: .bold)
                                                             .foregroundColor(.green)
                                                     } else {
                                                         Circle()
@@ -457,7 +457,7 @@ public struct ShelfView: View {
                                                             .frame(width: 34, height: 34)
                                                         
                                                         Text("\(story.progressPercent)%")
-                                                            .font(.system(size: 9, weight: .bold))
+                                                            .fableFont(size: 9, weight: .bold)
                                                             .monospacedDigit()
                                                             .foregroundColor(FableTheme.brandPrimary)
                                                     }
@@ -482,7 +482,7 @@ public struct ShelfView: View {
                                                     }
                                                 } label: {
                                                     Image(systemName: "ellipsis")
-                                                        .font(.system(size: 14))
+                                                        .fableFont(size: 14)
                                                         .foregroundColor(FableTheme.textMuted)
                                                         .frame(width: 44, height: 44)
                                                         .contentShape(Rectangle())

@@ -30,23 +30,23 @@ public struct WelcomeView: View {
                             .shadow(color: Color.black.opacity(0.04), radius: 10, y: 4)
 
                         Image(systemName: "square.stack.3d.up.fill")
-                            .font(.system(size: 36))
+                            .fableFont(size: 36)
                             .foregroundColor(FableTheme.brandPrimary)
                     }
 
                     VStack(spacing: 6) {
                         Text("Fable")
-                            .font(.system(size: 42, weight: .black))
+                            .fableFont(size: 42, weight: .black)
                             .foregroundColor(FableTheme.textPrimary)
 
                         Text("STORIES & MANGA")
-                            .font(.system(size: 11, weight: .bold))
+                            .fableFont(size: 11, weight: .bold)
                             .tracking(2.0)
                             .foregroundColor(FableTheme.brandPrimary)
                     }
 
                     Text("A modern, distraction-free platform for reading novels, manga, and original stories.")
-                        .font(.system(size: 15, weight: .regular))
+                        .fableFont(size: 15, weight: .regular)
                         .foregroundColor(FableTheme.textSecondary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 36)
@@ -63,16 +63,16 @@ public struct WelcomeView: View {
                             .frame(width: 32, height: 32)
                             .overlay(
                                 Image(systemName: "sparkles")
-                                    .font(.system(size: 14, weight: .bold))
+                                    .fableFont(size: 14, weight: .bold)
                                     .foregroundColor(FableTheme.brandPrimary)
                             )
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Read Anywhere")
-                                .font(.system(size: 13, weight: .bold))
+                                .fableFont(size: 13, weight: .bold)
                                 .foregroundColor(FableTheme.textPrimary)
                             Text("Manga & Novels • Offline mode • Adaptive reader")
-                                .font(.system(size: 11))
+                                .fableFont(size: 11)
                                 .foregroundColor(FableTheme.textMuted)
                         }
                         Spacer()
@@ -97,9 +97,9 @@ public struct WelcomeView: View {
                     }) {
                         HStack {
                             Text("Sign In")
-                                .font(.system(size: 16, weight: .semibold))
+                                .fableFont(size: 16, weight: .semibold)
                             Image(systemName: "arrow.right")
-                                .font(.system(size: 13, weight: .bold))
+                                .fableFont(size: 13, weight: .bold)
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
@@ -113,7 +113,7 @@ public struct WelcomeView: View {
                         isShowingSignUp = true
                     }) {
                         Text("Create Account")
-                            .font(.system(size: 15, weight: .semibold))
+                            .fableFont(size: 15, weight: .semibold)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 15)
                             .background(FableTheme.surface)
@@ -131,7 +131,7 @@ public struct WelcomeView: View {
                         }
                     }) {
                         Text("Continue as Guest")
-                            .font(.system(size: 13, weight: .medium))
+                            .fableFont(size: 13, weight: .medium)
                             .foregroundColor(FableTheme.textMuted)
                             .padding(.vertical, 8)
                     }

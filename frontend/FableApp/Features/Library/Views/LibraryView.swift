@@ -53,7 +53,7 @@ public struct LibraryView: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 HStack(spacing: 8) {
                                     Text("DISCOVER")
-                                        .font(.system(size: 11, weight: .bold))
+                                        .fableFont(size: 11, weight: .bold)
                                         .tracking(1.4)
                                         .foregroundColor(FableTheme.brandPrimary)
                                     
@@ -63,7 +63,7 @@ public struct LibraryView: View {
                                             .fill(store.isBackendReachable ? Color.green : Color.orange)
                                             .frame(width: 6, height: 6)
                                         Text(store.isBackendReachable ? "Live Cloud" : "Offline Cache")
-                                            .font(.system(size: 9, weight: .bold))
+                                            .fableFont(size: 9, weight: .bold)
                                             .foregroundColor(store.isBackendReachable ? Color.green : Color.orange)
                                     }
                                     .padding(.horizontal, 6)
@@ -73,7 +73,7 @@ public struct LibraryView: View {
                                 }
                                 
                                 Text("Library")
-                                    .font(.system(size: 32, weight: .black, design: .default))
+                                    .fableFont(size: 32, weight: .black, design: .default)
                                     .foregroundColor(FableTheme.textPrimary)
                             }
                             
@@ -105,7 +105,7 @@ public struct LibraryView: View {
                                         }
                                     }) {
                                         Text(cat)
-                                            .font(.system(size: 13, weight: selectedFilter == cat ? .semibold : .medium))
+                                            .fableFont(size: 13, weight: selectedFilter == cat ? .semibold : .medium)
                                             .padding(.horizontal, 16)
                                             .padding(.vertical, 8)
                                             .background(selectedFilter == cat ? FableTheme.brandPrimary : FableTheme.surfaceVariant)
@@ -125,21 +125,21 @@ public struct LibraryView: View {
                         if store.stories.isEmpty {
                             VStack(spacing: 12) {
                                 Image(systemName: "books.vertical")
-                                    .font(.system(size: 32))
+                                    .fableFont(size: 32)
                                     .foregroundColor(FableTheme.textMuted)
                                 Text("Your library is empty")
-                                    .font(.system(size: 18, weight: .semibold))
+                                    .fableFont(size: 18, weight: .semibold)
                                     .foregroundColor(FableTheme.textPrimary)
                                 Text(store.isBackendReachable
                                      ? "No titles are available from the live catalog yet."
                                      : "Connect to the catalog to discover books. Previously saved books will remain available offline.")
-                                    .font(.system(size: 14))
+                                    .fableFont(size: 14)
                                     .multilineTextAlignment(.center)
                                     .foregroundColor(FableTheme.textMuted)
                                 Button("Retry catalog sync") {
                                     Task { await store.syncWithCloudBackend() }
                                 }
-                                .font(.system(size: 14, weight: .semibold))
+                                .fableFont(size: 14, weight: .semibold)
                                 .foregroundColor(FableTheme.brandPrimary)
                             }
                             .frame(maxWidth: .infinity)
@@ -182,9 +182,9 @@ public struct LibraryView: View {
                                         } else {
                                             HStack(spacing: 4) {
                                                 Image(systemName: "sparkles")
-                                                    .font(.system(size: 8, weight: .bold))
+                                                    .fableFont(size: 8, weight: .bold)
                                                 Text("FEATURED TITLE")
-                                                    .font(.system(size: 10, weight: .heavy))
+                                                    .fableFont(size: 10, weight: .heavy)
                                                     .tracking(1.0)
                                             }
                                             .foregroundColor(FableTheme.brandPrimary)
@@ -204,7 +204,7 @@ public struct LibraryView: View {
                                             }
                                         } label: {
                                             Image(systemName: featuredStory.isBookmarked ? "bookmark.fill" : "bookmark")
-                                                .font(.system(size: 13, weight: .semibold))
+                                                .fableFont(size: 13, weight: .semibold)
                                                 .foregroundColor(featuredStory.isBookmarked ? FableTheme.brandPrimary : FableTheme.textPrimary)
                                                 .padding(8)
                                                 .background(Color.white.opacity(0.95))
@@ -222,25 +222,25 @@ public struct LibraryView: View {
                                     VStack(alignment: .leading, spacing: 8) {
                                         HStack(spacing: 6) {
                                             Text(featuredStory.author)
-                                                .font(.system(size: 13, weight: .semibold))
+                                                .fableFont(size: 13, weight: .semibold)
                                                 .foregroundColor(FableTheme.brandPrimary)
                                             Text("•")
                                                 .foregroundColor(FableTheme.textMuted)
                                             HStack(spacing: 3) {
                                                 Image(systemName: "clock")
-                                                    .font(.system(size: 10))
+                                                    .fableFont(size: 10)
                                                 Text("\(featuredStory.readingTimeMinutes) min read")
-                                                    .font(.system(size: 13, weight: .regular))
+                                                    .fableFont(size: 13, weight: .regular)
                                             }
                                             .foregroundColor(FableTheme.textMuted)
                                         }
 
                                         Text(featuredStory.title)
-                                            .font(.system(size: 24, weight: .bold, design: .serif))
+                                            .fableFont(size: 24, weight: .bold, design: .serif)
                                             .foregroundColor(FableTheme.textPrimary)
 
                                         Text(featuredStory.excerpt)
-                                            .font(.system(size: 14, weight: .regular, design: .default))
+                                            .fableFont(size: 14, weight: .regular, design: .default)
                                             .foregroundColor(FableTheme.textSecondary)
                                             .lineSpacing(3)
                                             .lineLimit(3)
@@ -266,7 +266,7 @@ public struct LibraryView: View {
                             VStack(alignment: .leading, spacing: 12) {
                                 HStack {
                                     Text("Continue Reading")
-                                        .font(.system(size: 18, weight: .bold, design: .default))
+                                        .fableFont(size: 18, weight: .bold, design: .default)
                                         .foregroundColor(FableTheme.textPrimary)
                                     
                                     Spacer()
@@ -275,7 +275,7 @@ public struct LibraryView: View {
                                         FableHaptics.light()
                                         store.selectedTab = .shelf
                                     }
-                                    .font(.system(size: 13, weight: .semibold))
+                                    .fableFont(size: 13, weight: .semibold)
                                     .foregroundColor(FableTheme.brandPrimary)
                                 }
                                 .padding(.horizontal, 20)
@@ -297,9 +297,9 @@ public struct LibraryView: View {
                                             HStack(spacing: 6) {
                                                 HStack(spacing: 4) {
                                                     Image(systemName: inProgressStory.contentFormat == .manga ? "photo.on.rectangle.angled" : "book.closed.fill")
-                                                        .font(.system(size: 8))
+                                                        .fableFont(size: 8)
                                                     Text(inProgressStory.contentFormat == .manga ? "MANGA" : "NOVEL")
-                                                        .font(.system(size: 9, weight: .heavy))
+                                                        .fableFont(size: 9, weight: .heavy)
                                                 }
                                                 .foregroundColor(FableTheme.brandPrimary)
                                                 .padding(.horizontal, 6)
@@ -308,13 +308,13 @@ public struct LibraryView: View {
                                                 .clipShape(Capsule())
                                                 
                                                 Text(inProgressStory.author)
-                                                    .font(.system(size: 12))
+                                                    .fableFont(size: 12)
                                                     .foregroundColor(FableTheme.textMuted)
                                                     .lineLimit(1)
                                             }
                                             
                                             Text(inProgressStory.title)
-                                                .font(.system(size: 16, weight: .bold, design: .serif))
+                                                .fableFont(size: 16, weight: .bold, design: .serif)
                                                 .foregroundColor(FableTheme.textPrimary)
                                                 .lineLimit(1)
                                             
@@ -341,12 +341,12 @@ public struct LibraryView: View {
                                             
                                             if let chapNum = inProgressStory.lastReadChapterNumber {
                                                 Text("\(inProgressStory.progressPercent)% complete • Ch. \(chapNum) • Page \(inProgressStory.currentPage) of \(inProgressStory.totalPages)")
-                                                    .font(.system(size: 11, weight: .medium))
+                                                    .fableFont(size: 11, weight: .medium)
                                                     .monospacedDigit()
                                                     .foregroundColor(FableTheme.textMuted)
                                             } else {
                                                 Text("\(inProgressStory.progressPercent)% complete • Page \(inProgressStory.currentPage) of \(inProgressStory.totalPages)")
-                                                    .font(.system(size: 11, weight: .medium))
+                                                    .fableFont(size: 11, weight: .medium)
                                                     .monospacedDigit()
                                                     .foregroundColor(FableTheme.textMuted)
                                             }
@@ -355,7 +355,7 @@ public struct LibraryView: View {
                                         Spacer()
                                         
                                         Image(systemName: "play.fill")
-                                            .font(.system(size: 11, weight: .bold))
+                                            .fableFont(size: 11, weight: .bold)
                                             .foregroundColor(FableTheme.brandPrimary)
                                             .padding(11)
                                             .background(FableTheme.brandPrimary.opacity(0.1))
@@ -381,13 +381,13 @@ public struct LibraryView: View {
                         VStack(alignment: .leading, spacing: 12) {
                             HStack {
                                 Text("Latest Releases")
-                                    .font(.system(size: 18, weight: .bold, design: .default))
+                                    .fableFont(size: 18, weight: .bold, design: .default)
                                     .foregroundColor(FableTheme.textPrimary)
                                     
                                     Spacer()
                                     
                                 Text("\(filteredRecentStories.count) titles")
-                                    .font(.system(size: 12, weight: .medium))
+                                    .fableFont(size: 12, weight: .medium)
                                     .foregroundColor(FableTheme.textMuted)
                             }
                             .padding(.horizontal, 20)
@@ -411,17 +411,17 @@ public struct LibraryView: View {
                                                     storyBadge(for: story)
 
                                                     Text(story.title)
-                                                        .font(.system(size: 16, weight: .bold, design: .serif))
+                                                        .fableFont(size: 16, weight: .bold, design: .serif)
                                                         .foregroundColor(FableTheme.textPrimary)
                                                         .lineLimit(1)
 
                                                     Text(story.author)
-                                                        .font(.system(size: 12, weight: .medium))
+                                                        .fableFont(size: 12, weight: .medium)
                                                         .foregroundColor(FableTheme.textMuted)
                                                         .lineLimit(1)
 
                                                     Text(story.excerpt)
-                                                        .font(.system(size: 12, weight: .regular))
+                                                        .fableFont(size: 12, weight: .regular)
                                                         .foregroundColor(FableTheme.textSecondary)
                                                         .lineLimit(2)
                                                         .lineSpacing(2)
@@ -439,7 +439,7 @@ public struct LibraryView: View {
                                             }
                                         } label: {
                                             Image(systemName: story.isBookmarked ? "bookmark.fill" : "bookmark")
-                                                .font(.system(size: 14, weight: .semibold))
+                                                .fableFont(size: 14, weight: .semibold)
                                                 .foregroundColor(story.isBookmarked ? FableTheme.brandPrimary : FableTheme.textMuted)
                                                 .frame(width: 40, height: 40)
                                                 .background(story.isBookmarked ? FableTheme.brandPrimary.opacity(0.1) : Color.clear)
@@ -509,9 +509,9 @@ public struct LibraryView: View {
             if story.badgeText == "DIRECT PANELS" {
                 HStack(spacing: 4) {
                     Image(systemName: "checkmark.seal.fill")
-                        .font(.system(size: 8))
+                        .fableFont(size: 8)
                     Text("DIRECT PANELS")
-                        .font(.system(size: 9, weight: .heavy))
+                        .fableFont(size: 9, weight: .heavy)
                         .tracking(0.5)
                 }
                 .foregroundColor(.white)
@@ -522,9 +522,9 @@ public struct LibraryView: View {
             } else if story.badgeText == "OFFICIAL LINK" {
                 HStack(spacing: 4) {
                     Image(systemName: "arrow.up.right")
-                        .font(.system(size: 8, weight: .bold))
+                        .fableFont(size: 8, weight: .bold)
                     Text("OFFICIAL LINK")
-                        .font(.system(size: 9, weight: .heavy))
+                        .fableFont(size: 9, weight: .heavy)
                         .tracking(0.5)
                 }
                 .foregroundColor(Color.orange)
@@ -535,9 +535,9 @@ public struct LibraryView: View {
             } else {
                 HStack(spacing: 4) {
                     Image(systemName: "photo.on.rectangle.angled")
-                        .font(.system(size: 8))
+                        .fableFont(size: 8)
                     Text("MANGA")
-                        .font(.system(size: 9, weight: .heavy))
+                        .fableFont(size: 9, weight: .heavy)
                         .tracking(0.5)
                 }
                 .foregroundColor(FableTheme.brandPrimary)
@@ -549,9 +549,9 @@ public struct LibraryView: View {
         } else {
             HStack(spacing: 4) {
                 Image(systemName: "book.closed.fill")
-                    .font(.system(size: 8))
+                    .fableFont(size: 8)
                 Text(story.sourceProvider == .standardEbooks ? "STANDARD EBOOKS" : story.genre.rawValue.uppercased())
-                    .font(.system(size: 9, weight: .heavy))
+                    .fableFont(size: 9, weight: .heavy)
                     .tracking(0.5)
             }
             .foregroundColor(FableTheme.brandPrimary)

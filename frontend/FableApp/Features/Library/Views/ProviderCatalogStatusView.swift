@@ -11,7 +11,7 @@ struct ProviderCatalogStatusView: View {
                         .foregroundColor(FableTheme.brandPrimary)
                         .accessibilityHidden(true)
                     Text(warning)
-                        .font(.system(size: 13, weight: .medium))
+                        .fableFont(size: 13, weight: .medium)
                         .foregroundColor(FableTheme.textPrimary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     Button {
@@ -24,7 +24,7 @@ struct ProviderCatalogStatusView: View {
                             Text("Retry")
                         }
                     }
-                    .font(.system(size: 13, weight: .semibold))
+                    .fableFont(size: 13, weight: .semibold)
                     .frame(minWidth: 44, minHeight: 44)
                     .disabled(store.isRefreshingProviderCatalogs)
                     .accessibilityLabel(store.isRefreshingProviderCatalogs ? "Refreshing catalogs" : "Retry catalog update")

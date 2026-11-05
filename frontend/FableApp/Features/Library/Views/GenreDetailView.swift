@@ -63,7 +63,7 @@ public struct GenreDetailView: View {
                         dismiss()
                     }) {
                         Image(systemName: "chevron.left")
-                            .font(.system(size: 18, weight: .semibold))
+                            .fableFont(size: 18, weight: .semibold)
                             .foregroundColor(FableTheme.textPrimary)
                             .frame(width: 40, height: 40)
                             .background(Color.white)
@@ -74,7 +74,7 @@ public struct GenreDetailView: View {
                     Spacer()
                     
                     Text(genre.name)
-                        .font(.system(size: 17, weight: .bold))
+                        .fableFont(size: 17, weight: .bold)
                         .foregroundColor(FableTheme.textPrimary)
                     
                     Spacer()
@@ -82,7 +82,7 @@ public struct GenreDetailView: View {
                     HStack(spacing: 10) {
                         Button(action: toggleGenreFollow) {
                             Image(systemName: isFollowing ? "bookmark.fill" : "bookmark")
-                                .font(.system(size: 15))
+                                .fableFont(size: 15)
                                 .foregroundColor(isFollowing ? FableTheme.brandPrimary : FableTheme.textPrimary)
                                 .frame(width: 40, height: 40)
                                 .background(Color.white)
@@ -100,9 +100,9 @@ public struct GenreDetailView: View {
                         VStack(alignment: .leading, spacing: 14) {
                             HStack(spacing: 6) {
                                 Image(systemName: "square.stack.3d.up.fill")
-                                    .font(.system(size: 11))
+                                    .fableFont(size: 11)
                                 Text("CURATED COLLECTION")
-                                    .font(.system(size: 11, weight: .bold))
+                                    .fableFont(size: 11, weight: .bold)
                                     .tracking(1.0)
                             }
                             .foregroundColor(FableTheme.brandPrimary)
@@ -112,16 +112,16 @@ public struct GenreDetailView: View {
                             .clipShape(Capsule())
                             
                             Text(genre.name)
-                                .font(.system(size: 28, weight: .black))
+                                .fableFont(size: 28, weight: .black)
                                 .foregroundColor(FableTheme.textPrimary)
                             
                             Text("\(genre.storyCount) Titles  •  \(genre.readersCount) Readers")
-                                .font(.system(size: 12, weight: .medium))
+                                .fableFont(size: 12, weight: .medium)
                                 .foregroundColor(FableTheme.textMuted)
                             
                             if !genre.description.isEmpty {
                                 Text(genre.description)
-                                    .font(.system(size: 14, weight: .regular))
+                                    .fableFont(size: 14, weight: .regular)
                                     .foregroundColor(FableTheme.textPrimary.opacity(0.85))
                                     .lineSpacing(4)
                             }
@@ -129,9 +129,9 @@ public struct GenreDetailView: View {
                             Button(action: toggleGenreFollow) {
                                 HStack(spacing: 6) {
                                     Image(systemName: isFollowing ? "checkmark" : "plus")
-                                        .font(.system(size: 12, weight: .bold))
+                                        .fableFont(size: 12, weight: .bold)
                                     Text(isFollowing ? "Following Genre" : "Follow Genre")
-                                        .font(.system(size: 13, weight: .semibold))
+                                        .fableFont(size: 13, weight: .semibold)
                                 }
                                 .foregroundColor(isFollowing ? FableTheme.brandPrimary : .white)
                                 .padding(.horizontal, 18)
@@ -158,7 +158,7 @@ public struct GenreDetailView: View {
                                         }
                                     }) {
                                         Text(sub)
-                                            .font(.system(size: 13, weight: selectedSubcategory == sub ? .semibold : .medium))
+                                            .fableFont(size: 13, weight: selectedSubcategory == sub ? .semibold : .medium)
                                             .padding(.horizontal, 16)
                                             .padding(.vertical, 8)
                                             .background(selectedSubcategory == sub ? FableTheme.brandPrimary : FableTheme.surfaceVariant)
@@ -173,13 +173,13 @@ public struct GenreDetailView: View {
                         // Stories Section
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Featured in \(genre.name)")
-                                .font(.system(size: 18, weight: .bold))
+                                .fableFont(size: 18, weight: .bold)
                                 .foregroundColor(FableTheme.textPrimary)
                                 .padding(.horizontal, 20)
                             
                             if genreStories.isEmpty {
                                 Text("No cached titles match this genre yet.")
-                                    .font(.system(size: 14))
+                                    .fableFont(size: 14)
                                     .foregroundColor(FableTheme.textMuted)
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .padding(.horizontal, 20)
@@ -199,7 +199,7 @@ public struct GenreDetailView: View {
                                                 VStack(alignment: .leading, spacing: 5) {
                                                     HStack(spacing: 4) {
                                                         Text(story.contentFormat.displayName.uppercased())
-                                                            .font(.system(size: 8, weight: .bold))
+                                                            .fableFont(size: 8, weight: .bold)
                                                             .padding(.horizontal, 5)
                                                             .padding(.vertical, 2)
                                                             .background(story.contentFormat == .manga ? FableTheme.brandPrimary.opacity(0.12) : FableTheme.surfaceVariant)
@@ -207,7 +207,7 @@ public struct GenreDetailView: View {
                                                             .clipShape(Capsule())
 
                                                         Text(story.badgeText ?? story.genre.rawValue.uppercased())
-                                                            .font(.system(size: 9, weight: .bold))
+                                                            .fableFont(size: 9, weight: .bold)
                                                             .tracking(0.6)
                                                             .foregroundColor(FableTheme.brandPrimary)
                                                             .padding(.horizontal, 6)
@@ -217,12 +217,12 @@ public struct GenreDetailView: View {
                                                     }
 
                                                     Text(story.title)
-                                                        .font(.system(size: 16, weight: .bold))
+                                                        .fableFont(size: 16, weight: .bold)
                                                         .foregroundColor(FableTheme.textPrimary)
                                                         .lineLimit(1)
 
                                                     Text(story.excerpt)
-                                                        .font(.system(size: 12, weight: .regular))
+                                                        .fableFont(size: 12, weight: .regular)
                                                         .foregroundColor(FableTheme.textPrimary.opacity(0.75))
                                                         .lineLimit(2)
                                                         .lineSpacing(2)
@@ -237,7 +237,7 @@ public struct GenreDetailView: View {
                                             store.toggleBookmark(for: story)
                                         } label: {
                                             Image(systemName: story.isBookmarked ? "bookmark.fill" : "bookmark")
-                                                .font(.system(size: 12))
+                                                .fableFont(size: 12)
                                                 .foregroundColor(story.isBookmarked ? FableTheme.brandPrimary : FableTheme.textMuted)
                                                 .padding(6)
                                         }

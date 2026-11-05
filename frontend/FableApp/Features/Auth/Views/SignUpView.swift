@@ -55,7 +55,7 @@ public struct SignUpView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(action: { dismiss() }) {
                         Image(systemName: "xmark")
-                            .font(.system(size: 13, weight: .bold))
+                            .fableFont(size: 13, weight: .bold)
                             .foregroundColor(FableTheme.textPrimary)
                             .padding(8)
                             .background(Color.white)
@@ -75,7 +75,7 @@ public struct SignUpView: View {
         VStack(alignment: .leading, spacing: 22) {
             HStack(spacing: 8) {
                 Image(systemName: "square.stack.3d.up.fill")
-                    .font(.system(size: 13))
+                    .fableFont(size: 13)
                     .foregroundColor(.white)
                     .padding(7)
                     .background(FableTheme.brandPrimary)
@@ -156,7 +156,7 @@ public struct SignUpView: View {
 
             HStack(spacing: 12) {
                 Image(systemName: "person.fill")
-                    .font(.system(size: 14))
+                    .fableFont(size: 14)
                     .foregroundColor(focusedField == .name ? FableTheme.brandPrimary : FableTheme.textMuted)
                     .frame(width: 20)
 
@@ -187,7 +187,7 @@ public struct SignUpView: View {
 
             HStack(spacing: 12) {
                 Image(systemName: "at")
-                    .font(.system(size: 14, weight: .bold))
+                    .fableFont(size: 14, weight: .bold)
                     .foregroundColor(focusedField == .handle ? FableTheme.brandPrimary : FableTheme.textMuted)
                     .frame(width: 20)
 
@@ -220,7 +220,7 @@ public struct SignUpView: View {
 
             HStack(spacing: 12) {
                 Image(systemName: "envelope.fill")
-                    .font(.system(size: 14))
+                    .fableFont(size: 14)
                     .foregroundColor(focusedField == .email ? FableTheme.brandPrimary : FableTheme.textMuted)
                     .frame(width: 20)
 
@@ -254,7 +254,7 @@ public struct SignUpView: View {
 
             HStack(spacing: 12) {
                 Image(systemName: "lock.fill")
-                    .font(.system(size: 14))
+                    .fableFont(size: 14)
                     .foregroundColor(focusedField == .password ? FableTheme.brandPrimary : FableTheme.textMuted)
                     .frame(width: 20)
 
@@ -279,7 +279,7 @@ public struct SignUpView: View {
                     isPasswordVisible.toggle()
                 } label: {
                     Image(systemName: isPasswordVisible ? "eye.slash.fill" : "eye.fill")
-                        .font(.system(size: 14))
+                        .fableFont(size: 14)
                         .foregroundColor(FableTheme.textMuted)
                         .frame(width: 40, height: 40)
                         .contentShape(Rectangle())
@@ -308,7 +308,7 @@ public struct SignUpView: View {
 
             HStack(spacing: 12) {
                 Image(systemName: "lock.shield.fill")
-                    .font(.system(size: 14))
+                    .fableFont(size: 14)
                     .foregroundColor(focusedField == .confirmPassword ? FableTheme.brandPrimary : FableTheme.textMuted)
                     .frame(width: 20)
 
@@ -337,7 +337,7 @@ public struct SignUpView: View {
     private var policyDisclaimer: some View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: "checkmark.shield.fill")
-                .font(.system(size: 14))
+                .fableFont(size: 14)
                 .foregroundColor(FableTheme.brandPrimary)
                 .padding(.top, 2)
 
@@ -362,7 +362,7 @@ public struct SignUpView: View {
                     Text("Create Account")
                         .font(.headline.weight(.bold))
                     Image(systemName: "arrow.right")
-                        .font(.system(size: 13, weight: .bold))
+                        .fableFont(size: 13, weight: .bold)
                 }
             }
             .frame(maxWidth: .infinity)

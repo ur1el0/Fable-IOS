@@ -25,16 +25,16 @@ public struct SystemDiagnosticsSheet: View {
                                     .frame(width: 64, height: 64)
 
                                 Image(systemName: failures.isEmpty ? "checkmark.shield.fill" : "exclamationmark.shield.fill")
-                                    .font(.system(size: 30))
+                                    .fableFont(size: 30)
                                     .foregroundColor(failures.isEmpty ? .green : .red)
                             }
 
                             Text(failures.isEmpty ? "All Systems Operational" : "Verification Failures Detected")
-                                .font(.system(size: 20, weight: .bold))
+                                .fableFont(size: 20, weight: .bold)
                                 .foregroundColor(FableTheme.textPrimary)
 
                             Text("\(passed) of \(total) Internal Health Contracts Passing")
-                                .font(.system(size: 14, weight: .medium))
+                                .fableFont(size: 14, weight: .medium)
                                 .foregroundColor(FableTheme.textMuted)
 
                             Button(action: {
@@ -44,7 +44,7 @@ public struct SystemDiagnosticsSheet: View {
                                     Image(systemName: "arrow.clockwise")
                                     Text("Re-Run Verification")
                                 }
-                                .font(.system(size: 13, weight: .semibold))
+                                .fableFont(size: 13, weight: .semibold)
                                 .foregroundColor(FableTheme.brandPrimary)
                                 .padding(.horizontal, 14)
                                 .padding(.vertical, 8)
@@ -62,7 +62,7 @@ public struct SystemDiagnosticsSheet: View {
                         // Detailed Test List
                         VStack(alignment: .leading, spacing: 12) {
                             Text("HEALTH CONTRACTS")
-                                .font(.system(size: 11, weight: .bold))
+                                .fableFont(size: 11, weight: .bold)
                                 .tracking(1.0)
                                 .foregroundColor(FableTheme.textMuted)
                                 .padding(.leading, 8)
@@ -72,17 +72,17 @@ public struct SystemDiagnosticsSheet: View {
                                     VStack(alignment: .leading, spacing: 8) {
                                         HStack(alignment: .top, spacing: 12) {
                                             Image(systemName: report.passed ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                                .font(.system(size: 18))
+                                                .fableFont(size: 18)
                                                 .foregroundColor(report.passed ? .green : .red)
                                                 .padding(.top, 2)
 
                                             VStack(alignment: .leading, spacing: 3) {
                                                 Text(report.name)
-                                                    .font(.system(size: 15, weight: .bold))
+                                                    .fableFont(size: 15, weight: .bold)
                                                     .foregroundColor(FableTheme.textPrimary)
 
                                                 Text(report.description)
-                                                    .font(.system(size: 12))
+                                                    .fableFont(size: 12)
                                                     .foregroundColor(FableTheme.textMuted)
                                                     .lineLimit(2)
                                             }
@@ -90,7 +90,7 @@ public struct SystemDiagnosticsSheet: View {
                                             Spacer()
 
                                             Text(report.passed ? "PASS" : "FAIL")
-                                                .font(.system(size: 10, weight: .heavy))
+                                                .fableFont(size: 10, weight: .heavy)
                                                 .foregroundColor(report.passed ? .green : .red)
                                                 .padding(.horizontal, 7)
                                                 .padding(.vertical, 3)
@@ -100,7 +100,7 @@ public struct SystemDiagnosticsSheet: View {
 
                                         // Diagnostics Details Box
                                         Text(report.details)
-                                            .font(.system(size: 11, design: .monospaced))
+                                            .fableFont(size: 11, design: .monospaced)
                                             .foregroundColor(FableTheme.textSecondary)
                                             .padding(10)
                                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -126,7 +126,7 @@ public struct SystemDiagnosticsSheet: View {
                     Button("Done") {
                         dismiss()
                     }
-                    .font(.system(size: 15, weight: .semibold))
+                    .fableFont(size: 15, weight: .semibold)
                     .foregroundColor(FableTheme.brandPrimary)
                 }
             }
