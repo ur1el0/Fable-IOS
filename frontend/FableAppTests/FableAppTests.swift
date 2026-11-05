@@ -71,6 +71,26 @@ final class FableAppTests: XCTestCase {
         }
     }
 
+    @MainActor
+    func testReaderTypographyCombinesDynamicTypeAndReaderScale() {
+        let defaultSize = renderedReaderTextSize(scale: 1, dynamicTypeSize: .large)
+        let readerEnlargedSize = renderedReaderTextSize(scale: 1.5, dynamicTypeSize: .large)
+        let accessibilitySize = renderedReaderTextSize(scale: 1, dynamicTypeSize: .accessibility3)
+
+        XCTAssertGreaterThan(readerEnlargedSize.width, defaultSize.width)
+        XCTAssertGreaterThan(accessibilitySize.width, defaultSize.width)
+    }
+
+    @MainActor
+    private func renderedReaderTextSize(scale: CGFloat, dynamicTypeSize: DynamicTypeSize) -> CGSize {
+        let text = Text("Reader text follows accessibility settings")
+            .fableFont(size: 17, scale: scale, design: .serif, relativeTo: .body)
+            .fixedSize()
+            .environment(\.dynamicTypeSize, dynamicTypeSize)
+        return UIHostingController(rootView: text)
+            .sizeThatFits(in: CGSize(width: 2000, height: 2000))
+    }
+
     private func contrastRatio(_ first: UIColor, _ second: UIColor) -> Double? {
         guard let firstLuminance = relativeLuminance(first),
               let secondLuminance = relativeLuminance(second) else {

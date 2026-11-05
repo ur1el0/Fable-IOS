@@ -99,7 +99,12 @@ struct DisplayOptionsSheet: View {
             }
             
             Text("The old forest whispered tales of forgotten kings and quiet dawn. Every word echoed with timeless wonder.")
-                .font(store.readerFont.font(size: max(13, 15 * CGFloat(store.readerFontSize / 100.0))))
+                .fableFont(
+                    size: 15,
+                    scale: max(13.0 / 15.0, CGFloat(store.readerFontSize / 100.0)),
+                    design: store.readerFont.design,
+                    relativeTo: .body
+                )
                 .lineSpacing(store.readerLineSpacing.points)
                 .foregroundColor(store.readerTheme.textColor)
                 .multilineTextAlignment(.leading)
