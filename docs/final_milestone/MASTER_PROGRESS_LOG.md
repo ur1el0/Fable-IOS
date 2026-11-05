@@ -662,3 +662,9 @@ This progress log tracks the transition of **Fable** from an editorial prototype
 
 - [x] Commit `f7d21d8` extracted recovery interaction state into a testable view model and added coverage for email trimming, privacy-preserving request status, password validation, successful reset, secret clearing, retry, and network failure.
 - [x] PR #26 passed hosted Xcode simulator tests and the Release build on macOS 15 / Xcode 16.4; backend, Docker, and GitGuardian checks also passed.
+
+## Reader Dynamic Type Follow-up (2026-11-05)
+
+- [x] Reader text and its live preview now combine the reader font-size preference with system Dynamic Type scaling while retaining the selected font design.
+- [x] Added an XCTest contract that checks both the reader-size preference and an accessibility Dynamic Type category increase rendered text size.
+- [ ] Hosted iOS simulator verification is pending; this Fedora workspace has no Xcode toolchain.

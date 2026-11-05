@@ -391,8 +391,13 @@ public struct ReaderView: View {
                                 
                                 // Story Title
                                 Text(story.title)
-                                    .font(store.readerFont.font(size: 30 * (store.readerFontSize / 100.0)))
-                                    .fontWeight(.bold)
+                                    .fableFont(
+                                        size: 30,
+                                        scale: CGFloat(store.readerFontSize / 100.0),
+                                        weight: .bold,
+                                        design: store.readerFont.design,
+                                        relativeTo: .title
+                                    )
                                     .foregroundColor(store.readerTheme.textColor)
                                     .multilineTextAlignment(.center)
                                     .padding(.horizontal, 20)
@@ -798,7 +803,12 @@ public struct ReaderView: View {
         }()
         
         Text(para)
-            .font(store.readerFont.font(size: 17 * (store.readerFontSize / 100.0)))
+            .fableFont(
+                size: 17,
+                scale: CGFloat(store.readerFontSize / 100.0),
+                design: store.readerFont.design,
+                relativeTo: .body
+            )
             .lineSpacing(store.readerLineSpacing.points)
             .foregroundColor(store.readerTheme.textColor)
             .padding(matchingAnnotation != nil || isSpokenParagraph ? 6 : 0)

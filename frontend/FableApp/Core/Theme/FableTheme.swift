@@ -2,34 +2,39 @@ import SwiftUI
 
 private struct FableScaledFontModifier: ViewModifier {
     @ScaledMetric private var scaledSize: CGFloat
+    private let scale: CGFloat
     private let weight: Font.Weight
     private let design: Font.Design
 
     init(
         size: CGFloat,
+        scale: CGFloat,
         weight: Font.Weight,
         design: Font.Design,
         relativeTo textStyle: Font.TextStyle
     ) {
+        self.scale = scale
         self.weight = weight
         self.design = design
         self._scaledSize = ScaledMetric(wrappedValue: size, relativeTo: textStyle)
     }
 
     func body(content: Content) -> some View {
-        content.font(.system(size: scaledSize, weight: weight, design: design))
+        content.font(.system(size: scaledSize * scale, weight: weight, design: design))
     }
 }
 
 public extension View {
     func fableFont(
         size: CGFloat,
+        scale: CGFloat = 1,
         weight: Font.Weight = .regular,
         design: Font.Design = .default,
         relativeTo textStyle: Font.TextStyle = .body
     ) -> some View {
         modifier(FableScaledFontModifier(
             size: size,
+            scale: scale,
             weight: weight,
             design: design,
             relativeTo: textStyle

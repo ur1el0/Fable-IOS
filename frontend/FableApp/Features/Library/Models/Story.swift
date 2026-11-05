@@ -16,14 +16,18 @@ public enum ReaderFont: String, CaseIterable, Identifiable, Codable {
         case .mono: return "SF Mono"
         }
     }
-    
-    public func font(size: CGFloat) -> Font {
+
+    public var design: Font.Design {
         switch self {
-        case .serif: return .system(size: size, design: .serif)
-        case .sans: return .system(size: size, design: .default)
-        case .rounded: return .system(size: size, design: .rounded)
-        case .mono: return .system(size: size, design: .monospaced)
+        case .serif: return .serif
+        case .sans: return .default
+        case .rounded: return .rounded
+        case .mono: return .monospaced
         }
+    }
+
+    public func font(size: CGFloat) -> Font {
+        .system(size: size, design: design)
     }
 }
 
