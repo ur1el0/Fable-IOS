@@ -661,4 +661,4 @@ This progress log tracks the transition of **Fable** from an editorial prototype
 ## Password Recovery Test Coverage Follow-up (2026-11-05)
 
 - [x] Commit `f7d21d8` extracted recovery interaction state into a testable view model and added coverage for email trimming, privacy-preserving request status, password validation, successful reset, secret clearing, retry, and network failure.
-- [ ] Hosted Xcode simulator verification is pending the follow-up pull request; this Linux workspace does not have `xcodebuild`.
+- [x] PR #26 passed hosted Xcode simulator tests and the Release build on macOS 15 / Xcode 16.4; backend, Docker, and GitGuardian checks also passed.

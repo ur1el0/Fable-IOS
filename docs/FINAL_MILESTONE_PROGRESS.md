@@ -423,4 +423,4 @@ When presenting your final capstone defense, emphasize these key architectural p
 ## Password Recovery Test Coverage Follow-up (2026-11-05)
 
 - [x] Commit `f7d21d8` extracted recovery interaction state into a testable view model and covered email trimming, privacy-preserving request status, password validation, successful reset, secret clearing, retry, and request failures.
-- [ ] Hosted Xcode simulator verification is pending; this Linux workspace does not have `xcodebuild`.
+- [x] PR #26 passed the hosted Xcode simulator tests and Release build on macOS 15 / Xcode 16.4; backend, Docker, and GitGuardian checks also passed.
