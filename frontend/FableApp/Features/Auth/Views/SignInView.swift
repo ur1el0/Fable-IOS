@@ -9,6 +9,7 @@ public struct SignInView: View {
     @State private var email: String = ""
     @State private var password: String = ""
     @State private var isPasswordVisible: Bool = false
+    @State private var isPasswordRecoveryPresented = false
 
     private enum Field: Hashable {
         case email
@@ -57,6 +58,9 @@ public struct SignInView: View {
                     }
                     .accessibilityLabel("Close")
                 }
+            }
+            .sheet(isPresented: $isPasswordRecoveryPresented) {
+                PasswordRecoveryView(authViewModel: authVM, initialEmail: email)
             }
         }
     }
@@ -122,6 +126,11 @@ public struct SignInView: View {
         VStack(spacing: 18) {
             emailField
             passwordField
+            Button("Forgot password?") {
+                isPasswordRecoveryPresented = true
+            }
+            .font(.footnote.weight(.semibold))
+            .frame(maxWidth: .infinity, minHeight: 44, alignment: .trailing)
             submitButton
         }
         .padding(20)

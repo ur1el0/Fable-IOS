@@ -212,6 +212,8 @@ public protocol StoryAPIServiceProtocol: Sendable {
     func fetchUpdateFeed() async throws -> UpdateFeed
     func register(email: String, password: String, name: String, handle: String) async throws -> AuthTokenResponse
     func login(email: String, password: String) async throws -> AuthTokenResponse
+    func requestPasswordReset(email: String) async throws
+    func confirmPasswordReset(token: String, newPassword: String) async throws
     func fetchCurrentUser(token: String) async throws -> AuthUserDTO
     func updateProfile(_ request: ProfileUpdateRequest, token: String) async throws -> AuthUserDTO
     func recordReadingSession(_ request: ReadingSessionRequest, token: String) async throws
@@ -758,6 +760,31 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         return try decoder.decode(AuthTokenResponse.self, from: data)
+    }
+
+    public func requestPasswordReset(email: String) async throws {
+        let url = baseURL.appendingPathComponent("auth").appendingPathComponent("password-reset").appendingPathComponent("request")
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["email": email])
+
+        let (data, response) = try await session.data(for: request)
+        try validateResponse(response, data: data)
+    }
+
+    public func confirmPasswordReset(token: String, newPassword: String) async throws {
+        let url = baseURL.appendingPathComponent("auth").appendingPathComponent("password-reset").appendingPathComponent("confirm")
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: [
+            "token": token,
+            "newPassword": newPassword,
+        ])
+
+        let (data, response) = try await session.data(for: request)
+        try validateResponse(response, data: data)
     }
 
     public func recordReadingSession(_ request: ReadingSessionRequest, token: String) async throws {

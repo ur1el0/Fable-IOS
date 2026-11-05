@@ -167,6 +167,19 @@ public final class AuthViewModel: ObservableObject {
         }
     }
 
+    public func requestPasswordReset(email: String) async throws {
+        try await apiService.requestPasswordReset(
+            email: email.trimmingCharacters(in: .whitespacesAndNewlines)
+        )
+    }
+
+    public func confirmPasswordReset(token: String, newPassword: String) async throws {
+        try await apiService.confirmPasswordReset(
+            token: token.trimmingCharacters(in: .whitespacesAndNewlines),
+            newPassword: newPassword
+        )
+    }
+
     public func continueAsGuest() {
         let guest = UserSession.guest()
         _ = persistSession(guest, accessToken: nil)
