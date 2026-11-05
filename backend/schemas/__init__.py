@@ -13,6 +13,8 @@ from .schemas import (
     ProfileUpdateRequest,
     LoginRequest,
     RegisterRequest,
+    PasswordResetRequest,
+    PasswordResetConfirmRequest,
     AuthResponse,
     ReadingSessionRequest,
     ReadingStatsDTO
@@ -33,6 +35,8 @@ __all__ = [
     "ProfileUpdateRequest",
     "LoginRequest",
     "RegisterRequest",
+    "PasswordResetRequest",
+    "PasswordResetConfirmRequest",
     "AuthResponse",
     "ReadingSessionRequest",
     "ReadingStatsDTO"

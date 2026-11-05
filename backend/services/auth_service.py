@@ -9,6 +9,7 @@ from core.database import get_db
 from schemas.schemas import UserDTO, RegisterRequest, LoginRequest, AuthResponse, ProfileUpdateRequest
 
 SESSION_LIFETIME = timedelta(days=30)
+PASSWORD_RESET_TOKEN_LIFETIME = timedelta(minutes=15)
 PASSWORD_HASH_ITERATIONS = 600_000
 LEGACY_PASSWORD_HASH_ITERATIONS = 100_000
 MAX_PASSWORD_HASH_ITERATIONS = 10_000_000
@@ -264,3 +265,99 @@ def update_current_user(token: str, req: ProfileUpdateRequest) -> UserDTO:
         conn.close()
 
     return _to_user_dto(row)
+
+
+def issue_password_reset_token(email: str) -> str | None:
+    normalized_email = email.strip().lower()
+    conn = get_db()
+    try:
+        user = conn.execute("SELECT id FROM users WHERE email = ?", (normalized_email,)).fetchone()
+        if user is None:
+            return None
+
+        token = secrets.token_urlsafe(32)
+        now = datetime.now(timezone.utc)
+        with conn:
+            conn.execute(
+                "DELETE FROM password_reset_tokens WHERE expires_at_utc <= ? OR user_id = ?",
+                (now.isoformat(), user["id"]),
+            )
+            conn.execute(
+                """INSERT INTO password_reset_tokens
+                   (token_hash, user_id, created_at_utc, expires_at_utc, consumed_at_utc)
+                   VALUES (?, ?, ?, ?, NULL)""",
+                (
+                    _token_digest(token),
+                    user["id"],
+                    now.isoformat(),
+                    (now + PASSWORD_RESET_TOKEN_LIFETIME).isoformat(),
+                ),
+            )
+        return token
+    finally:
+        conn.close()
+
+
+def discard_password_reset_token(token: str) -> None:
+    conn = get_db()
+    try:
+        with conn:
+            conn.execute(
+                "DELETE FROM password_reset_tokens WHERE token_hash = ?",
+                (_token_digest(token),),
+            )
+    finally:
+        conn.close()
+
+
+def reset_password_with_token(token: str, new_password: str) -> None:
+    token_hash = _token_digest(token)
+    now = datetime.now(timezone.utc)
+    conn = get_db()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        reset = conn.execute(
+            """SELECT user_id FROM password_reset_tokens
+               WHERE token_hash = ? AND consumed_at_utc IS NULL AND expires_at_utc > ?""",
+            (token_hash, now.isoformat()),
+        ).fetchone()
+        if reset is None:
+            conn.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or expired password reset code.",
+            )
+
+        password_hash = hash_password(new_password)
+        changed = conn.execute(
+            "UPDATE users SET password_hash = ?, updated_at_utc = ? WHERE id = ?",
+            (password_hash, now.isoformat(), reset["user_id"]),
+        ).rowcount
+        consumed = conn.execute(
+            """UPDATE password_reset_tokens SET consumed_at_utc = ?
+               WHERE token_hash = ? AND consumed_at_utc IS NULL AND expires_at_utc > ?""",
+            (now.isoformat(), token_hash, now.isoformat()),
+        ).rowcount
+        if changed != 1 or consumed != 1:
+            conn.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or expired password reset code.",
+            )
+
+        conn.execute(
+            """UPDATE user_sessions SET revoked_at_utc = ?
+               WHERE user_id = ? AND revoked_at_utc IS NULL""",
+            (now.isoformat(), reset["user_id"]),
+        )
+        conn.execute(
+            "DELETE FROM password_reset_tokens WHERE user_id = ? AND token_hash != ?",
+            (reset["user_id"], token_hash),
+        )
+        conn.commit()
+    except Exception:
+        if conn.in_transaction:
+            conn.rollback()
+        raise
+    finally:
+        conn.close()

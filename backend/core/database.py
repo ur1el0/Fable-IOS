@@ -2,7 +2,7 @@ import sqlite3
 import os
 
 DB_PATH = os.environ.get("FABLE_DB_PATH", "fable.sqlite3")
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 3
 LEGACY_DEMO_STORY_IDS = (
     "66666666-6666-6666-6666-666666666666",
     "77777777-7777-7777-7777-777777777777",
@@ -208,5 +208,37 @@ def init_db():
                     LEGACY_DEMO_STORY_IDS,
                 )
                 conn.execute("PRAGMA user_version = 1")
+
+            if current_version < 2:
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS request_rate_limit_buckets (
+                        bucket_key TEXT NOT NULL,
+                        available_tokens REAL NOT NULL,
+                        updated_at REAL NOT NULL,
+                        PRIMARY KEY (bucket_key)
+                    );
+                """)
+                conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_request_rate_limit_updated "
+                    "ON request_rate_limit_buckets (updated_at)"
+                )
+                conn.execute("PRAGMA user_version = 2")
+
+            if current_version < 3:
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+                        token_hash TEXT PRIMARY KEY,
+                        user_id TEXT NOT NULL,
+                        created_at_utc TEXT NOT NULL,
+                        expires_at_utc TEXT NOT NULL,
+                        consumed_at_utc TEXT,
+                        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+                    );
+                """)
+                conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_password_reset_user "
+                    "ON password_reset_tokens (user_id, expires_at_utc)"
+                )
+                conn.execute("PRAGMA user_version = 3")
     finally:
         conn.close()

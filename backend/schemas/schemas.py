@@ -1,7 +1,9 @@
 from datetime import datetime, timezone
 from uuid import UUID, uuid4
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from core.email_validation import normalize_email_address
 
 class ChapterDTO(BaseModel):
     id: UUID
@@ -150,11 +152,39 @@ class LoginRequest(BaseModel):
     email: str = Field(..., min_length=3, max_length=320)
     password: str = Field(..., max_length=128)
 
+    @field_validator("email")
+    @classmethod
+    def validate_email_address(cls, value: str) -> str:
+        return normalize_email_address(value)
+
 class RegisterRequest(BaseModel):
     email: str = Field(..., min_length=3, max_length=320)
     password: str = Field(..., min_length=12, max_length=128)
     name: str = Field(..., min_length=1, max_length=80)
     handle: str = Field(default="", max_length=40)
+
+    @field_validator("email")
+    @classmethod
+    def validate_email_address(cls, value: str) -> str:
+        return normalize_email_address(value)
+
+
+class PasswordResetRequest(BaseModel):
+    email: str = Field(..., min_length=3, max_length=320)
+
+    @field_validator("email")
+    @classmethod
+    def validate_email_address(cls, value: str) -> str:
+        return normalize_email_address(value)
+
+    model_config = {"extra": "forbid"}
+
+
+class PasswordResetConfirmRequest(BaseModel):
+    token: str = Field(..., min_length=43, max_length=128)
+    new_password: str = Field(..., min_length=12, max_length=128, alias="newPassword")
+
+    model_config = {"populate_by_name": True, "extra": "forbid"}
 
 class ProfileUpdateRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=80)
