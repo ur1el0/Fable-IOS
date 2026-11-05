@@ -3,7 +3,7 @@
 **Course:** ITWM101 (Integrative Programming & Technologies 2)  
 **Developer:** Roosc Zaño  
 **Role:** Lead Systems Engineer & Solutions Architect  
-**Active Feature Branch:** `codex/close-production-audit-gaps`
+**Active Feature Branch:** `codex/audit-findings-dynamic-type-auth-rate-limit`
 
 ---
 
@@ -647,3 +647,12 @@ This progress log tracks the transition of **Fable** from an editorial prototype
 - [x] Moved simulator verification to the macOS 15 Apple Silicon runner and explicitly selected Xcode 16.4, whose iOS 18.5 runtime matches the pinned iPhone 16 test destination.
 - [x] Added a simulator preflight to CI and tagged-release verification so missing hosted runtimes fail with the available device list before `xcodebuild test`.
 - [x] PR #24 passed backend, Docker, iOS simulator tests, Release build, and GitGuardian checks on the Apple Silicon runner.
+
+## Production Audit Follow-up: Accessibility, Recovery, and Shared Limits (2026-11-05)
+
+- [x] Commit `a03a4f7` added a Dynamic Type scaling helper and applied it across custom fixed-size SwiftUI fonts.
+- [x] Commit `eaea4f3` added normalized email validation, one-time hashed password recovery codes, SMTP delivery over TLS, session revocation after reset, and versioned SQLite migrations.
+- [x] The API rate limiter now stores token buckets in SQLite so workers on the same database share counters; password recovery has separate per-IP and per-account limits.
+- [x] Commit `4a3cfe5` added the in-app password recovery form and API wiring, including VoiceOver status/error announcements and 44-point minimum action targets.
+- [x] Verification: backend suite **76/76 passed**; Docker image build, runtime dependency boundary, Docker Compose configuration, Python compilation, and `git diff --check` passed.
+- [ ] Native iOS build and simulator verification require the hosted macOS CI runner; real SMTP delivery requires deployment credentials and later app confirmation.

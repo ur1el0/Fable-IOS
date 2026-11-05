@@ -409,3 +409,12 @@ When presenting your final capstone defense, emphasize these key architectural p
    * Pydantic v2 schemas and Swift Codable models share identical serialization keys, preventing runtime type mismatches.
 4. **Zero-Asset Procedural Graphics:**
    * Eliminates the vulnerability of missing image files across different simulator configurations while delivering an authentic physical book aesthetic.
+
+## Production Audit Follow-up: Accessibility, Recovery, and Shared Limits (2026-11-05)
+
+- [x] Commit `a03a4f7` added a Dynamic Type scaling helper and applied it across custom fixed-size SwiftUI fonts.
+- [x] Commit `eaea4f3` added normalized email validation, hashed one-time password recovery codes with 15-minute expiry, SMTP delivery over TLS, session revocation after reset, and versioned SQLite migrations.
+- [x] Replaced the process-local API token bucket with SQLite-backed counters shared by workers using the same database; added dedicated password recovery limits per IP and account/IP.
+- [x] Commit `4a3cfe5` added an in-app password recovery form with VoiceOver announcements and minimum 44-point action targets.
+- [x] Local verification: **76 backend tests passed**; Docker image build, runtime dependency boundary, Docker Compose configuration, Python compilation, and `git diff --check` passed.
+- [ ] Native iOS build and simulator checks remain for hosted macOS CI; SMTP delivery requires real deployment configuration and later hands-on app confirmation.
