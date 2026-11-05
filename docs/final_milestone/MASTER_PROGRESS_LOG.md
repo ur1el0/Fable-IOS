@@ -675,3 +675,7 @@ This progress log tracks the transition of **Fable** from an editorial prototype
 - [x] Parse `FABLE_RATE_LIMIT_ENABLED` strictly, default it to enabled, and reject invalid values instead of silently disabling the API limiter.
 - [x] Updated local backend launch instructions to set `FABLE_ENV=development`.
 - [x] Backend suite: **87 passed** locally; one Starlette/AnyIO deprecation warning under Python 3.14. Hosted CI is pending the pull request.
+
+## Audit Finding Follow-up (2026-11-05)
+
+- [x] Reject disabled general API rate limiting in staging and production while preserving the development/test override; add configuration boundary tests.

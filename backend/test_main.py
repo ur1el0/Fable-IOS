@@ -1860,6 +1860,27 @@ def test_runtime_configuration_rejects_invalid_rate_limit_flag(monkeypatch):
         validate_runtime_configuration()
 
 
+@pytest.mark.parametrize("environment", ["staging", "production", "prod"])
+def test_runtime_configuration_requires_rate_limiting_outside_development(monkeypatch, environment):
+    from core.settings import validate_runtime_configuration
+
+    monkeypatch.setenv("FABLE_ENV", environment)
+    monkeypatch.setenv("FABLE_RATE_LIMIT_ENABLED", "false")
+    with pytest.raises(RuntimeError, match="cannot be disabled in staging or production"):
+        validate_runtime_configuration()
+
+    monkeypatch.setenv("FABLE_RATE_LIMIT_ENABLED", "true")
+    validate_runtime_configuration()
+
+
+def test_runtime_configuration_allows_disabling_rate_limit_in_development(monkeypatch):
+    from core.settings import validate_runtime_configuration
+
+    monkeypatch.setenv("FABLE_ENV", "development")
+    monkeypatch.setenv("FABLE_RATE_LIMIT_ENABLED", "false")
+    validate_runtime_configuration()
+
+
 def test_sqlite_online_backup_and_integrity_check(tmp_path):
     import sqlite3
     from scripts.sqlite_backup import create_backup, verify_database
