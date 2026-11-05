@@ -684,5 +684,6 @@ This progress log tracks the transition of **Fable** from an editorial prototype
 - [x] Pass the backup key only to the isolated Compose backup service and document separate key custody, key retention, restore, and off-host storage requirements.
 - [x] Backend suite: **95 passed**; backup Compose configuration, Python compilation, and `git diff --check` passed.
 - [x] Store access tokens and session data with `WhenUnlockedThisDeviceOnly`; migrate existing Keychain items in place and add XTests for new and legacy records.
+- [x] Label manga page images and expose named accessibility actions for showing/hiding reader controls and moving between pages; add XCTest coverage for action and page labels.
 - [ ] Off-host destination setup and an isolated restore drill remain deployment operator checks.
 - [ ] Hosted iOS tests and hands-on VoiceOver/Switch Control verification remain pending; this workspace has no Xcode toolchain.
