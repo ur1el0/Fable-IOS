@@ -419,3 +419,8 @@ When presenting your final capstone defense, emphasize these key architectural p
 - [x] Local verification: **76 backend tests passed**; Docker image build, runtime dependency boundary, Docker Compose configuration, Python compilation, and `git diff --check` passed.
 - [x] PR #25 passed hosted iOS simulator tests and the Release build on macOS 15 / Xcode 16.4, along with backend, Docker, Compose, and GitGuardian checks.
 - [ ] Real SMTP delivery still requires deployment credentials; hands-on app confirmation is deferred until the user can test the app.
+
+## Password Recovery Test Coverage Follow-up (2026-11-05)
+
+- [x] Commit `f7d21d8` extracted recovery interaction state into a testable view model and covered email trimming, privacy-preserving request status, password validation, successful reset, secret clearing, retry, and request failures.
+- [ ] Hosted Xcode simulator verification is pending; this Linux workspace does not have `xcodebuild`.

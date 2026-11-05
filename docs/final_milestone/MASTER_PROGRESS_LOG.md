@@ -3,7 +3,7 @@
 **Course:** ITWM101 (Integrative Programming & Technologies 2)  
 **Developer:** Roosc Zaño  
 **Role:** Lead Systems Engineer & Solutions Architect  
-**Active Feature Branch:** `codex/audit-findings-dynamic-type-auth-rate-limit`
+**Active Feature Branch:** `codex/password-recovery-tests`
 
 ---
 
@@ -657,3 +657,8 @@ This progress log tracks the transition of **Fable** from an editorial prototype
 - [x] Verification: backend suite **76/76 passed**; Docker image build, runtime dependency boundary, Docker Compose configuration, Python compilation, and `git diff --check` passed.
 - [x] PR #25 passed the hosted iOS simulator tests and Release build on macOS 15 / Xcode 16.4, in addition to backend, Docker, Compose, and GitGuardian checks.
 - [ ] Real SMTP delivery still requires deployment credentials; hands-on app confirmation is deferred until the user can test the app.
+
+## Password Recovery Test Coverage Follow-up (2026-11-05)
+
+- [x] Commit `f7d21d8` extracted recovery interaction state into a testable view model and added coverage for email trimming, privacy-preserving request status, password validation, successful reset, secret clearing, retry, and network failure.
+- [ ] Hosted Xcode simulator verification is pending the follow-up pull request; this Linux workspace does not have `xcodebuild`.
