@@ -21,6 +21,8 @@ WINDOW_SECONDS = _positive_int("FABLE_AUTH_RATE_WINDOW_SECONDS", 900)
 REGISTER_LIMIT_PER_IP = _positive_int("FABLE_AUTH_REGISTER_LIMIT_PER_IP", 5)
 LOGIN_LIMIT_PER_IP = _positive_int("FABLE_AUTH_LOGIN_LIMIT_PER_IP", 60)
 LOGIN_LIMIT_PER_ACCOUNT_IP = _positive_int("FABLE_AUTH_LOGIN_LIMIT_PER_ACCOUNT_IP", 10)
+PASSWORD_RESET_LIMIT_PER_IP = _positive_int("FABLE_AUTH_PASSWORD_RESET_LIMIT_PER_IP", 10)
+PASSWORD_RESET_LIMIT_PER_ACCOUNT_IP = _positive_int("FABLE_AUTH_PASSWORD_RESET_LIMIT_PER_ACCOUNT_IP", 5)
 
 
 def _bucket_key(action: str, dimension: str, value: str) -> str:
@@ -34,15 +36,19 @@ def enforce_auth_rate_limit(action: str, client_host: str, identity: Optional[st
         buckets = [
             (_bucket_key(action, "ip", client_host), REGISTER_LIMIT_PER_IP),
         ]
-    elif action == "login":
-        buckets = [
-            (_bucket_key(action, "ip", client_host), LOGIN_LIMIT_PER_IP),
-        ]
+    elif action in {"login", "password_reset"}:
+        ip_limit = LOGIN_LIMIT_PER_IP if action == "login" else PASSWORD_RESET_LIMIT_PER_IP
+        account_limit = (
+            LOGIN_LIMIT_PER_ACCOUNT_IP
+            if action == "login"
+            else PASSWORD_RESET_LIMIT_PER_ACCOUNT_IP
+        )
+        buckets = [(_bucket_key(action, "ip", client_host), ip_limit)]
         if identity:
             buckets.append(
                 (
                     _bucket_key(action, "account-ip", f"{client_host}\x1f{identity.strip().casefold()}"),
-                    LOGIN_LIMIT_PER_ACCOUNT_IP,
+                    account_limit,
                 )
             )
     else:

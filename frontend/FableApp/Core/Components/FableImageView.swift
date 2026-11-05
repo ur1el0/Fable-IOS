@@ -76,12 +76,12 @@ public struct FableImageView: View {
                 .strokeBorder(Color.white.opacity(0.35), lineWidth: 1.5)
             if !initials.isEmpty {
                 Text(initials)
-                    .font(.system(size: max(10, size * 0.36), weight: .bold))
+                    .fableFont(size: max(10, size * 0.36), weight: .bold)
                     .foregroundColor(.white)
                     .shadow(color: Color.black.opacity(0.2), radius: 1, y: 1)
             } else {
                 Image(systemName: placeholderIcon)
-                    .font(.system(size: max(14, size * 0.36), weight: .medium))
+                    .fableFont(size: max(14, size * 0.36), weight: .medium)
                     .foregroundColor(.white.opacity(0.9))
             }
         }
@@ -118,7 +118,7 @@ public struct FableImageView: View {
                 endPoint: .bottomTrailing
             )
             Image(systemName: palette.symbol)
-                .font(.system(size: max(18, min(size.width, size.height) * 0.24), weight: .medium))
+                .fableFont(size: max(18, min(size.width, size.height) * 0.24), weight: .medium)
                 .foregroundColor(Color.white.opacity(0.45))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -147,10 +147,10 @@ public struct FableImageView: View {
             VStack(spacing: max(2, size.height * 0.04)) {
                 Spacer(minLength: 2)
                 Image(systemName: palette.symbol)
-                    .font(.system(size: max(14, min(size.width, size.height) * 0.26), weight: .regular))
+                    .fableFont(size: max(14, min(size.width, size.height) * 0.26), weight: .regular)
                     .foregroundColor(palette.foilColor.opacity(0.9))
                 Text(palette.tagText.uppercased())
-                    .font(.system(size: max(7, min(size.width, size.height) * 0.09), weight: .bold))
+                    .fableFont(size: max(7, min(size.width, size.height) * 0.09), weight: .bold)
                     .tracking(1.2)
                     .foregroundColor(palette.foilColor.opacity(0.85))
                     .lineLimit(1)

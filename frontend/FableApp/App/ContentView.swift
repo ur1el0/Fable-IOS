@@ -68,7 +68,7 @@ struct ContentView: View {
             FableTheme.background.ignoresSafeArea()
             VStack(spacing: 16) {
                 Text("Fable")
-                    .font(.system(size: 40, weight: .black))
+                    .fableFont(size: 40, weight: .black)
                     .foregroundColor(FableTheme.brandPrimary)
 
                 ProgressView()
@@ -112,13 +112,13 @@ struct ContentView: View {
                                         .frame(width: 38, height: 38)
                                 }
                                 Image(systemName: isSelected ? tab.activeIconName : tab.iconName)
-                                    .font(.system(size: 18, weight: isSelected ? .bold : .medium))
+                                    .fableFont(size: 18, weight: isSelected ? .bold : .medium)
                                     .foregroundColor(isSelected ? FableTheme.brandPrimary : FableTheme.textMuted)
                             }
                             .frame(height: 38)
 
                             Text(tab.title)
-                                .font(.system(size: 10, weight: isSelected ? .bold : .medium))
+                                .fableFont(size: 10, weight: isSelected ? .bold : .medium)
                                 .foregroundColor(isSelected ? FableTheme.brandPrimary : FableTheme.textMuted)
                         }
                         .frame(maxWidth: .infinity)

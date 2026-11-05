@@ -25,7 +25,7 @@ public struct WriteView: View {
                         Button("Clear") {
                             isShowingClearAlert = true
                         }
-                        .font(.system(size: 15, weight: .semibold))
+                        .fableFont(size: 15, weight: .semibold)
                         .foregroundColor(.red.opacity(0.85))
                         .frame(minWidth: 44, minHeight: 44, alignment: .leading)
                         .alert("Discard Draft?", isPresented: $isShowingClearAlert) {
@@ -41,9 +41,9 @@ public struct WriteView: View {
                         
                         HStack(spacing: 6) {
                             Image(systemName: "pencil.and.scribble")
-                                .font(.system(size: 11))
+                                .fableFont(size: 11)
                             Text("WRITER'S STUDIO")
-                                .font(.system(size: 11, weight: .bold))
+                                .fableFont(size: 11, weight: .bold)
                                 .tracking(1.0)
                         }
                         .foregroundColor(FableTheme.brandPrimary)
@@ -69,7 +69,7 @@ public struct WriteView: View {
                                         .tint(.white)
                                 } else {
                                     Image(systemName: "arrow.up")
-                                        .font(.system(size: 16, weight: .bold))
+                                        .fableFont(size: 16, weight: .bold)
                                 }
                             }
                             .foregroundColor(.white)
@@ -90,7 +90,7 @@ public struct WriteView: View {
                             VStack(alignment: .leading, spacing: 14) {
                                 HStack {
                                     Text("IDENTITY")
-                                        .font(.system(size: 11, weight: .bold))
+                                        .fableFont(size: 11, weight: .bold)
                                         .tracking(1.0)
                                         .foregroundColor(FableTheme.textMuted)
                                     
@@ -101,19 +101,19 @@ public struct WriteView: View {
                                             .fill(FableTheme.brandPrimary)
                                             .frame(width: 6, height: 6)
                                         Text("Manuscript")
-                                            .font(.system(size: 11, weight: .medium))
+                                            .fableFont(size: 11, weight: .medium)
                                             .foregroundColor(FableTheme.brandPrimary)
                                     }
                                 }
                                 
                                 HStack(spacing: 12) {
                                     Text("Title")
-                                        .font(.system(size: 14, weight: .medium))
+                                        .fableFont(size: 14, weight: .medium)
                                         .foregroundColor(FableTheme.textMuted)
                                         .frame(width: 44, alignment: .leading)
                                     
                                     TextField("Story Title", text: $store.draftTitle)
-                                        .font(.system(size: 22, weight: .bold, design: .serif))
+                                        .fableFont(size: 22, weight: .bold, design: .serif)
                                         .foregroundColor(FableTheme.textPrimary)
                                 }
                                 
@@ -121,12 +121,12 @@ public struct WriteView: View {
                                 
                                 HStack(spacing: 12) {
                                     Text("Genre")
-                                        .font(.system(size: 14, weight: .medium))
+                                        .fableFont(size: 14, weight: .medium)
                                         .foregroundColor(FableTheme.textMuted)
                                         .frame(width: 44, alignment: .leading)
                                     
                                     TextField("Genre", text: $store.draftGenre)
-                                        .font(.system(size: 13, weight: .medium))
+                                        .fableFont(size: 13, weight: .medium)
                                         .textInputAutocapitalization(.words)
                                         .padding(.horizontal, 10)
                                         .padding(.vertical, 7)
@@ -141,7 +141,7 @@ public struct WriteView: View {
                                         }
                                     } label: {
                                         Image(systemName: "chevron.down")
-                                            .font(.system(size: 10, weight: .semibold))
+                                            .fableFont(size: 10, weight: .semibold)
                                             .foregroundColor(FableTheme.brandPrimary)
                                             .padding(8)
                                             .background(FableTheme.surface)
@@ -153,7 +153,7 @@ public struct WriteView: View {
                                 Divider()
 
                                 TextField("Chapter title (optional)", text: $store.draftChapter)
-                                    .font(.system(size: 13, weight: .medium))
+                                    .fableFont(size: 13, weight: .medium)
                                     .textInputAutocapitalization(.sentences)
                                     .foregroundColor(FableTheme.textSecondary)
                             }
@@ -172,20 +172,20 @@ public struct WriteView: View {
                             VStack(alignment: .leading, spacing: 12) {
                                 HStack {
                                     Text("SYNOPSIS")
-                                        .font(.system(size: 11, weight: .bold))
+                                        .fableFont(size: 11, weight: .bold)
                                         .tracking(1.0)
                                         .foregroundColor(FableTheme.textMuted)
                                     
                                     Spacer()
                                     
                                     Text("Micro-prologue")
-                                        .font(.system(size: 11, weight: .medium))
+                                        .fableFont(size: 11, weight: .medium)
                                         .foregroundColor(FableTheme.textMuted)
                                 }
                                 
                                 TextEditor(text: $store.draftSynopsis)
                                     .frame(minHeight: 75)
-                                    .font(.system(size: 14, weight: .regular))
+                                    .fableFont(size: 14, weight: .regular)
                                     .foregroundColor(FableTheme.textPrimary)
                                     .scrollContentBackground(.hidden)
                                     .lineSpacing(4)
@@ -193,16 +193,16 @@ public struct WriteView: View {
                                 HStack {
                                     HStack(spacing: 4) {
                                         Image(systemName: "eye.circle")
-                                            .font(.system(size: 11))
+                                            .fableFont(size: 11)
                                         Text("Previewable on Shelf")
-                                            .font(.system(size: 11))
+                                            .fableFont(size: 11)
                                     }
                                     .foregroundColor(FableTheme.textMuted)
                                     
                                     Spacer()
                                     
                                     Text("\(store.draftSynopsis.count) / 200")
-                                        .font(.system(size: 11, weight: .medium))
+                                        .fableFont(size: 11, weight: .medium)
                                         .foregroundColor(FableTheme.textMuted)
                                 }
                             }
@@ -221,7 +221,7 @@ public struct WriteView: View {
                             VStack(alignment: .leading, spacing: 14) {
                                 HStack {
                                     Text("MANUSCRIPT")
-                                        .font(.system(size: 11, weight: .bold))
+                                        .fableFont(size: 11, weight: .bold)
                                         .tracking(1.0)
                                         .foregroundColor(FableTheme.textMuted)
                                     
@@ -234,7 +234,7 @@ public struct WriteView: View {
                                             formattingRequest = ManuscriptFormattingRequest(style: .bold)
                                         }) {
                                             Text("B")
-                                                .font(.system(size: 12, weight: .bold))
+                                                .fableFont(size: 12, weight: .bold)
                                                 .frame(width: 28, height: 28)
                                                 .background(FableTheme.surface)
                                                 .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
@@ -247,7 +247,7 @@ public struct WriteView: View {
                                             formattingRequest = ManuscriptFormattingRequest(style: .italic)
                                         }) {
                                             Text("I")
-                                                .font(.system(size: 12, weight: .semibold))
+                                                .fableFont(size: 12, weight: .semibold)
                                                 .italic()
                                                 .frame(width: 28, height: 28)
                                                 .background(FableTheme.surface)
@@ -261,7 +261,7 @@ public struct WriteView: View {
                                             formattingRequest = ManuscriptFormattingRequest(style: .quote)
                                         }) {
                                             Image(systemName: "quote.opening")
-                                                .font(.system(size: 11))
+                                                .fableFont(size: 11)
                                                 .frame(width: 28, height: 28)
                                                 .background(FableTheme.surface)
                                                 .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
@@ -274,7 +274,7 @@ public struct WriteView: View {
                                             formattingRequest = ManuscriptFormattingRequest(style: .sceneBreak)
                                         }) {
                                             Image(systemName: "divide")
-                                                .font(.system(size: 11))
+                                                .fableFont(size: 11)
                                                 .frame(width: 28, height: 28)
                                                 .background(FableTheme.surface)
                                                 .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
@@ -312,9 +312,9 @@ public struct WriteView: View {
                 HStack(spacing: 0) {
                     HStack(spacing: 6) {
                         Image(systemName: "text.alignleft")
-                            .font(.system(size: 11))
+                            .fableFont(size: 11)
                         Text("\(store.draftWordCount) words")
-                            .font(.system(size: 12, weight: .bold))
+                            .fableFont(size: 12, weight: .bold)
                             .monospacedDigit()
                     }
                     .foregroundColor(FableTheme.brandPrimary)
@@ -324,9 +324,9 @@ public struct WriteView: View {
                     
                     HStack(spacing: 5) {
                         Image(systemName: "clock")
-                            .font(.system(size: 11))
+                            .fableFont(size: 11)
                         Text("~\(max(1, store.draftWordCount / 150)) min read")
-                            .font(.system(size: 12, weight: .medium))
+                            .fableFont(size: 12, weight: .medium)
                     }
                     .foregroundColor(FableTheme.textMuted)
                     .frame(maxWidth: .infinity)
@@ -338,7 +338,7 @@ public struct WriteView: View {
                             .fill(Color.green)
                             .frame(width: 6, height: 6)
                         Text("Saved locally")
-                            .font(.system(size: 11, weight: .medium))
+                            .fableFont(size: 11, weight: .medium)
                     }
                     .foregroundColor(FableTheme.textMuted)
                     .frame(maxWidth: .infinity)

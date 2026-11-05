@@ -91,17 +91,17 @@ public struct MangaReaderView: View {
                     ProgressView()
                         .tint(FableTheme.brandPrimary)
                     Text("Loading panels...")
-                        .font(.system(size: 13, weight: .medium))
+                        .fableFont(size: 13, weight: .medium)
                         .foregroundColor(.gray)
                 }
             } else if let chapterLoadError {
                 VStack(spacing: 14) {
                     Image(systemName: "wifi.exclamationmark")
-                        .font(.system(size: 28))
+                        .fableFont(size: 28)
                         .foregroundColor(FableTheme.brandPrimary)
                         .accessibilityHidden(true)
                     Text(chapterLoadError)
-                        .font(.system(size: 14, weight: .medium))
+                        .fableFont(size: 14, weight: .medium)
                         .foregroundColor(.white.opacity(0.8))
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 30)
@@ -129,17 +129,17 @@ public struct MangaReaderView: View {
 
                         VStack(spacing: 8) {
                             Text(currentChapter?.title ?? "Official Chapter")
-                                .font(.system(size: 18, weight: .bold))
+                                .fableFont(size: 18, weight: .bold)
                                 .foregroundColor(.white)
                                 .multilineTextAlignment(.center)
                                 .padding(.horizontal, 24)
 
                             HStack(spacing: 6) {
                                 Image(systemName: "checkmark.seal.fill")
-                                    .font(.system(size: 12))
+                                    .fableFont(size: 12)
                                     .foregroundColor(FableTheme.brandPrimary)
                                 Text("Official Licensed Release")
-                                    .font(.system(size: 12, weight: .bold))
+                                    .fableFont(size: 12, weight: .bold)
                                     .foregroundColor(FableTheme.brandPrimary)
                             }
                             .padding(.horizontal, 10)
@@ -148,7 +148,7 @@ public struct MangaReaderView: View {
                             .clipShape(Capsule())
 
                             Text("This chapter is licensed and published by \(externalPublisherName). Open the official release in Fable’s in-app browser.")
-                                .font(.system(size: 13))
+                                .fableFont(size: 13)
                                 .foregroundColor(.gray)
                                 .multilineTextAlignment(.center)
                                 .padding(.horizontal, 32)
@@ -159,9 +159,9 @@ public struct MangaReaderView: View {
                         } label: {
                             HStack(spacing: 8) {
                                 Image(systemName: "safari.fill")
-                                    .font(.system(size: 14, weight: .semibold))
+                                    .fableFont(size: 14, weight: .semibold)
                                 Text("Open official release")
-                                    .font(.system(size: 14, weight: .bold))
+                                    .fableFont(size: 14, weight: .bold)
                             }
                             .foregroundColor(.white)
                             .padding(.horizontal, 22)
@@ -195,10 +195,10 @@ public struct MangaReaderView: View {
                         )
 
                         Text("No pages available")
-                            .font(.system(size: 16, weight: .bold))
+                            .fableFont(size: 16, weight: .bold)
                             .foregroundColor(.white)
                         Text("This manga chapter has no published image panels yet.")
-                            .font(.system(size: 13))
+                            .fableFont(size: 13)
                             .foregroundColor(.gray)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 32)
@@ -311,7 +311,7 @@ public struct MangaReaderView: View {
                             dismiss()
                         }) {
                             Image(systemName: "chevron.left")
-                                .font(.system(size: 15, weight: .bold))
+                                .fableFont(size: 15, weight: .bold)
                                 .foregroundColor(.white)
                                 .frame(width: 40, height: 40)
                                 .background(Color.white.opacity(0.14))
@@ -321,13 +321,13 @@ public struct MangaReaderView: View {
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text(story.title)
-                                .font(.system(size: 15, weight: .bold))
+                                .fableFont(size: 15, weight: .bold)
                                 .foregroundColor(.white)
                                 .lineLimit(1)
 
                             if let chapter = currentChapter {
                                 Text(chapter.title.isEmpty ? "Chapter \(chapter.chapterNumber)" : chapter.title)
-                                    .font(.system(size: 11, weight: .medium))
+                                    .fableFont(size: 11, weight: .medium)
                                     .monospacedDigit()
                                     .foregroundColor(.white.opacity(0.7))
                                     .lineLimit(1)
@@ -346,7 +346,7 @@ public struct MangaReaderView: View {
                             }
                         }) {
                             Image(systemName: isInvertedColor ? "circle.righthalf.filled.inverse" : "circle.righthalf.filled")
-                                .font(.system(size: 13, weight: .bold))
+                                .fableFont(size: 13, weight: .bold)
                                 .foregroundColor(isInvertedColor ? FableTheme.brandPrimary : .white)
                                 .frame(width: 40, height: 40)
                                 .background(Color.white.opacity(0.14))
@@ -376,9 +376,9 @@ public struct MangaReaderView: View {
                         } label: {
                             HStack(spacing: 5) {
                                 Image(systemName: readingMode.iconName)
-                                    .font(.system(size: 11, weight: .bold))
+                                    .fableFont(size: 11, weight: .bold)
                                 Text(readingMode.rawValue)
-                                    .font(.system(size: 12, weight: .semibold))
+                                    .fableFont(size: 12, weight: .semibold)
                             }
                             .foregroundColor(.white)
                             .padding(.horizontal, 12)
@@ -396,7 +396,7 @@ public struct MangaReaderView: View {
                                 isShowingChapterSheet = true
                             }) {
                                 Image(systemName: "list.bullet")
-                                    .font(.system(size: 13, weight: .bold))
+                                    .fableFont(size: 13, weight: .bold)
                                     .foregroundColor(.white)
                                     .frame(width: 38, height: 38)
                                     .background(Color.white.opacity(0.14))
@@ -423,7 +423,7 @@ public struct MangaReaderView: View {
                         if activePageUrls.count > 1 {
                             HStack(spacing: 12) {
                                 Text("\(currentPageIndex + 1)")
-                                    .font(.system(size: 12, weight: .heavy, design: .monospaced))
+                                    .fableFont(size: 12, weight: .heavy, design: .monospaced)
                                     .foregroundColor(.white)
                                     .frame(width: 32, alignment: .trailing)
 
@@ -449,7 +449,7 @@ public struct MangaReaderView: View {
                                 .tint(FableTheme.brandPrimary)
 
                                 Text("\(activePageUrls.count)")
-                                    .font(.system(size: 12, weight: .heavy, design: .monospaced))
+                                    .fableFont(size: 12, weight: .heavy, design: .monospaced)
                                     .foregroundColor(.white.opacity(0.5))
                                     .frame(width: 32, alignment: .leading)
                             }
@@ -469,9 +469,9 @@ public struct MangaReaderView: View {
                             }) {
                                 HStack(spacing: 4) {
                                     Image(systemName: "backward.end.fill")
-                                        .font(.system(size: 10))
+                                        .fableFont(size: 10)
                                     Text("Prev")
-                                        .font(.system(size: 12, weight: .semibold))
+                                        .fableFont(size: 12, weight: .semibold)
                                 }
                                 .foregroundColor(currentChapterIndex > 0 ? .white : .white.opacity(0.3))
                                 .padding(.horizontal, 12)
@@ -490,7 +490,7 @@ public struct MangaReaderView: View {
                                         .fill(FableTheme.brandPrimary)
                                         .frame(width: 5, height: 5)
                                     Text("\(readingMode.rawValue.uppercased()) • \(currentPageIndex + 1) / \(activePageUrls.count)")
-                                        .font(.system(size: 11, weight: .heavy))
+                                        .fableFont(size: 11, weight: .heavy)
                                         .monospacedDigit()
                                         .tracking(0.5)
                                 }
@@ -505,7 +505,7 @@ public struct MangaReaderView: View {
                                 .clipShape(Capsule())
                             } else if externalChapterURL != nil {
                                 Text("OFFICIAL RELEASE")
-                                    .font(.system(size: 10, weight: .heavy))
+                                    .fableFont(size: 10, weight: .heavy)
                                     .tracking(1.0)
                                     .foregroundColor(FableTheme.brandPrimary)
                                     .padding(.horizontal, 10)
@@ -528,9 +528,9 @@ public struct MangaReaderView: View {
                             }) {
                                 HStack(spacing: 4) {
                                     Text("Next")
-                                        .font(.system(size: 12, weight: .semibold))
+                                        .fableFont(size: 12, weight: .semibold)
                                     Image(systemName: "forward.end.fill")
-                                        .font(.system(size: 10))
+                                        .fableFont(size: 10)
                                 }
                                 .foregroundColor(currentChapterIndex < chapters.count - 1 ? .white : .white.opacity(0.3))
                                 .padding(.horizontal, 12)
@@ -590,15 +590,15 @@ public struct MangaReaderView: View {
                         HStack {
                             VStack(alignment: .leading, spacing: 3) {
                                 Text(chap.title.isEmpty ? "Chapter \(chap.chapterNumber)" : chap.title)
-                                    .font(.system(size: 15, weight: index == currentChapterIndex ? .bold : .medium))
+                                    .fableFont(size: 15, weight: index == currentChapterIndex ? .bold : .medium)
                                     .foregroundColor(index == currentChapterIndex ? FableTheme.brandPrimary : FableTheme.textPrimary)
                                 if chap.pageUrls.isEmpty, chap.externalSourceURL != nil {
                                     Text("Official Release")
-                                        .font(.system(size: 12, weight: .semibold))
+                                        .fableFont(size: 12, weight: .semibold)
                                         .foregroundColor(FableTheme.brandPrimary)
                                 } else {
                                     Text("\(chap.pageUrls.count) panels")
-                                        .font(.system(size: 12))
+                                        .fableFont(size: 12)
                                         .foregroundColor(FableTheme.textMuted)
                                 }
                             }
@@ -820,10 +820,10 @@ private struct MangaPageView: View {
     private var placeholder: some View {
         VStack(spacing: 8) {
             Image(systemName: "photo")
-                .font(.system(size: 28))
+                .fableFont(size: 28)
                 .foregroundColor(.gray)
             Text("Panel \(pageNumber) unavailable")
-                .font(.system(size: 12))
+                .fableFont(size: 12)
                 .foregroundColor(.gray)
         }
         .frame(maxWidth: .infinity, minHeight: 360)

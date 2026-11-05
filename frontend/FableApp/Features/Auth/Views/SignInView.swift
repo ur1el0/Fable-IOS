@@ -9,6 +9,7 @@ public struct SignInView: View {
     @State private var email: String = ""
     @State private var password: String = ""
     @State private var isPasswordVisible: Bool = false
+    @State private var isPasswordRecoveryPresented = false
 
     private enum Field: Hashable {
         case email
@@ -48,7 +49,7 @@ public struct SignInView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(action: { dismiss() }) {
                         Image(systemName: "xmark")
-                            .font(.system(size: 13, weight: .bold))
+                            .fableFont(size: 13, weight: .bold)
                             .foregroundColor(FableTheme.textPrimary)
                             .padding(8)
                             .background(Color.white)
@@ -57,6 +58,9 @@ public struct SignInView: View {
                     }
                     .accessibilityLabel("Close")
                 }
+            }
+            .sheet(isPresented: $isPasswordRecoveryPresented) {
+                PasswordRecoveryView(authViewModel: authVM, initialEmail: email)
             }
         }
     }
@@ -68,7 +72,7 @@ public struct SignInView: View {
         VStack(alignment: .leading, spacing: 22) {
             HStack(spacing: 8) {
                 Image(systemName: "square.stack.3d.up.fill")
-                    .font(.system(size: 13))
+                    .fableFont(size: 13)
                     .foregroundColor(.white)
                     .padding(7)
                     .background(FableTheme.brandPrimary)
@@ -122,6 +126,11 @@ public struct SignInView: View {
         VStack(spacing: 18) {
             emailField
             passwordField
+            Button("Forgot password?") {
+                isPasswordRecoveryPresented = true
+            }
+            .font(.footnote.weight(.semibold))
+            .frame(maxWidth: .infinity, minHeight: 44, alignment: .trailing)
             submitButton
         }
         .padding(20)
@@ -145,7 +154,7 @@ public struct SignInView: View {
 
             HStack(spacing: 12) {
                 Image(systemName: "envelope.fill")
-                    .font(.system(size: 14))
+                    .fableFont(size: 14)
                     .foregroundColor(focusedField == .email ? FableTheme.brandPrimary : FableTheme.textMuted)
                     .frame(width: 20)
 
@@ -181,7 +190,7 @@ public struct SignInView: View {
 
             HStack(spacing: 12) {
                 Image(systemName: "lock.fill")
-                    .font(.system(size: 14))
+                    .fableFont(size: 14)
                     .foregroundColor(focusedField == .password ? FableTheme.brandPrimary : FableTheme.textMuted)
                     .frame(width: 20)
 
@@ -214,7 +223,7 @@ public struct SignInView: View {
                     isPasswordVisible.toggle()
                 } label: {
                     Image(systemName: isPasswordVisible ? "eye.slash.fill" : "eye.fill")
-                        .font(.system(size: 14))
+                        .fableFont(size: 14)
                         .foregroundColor(FableTheme.textMuted)
                         .frame(width: 40, height: 40)
                         .contentShape(Rectangle())
@@ -244,7 +253,7 @@ public struct SignInView: View {
                     Text("Sign In")
                         .font(.headline.weight(.bold))
                     Image(systemName: "arrow.right")
-                        .font(.system(size: 13, weight: .bold))
+                        .fableFont(size: 13, weight: .bold)
                 }
             }
             .frame(maxWidth: .infinity)

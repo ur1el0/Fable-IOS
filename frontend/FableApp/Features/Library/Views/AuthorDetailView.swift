@@ -59,17 +59,17 @@ public struct AuthorDetailView: View {
                             VStack(spacing: 4) {
                                 HStack(spacing: 6) {
                                     Text(writer.name)
-                                        .font(.system(size: 24, weight: .bold, design: .serif))
+                                        .fableFont(size: 24, weight: .bold, design: .serif)
                                         .foregroundColor(FableTheme.textPrimary)
 
                                     Image(systemName: "checkmark.seal.fill")
-                                        .font(.system(size: 16))
+                                        .fableFont(size: 16)
                                         .foregroundColor(FableTheme.brandPrimary)
                                 }
 
                                 HStack(spacing: 8) {
                                     Text("Catalog Creator")
-                                        .font(.system(size: 11, weight: .bold))
+                                        .fableFont(size: 11, weight: .bold)
                                         .foregroundColor(FableTheme.brandPrimary)
                                         .padding(.horizontal, 8)
                                         .padding(.vertical, 3)
@@ -80,13 +80,13 @@ public struct AuthorDetailView: View {
                                         .foregroundColor(FableTheme.textMuted)
 
                                     Text("\(max(authorStories.count, writer.storyCount)) Works Available")
-                                        .font(.system(size: 12, weight: .medium))
+                                        .fableFont(size: 12, weight: .medium)
                                         .foregroundColor(FableTheme.textMuted)
                                 }
                             }
 
                             Text(authorBio)
-                                .font(.system(size: 13, weight: .regular))
+                                .fableFont(size: 13, weight: .regular)
                                 .foregroundColor(FableTheme.textSecondary)
                                 .multilineTextAlignment(.center)
                                 .padding(.horizontal, 24)
@@ -101,12 +101,12 @@ public struct AuthorDetailView: View {
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("BIBLIOGRAPHY & WORKS")
-                                    .font(.system(size: 11, weight: .bold))
+                                    .fableFont(size: 11, weight: .bold)
                                     .tracking(1.2)
                                     .foregroundColor(FableTheme.brandPrimary)
 
                                 Text("Available to Read")
-                                    .font(.system(size: 18, weight: .bold))
+                                    .fableFont(size: 18, weight: .bold)
                                     .foregroundColor(FableTheme.textPrimary)
                             }
 
@@ -117,7 +117,7 @@ public struct AuthorDetailView: View {
                                     .scaleEffect(0.8)
                             } else {
                                 Text("\(authorStories.count) titles")
-                                    .font(.system(size: 12, weight: .semibold))
+                                    .fableFont(size: 12, weight: .semibold)
                                     .foregroundColor(FableTheme.textMuted)
                             }
                         }
@@ -128,7 +128,7 @@ public struct AuthorDetailView: View {
                             VStack(spacing: 12) {
                                 ProgressView()
                                 Text("Discovering works by \(writer.name)...")
-                                    .font(.system(size: 13))
+                                    .fableFont(size: 13)
                                     .foregroundColor(FableTheme.textMuted)
                             }
                             .frame(maxWidth: .infinity)
@@ -136,13 +136,13 @@ public struct AuthorDetailView: View {
                         } else if authorStories.isEmpty {
                             VStack(spacing: 12) {
                                 Image(systemName: "book.closed")
-                                    .font(.system(size: 32))
+                                    .fableFont(size: 32)
                                     .foregroundColor(FableTheme.textMuted.opacity(0.6))
                                 Text("No titles currently cached for this author.")
-                                    .font(.system(size: 14, weight: .semibold))
+                                    .fableFont(size: 14, weight: .semibold)
                                     .foregroundColor(FableTheme.textPrimary)
                                 Text("Tap below to query Project Gutenberg and MangaDex.")
-                                    .font(.system(size: 12))
+                                    .fableFont(size: 12)
                                     .foregroundColor(FableTheme.textMuted)
                                     .multilineTextAlignment(.center)
 
@@ -154,7 +154,7 @@ public struct AuthorDetailView: View {
                                     }
                                 }) {
                                     Text("Search Online Providers")
-                                        .font(.system(size: 13, weight: .semibold))
+                                        .fableFont(size: 13, weight: .semibold)
                                         .foregroundColor(.white)
                                         .padding(.horizontal, 20)
                                         .padding(.vertical, 10)
@@ -188,7 +188,7 @@ public struct AuthorDetailView: View {
                         dismiss()
                     }) {
                         Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 20))
+                            .fableFont(size: 20)
                             .foregroundColor(FableTheme.textMuted.opacity(0.7))
                     }
                 }
@@ -245,7 +245,7 @@ private struct AuthorStoryRowView: View {
                 VStack(alignment: .leading, spacing: 5) {
                     HStack(spacing: 6) {
                         Text(formatText)
-                            .font(.system(size: 9, weight: .bold))
+                            .fableFont(size: 9, weight: .bold)
                             .foregroundColor(FableTheme.brandPrimary)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
@@ -254,20 +254,20 @@ private struct AuthorStoryRowView: View {
 
                         if !story.genre.rawValue.isEmpty && story.genre != .all && story.genre != .unspecified {
                             Text(story.genre.rawValue.uppercased())
-                                .font(.system(size: 9, weight: .semibold))
+                                .fableFont(size: 9, weight: .semibold)
                                 .foregroundColor(FableTheme.textMuted)
                         }
                     }
 
                     Text(story.title)
-                        .font(.system(size: 15, weight: .bold, design: .serif))
+                        .fableFont(size: 15, weight: .bold, design: .serif)
                         .foregroundColor(FableTheme.textPrimary)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
 
                     if !story.synopsis.isEmpty {
                         Text(story.synopsis)
-                            .font(.system(size: 12))
+                            .fableFont(size: 12)
                             .foregroundColor(FableTheme.textMuted)
                             .lineLimit(2)
                             .multilineTextAlignment(.leading)
@@ -277,17 +277,17 @@ private struct AuthorStoryRowView: View {
                         if story.contentFormat == .manga {
                             HStack(spacing: 3) {
                                 Image(systemName: "square.stack.fill")
-                                    .font(.system(size: 10))
+                                    .fableFont(size: 10)
                                 Text("\(max(1, story.totalChapters)) Chapters")
-                                    .font(.system(size: 11, weight: .medium))
+                                    .fableFont(size: 11, weight: .medium)
                             }
                             .foregroundColor(FableTheme.textMuted)
                         } else {
                             HStack(spacing: 3) {
                                 Image(systemName: "clock")
-                                    .font(.system(size: 10))
+                                    .fableFont(size: 10)
                                 Text("~\(max(1, story.readingTimeMinutes)) min read")
-                                    .font(.system(size: 11, weight: .medium))
+                                    .fableFont(size: 11, weight: .medium)
                             }
                             .foregroundColor(FableTheme.textMuted)
                         }
@@ -296,9 +296,9 @@ private struct AuthorStoryRowView: View {
 
                         HStack(spacing: 4) {
                             Text("Read")
-                                .font(.system(size: 12, weight: .bold))
+                                .fableFont(size: 12, weight: .bold)
                             Image(systemName: "arrow.right")
-                                .font(.system(size: 10, weight: .bold))
+                                .fableFont(size: 10, weight: .bold)
                         }
                         .foregroundColor(FableTheme.brandPrimary)
                     }

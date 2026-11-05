@@ -19,12 +19,12 @@ public struct VoiceSelectionSheet: View {
                                 VStack(alignment: .leading, spacing: 3) {
                                     HStack(spacing: 6) {
                                         Text(voice.name)
-                                            .font(.system(size: 15, weight: isSelected(voice) ? .bold : .medium))
+                                            .fableFont(size: 15, weight: isSelected(voice) ? .bold : .medium)
                                             .foregroundColor(isSelected(voice) ? FableTheme.brandPrimary : FableTheme.textPrimary)
                                         
                                         if voice.quality == .enhanced || voice.quality == .premium {
                                             Text("HD")
-                                                .font(.system(size: 9, weight: .bold))
+                                                .fableFont(size: 9, weight: .bold)
                                                 .padding(.horizontal, 4)
                                                 .padding(.vertical, 1)
                                                 .background(FableTheme.brandPrimary.opacity(0.12))
@@ -34,7 +34,7 @@ public struct VoiceSelectionSheet: View {
                                     }
                                     
                                     Text("\(regionName(for: voice.language)) • \(voice.language)")
-                                        .font(.system(size: 12))
+                                        .fableFont(size: 12)
                                         .foregroundColor(FableTheme.textMuted)
                                 }
                                 
@@ -42,7 +42,7 @@ public struct VoiceSelectionSheet: View {
                                 
                                 if isSelected(voice) {
                                     Image(systemName: "checkmark")
-                                        .font(.system(size: 14, weight: .bold))
+                                        .fableFont(size: 14, weight: .bold)
                                         .foregroundColor(FableTheme.brandPrimary)
                                 }
                             }
@@ -51,11 +51,11 @@ public struct VoiceSelectionSheet: View {
                     }
                 } header: {
                     Text("Available System Voices")
-                        .font(.system(size: 11, weight: .bold))
+                        .fableFont(size: 11, weight: .bold)
                         .foregroundColor(FableTheme.textMuted)
                 } footer: {
                     Text("Voice engines are provided by the operating system speech synthesis service.")
-                        .font(.system(size: 11))
+                        .fableFont(size: 11)
                         .foregroundColor(FableTheme.textMuted)
                 }
             }
@@ -66,7 +66,7 @@ public struct VoiceSelectionSheet: View {
                     Button("Done") {
                         dismiss()
                     }
-                    .font(.system(size: 15, weight: .semibold))
+                    .fableFont(size: 15, weight: .semibold)
                     .foregroundColor(FableTheme.brandPrimary)
                 }
             }

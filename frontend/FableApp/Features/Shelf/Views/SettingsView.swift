@@ -41,12 +41,12 @@ public struct SettingsView: View {
                                     VStack(alignment: .leading, spacing: 3) {
                                         HStack(spacing: 6) {
                                             Text(auth.currentSession?.name ?? "Guest")
-                                                .font(.system(size: 17, weight: .bold))
+                                                .fableFont(size: 17, weight: .bold)
                                                 .foregroundColor(FableTheme.textPrimary)
                                             
                                             if auth.isGuestMode {
                                                 Text("GUEST")
-                                                    .font(.system(size: 9, weight: .bold))
+                                                    .fableFont(size: 9, weight: .bold)
                                                     .padding(.horizontal, 6)
                                                     .padding(.vertical, 2)
                                                     .background(FableTheme.brandPrimary.opacity(0.12))
@@ -56,14 +56,14 @@ public struct SettingsView: View {
                                         }
                                         
                                         Text(auth.currentSession?.email ?? "Tap to view profile")
-                                            .font(.system(size: 13))
+                                            .fableFont(size: 13)
                                             .foregroundColor(FableTheme.textMuted)
                                     }
                                     
                                     Spacer()
                                     
                                     Image(systemName: "chevron.right")
-                                        .font(.system(size: 14, weight: .semibold))
+                                        .fableFont(size: 14, weight: .semibold)
                                         .foregroundColor(Color.gray.opacity(0.4))
                                 }
                                 .padding(16)
@@ -76,7 +76,7 @@ public struct SettingsView: View {
                             // Reading Preferences Section
                             VStack(alignment: .leading, spacing: 10) {
                                 Text("READING PREFERENCES")
-                                    .font(.system(size: 11, weight: .bold))
+                                    .fableFont(size: 11, weight: .bold)
                                     .tracking(1.0)
                                     .foregroundColor(FableTheme.textMuted)
                                     .padding(.leading, 8)
@@ -85,14 +85,14 @@ public struct SettingsView: View {
                                     // Default Reader Font Picker Menu
                                     HStack(spacing: 14) {
                                         Image(systemName: "character.textbox")
-                                            .font(.system(size: 16))
+                                            .fableFont(size: 16)
                                             .foregroundColor(FableTheme.textPrimary)
                                             .frame(width: 32, height: 32)
                                             .background(FableTheme.surface)
                                             .clipShape(RoundedRectangle(cornerRadius: 8))
                                         
                                         Text("Reader Font")
-                                            .font(.system(size: 15, weight: .medium))
+                                            .fableFont(size: 15, weight: .medium)
                                             .foregroundColor(FableTheme.textPrimary)
                                         
                                         Spacer()
@@ -108,10 +108,10 @@ public struct SettingsView: View {
                                         } label: {
                                             HStack(spacing: 4) {
                                                 Text(store.readerFont.displayName)
-                                                    .font(.system(size: 14))
+                                                    .fableFont(size: 14)
                                                     .foregroundColor(FableTheme.textMuted)
                                                 Image(systemName: "chevron.up.chevron.down")
-                                                    .font(.system(size: 11))
+                                                    .fableFont(size: 11)
                                                     .foregroundColor(Color.gray.opacity(0.4))
                                             }
                                         }
@@ -124,14 +124,14 @@ public struct SettingsView: View {
                                     // Default Theme Picker Menu
                                     HStack(spacing: 14) {
                                         Image(systemName: "paintpalette")
-                                            .font(.system(size: 16))
+                                            .fableFont(size: 16)
                                             .foregroundColor(FableTheme.textPrimary)
                                             .frame(width: 32, height: 32)
                                             .background(FableTheme.surface)
                                             .clipShape(RoundedRectangle(cornerRadius: 8))
                                         
                                         Text("Theme Mode")
-                                            .font(.system(size: 15, weight: .medium))
+                                            .fableFont(size: 15, weight: .medium)
                                             .foregroundColor(FableTheme.textPrimary)
                                         
                                         Spacer()
@@ -150,10 +150,10 @@ public struct SettingsView: View {
                                                     .fill(store.readerTheme.swatchColor)
                                                     .frame(width: 14, height: 14)
                                                 Text(store.readerTheme.rawValue)
-                                                    .font(.system(size: 14))
+                                                    .fableFont(size: 14)
                                                     .foregroundColor(FableTheme.textMuted)
                                                 Image(systemName: "chevron.up.chevron.down")
-                                                    .font(.system(size: 11))
+                                                    .fableFont(size: 11)
                                                     .foregroundColor(Color.gray.opacity(0.4))
                                             }
                                         }
@@ -166,14 +166,14 @@ public struct SettingsView: View {
                                     // Haptic Feedback Toggle
                                     HStack(spacing: 14) {
                                         Image(systemName: "iphone.radiowaves.left.and.right")
-                                            .font(.system(size: 16))
+                                            .fableFont(size: 16)
                                             .foregroundColor(FableTheme.textPrimary)
                                             .frame(width: 32, height: 32)
                                             .background(FableTheme.surface)
                                             .clipShape(RoundedRectangle(cornerRadius: 8))
                                         
                                         Text("Haptic Feedback")
-                                            .font(.system(size: 15, weight: .medium))
+                                            .fableFont(size: 15, weight: .medium)
                                             .foregroundColor(FableTheme.textPrimary)
                                         
                                         Spacer()
@@ -193,7 +193,7 @@ public struct SettingsView: View {
                             // Storage & Cache Section
                             VStack(alignment: .leading, spacing: 10) {
                                 Text("STORAGE & CACHE")
-                                    .font(.system(size: 11, weight: .bold))
+                                    .fableFont(size: 11, weight: .bold)
                                     .tracking(1.0)
                                     .foregroundColor(FableTheme.textMuted)
                                     .padding(.leading, 8)
@@ -202,10 +202,10 @@ public struct SettingsView: View {
                                     HStack(spacing: 14) {
                                         VStack(alignment: .leading, spacing: 3) {
                                             Text("Downloaded Cover & Panel Images")
-                                                .font(.system(size: 15, weight: .medium))
+                                                .fableFont(size: 15, weight: .medium)
                                                 .foregroundColor(FableTheme.textPrimary)
                                             Text(imageCacheMessage ?? ByteCountFormatter.string(fromByteCount: imageCacheSizeInBytes, countStyle: .file))
-                                                .font(.system(size: 12))
+                                                .fableFont(size: 12)
                                                 .foregroundColor(FableTheme.textMuted)
                                         }
                                         
@@ -225,7 +225,7 @@ public struct SettingsView: View {
                                             }
                                         } label: {
                                             Text(isClearingImageCache ? "Clearing…" : "Clear")
-                                                .font(.system(size: 13, weight: .semibold))
+                                                .fableFont(size: 13, weight: .semibold)
                                                 .foregroundColor(FableTheme.textPrimary)
                                                 .padding(.horizontal, 12)
                                                 .padding(.vertical, 6)
@@ -242,10 +242,10 @@ public struct SettingsView: View {
                                     HStack(spacing: 14) {
                                         VStack(alignment: .leading, spacing: 3) {
                                             Text("Auto-Archive Completed")
-                                                .font(.system(size: 15, weight: .medium))
+                                                .fableFont(size: 15, weight: .medium)
                                                 .foregroundColor(FableTheme.textPrimary)
                                             Text("Remove finished books from Saved")
-                                                .font(.system(size: 12))
+                                                .fableFont(size: 12)
                                                 .foregroundColor(FableTheme.textMuted)
                                         }
                                         Spacer()
@@ -264,7 +264,7 @@ public struct SettingsView: View {
                             // System Diagnostics & Verification Section
                             VStack(alignment: .leading, spacing: 10) {
                                 Text("SYSTEM DIAGNOSTICS & VERIFICATION")
-                                    .font(.system(size: 11, weight: .bold))
+                                    .fableFont(size: 11, weight: .bold)
                                     .tracking(1.0)
                                     .foregroundColor(FableTheme.textMuted)
                                     .padding(.leading, 8)
@@ -275,7 +275,7 @@ public struct SettingsView: View {
                                     }) {
                                         HStack(spacing: 12) {
                                             Image(systemName: "checkmark.shield")
-                                                .font(.system(size: 16))
+                                                .fableFont(size: 16)
                                                 .foregroundColor(FableTheme.brandPrimary)
                                                 .frame(width: 32, height: 32)
                                                 .background(FableTheme.brandPrimary.opacity(0.12))
@@ -283,18 +283,18 @@ public struct SettingsView: View {
                                             
                                             VStack(alignment: .leading, spacing: 2) {
                                                 Text("System Diagnostics & Health")
-                                                    .font(.system(size: 15, weight: .medium))
+                                                    .fableFont(size: 15, weight: .medium)
                                                     .foregroundColor(FableTheme.textPrimary)
                                                 
                                                 Text("Verify chapter updates, genres, artists, and analytics")
-                                                    .font(.system(size: 11))
+                                                    .fableFont(size: 11)
                                                     .foregroundColor(FableTheme.textMuted)
                                             }
                                             
                                             Spacer()
                                             
                                             Image(systemName: "chevron.right")
-                                                .font(.system(size: 13, weight: .semibold))
+                                                .fableFont(size: 13, weight: .semibold)
                                                 .foregroundColor(Color.gray.opacity(0.4))
                                         }
                                         .padding(.horizontal, 16)
@@ -309,7 +309,7 @@ public struct SettingsView: View {
                             // Account & Session Section
                             VStack(alignment: .leading, spacing: 10) {
                                 Text("ACCOUNT & SESSION")
-                                    .font(.system(size: 11, weight: .bold))
+                                    .fableFont(size: 11, weight: .bold)
                                     .tracking(1.0)
                                     .foregroundColor(FableTheme.textMuted)
                                     .padding(.leading, 8)
@@ -321,11 +321,11 @@ public struct SettingsView: View {
                                         HStack(spacing: 12) {
                                             Image(systemName: "rectangle.portrait.and.arrow.right")
                                                 .foregroundColor(.red.opacity(0.85))
-                                                .font(.system(size: 15))
+                                                .fableFont(size: 15)
                                                 .frame(width: 24)
                                             
                                             Text(auth.isGuestMode ? "Exit Guest Mode" : "Sign Out of Fable")
-                                                .font(.system(size: 15, weight: .medium))
+                                                .fableFont(size: 15, weight: .medium)
                                                 .foregroundColor(.red.opacity(0.9))
                                             
                                             Spacer()
@@ -354,10 +354,10 @@ public struct SettingsView: View {
                             // App Version Info
                             VStack(spacing: 4) {
                                 Text(versionLabel)
-                                    .font(.system(size: 12, weight: .medium))
+                                    .fableFont(size: 12, weight: .medium)
                                     .foregroundColor(FableTheme.textMuted)
                                 Text("Inspired by high-end independent editorial journals.")
-                                    .font(.system(size: 11))
+                                    .fableFont(size: 11)
                                     .foregroundColor(FableTheme.textMuted)
                             }
                             .padding(.top, 8)
@@ -375,7 +375,7 @@ public struct SettingsView: View {
                     Button("Done") {
                         dismiss()
                     }
-                    .font(.system(size: 15, weight: .semibold))
+                    .fableFont(size: 15, weight: .semibold)
                     .foregroundColor(FableTheme.brandPrimary)
                 }
             }

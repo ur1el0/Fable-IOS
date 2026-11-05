@@ -113,7 +113,7 @@ public struct ReaderView: View {
                             dismiss()
                         }) {
                             Image(systemName: "chevron.left")
-                                .font(.system(size: 15, weight: .bold))
+                                .fableFont(size: 15, weight: .bold)
                                 .foregroundColor(store.readerTheme.textColor)
                                 .frame(width: 40, height: 40)
                                 .background(store.readerTheme.textColor.opacity(0.08))
@@ -131,20 +131,20 @@ public struct ReaderView: View {
                             VStack(spacing: 2) {
                                 HStack(spacing: 4) {
                                     Text(activeChapterTag)
-                                        .font(.system(size: 10, weight: .bold))
+                                        .fableFont(size: 10, weight: .bold)
                                         .tracking(1.0)
                                         .foregroundColor(FableTheme.brandPrimary)
                                         .lineLimit(1)
                                     
                                     if !chapters.isEmpty {
                                         Image(systemName: "chevron.down")
-                                            .font(.system(size: 8, weight: .bold))
+                                            .fableFont(size: 8, weight: .bold)
                                             .foregroundColor(FableTheme.brandPrimary)
                                     }
                                 }
                                 
                                 Text(story.title)
-                                    .font(.system(size: 13, weight: .medium, design: .serif))
+                                    .fableFont(size: 13, weight: .medium, design: .serif)
                                     .foregroundColor(store.readerTheme.textColor.opacity(0.85))
                                     .lineLimit(1)
                             }
@@ -161,7 +161,7 @@ public struct ReaderView: View {
                                 isShowingChapterSheet = true
                             }) {
                                 Image(systemName: "list.bullet.rectangle")
-                                    .font(.system(size: 14, weight: .semibold))
+                                    .fableFont(size: 14, weight: .semibold)
                                     .foregroundColor(store.readerTheme.textColor)
                                     .frame(width: 40, height: 40)
                                     .background(store.readerTheme.textColor.opacity(0.08))
@@ -177,7 +177,7 @@ public struct ReaderView: View {
                                 }
                             }) {
                                 Image(systemName: audioNarrator.isPlaying ? "speaker.wave.3.fill" : "speaker.wave.2")
-                                    .font(.system(size: 14, weight: .semibold))
+                                    .fableFont(size: 14, weight: .semibold)
                                     .foregroundColor(audioNarrator.isPlaying ? FableTheme.brandPrimary : store.readerTheme.textColor)
                                     .frame(width: 40, height: 40)
                                     .background(audioNarrator.isPlaying ? FableTheme.brandPrimary.opacity(0.15) : store.readerTheme.textColor.opacity(0.08))
@@ -193,7 +193,7 @@ public struct ReaderView: View {
                                 }
                             }) {
                                 Image(systemName: currentStoryBookmarked ? "bookmark.fill" : "bookmark")
-                                    .font(.system(size: 14, weight: .semibold))
+                                    .fableFont(size: 14, weight: .semibold)
                                     .foregroundColor(currentStoryBookmarked ? FableTheme.brandPrimary : store.readerTheme.textColor)
                                     .frame(width: 40, height: 40)
                                     .background(currentStoryBookmarked ? FableTheme.brandPrimary.opacity(0.12) : store.readerTheme.textColor.opacity(0.08))
@@ -207,7 +207,7 @@ public struct ReaderView: View {
                                 store.isShowingDisplayOptions = true
                             }) {
                                 Image(systemName: "textformat.size")
-                                    .font(.system(size: 14, weight: .semibold))
+                                    .fableFont(size: 14, weight: .semibold)
                                     .foregroundColor(store.readerTheme.textColor)
                                     .frame(width: 40, height: 40)
                                     .background(store.readerTheme.textColor.opacity(0.08))
@@ -220,7 +220,7 @@ public struct ReaderView: View {
                                 item: "\(story.title) by \(story.author)\n\n\(story.synopsis)\n\nRead on Fable."
                             ) {
                                 Image(systemName: "square.and.arrow.up")
-                                    .font(.system(size: 14, weight: .semibold))
+                                    .fableFont(size: 14, weight: .semibold)
                                     .foregroundColor(store.readerTheme.textColor)
                                     .frame(width: 40, height: 40)
                                     .background(store.readerTheme.textColor.opacity(0.08))
@@ -238,11 +238,11 @@ public struct ReaderView: View {
                 if audioNarrator.isPlaying || audioNarrator.isPaused {
                     HStack(spacing: 10) {
                         Image(systemName: audioNarrator.isPlaying ? "waveform" : "pause.fill")
-                            .font(.system(size: 12, weight: .bold))
+                            .fableFont(size: 12, weight: .bold)
                             .foregroundColor(FableTheme.brandPrimary)
                         
                         Text(audioNarrator.isPlaying ? "Narrating Spoken Folklore" : "Audio Paused")
-                            .font(.system(size: 12, weight: .semibold))
+                            .fableFont(size: 12, weight: .semibold)
                             .foregroundColor(FableTheme.textPrimary)
                         
                         Spacer()
@@ -253,7 +253,7 @@ public struct ReaderView: View {
                             audioNarrator.setRateMultiplier(nextRate)
                         }) {
                             Text(String(format: "%.1fx", audioNarrator.playbackRateMultiplier))
-                                .font(.system(size: 11, weight: .bold))
+                                .fableFont(size: 11, weight: .bold)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 3)
                                 .background(FableTheme.brandPrimary.opacity(0.12))
@@ -265,7 +265,7 @@ public struct ReaderView: View {
                             audioNarrator.stop()
                         }) {
                             Image(systemName: "xmark")
-                                .font(.system(size: 11, weight: .bold))
+                                .fableFont(size: 11, weight: .bold)
                                 .foregroundColor(FableTheme.textMuted)
                                 .padding(4)
                         }
@@ -301,12 +301,12 @@ public struct ReaderView: View {
                                         VStack(alignment: .leading, spacing: 20) {
                                             HStack {
                                                 Text("PAGE \(pageNum) OF \(totalPages)")
-                                                    .font(.system(size: 10, weight: .bold))
+                                                    .fableFont(size: 10, weight: .bold)
                                                     .tracking(1.2)
                                                     .foregroundColor(FableTheme.brandPrimary)
                                                 Spacer()
                                                 Text("Tap paragraph to annotate")
-                                                    .font(.system(size: 11))
+                                                    .fableFont(size: 11)
                                                     .foregroundColor(store.readerTheme.isDark ? Color.white.opacity(0.75) : FableTheme.textMuted)
                                             }
                                             .padding(.top, 14)
@@ -379,7 +379,7 @@ public struct ReaderView: View {
                                         .frame(height: 1)
                                     
                                     Image(systemName: "book.pages")
-                                        .font(.system(size: 13))
+                                        .fableFont(size: 13)
                                         .foregroundColor(FableTheme.brandPrimary)
                                     
                                     Rectangle()
@@ -405,11 +405,11 @@ public struct ReaderView: View {
                                             .frame(width: 20, height: 20)
                                             .overlay(
                                                 Text(String(story.author.prefix(1)))
-                                                    .font(.system(size: 10, weight: .bold))
+                                                    .fableFont(size: 10, weight: .bold)
                                                     .foregroundColor(FableTheme.brandPrimary)
                                             )
                                         Text(story.author)
-                                            .font(.system(size: 13, weight: .medium))
+                                            .fableFont(size: 13, weight: .medium)
                                             .foregroundColor(store.readerTheme.textColor.opacity(0.85))
                                     }
                                     .padding(.horizontal, 12)
@@ -422,9 +422,9 @@ public struct ReaderView: View {
                                     
                                     HStack(spacing: 4) {
                                         Image(systemName: "clock")
-                                            .font(.system(size: 11))
+                                            .fableFont(size: 11)
                                         Text("~\(dynamicMinutesRemaining)m remaining")
-                                            .font(.system(size: 12, weight: .medium))
+                                            .fableFont(size: 12, weight: .medium)
                                     }
                                     .padding(.horizontal, 10)
                                     .padding(.vertical, 5)
@@ -443,7 +443,7 @@ public struct ReaderView: View {
                                             .shadow(color: Color.black.opacity(0.06), radius: 8, y: 3)
                                         
                                         Text("FOLIO \(max(1, currentPage))")
-                                            .font(.system(size: 10, weight: .bold))
+                                            .fableFont(size: 10, weight: .bold)
                                             .tracking(1.0)
                                             .foregroundColor(FableTheme.brandPrimary)
                                             .padding(.horizontal, 8)
@@ -464,7 +464,7 @@ public struct ReaderView: View {
                                         ProgressView()
                                             .tint(FableTheme.brandPrimary)
                                         Text("Loading manuscript chapters...")
-                                            .font(.system(size: 13, weight: .medium))
+                                            .fableFont(size: 13, weight: .medium)
                                             .foregroundColor(store.readerTheme.textColor.opacity(0.7))
                                     }
                                     .frame(maxWidth: .infinity)
@@ -472,7 +472,7 @@ public struct ReaderView: View {
                                 } else if let chapterLoadError, activeParagraphs.isEmpty {
                                     VStack(spacing: 12) {
                                         Text(chapterLoadError)
-                                            .font(.system(size: 14, weight: .medium))
+                                            .fableFont(size: 14, weight: .medium)
                                             .foregroundColor(store.readerTheme.textColor.opacity(0.75))
                                             .multilineTextAlignment(.center)
                                         Button("Retry") {
@@ -516,7 +516,7 @@ public struct ReaderView: View {
                                                         Image(systemName: "chevron.left")
                                                         Text("Chapter \(chapters[currentChapterIndex - 1].chapterNumber)")
                                                     }
-                                                    .font(.system(size: 12, weight: .semibold))
+                                                    .fableFont(size: 12, weight: .semibold)
                                                     .foregroundColor(FableTheme.textPrimary)
                                                     .padding(.horizontal, 14)
                                                     .padding(.vertical, 8)
@@ -538,7 +538,7 @@ public struct ReaderView: View {
                                                         Text("Chapter \(chapters[currentChapterIndex + 1].chapterNumber)")
                                                         Image(systemName: "chevron.right")
                                                     }
-                                                    .font(.system(size: 12, weight: .semibold))
+                                                    .fableFont(size: 12, weight: .semibold)
                                                     .foregroundColor(.white)
                                                     .padding(.horizontal, 14)
                                                     .padding(.vertical, 8)
@@ -590,7 +590,7 @@ public struct ReaderView: View {
                     if store.isPaginatedMode && totalPages > 1 {
                         HStack(spacing: 12) {
                             Text("\(currentPage)")
-                                .font(.system(size: 12, weight: .bold, design: .monospaced))
+                                .fableFont(size: 12, weight: .bold, design: .monospaced)
                                 .foregroundColor(FableTheme.brandPrimary)
                                 .frame(width: 32, alignment: .trailing)
 
@@ -616,7 +616,7 @@ public struct ReaderView: View {
                             .tint(FableTheme.brandPrimary)
 
                             Text("\(totalPages)")
-                                .font(.system(size: 12, weight: .bold, design: .monospaced))
+                                .fableFont(size: 12, weight: .bold, design: .monospaced)
                                 .foregroundColor(store.readerTheme.isDark ? Color.white.opacity(0.7) : FableTheme.textMuted)
                                 .frame(width: 32, alignment: .leading)
                         }
@@ -641,7 +641,7 @@ public struct ReaderView: View {
                             turnPageBack()
                         }) {
                             Image(systemName: "chevron.left")
-                                .font(.system(size: 12, weight: .bold))
+                                .fableFont(size: 12, weight: .bold)
                                 .foregroundColor((currentPage > 1 || currentChapterIndex > 0) ? FableTheme.brandPrimary : (store.readerTheme.isDark ? Color.white.opacity(0.2) : Color.gray.opacity(0.4)))
                                 .frame(width: 28, height: 28)
                                 .background(store.readerTheme.isDark ? Color.white.opacity(0.1) : Color.gray.opacity(0.08))
@@ -652,12 +652,12 @@ public struct ReaderView: View {
                         // Page Indicator & Dynamic Pacing
                         VStack(alignment: .leading, spacing: 1) {
                             Text("Ch. \(activeChapter?.chapterNumber ?? 1) • Page \(currentPage)/\(totalPages)")
-                                .font(.system(size: 12, weight: .semibold))
+                                .fableFont(size: 12, weight: .semibold)
                                 .monospacedDigit()
                                 .foregroundColor(store.readerTheme.isDark ? Color.white : FableTheme.textPrimary)
                             
                             Text("~\(dynamicMinutesRemaining) mins left in chapter")
-                                .font(.system(size: 10, weight: .medium))
+                                .fableFont(size: 10, weight: .medium)
                                 .monospacedDigit()
                                 .foregroundColor(store.readerTheme.isDark ? Color.white.opacity(0.65) : FableTheme.textMuted)
                         }
@@ -667,7 +667,7 @@ public struct ReaderView: View {
                             turnPageForward()
                         }) {
                             Image(systemName: "chevron.right")
-                                .font(.system(size: 12, weight: .bold))
+                                .fableFont(size: 12, weight: .bold)
                                 .foregroundColor((currentPage < totalPages || currentChapterIndex < chapters.count - 1) ? FableTheme.brandPrimary : (store.readerTheme.isDark ? Color.white.opacity(0.2) : Color.gray.opacity(0.4)))
                                 .frame(width: 28, height: 28)
                                 .background(store.readerTheme.isDark ? Color.white.opacity(0.1) : Color.gray.opacity(0.08))
@@ -680,7 +680,7 @@ public struct ReaderView: View {
                         
                         // Progress percentage
                         Text("\(readingProgressPercent)%")
-                            .font(.system(size: 12, weight: .bold))
+                            .fableFont(size: 12, weight: .bold)
                             .monospacedDigit()
                             .foregroundColor(FableTheme.brandPrimary)
                         
@@ -694,7 +694,7 @@ public struct ReaderView: View {
                             }
                         }) {
                             Image(systemName: store.isPaginatedMode ? "book.pages" : "scroll")
-                                .font(.system(size: 13, weight: .semibold))
+                                .fableFont(size: 13, weight: .semibold)
                                 .foregroundColor(store.readerTheme.isDark ? Color.white : FableTheme.textPrimary)
                                 .frame(width: 32, height: 32)
                                 .background(store.readerTheme.isDark ? Color.white.opacity(0.12) : FableTheme.surface)
@@ -707,7 +707,7 @@ public struct ReaderView: View {
                             store.isShowingDisplayOptions = true
                         }) {
                             Text("TT")
-                                .font(.system(size: 13, weight: .bold, design: .serif))
+                                .fableFont(size: 13, weight: .bold, design: .serif)
                                 .foregroundColor(store.readerTheme.isDark ? Color.white : FableTheme.textPrimary)
                                 .frame(width: 34, height: 34)
                                 .background(store.readerTheme.isDark ? Color.white.opacity(0.12) : FableTheme.surface)
@@ -832,7 +832,7 @@ public struct ReaderView: View {
             
             HStack {
                 Text("Annotate Passage")
-                    .font(.system(size: 18, weight: .bold, design: .serif))
+                    .fableFont(size: 18, weight: .bold, design: .serif)
                     .foregroundColor(FableTheme.deepCharcoal)
                 
                 Spacer()
@@ -842,7 +842,7 @@ public struct ReaderView: View {
                     resetAnnotationState()
                 }) {
                     Image(systemName: "xmark")
-                        .font(.system(size: 13, weight: .bold))
+                        .fableFont(size: 13, weight: .bold)
                         .foregroundColor(FableTheme.subtleSlate)
                         .padding(6)
                         .background(Color.gray.opacity(0.12))
@@ -853,7 +853,7 @@ public struct ReaderView: View {
             
             if let excerpt = selectedTextToAnnotate {
                 Text("“\(excerpt.prefix(120))...”")
-                    .font(.system(size: 13, weight: .regular, design: .serif))
+                    .fableFont(size: 13, weight: .regular, design: .serif)
                     .italic()
                     .foregroundColor(FableTheme.textSecondary)
                     .lineLimit(2)
@@ -866,7 +866,7 @@ public struct ReaderView: View {
             // Highlight color picker
             VStack(alignment: .leading, spacing: 8) {
                 Text("HIGHLIGHT COLOR")
-                    .font(.system(size: 10, weight: .bold))
+                    .fableFont(size: 10, weight: .bold)
                     .tracking(1.0)
                     .foregroundColor(FableTheme.subtleSlate)
                     .padding(.horizontal, 20)
@@ -881,7 +881,7 @@ public struct ReaderView: View {
                                     .fill(colorToken.displayColor.opacity(1.0))
                                     .frame(width: 16, height: 16)
                                 Text(colorToken.displayName)
-                                    .font(.system(size: 13, weight: .medium))
+                                    .fableFont(size: 13, weight: .medium)
                             }
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 8)
@@ -901,13 +901,13 @@ public struct ReaderView: View {
             // Optional note field
             VStack(alignment: .leading, spacing: 6) {
                 Text("NOTE (OPTIONAL)")
-                    .font(.system(size: 10, weight: .bold))
+                    .fableFont(size: 10, weight: .bold)
                     .tracking(1.0)
                     .foregroundColor(FableTheme.subtleSlate)
                     .padding(.horizontal, 20)
                 
                 TextField("Add your thoughts...", text: $annotationNote, axis: .vertical)
-                    .font(.system(size: 14))
+                    .fableFont(size: 14)
                     .lineLimit(2...4)
                     .padding(12)
                     .background(Color.gray.opacity(0.06))
@@ -919,10 +919,10 @@ public struct ReaderView: View {
             Toggle(isOn: $isPinToJournal) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Pin to Shelf Journal Deck")
-                        .font(.system(size: 14, weight: .semibold))
+                        .fableFont(size: 14, weight: .semibold)
                         .foregroundColor(FableTheme.textPrimary)
                     Text("Promotes excerpt as a quote card on your shelf")
-                        .font(.system(size: 11))
+                        .fableFont(size: 11)
                         .foregroundColor(FableTheme.textMuted)
                 }
             }
@@ -952,7 +952,7 @@ public struct ReaderView: View {
                 resetAnnotationState()
             }) {
                 Text("Save Annotation")
-                    .font(.system(size: 15, weight: .semibold))
+                    .fableFont(size: 15, weight: .semibold)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
                     .background(FableTheme.brandPrimary)
@@ -1118,12 +1118,12 @@ public struct ReaderView: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("TABLE OF CONTENTS")
-                            .font(.system(size: 11, weight: .bold))
+                            .fableFont(size: 11, weight: .bold)
                             .tracking(1.2)
                             .foregroundColor(FableTheme.brandPrimary)
                         
                         Text(story.title)
-                            .font(.system(size: 18, weight: .bold, design: .serif))
+                            .fableFont(size: 18, weight: .bold, design: .serif)
                             .foregroundColor(FableTheme.textPrimary)
                             .lineLimit(1)
                     }
@@ -1134,7 +1134,7 @@ public struct ReaderView: View {
                         isShowingChapterSheet = false
                     }) {
                         Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 20))
+                            .fableFont(size: 20)
                             .foregroundColor(FableTheme.textMuted)
                     }
                 }
@@ -1145,7 +1145,7 @@ public struct ReaderView: View {
                     HStack(spacing: 12) {
                         ProgressView()
                         Text("Loading live chapters...")
-                            .font(.system(size: 13))
+                            .fableFont(size: 13)
                             .foregroundColor(FableTheme.textMuted)
                     }
                     .frame(maxWidth: .infinity, alignment: .center)
@@ -1153,7 +1153,7 @@ public struct ReaderView: View {
                 } else if let chapterLoadError {
                     VStack(spacing: 12) {
                         Text(chapterLoadError)
-                            .font(.system(size: 14, weight: .medium))
+                            .fableFont(size: 14, weight: .medium)
                             .foregroundColor(FableTheme.textPrimary)
                             .multilineTextAlignment(.center)
                         Button("Retry") {
@@ -1166,13 +1166,13 @@ public struct ReaderView: View {
                 } else if chapters.isEmpty {
                     VStack(spacing: 8) {
                         Image(systemName: "book.pages")
-                            .font(.system(size: 28))
+                            .fableFont(size: 28)
                             .foregroundColor(FableTheme.brandPrimary.opacity(0.6))
                         Text("Single Chapter Manuscript")
-                            .font(.system(size: 15, weight: .semibold, design: .serif))
+                            .fableFont(size: 15, weight: .semibold, design: .serif)
                             .foregroundColor(FableTheme.textPrimary)
                         Text("This title is preserved as a single unbroken folio.")
-                            .font(.system(size: 12))
+                            .fableFont(size: 12)
                             .foregroundColor(FableTheme.textMuted)
                     }
                     .frame(maxWidth: .infinity)
@@ -1186,7 +1186,7 @@ public struct ReaderView: View {
                             }) {
                                 HStack(spacing: 14) {
                                     Text("\(chapter.chapterNumber)")
-                                        .font(.system(size: 12, weight: .bold, design: .monospaced))
+                                        .fableFont(size: 12, weight: .bold, design: .monospaced)
                                         .foregroundColor(index == currentChapterIndex ? .white : FableTheme.brandPrimary)
                                         .frame(width: 28, height: 28)
                                         .background(index == currentChapterIndex ? FableTheme.brandPrimary : FableTheme.brandPrimary.opacity(0.12))
@@ -1194,20 +1194,20 @@ public struct ReaderView: View {
                                     
                                     VStack(alignment: .leading, spacing: 3) {
                                         Text(chapter.title.isEmpty ? "Chapter \(chapter.chapterNumber)" : chapter.title)
-                                            .font(.system(size: 14, weight: index == currentChapterIndex ? .bold : .medium, design: .serif))
+                                            .fableFont(size: 14, weight: index == currentChapterIndex ? .bold : .medium, design: .serif)
                                             .foregroundColor(index == currentChapterIndex ? FableTheme.brandPrimary : FableTheme.textPrimary)
                                             .lineLimit(1)
                                         
                                         HStack(spacing: 8) {
                                             Text("\(chapter.wordCount) words")
-                                                .font(.system(size: 11))
+                                                .fableFont(size: 11)
                                                 .foregroundColor(FableTheme.textMuted)
                                             
                                             Text("•")
                                                 .foregroundColor(FableTheme.textMuted)
                                             
                                             Text("~\(max(1, chapter.wordCount / 200)) min read")
-                                                .font(.system(size: 11))
+                                                .fableFont(size: 11)
                                                 .foregroundColor(FableTheme.textMuted)
                                         }
                                     }
@@ -1216,7 +1216,7 @@ public struct ReaderView: View {
                                     
                                     if index == currentChapterIndex {
                                         Image(systemName: "checkmark")
-                                            .font(.system(size: 13, weight: .bold))
+                                            .fableFont(size: 13, weight: .bold)
                                             .foregroundColor(FableTheme.brandPrimary)
                                     }
                                 }

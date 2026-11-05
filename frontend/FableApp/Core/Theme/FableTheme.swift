@@ -1,5 +1,42 @@
 import SwiftUI
 
+private struct FableScaledFontModifier: ViewModifier {
+    @ScaledMetric private var scaledSize: CGFloat
+    private let weight: Font.Weight
+    private let design: Font.Design
+
+    init(
+        size: CGFloat,
+        weight: Font.Weight,
+        design: Font.Design,
+        relativeTo textStyle: Font.TextStyle
+    ) {
+        self.weight = weight
+        self.design = design
+        self._scaledSize = ScaledMetric(wrappedValue: size, relativeTo: textStyle)
+    }
+
+    func body(content: Content) -> some View {
+        content.font(.system(size: scaledSize, weight: weight, design: design))
+    }
+}
+
+public extension View {
+    func fableFont(
+        size: CGFloat,
+        weight: Font.Weight = .regular,
+        design: Font.Design = .default,
+        relativeTo textStyle: Font.TextStyle = .body
+    ) -> some View {
+        modifier(FableScaledFontModifier(
+            size: size,
+            weight: weight,
+            design: design,
+            relativeTo: textStyle
+        ))
+    }
+}
+
 public enum FableTheme {
     // MARK: - Modern Format-Agnostic Design Tokens
     // Electric Indigo accent for vibrant, media-neutral focus
@@ -47,7 +84,7 @@ public struct FableTagStyle: ViewModifier {
     
     public func body(content: Content) -> some View {
         content
-            .font(.system(size: 13, weight: isSelected ? .semibold : .medium))
+            .fableFont(size: 13, weight: isSelected ? .semibold : .medium)
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
             .background(isSelected ? FableTheme.terracotta : FableTheme.tagBackground)

@@ -34,16 +34,16 @@ struct StoryPublishedSheet: View {
                     .frame(width: 68, height: 68)
 
                 Image(systemName: "checkmark")
-                    .font(.system(size: 26, weight: .bold))
+                    .fableFont(size: 26, weight: .bold)
                     .foregroundColor(FableTheme.brandPrimary)
 
                 Image(systemName: "sparkle")
-                    .font(.system(size: 14))
+                    .fableFont(size: 14)
                     .foregroundColor(FableTheme.brandPrimary)
                     .offset(x: 46, y: -34)
 
                 Image(systemName: "sparkle")
-                    .font(.system(size: 10))
+                    .fableFont(size: 10)
                     .foregroundColor(FableTheme.brandPrimary.opacity(0.7))
                     .offset(x: -42, y: 30)
             }
@@ -51,11 +51,11 @@ struct StoryPublishedSheet: View {
 
             VStack(spacing: 12) {
                 Text("Story Published")
-                    .font(.system(size: 26, weight: .black))
+                    .fableFont(size: 26, weight: .black)
                     .foregroundColor(FableTheme.textPrimary)
 
                 Text("\(story.title) is now available in the Community Library.")
-                    .font(.system(size: 15, weight: .regular))
+                    .fableFont(size: 15, weight: .regular)
                     .foregroundColor(FableTheme.textSecondary)
                     .multilineTextAlignment(.center)
                     .lineSpacing(4)
@@ -68,20 +68,20 @@ struct StoryPublishedSheet: View {
                         .fill(FableTheme.brandPrimary)
                         .frame(width: 6, height: 6)
                     Text("Public")
-                        .font(.system(size: 12, weight: .medium))
+                        .fableFont(size: 12, weight: .medium)
                 }
 
                 Text("•")
                     .foregroundColor(FableTheme.textMuted.opacity(0.4))
 
                 Text(story.genre.rawValue)
-                    .font(.system(size: 12, weight: .medium))
+                    .fableFont(size: 12, weight: .medium)
 
                 Text("•")
                     .foregroundColor(FableTheme.textMuted.opacity(0.4))
 
                 Text("\(wordCount) words")
-                    .font(.system(size: 12, weight: .medium))
+                    .fableFont(size: 12, weight: .medium)
             }
             .foregroundColor(FableTheme.textPrimary)
             .padding(.horizontal, 16)
@@ -98,9 +98,9 @@ struct StoryPublishedSheet: View {
                 } label: {
                     HStack {
                         Text("View Story Now")
-                            .font(.system(size: 16, weight: .semibold))
+                            .fableFont(size: 16, weight: .semibold)
                         Image(systemName: "arrow.right")
-                            .font(.system(size: 14, weight: .semibold))
+                            .fableFont(size: 14, weight: .semibold)
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
@@ -114,7 +114,7 @@ struct StoryPublishedSheet: View {
                     onReturnToLibrary()
                 } label: {
                     Text("Return to Library")
-                        .font(.system(size: 15, weight: .semibold))
+                        .fableFont(size: 15, weight: .semibold)
                         .foregroundColor(FableTheme.textPrimary)
                         .padding(.vertical, 8)
                 }
@@ -122,9 +122,9 @@ struct StoryPublishedSheet: View {
                 ShareLink(item: shareableStoryDetails) {
                     HStack(spacing: 6) {
                         Image(systemName: "square.and.arrow.up")
-                            .font(.system(size: 13, weight: .medium))
+                            .fableFont(size: 13, weight: .medium)
                         Text("Share story details")
-                            .font(.system(size: 14, weight: .medium))
+                            .fableFont(size: 14, weight: .medium)
                     }
                     .foregroundColor(FableTheme.brandPrimary)
                     .padding(.vertical, 6)

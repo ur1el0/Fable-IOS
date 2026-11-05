@@ -39,7 +39,7 @@ public struct ProfileView: View {
                             dismiss()
                         }) {
                             Image(systemName: "xmark")
-                                .font(.system(size: 14, weight: .bold))
+                                .fableFont(size: 14, weight: .bold)
                                 .foregroundColor(FableTheme.textPrimary)
                                 .frame(width: 36, height: 36)
                                 .background(FableTheme.surface)
@@ -49,14 +49,14 @@ public struct ProfileView: View {
                         Spacer()
                         
                         Text("Author Profile")
-                            .font(.system(size: 16, weight: .bold))
+                            .fableFont(size: 16, weight: .bold)
                             .foregroundColor(FableTheme.textPrimary)
                         
                         Spacer()
                         
                         ShareLink(item: shareableProfileDetails, subject: Text("Fable author profile")) {
                             Image(systemName: "square.and.arrow.up")
-                                .font(.system(size: 14, weight: .semibold))
+                                .fableFont(size: 14, weight: .semibold)
                                 .foregroundColor(FableTheme.textPrimary)
                                 .frame(width: 36, height: 36)
                                 .background(FableTheme.surface)
@@ -79,12 +79,12 @@ public struct ProfileView: View {
                                 VStack(spacing: 4) {
                                     HStack(spacing: 8) {
                                         Text(userName.isEmpty ? "Author" : userName)
-                                            .font(.system(size: 26, weight: .bold, design: .serif))
+                                            .fableFont(size: 26, weight: .bold, design: .serif)
                                             .foregroundColor(FableTheme.textPrimary)
                                         
                                         if auth.isGuestMode {
                                             Text("GUEST")
-                                                .font(.system(size: 9, weight: .heavy))
+                                                .fableFont(size: 9, weight: .heavy)
                                                 .padding(.horizontal, 7)
                                                 .padding(.vertical, 3)
                                                 .background(FableTheme.brandPrimary.opacity(0.12))
@@ -92,20 +92,20 @@ public struct ProfileView: View {
                                                 .clipShape(Capsule())
                                         } else {
                                             Image(systemName: "checkmark.seal.fill")
-                                                .font(.system(size: 14))
+                                                .fableFont(size: 14)
                                                 .foregroundColor(FableTheme.brandPrimary)
                                         }
                                     }
                                     
                                     if !userHandle.isEmpty {
                                         Text(userHandle)
-                                            .font(.system(size: 14, weight: .medium))
+                                            .fableFont(size: 14, weight: .medium)
                                             .foregroundColor(FableTheme.textMuted)
                                     }
                                     
                                     if !userBio.isEmpty {
                                         Text(userBio)
-                                            .font(.system(size: 14, weight: .regular))
+                                            .fableFont(size: 14, weight: .regular)
                                             .foregroundColor(FableTheme.textPrimary.opacity(0.85))
                                             .multilineTextAlignment(.center)
                                             .lineSpacing(4)
@@ -122,9 +122,9 @@ public struct ProfileView: View {
                                 }) {
                                     HStack(spacing: 6) {
                                         Image(systemName: "pencil")
-                                            .font(.system(size: 13, weight: .semibold))
+                                            .fableFont(size: 13, weight: .semibold)
                                         Text("Edit Profile")
-                                            .font(.system(size: 14, weight: .semibold))
+                                            .fableFont(size: 14, weight: .semibold)
                                     }
                                     .foregroundColor(.white)
                                     .frame(maxWidth: .infinity)
@@ -137,9 +137,9 @@ public struct ProfileView: View {
                                 ShareLink(item: shareableProfileDetails, subject: Text("Fable profile")) {
                                     HStack(spacing: 6) {
                                         Image(systemName: "square.and.arrow.up")
-                                            .font(.system(size: 13, weight: .semibold))
+                                            .fableFont(size: 13, weight: .semibold)
                                         Text("Share Profile")
-                                            .font(.system(size: 14, weight: .semibold))
+                                            .fableFont(size: 14, weight: .semibold)
                                     }
                                     .foregroundColor(FableTheme.textPrimary)
                                     .frame(maxWidth: .infinity)
@@ -154,7 +154,7 @@ public struct ProfileView: View {
                             if auth.isGuestMode {
                                 HStack(spacing: 14) {
                                     Image(systemName: "sparkles")
-                                        .font(.system(size: 20))
+                                        .fableFont(size: 20)
                                         .foregroundColor(FableTheme.brandPrimary)
                                         .frame(width: 40, height: 40)
                                         .background(FableTheme.brandPrimary.opacity(0.12))
@@ -162,10 +162,10 @@ public struct ProfileView: View {
                                     
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text("Claim Your Account")
-                                            .font(.system(size: 14, weight: .bold))
+                                            .fableFont(size: 14, weight: .bold)
                                             .foregroundColor(FableTheme.textPrimary)
                                         Text("Sync reading across devices and publish tales.")
-                                            .font(.system(size: 12))
+                                            .fableFont(size: 12)
                                             .foregroundColor(FableTheme.textMuted)
                                     }
                                     
@@ -175,7 +175,7 @@ public struct ProfileView: View {
                                         isShowingAuthSheet = true
                                     }) {
                                         Text("Sign In")
-                                            .font(.system(size: 13, weight: .bold))
+                                            .fableFont(size: 13, weight: .bold)
                                             .foregroundColor(.white)
                                             .padding(.horizontal, 14)
                                             .padding(.vertical, 8)
@@ -199,7 +199,7 @@ public struct ProfileView: View {
                                         }
                                     }) {
                                         Text(tab)
-                                            .font(.system(size: 14, weight: selectedTab == tab ? .semibold : .medium))
+                                            .fableFont(size: 14, weight: selectedTab == tab ? .semibold : .medium)
                                             .frame(maxWidth: .infinity)
                                             .padding(.vertical, 10)
                                             .background(selectedTab == tab ? Color.white : Color.clear)
@@ -220,15 +220,15 @@ public struct ProfileView: View {
                                 if store.profileStories.isEmpty {
                                     VStack(spacing: 12) {
                                         Image(systemName: "pencil.and.outline")
-                                            .font(.system(size: 32))
+                                            .fableFont(size: 32)
                                             .foregroundColor(FableTheme.textMuted.opacity(0.5))
                                         
                                         Text("No published stories")
-                                            .font(.system(size: 16, weight: .bold))
+                                            .fableFont(size: 16, weight: .bold)
                                             .foregroundColor(FableTheme.textPrimary)
                                         
                                         Text("When you publish a story from the Write tab, it will appear here for readers.")
-                                            .font(.system(size: 13))
+                                            .fableFont(size: 13)
                                             .foregroundColor(FableTheme.textMuted)
                                             .multilineTextAlignment(.center)
                                             .padding(.horizontal, 32)
@@ -249,21 +249,21 @@ public struct ProfileView: View {
                                                     
                                                     VStack(alignment: .leading, spacing: 4) {
                                                         Text(story.title)
-                                                            .font(.system(size: 15, weight: .bold, design: .serif))
+                                                            .fableFont(size: 15, weight: .bold, design: .serif)
                                                             .foregroundColor(FableTheme.textPrimary)
                                                         
                                                         Text("\(story.genre.rawValue) • \(story.readingTimeMinutes)m read")
-                                                            .font(.system(size: 12))
+                                                            .fableFont(size: 12)
                                                             .foregroundColor(FableTheme.textMuted)
                                                         
                                                         HStack(spacing: 8) {
                                                             if let rating = story.rating {
                                                                 Text("★ \(rating, specifier: "%.1f")")
-                                                                    .font(.system(size: 11, weight: .semibold))
+                                                                    .fableFont(size: 11, weight: .semibold)
                                                                     .foregroundColor(.orange)
                                                             }
                                                             Text("• \(story.readsCount) reads")
-                                                                .font(.system(size: 11))
+                                                                .fableFont(size: 11)
                                                                 .foregroundColor(FableTheme.textMuted)
                                                         }
                                                     }
@@ -271,7 +271,7 @@ public struct ProfileView: View {
                                                     Spacer()
                                                     
                                                     Image(systemName: "chevron.right")
-                                                        .font(.system(size: 12))
+                                                        .fableFont(size: 12)
                                                         .foregroundColor(FableTheme.textMuted)
                                                 }
                                                 .padding(14)
@@ -289,15 +289,15 @@ public struct ProfileView: View {
                                 if saved.isEmpty {
                                     VStack(spacing: 12) {
                                         Image(systemName: "bookmark")
-                                            .font(.system(size: 32))
+                                            .fableFont(size: 32)
                                             .foregroundColor(FableTheme.textMuted.opacity(0.5))
                                         
                                         Text("No saved stories")
-                                            .font(.system(size: 16, weight: .bold))
+                                            .fableFont(size: 16, weight: .bold)
                                             .foregroundColor(FableTheme.textPrimary)
                                         
                                         Text("Bookmark stories in the library to easily revisit them later.")
-                                            .font(.system(size: 13))
+                                            .fableFont(size: 13)
                                             .foregroundColor(FableTheme.textMuted)
                                             .multilineTextAlignment(.center)
                                             .padding(.horizontal, 32)
@@ -318,10 +318,10 @@ public struct ProfileView: View {
                                                     
                                                     VStack(alignment: .leading, spacing: 4) {
                                                         Text(story.title)
-                                                            .font(.system(size: 15, weight: .bold, design: .serif))
+                                                            .fableFont(size: 15, weight: .bold, design: .serif)
                                                             .foregroundColor(FableTheme.textPrimary)
                                                         Text(story.author)
-                                                            .font(.system(size: 12))
+                                                            .fableFont(size: 12)
                                                             .foregroundColor(FableTheme.textMuted)
                                                     }
                                                     
@@ -346,11 +346,11 @@ public struct ProfileView: View {
                                     HStack(spacing: 16) {
                                         VStack(alignment: .leading, spacing: 4) {
                                             Text("Total Reading")
-                                                .font(.system(size: 12, weight: .medium))
+                                                .fableFont(size: 12, weight: .medium)
                                                 .foregroundColor(FableTheme.textMuted)
                                             let hours = Double(store.readingStats.totalMinutesRead) / 60.0
                                             Text(String(format: "%.1f hrs", hours))
-                                                .font(.system(size: 24, weight: .bold))
+                                                .fableFont(size: 24, weight: .bold)
                                                 .monospacedDigit()
                                                 .foregroundColor(FableTheme.brandPrimary)
                                         }
@@ -362,10 +362,10 @@ public struct ProfileView: View {
                                         
                                         VStack(alignment: .leading, spacing: 4) {
                                             Text("Stories Finished")
-                                                .font(.system(size: 12, weight: .medium))
+                                                .fableFont(size: 12, weight: .medium)
                                                 .foregroundColor(FableTheme.textMuted)
                                             Text("\(store.readingStats.storiesReadCount)")
-                                                .font(.system(size: 24, weight: .bold))
+                                                .fableFont(size: 24, weight: .bold)
                                                 .monospacedDigit()
                                                 .foregroundColor(FableTheme.brandPrimary)
                                         }
@@ -382,7 +382,7 @@ public struct ProfileView: View {
                             // Account & Session Section (First-Class Sign Out)
                             VStack(alignment: .leading, spacing: 10) {
                                 Text("ACCOUNT & SESSION")
-                                    .font(.system(size: 11, weight: .bold))
+                                    .fableFont(size: 11, weight: .bold)
                                     .tracking(1.0)
                                     .foregroundColor(FableTheme.textMuted)
                                     .padding(.leading, 4)
@@ -390,7 +390,7 @@ public struct ProfileView: View {
                                 VStack(spacing: 0) {
                                     HStack(spacing: 14) {
                                         Image(systemName: auth.isGuestMode ? "person.crop.circle.badge.questionmark" : "checkmark.shield.fill")
-                                            .font(.system(size: 16))
+                                            .fableFont(size: 16)
                                             .foregroundColor(auth.isGuestMode ? .orange : FableTheme.brandPrimary)
                                             .frame(width: 32, height: 32)
                                             .background((auth.isGuestMode ? Color.orange : FableTheme.brandPrimary).opacity(0.12))
@@ -398,11 +398,11 @@ public struct ProfileView: View {
                                         
                                         VStack(alignment: .leading, spacing: 2) {
                                             Text(auth.isGuestMode ? "Guest Profile" : "Authenticated Member")
-                                                .font(.system(size: 15, weight: .medium))
+                                                .fableFont(size: 15, weight: .medium)
                                                 .foregroundColor(FableTheme.textPrimary)
                                             
                                             Text(auth.isGuestMode ? "Local session preserved on device" : (auth.currentSession?.email ?? "Cloud Synced"))
-                                                .font(.system(size: 12))
+                                                .fableFont(size: 12)
                                                 .foregroundColor(FableTheme.textMuted)
                                         }
                                         
@@ -420,11 +420,11 @@ public struct ProfileView: View {
                                         HStack(spacing: 12) {
                                             Image(systemName: "rectangle.portrait.and.arrow.right")
                                                 .foregroundColor(.red.opacity(0.9))
-                                                .font(.system(size: 15))
+                                                .fableFont(size: 15)
                                                 .frame(width: 32, height: 32)
                                             
                                             Text(auth.isGuestMode ? "Exit Guest Mode" : "Sign Out of Fable")
-                                                .font(.system(size: 15, weight: .medium))
+                                                .fableFont(size: 15, weight: .medium)
                                                 .foregroundColor(.red.opacity(0.95))
                                             
                                             Spacer()
@@ -523,7 +523,7 @@ public struct ProfileAvatarView: View {
                         endPoint: .bottomTrailing
                     )
                     Image(systemName: symbol)
-                        .font(.system(size: size * 0.44, weight: .semibold))
+                        .fableFont(size: size * 0.44, weight: .semibold)
                         .foregroundColor(.white)
                 }
                 .frame(width: size, height: size)
@@ -589,7 +589,7 @@ struct EditProfileSheet: View {
                                             .frame(width: 48, height: 48)
                                         
                                         Image(systemName: symbol)
-                                            .font(.system(size: 20))
+                                            .fableFont(size: 20)
                                             .foregroundColor(selectedAvatar == symbol ? .white : FableTheme.textPrimary)
                                     }
                                     .overlay(
@@ -626,7 +626,7 @@ struct EditProfileSheet: View {
                 if let errorMessage {
                     Section {
                         Text(errorMessage)
-                            .font(.system(size: 13))
+                            .fableFont(size: 13)
                             .foregroundColor(.red)
                     }
                 }
@@ -646,7 +646,7 @@ struct EditProfileSheet: View {
                         saveProfile()
                     }
                     .disabled(isSaving || draftName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    .font(.system(size: 15, weight: .bold))
+                    .fableFont(size: 15, weight: .bold)
                     .foregroundColor(FableTheme.brandPrimary)
                 }
             }

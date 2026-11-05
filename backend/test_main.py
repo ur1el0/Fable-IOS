@@ -841,6 +841,222 @@ def test_login_invalid_password():
     assert "Invalid email or password" in res.json()["detail"]
 
 
+def test_registration_rejects_malformed_email_without_creating_user():
+    from core.database import get_db
+
+    response = client.post("/api/v1/auth/register", json={
+        "email": "not-an-email",
+        "password": "SecurePassword123!",
+        "name": "Malformed Email",
+    })
+
+    assert response.status_code == 422
+    connection = get_db()
+    try:
+        assert connection.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 0
+    finally:
+        connection.close()
+
+
+def test_login_rejects_malformed_email():
+    response = client.post("/api/v1/auth/login", json={
+        "email": "not-an-email",
+        "password": "SecurePassword123!",
+    })
+
+    assert response.status_code == 422
+
+
+def test_password_reset_response_does_not_disclose_account_existence(monkeypatch):
+    from api.v1.endpoints import auth as auth_endpoint
+
+    monkeypatch.setenv("FABLE_SMTP_HOST", "smtp.example.test")
+    monkeypatch.setenv("FABLE_SMTP_PORT", "587")
+    monkeypatch.setenv("FABLE_SMTP_FROM_EMAIL", "no-reply@example.test")
+    monkeypatch.delenv("FABLE_SMTP_USERNAME", raising=False)
+    monkeypatch.delenv("FABLE_SMTP_PASSWORD", raising=False)
+
+    registration = client.post("/api/v1/auth/register", json={
+        "email": "reset-reader@example.test",
+        "password": "SecurePassword123!",
+        "name": "Reset Reader",
+    })
+    assert registration.status_code == 201
+
+    sent = []
+    monkeypatch.setattr(
+        auth_endpoint,
+        "deliver_password_reset_email",
+        lambda settings, recipient, token: sent.append((recipient, token)),
+    )
+    known = client.post("/api/v1/auth/password-reset/request", json={
+        "email": "reset-reader@example.test",
+    })
+    unknown = client.post("/api/v1/auth/password-reset/request", json={
+        "email": "unknown-reader@example.test",
+    })
+
+    expected = {
+        "message": "If an account uses this address, recovery instructions will arrive shortly."
+    }
+    assert known.status_code == unknown.status_code == 202
+    assert known.json() == unknown.json() == expected
+    assert len(sent) == 1
+    assert sent[0][0] == "reset-reader@example.test"
+    assert len(sent[0][1]) == 43
+    assert sent[0][1] not in known.text
+
+
+def test_password_reset_token_is_single_use_and_revokes_sessions():
+    from services import auth_service
+
+    registration = client.post("/api/v1/auth/register", json={
+        "email": "session-reset@example.test",
+        "password": "InitialPassword123!",
+        "name": "Session Reset",
+    })
+    assert registration.status_code == 201
+    token = registration.json()["accessToken"]
+    reset_code = auth_service.issue_password_reset_token("session-reset@example.test")
+    assert reset_code is not None
+    connection = auth_service.get_db()
+    try:
+        stored_reset = connection.execute(
+            "SELECT token_hash FROM password_reset_tokens"
+        ).fetchone()
+    finally:
+        connection.close()
+    assert stored_reset["token_hash"] == auth_service._token_digest(reset_code)
+    assert stored_reset["token_hash"] != reset_code
+
+    reset = client.post("/api/v1/auth/password-reset/confirm", json={
+        "token": reset_code,
+        "newPassword": "ReplacementPassword456!",
+    })
+    assert reset.status_code == 204
+    assert client.get(
+        "/api/v1/auth/me",
+        headers={"Authorization": f"Bearer {token}"},
+    ).status_code == 401
+
+    login = client.post("/api/v1/auth/login", json={
+        "email": "session-reset@example.test",
+        "password": "ReplacementPassword456!",
+    })
+    assert login.status_code == 200
+
+    reused = client.post("/api/v1/auth/password-reset/confirm", json={
+        "token": reset_code,
+        "newPassword": "AnotherReplacementPassword789!",
+    })
+    assert reused.status_code == 400
+
+
+def test_password_reset_rejects_expired_token():
+    from services import auth_service
+    from core.database import get_db
+
+    registration = client.post("/api/v1/auth/register", json={
+        "email": "expired-reset@example.test",
+        "password": "InitialPassword123!",
+        "name": "Expired Reset",
+    })
+    assert registration.status_code == 201
+    reset_code = auth_service.issue_password_reset_token("expired-reset@example.test")
+    assert reset_code is not None
+
+    connection = get_db()
+    try:
+        connection.execute(
+            "UPDATE password_reset_tokens SET expires_at_utc = ? WHERE token_hash = ?",
+            ("2000-01-01T00:00:00+00:00", auth_service._token_digest(reset_code)),
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    response = client.post("/api/v1/auth/password-reset/confirm", json={
+        "token": reset_code,
+        "newPassword": "ReplacementPassword456!",
+    })
+
+    assert response.status_code == 400
+
+
+def test_password_reset_code_is_invalidated_when_email_delivery_fails(monkeypatch):
+    import hashlib
+    from core.database import get_db
+    from services import auth_service, password_reset_email
+
+    registration = client.post("/api/v1/auth/register", json={
+        "email": "undelivered-reset@example.test",
+        "password": "InitialPassword123!",
+        "name": "Undelivered Reset",
+    })
+    assert registration.status_code == 201
+    reset_code = auth_service.issue_password_reset_token("undelivered-reset@example.test")
+    assert reset_code is not None
+
+    def fail_delivery(*_args):
+        raise RuntimeError("SMTP failure")
+
+    monkeypatch.setattr(password_reset_email, "send_password_reset_email", fail_delivery)
+    settings = password_reset_email.SMTPSettings(
+        host="smtp.example.test",
+        port=587,
+        username=None,
+        password=None,
+        from_address="no-reply@example.test",
+    )
+    password_reset_email.deliver_password_reset_email(
+        settings,
+        "undelivered-reset@example.test",
+        reset_code,
+    )
+
+    connection = get_db()
+    try:
+        remaining = connection.execute(
+            "SELECT COUNT(*) FROM password_reset_tokens WHERE token_hash = ?",
+            (hashlib.sha256(reset_code.encode("utf-8")).hexdigest(),),
+        ).fetchone()[0]
+    finally:
+        connection.close()
+    assert remaining == 0
+
+
+def test_password_reset_is_unavailable_without_smtp_configuration(monkeypatch):
+    for name in (
+        "FABLE_SMTP_HOST",
+        "FABLE_SMTP_USERNAME",
+        "FABLE_SMTP_PASSWORD",
+        "FABLE_SMTP_FROM_EMAIL",
+    ):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("FABLE_SMTP_PORT", "587")
+
+    response = client.post("/api/v1/auth/password-reset/request", json={
+        "email": "reader@example.test",
+    })
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": "Password recovery is temporarily unavailable."}
+
+
+def test_rate_limit_buckets_are_shared_between_limiter_instances():
+    from core.rate_limit import SharedTokenBucketRateLimiter
+
+    first_worker = SharedTokenBucketRateLimiter(auth_limit=1, general_limit=1)
+    second_worker = SharedTokenBucketRateLimiter(auth_limit=1, general_limit=1)
+    first_worker.reset()
+
+    assert first_worker.is_allowed("192.0.2.44", "auth") == (True, 0)
+    allowed, retry_after = second_worker.is_allowed("192.0.2.44", "auth")
+
+    assert allowed is False
+    assert retry_after >= 1
+
+
 def test_login_missing_user_performs_password_verification(monkeypatch):
     from services import auth_service
 
@@ -1767,6 +1983,12 @@ def test_init_db_migrates_legacy_demo_stories_and_shelf_references_once():
             "SELECT id FROM stories WHERE id = ?", (authored_story_id,)
         ).fetchone()
         schema_version = connection.execute("PRAGMA user_version").fetchone()[0]
+        migration_tables = {
+            row[0]
+            for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table'"
+            ).fetchall()
+        }
     finally:
         connection.close()
 
@@ -1776,24 +1998,26 @@ def test_init_db_migrates_legacy_demo_stories_and_shelf_references_once():
     assert legacy_account_shelf_count == 0
     assert legacy_reading_session_count == 0
     assert authored_story["id"] == authored_story_id
-    assert schema_version == 1
+    assert schema_version == 3
+    assert {"request_rate_limit_buckets", "password_reset_tokens"} <= migration_tables
 
 
 def test_init_db_rejects_newer_schema_without_mutation(tmp_path, monkeypatch):
     import sqlite3
 
-    from core.database import init_db
+    from core.database import SCHEMA_VERSION, init_db
 
     database_path = tmp_path / "future-schema.sqlite3"
+    unsupported_version = SCHEMA_VERSION + 1
     with sqlite3.connect(database_path) as connection:
-        connection.execute("PRAGMA user_version = 2")
+        connection.execute(f"PRAGMA user_version = {unsupported_version}")
 
     monkeypatch.setenv("FABLE_DB_PATH", str(database_path))
     with pytest.raises(RuntimeError, match="newer than supported"):
         init_db()
 
     with sqlite3.connect(database_path) as connection:
-        assert connection.execute("PRAGMA user_version").fetchone()[0] == 2
+        assert connection.execute("PRAGMA user_version").fetchone()[0] == unsupported_version
         assert connection.execute(
             "SELECT name FROM sqlite_master WHERE type = 'table'"
         ).fetchall() == []

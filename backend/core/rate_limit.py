@@ -2,9 +2,12 @@ import os
 import time
 import threading
 import math
+import hashlib
 from collections import deque
 from typing import Tuple, Dict
+from core.database import get_db
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.concurrency import run_in_threadpool
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
@@ -82,8 +85,103 @@ class SlidingWindowRateLimiter:
             self._last_capacity_cleanup = 0.0
 
 
+class SharedTokenBucketRateLimiter:
+    """SQLite-backed limiter shared by workers using the same database file."""
+
+    def __init__(
+        self,
+        auth_limit: int = 10,
+        auth_window: int = 60,
+        general_limit: int = 60,
+        general_window: int = 60,
+        max_client_buckets: int = 10_000,
+    ):
+        self.limits = {
+            "auth": (auth_limit, auth_window),
+            "general": (general_limit, general_window),
+        }
+        if max_client_buckets < 1:
+            raise ValueError("max_client_buckets must be positive")
+        if any(limit < 1 or window < 1 for limit, window in self.limits.values()):
+            raise ValueError("Rate limits and windows must be positive")
+        self._max_client_buckets = max_client_buckets
+        self._last_capacity_cleanup = 0.0
+        self._cleanup_lock = threading.Lock()
+
+    def is_allowed(self, client_id: str, tier: str = "general") -> Tuple[bool, int]:
+        limit, window = self.limits.get(tier, self.limits["general"])
+        now = time.time()
+        bucket_key = hashlib.sha256(f"{client_id}\x1f{tier}".encode("utf-8")).hexdigest()
+        connection = get_db()
+        try:
+            connection.execute("BEGIN IMMEDIATE")
+            with self._cleanup_lock:
+                if now - self._last_capacity_cleanup >= 5.0:
+                    largest_window = max(value[1] for value in self.limits.values())
+                    connection.execute(
+                        "DELETE FROM request_rate_limit_buckets WHERE updated_at <= ?",
+                        (now - largest_window * 2,),
+                    )
+                    self._last_capacity_cleanup = now
+
+            row = connection.execute(
+                "SELECT available_tokens, updated_at FROM request_rate_limit_buckets WHERE bucket_key = ?",
+                (bucket_key,),
+            ).fetchone()
+            if row is None:
+                bucket_count = connection.execute(
+                    "SELECT COUNT(*) FROM request_rate_limit_buckets"
+                ).fetchone()[0]
+                if bucket_count >= self._max_client_buckets:
+                    connection.commit()
+                    return False, 1
+                connection.execute(
+                    """INSERT INTO request_rate_limit_buckets
+                       (bucket_key, available_tokens, updated_at) VALUES (?, ?, ?)""",
+                    (bucket_key, float(limit - 1), now),
+                )
+                connection.commit()
+                return True, 0
+
+            elapsed = max(0.0, now - row["updated_at"])
+            available_tokens = min(
+                float(limit),
+                row["available_tokens"] + elapsed * limit / window,
+            )
+            if available_tokens >= 1.0:
+                connection.execute(
+                    "UPDATE request_rate_limit_buckets SET available_tokens = ?, updated_at = ? WHERE bucket_key = ?",
+                    (available_tokens - 1.0, now, bucket_key),
+                )
+                connection.commit()
+                return True, 0
+
+            retry_after = max(1, int(math.ceil((1.0 - available_tokens) * window / limit)))
+            connection.execute(
+                "UPDATE request_rate_limit_buckets SET available_tokens = ?, updated_at = ? WHERE bucket_key = ?",
+                (available_tokens, now, bucket_key),
+            )
+            connection.commit()
+            return False, retry_after
+        except Exception:
+            if connection.in_transaction:
+                connection.rollback()
+            raise
+        finally:
+            connection.close()
+
+    def reset(self) -> None:
+        connection = get_db()
+        try:
+            with connection:
+                connection.execute("DELETE FROM request_rate_limit_buckets")
+            self._last_capacity_cleanup = 0.0
+        finally:
+            connection.close()
+
+
 # Shared singleton instance configured via environment variables
-limiter = SlidingWindowRateLimiter(
+limiter = SharedTokenBucketRateLimiter(
     auth_limit=int(os.environ.get("RATE_LIMIT_AUTH_LIMIT", "10")),
     auth_window=int(os.environ.get("RATE_LIMIT_AUTH_WINDOW", "60")),
     general_limit=int(os.environ.get("RATE_LIMIT_GENERAL_LIMIT", "60")),
@@ -97,7 +195,11 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     FastAPI / Starlette middleware enforcing sliding-window rate limiting.
     Rejects throttled requests with HTTP 429 and standard Retry-After header.
     """
-    def __init__(self, app, rate_limiter: SlidingWindowRateLimiter = None):
+    def __init__(
+        self,
+        app,
+        rate_limiter: SlidingWindowRateLimiter | SharedTokenBucketRateLimiter | None = None,
+    ):
         super().__init__(app)
         self.rate_limiter = rate_limiter or limiter
         self.exempt_paths = {
@@ -125,7 +227,11 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         sensitive_path = path.startswith(("/api/v1/auth", "/api/v1/stories/ingest"))
         tier = "auth" if sensitive_path else "general"
 
-        allowed, retry_after = self.rate_limiter.is_allowed(client_ip, tier)
+        allowed, retry_after = await run_in_threadpool(
+            self.rate_limiter.is_allowed,
+            client_ip,
+            tier,
+        )
         if not allowed:
             return JSONResponse(
                 status_code=429,
