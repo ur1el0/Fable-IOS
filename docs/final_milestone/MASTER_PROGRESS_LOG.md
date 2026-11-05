@@ -667,4 +667,4 @@ This progress log tracks the transition of **Fable** from an editorial prototype
 
 - [x] Reader text and its live preview now combine the reader font-size preference with system Dynamic Type scaling while retaining the selected font design.
 - [x] Added an XCTest contract that checks both the reader-size preference and an accessibility Dynamic Type category increase rendered text size.
-- [ ] Hosted iOS simulator verification is pending; this Fedora workspace has no Xcode toolchain.
+- [x] PR #28 passed backend, Docker, iOS simulator tests, and the Release build on macOS 15 / Xcode 16.4; local Xcode verification is unavailable in this Fedora workspace.
