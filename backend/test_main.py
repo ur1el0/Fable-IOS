@@ -15,6 +15,7 @@ for directory in (str(REPO_ROOT), str(BACKEND_DIR)):
 
 # Ensure test uses a separate test database and disables global rate limit by default
 os.environ["FABLE_DB_PATH"] = "test_fable.sqlite3"
+os.environ["FABLE_ENV"] = "test"
 os.environ["FABLE_RATE_LIMIT_ENABLED"] = "false"
 from main import app, init_db, limiter
 from core.rate_limit import SlidingWindowRateLimiter
@@ -1799,6 +1800,65 @@ def test_cors_configuration_is_validated_and_normalized(monkeypatch):
     monkeypatch.setenv("FABLE_ENV", "development")
     monkeypatch.setenv("FABLE_CORS_ORIGINS", "capacitor://localhost,ionic://localhost")
     assert load_cors_origins() == ["capacitor://localhost", "ionic://localhost"]
+
+
+def test_runtime_environment_must_be_explicit_and_supported(monkeypatch):
+    from core.settings import load_environment, validate_runtime_configuration
+
+    monkeypatch.delenv("FABLE_ENV", raising=False)
+    with pytest.raises(RuntimeError, match="explicitly set"):
+        load_environment()
+    with pytest.raises(RuntimeError, match="explicitly set"):
+        validate_runtime_configuration()
+
+    monkeypatch.setenv("FABLE_ENV", " Production ")
+    assert load_environment() == "production"
+
+    monkeypatch.setenv("FABLE_ENV", "proudction")
+    with pytest.raises(RuntimeError, match="FABLE_ENV must be one of"):
+        load_environment()
+
+
+@pytest.mark.parametrize(
+    ("raw_value", "expected"),
+    [
+        ("true", True),
+        ("1", True),
+        ("YES", True),
+        (" on ", True),
+        ("false", False),
+        ("0", False),
+        ("NO", False),
+        (" off ", False),
+    ],
+)
+def test_rate_limit_flag_accepts_explicit_boolean_values(monkeypatch, raw_value, expected):
+    from core.settings import load_rate_limit_enabled
+
+    monkeypatch.setenv("FABLE_RATE_LIMIT_ENABLED", raw_value)
+    assert load_rate_limit_enabled() is expected
+
+
+def test_rate_limit_flag_defaults_on_and_rejects_invalid_values(monkeypatch):
+    from core.settings import load_rate_limit_enabled
+
+    monkeypatch.delenv("FABLE_RATE_LIMIT_ENABLED", raising=False)
+    assert load_rate_limit_enabled() is True
+
+    for invalid_value in ("enabled", "tru", "2", ""):
+        monkeypatch.setenv("FABLE_RATE_LIMIT_ENABLED", invalid_value)
+        with pytest.raises(RuntimeError, match="FABLE_RATE_LIMIT_ENABLED must be a boolean"):
+            load_rate_limit_enabled()
+
+
+def test_runtime_configuration_rejects_invalid_rate_limit_flag(monkeypatch):
+    from core.settings import validate_runtime_configuration
+
+    monkeypatch.setenv("FABLE_ENV", "production")
+    monkeypatch.setenv("FABLE_RATE_LIMIT_ENABLED", "enabled")
+    with pytest.raises(RuntimeError, match="FABLE_RATE_LIMIT_ENABLED must be a boolean"):
+        validate_runtime_configuration()
+
 
 def test_sqlite_online_backup_and_integrity_check(tmp_path):
     import sqlite3

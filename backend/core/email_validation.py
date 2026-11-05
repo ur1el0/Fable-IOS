@@ -1,11 +1,9 @@
-import os
-
 from email_validator import EmailNotValidError, validate_email
+from core.settings import DEVELOPMENT_ENVIRONMENTS, load_environment
 
 
 def normalize_email_address(value: str) -> str:
-    environment = os.environ.get("FABLE_ENV", "development").strip().lower()
-    allow_test_domains = environment in {"development", "dev", "local", "test"}
+    allow_test_domains = load_environment() in DEVELOPMENT_ENVIRONMENTS
     try:
         result = validate_email(
             value.strip(),
