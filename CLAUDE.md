@@ -42,10 +42,10 @@ Fable is a native iOS reading and writing app with a FastAPI backend. Keep the c
 
 ## Verification and Common Tasks
 
-- Backend tests: `pytest backend/test_main.py -v`
+- Backend tests (after `python3 -m pip install -r backend/requirements-test.txt`): `PYTHONPATH=.:backend pytest backend/test_main.py -v`
 - Start the backend from `backend/`: `uvicorn main:app --reload --host 127.0.0.1 --port 8000`
 - Open the iOS project on macOS: `open frontend/FableApp.xcodeproj`; select the `FableApp` scheme and an iOS 17+ simulator in Xcode.
-- GitHub Actions currently runs the backend test suite and builds the Docker image. The Swift `Features/*/Tests` files are in-app diagnostic helpers, not an Xcode XCTest target.
+- GitHub Actions runs the backend test suite, builds and checks the Docker image, and runs the `FableAppTests` XCTest target on an iOS Simulator before verifying a Release build. The domain-specific `Features/*/Tests` helpers are aggregated by that XCTest target.
 
 ## Documentation Notes
 
