@@ -46,6 +46,13 @@ final class FableAppTests: XCTestCase {
         XCTAssertEqual(result.passed, result.total, "All authentication assertions must pass")
     }
 
+    @MainActor
+    func testPasswordRecoveryFlow() async {
+        let result = await PasswordRecoveryTests.runAllTests()
+        XCTAssertTrue(result.failures.isEmpty, "Password recovery test failures: \(result.failures)")
+        XCTAssertEqual(result.passed, result.total, "All password recovery assertions must pass")
+    }
+
     func testMutedTextMeetsWCAGAAContrastOnLightSurfaces() {
         let lightSurfaces: [(String, Color)] = [
             ("background", FableTheme.background),
