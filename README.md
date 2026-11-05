@@ -133,6 +133,7 @@ Fable is architected around **Feature-Driven Vertical Slices** combined with **M
 5. **Start the FastAPI Development Server:**
    ```bash
    cd backend
+   export FABLE_ENV=development
    uvicorn main:app --reload --host 127.0.0.1 --port 8000
    ```
    * **API Base URL:** `http://127.0.0.1:8000/api/v1`
@@ -214,7 +215,7 @@ Fable-IOS/
 | Issue Encountered | Root Cause | Resolution |
 |---|---|---|
 | **Xcode defaults to "My Mac" destination** | Xcode auto-selected Mac Catalyst or macOS destination | Click the target dropdown at the top of Xcode ➔ Choose `iOS Simulators` ➔ `iPhone 16 Pro`. |
-| **Simulator fails to connect to `127.0.0.1:8000`** | FastAPI server is not running in terminal | In terminal, ensure virtual environment is active and run `uvicorn main:app --reload --port 8000`. |
+| **Simulator fails to connect to `127.0.0.1:8000`** | FastAPI server is not running in terminal | In terminal, ensure virtual environment is active, set `FABLE_ENV=development`, and run `uvicorn main:app --reload --port 8000`. |
 | **Old cached build artifacts fail** | Previous user left stale build cache | Press `Shift + Cmd + K` (**Product** ➔ **Clean Build Folder**), then press `Cmd + B` to rebuild. |
 | **Offline Lab Network (No Internet)** | Campus Wi-Fi blocked or offline computer | Fable reads previously cached stories, chapters, images, and per-account shelf data. A first launch without network has no catalog to display. |
 

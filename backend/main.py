@@ -10,11 +10,17 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from core.database import DB_PATH, get_db, init_db
 from core.rate_limit import RateLimitMiddleware, limiter
 from core.request_limits import RequestBodySizeLimitMiddleware
-from core.settings import load_cors_origins, request_body_limit_bytes
+from core.settings import (
+    load_cors_origins,
+    request_body_limit_bytes,
+    validate_runtime_configuration,
+)
 from api.v1.api import api_router
 from services.text_parser import extract_chapters_from_text
 
 logger = logging.getLogger(__name__)
+
+validate_runtime_configuration()
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):

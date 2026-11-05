@@ -10,6 +10,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.concurrency import run_in_threadpool
 from starlette.requests import Request
 from starlette.responses import JSONResponse
+from core.settings import load_rate_limit_enabled
 
 
 class SlidingWindowRateLimiter:
@@ -211,8 +212,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         # Configurable master switch (defaults to enabled in production/runtime)
-        enabled = os.environ.get("FABLE_RATE_LIMIT_ENABLED", "true").lower() in ("true", "1", "yes")
-        if not enabled:
+        if not load_rate_limit_enabled():
             return await call_next(request)
 
         path = request.url.path

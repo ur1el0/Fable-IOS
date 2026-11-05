@@ -3,13 +3,46 @@ import os
 from urllib.parse import urlsplit
 
 
+SUPPORTED_ENVIRONMENTS = frozenset(
+    {"development", "dev", "local", "test", "staging", "production", "prod"}
+)
+DEVELOPMENT_ENVIRONMENTS = frozenset({"development", "dev", "local", "test"})
+
+
+def load_environment() -> str:
+    raw_environment = os.environ.get("FABLE_ENV")
+    if raw_environment is None or not raw_environment.strip():
+        raise RuntimeError("FABLE_ENV must be explicitly set to a supported environment.")
+
+    environment = raw_environment.strip().lower()
+    if environment not in SUPPORTED_ENVIRONMENTS:
+        supported = ", ".join(sorted(SUPPORTED_ENVIRONMENTS))
+        raise RuntimeError(f"FABLE_ENV must be one of: {supported}.")
+    return environment
+
+
+def load_rate_limit_enabled() -> bool:
+    raw_value = os.environ.get("FABLE_RATE_LIMIT_ENABLED", "true").strip().lower()
+    if raw_value in {"true", "1", "yes", "on"}:
+        return True
+    if raw_value in {"false", "0", "no", "off"}:
+        return False
+    raise RuntimeError(
+        "FABLE_RATE_LIMIT_ENABLED must be a boolean: true/false, 1/0, yes/no, or on/off."
+    )
+
+
+def validate_runtime_configuration() -> None:
+    load_environment()
+    load_rate_limit_enabled()
+
+
 def load_cors_origins() -> list[str]:
     raw_origins = os.environ.get("FABLE_CORS_ORIGINS")
     if raw_origins is None:
         raw_origins = os.environ.get("CORS_ORIGINS")
 
-    environment = os.environ.get("FABLE_ENV", "development").strip().lower()
-    development_environments = {"development", "dev", "local", "test"}
+    environment = load_environment()
     if raw_origins is None:
         origins = (
             [
@@ -21,7 +54,7 @@ def load_cors_origins() -> list[str]:
                 "capacitor://localhost",
                 "ionic://localhost",
             ]
-            if environment in development_environments
+            if environment in DEVELOPMENT_ENVIRONMENTS
             else []
         )
     else:
@@ -39,7 +72,7 @@ def load_cors_origins() -> list[str]:
 
     cleaned_origins = [origin.strip().rstrip("/") for origin in origins]
     if "*" in cleaned_origins:
-        if len(cleaned_origins) != 1 or environment not in development_environments:
+        if len(cleaned_origins) != 1 or environment not in DEVELOPMENT_ENVIRONMENTS:
             raise RuntimeError("Wildcard CORS is only allowed in development and test environments.")
         return cleaned_origins
 
@@ -51,7 +84,7 @@ def load_cors_origins() -> list[str]:
         except ValueError:
             has_invalid_port = True
         is_local_native_origin = (
-            environment in development_environments
+            environment in DEVELOPMENT_ENVIRONMENTS
             and parsed.scheme in {"capacitor", "ionic"}
             and parsed.hostname == "localhost"
         )
@@ -67,7 +100,7 @@ def load_cors_origins() -> list[str]:
             or parsed.fragment
         ):
             raise RuntimeError(f"Invalid CORS origin: {origin!r}")
-        if environment not in development_environments and parsed.scheme != "https":
+        if environment not in DEVELOPMENT_ENVIRONMENTS and parsed.scheme != "https":
             raise RuntimeError("Non-development CORS origins must use HTTPS.")
 
     return cleaned_origins

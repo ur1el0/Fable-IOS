@@ -668,3 +668,10 @@ This progress log tracks the transition of **Fable** from an editorial prototype
 - [x] Reader text and its live preview now combine the reader font-size preference with system Dynamic Type scaling while retaining the selected font design.
 - [x] Added an XCTest contract that checks both the reader-size preference and an accessibility Dynamic Type category increase rendered text size.
 - [x] PR #28 passed backend, Docker, iOS simulator tests, and the Release build on macOS 15 / Xcode 16.4; local Xcode verification is unavailable in this Fedora workspace.
+
+## Fail-Closed Runtime Configuration (2026-11-05)
+
+- [x] Require an explicit supported `FABLE_ENV`; missing or unsupported values stop backend startup.
+- [x] Parse `FABLE_RATE_LIMIT_ENABLED` strictly, default it to enabled, and reject invalid values instead of silently disabling the API limiter.
+- [x] Updated local backend launch instructions to set `FABLE_ENV=development`.
+- [x] Backend suite: **87 passed** locally; one Starlette/AnyIO deprecation warning under Python 3.14. Hosted CI is pending the pull request.

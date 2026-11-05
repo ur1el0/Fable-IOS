@@ -160,6 +160,7 @@ To activate live fetching:
 1. **Step 1: Start the Local Backend Server**
    ```bash
    cd backend
+   export FABLE_ENV=development
    python3 -m uvicorn main:app --reload --port 8000
    ```
 2. **Step 2: Populate the Database**
