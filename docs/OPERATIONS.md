@@ -24,27 +24,44 @@ For iOS Release builds, set the Xcode build setting `FABLE_API_BASE_URL` to the 
 
 ## SQLite backup
 
-Create an online, transactionally consistent backup with Python's SQLite backup API:
+Create and store a 256-bit backup key in the deployment secret manager. Generate a key with:
 
 ```bash
-python3 scripts/sqlite_backup.py backup data/fable.sqlite3 backups/fable-YYYY-MM-DD.sqlite3
-python3 scripts/sqlite_backup.py verify backups/fable-YYYY-MM-DD.sqlite3
+python3 -c 'import base64, secrets; print(base64.b64encode(secrets.token_bytes(32)).decode())'
 ```
 
-Use the actual path configured by `FABLE_DB_PATH` if it differs. Store backups outside the application data directory and restrict access to them. The scheduled Compose service can maintain a host-mounted snapshot history; the hosting operator must mount durable off-host storage at that path for disaster recovery.
+Set the secret as `FABLE_BACKUP_ENCRYPTION_KEY_B64` for backup commands and the Compose backup service. Keep it separate from the backup destination; a backup cannot be restored without the matching key. Do not rotate the key until every backup encrypted with it has expired, or retain the old key in the secret manager for the full backup-retention period.
+
+Create and verify an encrypted, transactionally consistent snapshot with Python's SQLite backup API and authenticated encryption:
+
+```bash
+python3 scripts/sqlite_backup.py backup data/fable.sqlite3 backups/fable-YYYY-MM-DD.sqlite3.enc
+python3 scripts/sqlite_backup.py verify backups/fable-YYYY-MM-DD.sqlite3.enc
+```
+
+Use the actual path configured by `FABLE_DB_PATH` if it differs. Store backups outside the application data directory, restrict access, and mount durable off-host storage at the configured path for disaster recovery. The encrypted artifact can be copied off-host without exposing SQLite contents; encrypted storage at the destination remains recommended as a separate layer.
+
+To migrate a pre-existing plaintext snapshot, encrypt it in place to a new filename, verify the encrypted copy, and complete a restore drill before deleting the plaintext file:
+
+```bash
+python3 scripts/sqlite_backup.py encrypt backups/fable-2026-10-30.sqlite3 backups/fable-2026-10-30.sqlite3.enc
+python3 scripts/sqlite_backup.py verify backups/fable-2026-10-30.sqlite3.enc
+```
+
+The `encrypt` command leaves the original file untouched so it can be retained until the encrypted copy has been verified and copied to its durable destination.
 
 ### Scheduled backups in Docker Compose
 
-The optional `backup` profile runs the same verified SQLite backup utility once at startup and then at the configured interval. It removes matching `fable-*.sqlite3` snapshots older than the configured retention window; the default is one day between backups and 30 days of retention.
+The optional `backup` profile runs the encrypted SQLite backup utility once at startup and then at the configured interval. It removes matching encrypted snapshots and legacy `fable-*.sqlite3` snapshots older than the configured retention window; the default is one day between backups and 30 days of retention.
 
-Set `FABLE_BACKUP_HOST_DIR` in `.env` to a mounted durable location. Ensure that directory exists and is writable only by the container's Fable UID/GID (defaults to `1000:1000`); for example, `sudo install -d -o 1000 -g 1000 -m 0700 /srv/fable/backups`. The backup container has no network access, a read-only root filesystem, and read-only access to the live database. Then start both services:
+Set `FABLE_BACKUP_HOST_DIR` in `.env` to a mounted durable location and load `FABLE_BACKUP_ENCRYPTION_KEY_B64` from the secret manager. Ensure that directory exists and is writable only by the container's Fable UID/GID (defaults to `1000:1000`); for example, `sudo install -d -o 1000 -g 1000 -m 0700 /srv/fable/backups`. The backup container has no network access, a read-only root filesystem, and read-only access to the live database. Then start both services:
 
 ```bash
 docker compose --profile backup up -d --build
 docker compose --profile backup logs -f fable-backup
 ```
 
-The sample `./backups` path is on the application host and is not an off-site backup by itself. Mount a separate durable or off-host filesystem at the configured path and monitor backup logs. If the destination is unavailable or a backup fails, the service logs the failure and retries within five minutes. Keep `FABLE_BACKUP_INTERVAL_SECONDS` at least 60 and `FABLE_BACKUP_RETENTION_DAYS` at least 1.
+The sample `./backups` path is on the application host and is not an off-site backup by itself. Mount a separate durable or off-host filesystem at the configured path and monitor backup logs. If the key is absent or invalid, the service exits without creating plaintext backups. If the destination is unavailable or a backup fails, the service logs the failure and retries within five minutes. Keep `FABLE_BACKUP_INTERVAL_SECONDS` at least 60 and `FABLE_BACKUP_RETENTION_DAYS` at least 1.
 
 ### Versioned image release and rollback
 
@@ -61,12 +78,13 @@ To roll back the application, set `FABLE_BACKEND_IMAGE` to the previous release 
 
 ## Restore
 
-1. Stop the backend so no process is writing to the database.
-2. Verify the selected backup with `scripts/sqlite_backup.py verify`.
-3. Move the current database file to a timestamped recovery copy.
-4. Copy the verified backup into the configured `FABLE_DB_PATH` location.
-5. Start the backend and check `/api/v1/health` plus a known account and story.
-6. Keep the pre-restore copy until the application data has been confirmed.
+1. Load the matching `FABLE_BACKUP_ENCRYPTION_KEY_B64` from the deployment secret manager.
+2. Stop the backend so no process is writing to the database.
+3. Verify the selected encrypted backup with `scripts/sqlite_backup.py verify`.
+4. Move the current database file to a timestamped recovery copy.
+5. Restore the encrypted backup to the configured `FABLE_DB_PATH`, for example `python3 scripts/sqlite_backup.py restore backups/fable-2026-11-05.sqlite3.enc data/fable.sqlite3`; restore verifies the decrypted SQLite integrity before publishing the file and refuses to overwrite an existing destination.
+6. Start the backend and check `/api/v1/health` plus a known account and story.
+7. Keep the pre-restore copy until the application data has been confirmed.
 
 Database startup applies additive compatibility changes and versioned migrations transactionally. `PRAGMA user_version` records the applied schema version. Back up the database before deploying a new backend version.
 

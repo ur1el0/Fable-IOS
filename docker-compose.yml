@@ -38,6 +38,7 @@ services:
       FABLE_DB_PATH: /app/data/fable.sqlite3
       FABLE_BACKUP_INTERVAL_SECONDS: ${FABLE_BACKUP_INTERVAL_SECONDS:-86400}
       FABLE_BACKUP_RETENTION_DAYS: ${FABLE_BACKUP_RETENTION_DAYS:-30}
+      FABLE_BACKUP_ENCRYPTION_KEY_B64: ${FABLE_BACKUP_ENCRYPTION_KEY_B64:-}
     command: ["python", "/app/scripts/sqlite_backup.py", "schedule", "/app/data/fable.sqlite3", "/app/backups"]
     network_mode: none
     read_only: true

@@ -679,3 +679,8 @@ This progress log tracks the transition of **Fable** from an editorial prototype
 ## Audit Finding Follow-up (2026-11-05)
 
 - [x] Reject disabled general API rate limiting in staging and production while preserving the development/test override; add configuration boundary tests.
+- [x] Pin `cryptography` and add versioned, chunked AES-GCM backup artifacts with strict 256-bit key validation, authenticated verification, and non-overwriting restore.
+- [x] Add a safe migration command for legacy plaintext snapshots; scheduled retention now prunes expired plaintext and encrypted snapshots.
+- [x] Pass the backup key only to the isolated Compose backup service and document separate key custody, key retention, restore, and off-host storage requirements.
+- [x] Backend suite: **95 passed**; backup Compose configuration, Python compilation, and `git diff --check` passed.
+- [ ] Off-host destination setup and an isolated restore drill remain deployment operator checks.
