@@ -43,10 +43,25 @@ jobs:
           docker compose config --quiet
 
   ios-verification:
-    runs-on: macos-15-intel
+    runs-on: macos-15
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Select Xcode 16.4 and verify simulator availability
+        run: |
+          sudo xcode-select --switch /Applications/Xcode_16.4.app
+          xcodebuild -version
+          simulators="$(xcrun simctl list devices available)"
+          printf '%s\n' "$simulators"
+          if ! printf '%s\n' "$simulators" | awk '
+            /^-- iOS 18.5 --$/ { in_runtime = 1; next }
+            /^-- / { in_runtime = 0 }
+            in_runtime && /iPhone 16 \(/ { found = 1 }
+            END { exit !found }
+          '; then
+            echo "The iPhone 16 / iOS 18.5 simulator is unavailable."
+            exit 1
+          fi
       - name: Verify Release API URL guard
         run: |
           if CONFIGURATION=Release FABLE_API_BASE_URL=http://127.0.0.1:8000/api/v1 scripts/validate_ios_release_config.sh; then

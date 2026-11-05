@@ -641,3 +641,9 @@ This progress log tracks the transition of **Fable** from an editorial prototype
 ## GitHub Actions Runtime Upgrade (2026-11-05)
 
 - [x] Pinned `actions/checkout` v7.0.1 and `actions/setup-python` v7.0.0 to their verified upstream commit SHAs across CI and tagged-release workflows, removing the legacy Node 20 action references reported by GitHub.
+
+## iOS CI Simulator Availability Follow-up (2026-11-05)
+
+- [x] Moved simulator verification to the macOS 15 Apple Silicon runner and explicitly selected Xcode 16.4, whose iOS 18.5 runtime matches the pinned iPhone 16 test destination.
+- [x] Added a simulator preflight to CI and tagged-release verification so missing hosted runtimes fail with the available device list before `xcodebuild test`.
+- [x] PR #24 passed backend, Docker, iOS simulator tests, Release build, and GitGuardian checks on the Apple Silicon runner.
