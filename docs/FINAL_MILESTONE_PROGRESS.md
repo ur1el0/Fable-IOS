@@ -417,4 +417,5 @@ When presenting your final capstone defense, emphasize these key architectural p
 - [x] Replaced the process-local API token bucket with SQLite-backed counters shared by workers using the same database; added dedicated password recovery limits per IP and account/IP.
 - [x] Commit `4a3cfe5` added an in-app password recovery form with VoiceOver announcements and minimum 44-point action targets.
 - [x] Local verification: **76 backend tests passed**; Docker image build, runtime dependency boundary, Docker Compose configuration, Python compilation, and `git diff --check` passed.
-- [ ] Native iOS build and simulator checks remain for hosted macOS CI; SMTP delivery requires real deployment configuration and later hands-on app confirmation.
+- [x] PR #25 passed hosted iOS simulator tests and the Release build on macOS 15 / Xcode 16.4, along with backend, Docker, Compose, and GitGuardian checks.
+- [ ] Real SMTP delivery still requires deployment credentials; hands-on app confirmation is deferred until the user can test the app.

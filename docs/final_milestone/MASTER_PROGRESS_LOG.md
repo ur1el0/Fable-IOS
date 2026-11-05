@@ -655,4 +655,5 @@ This progress log tracks the transition of **Fable** from an editorial prototype
 - [x] The API rate limiter now stores token buckets in SQLite so workers on the same database share counters; password recovery has separate per-IP and per-account limits.
 - [x] Commit `4a3cfe5` added the in-app password recovery form and API wiring, including VoiceOver status/error announcements and 44-point minimum action targets.
 - [x] Verification: backend suite **76/76 passed**; Docker image build, runtime dependency boundary, Docker Compose configuration, Python compilation, and `git diff --check` passed.
-- [ ] Native iOS build and simulator verification require the hosted macOS CI runner; real SMTP delivery requires deployment credentials and later app confirmation.
+- [x] PR #25 passed the hosted iOS simulator tests and Release build on macOS 15 / Xcode 16.4, in addition to backend, Docker, Compose, and GitGuardian checks.
+- [ ] Real SMTP delivery still requires deployment credentials; hands-on app confirmation is deferred until the user can test the app.
