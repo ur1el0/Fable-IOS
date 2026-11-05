@@ -625,3 +625,19 @@ This progress log tracks the transition of **Fable** from an editorial prototype
 - [x] Added a native XCTest regression asserting at least 4.5:1 contrast for muted text against all shared light surfaces; the minimum measured ratio is 5.01:1.
 - [x] Upgraded pytest to 9.2.0 to address the reported dependency vulnerability; merged through PR #19.
 - [x] Verification: backend suite **68/68 passed** with pytest 9.2.0; macOS CI passed the iOS simulator tests and Release build.
+
+## Dependency Update Cleanup (2026-11-05)
+
+- [x] Removed `.github/dependabot.yml` and closed the open Dependabot version-update PRs so weekly version-update PRs stop. Dependabot security alerts and security updates remain independently controlled through repository settings.
+- [x] Updated `CLAUDE.md` and `docs/MAC_LAB_RUNBOOK.md` to match the actual CI test workflow and current dependency-update policy.
+- [x] Backend suite: **68/68 passed** in a temporary Python 3.14 environment using the pinned test requirements. The local run emitted one Starlette/AnyIO deprecation warning; GitHub CI uses Python 3.11.
+- [x] PR #23 is gated on the hosted iOS simulator suite and Release build before merge.
+
+## iOS CI Runtime Provisioning (2026-11-05)
+
+- [x] Removed the redundant iOS 18.5 runtime download from CI and tagged-release verification. The GitHub macOS 15 image already includes iOS 18.5 and iPhone 16 simulators; downloading the already-installed runtime caused an external connectivity failure before Xcode tests could start.
+- [x] Backend suite remains green: **68/68 passed** locally; hosted backend and Docker jobs passed during this CI fix.
+
+## GitHub Actions Runtime Upgrade (2026-11-05)
+
+- [x] Pinned `actions/checkout` v7.0.1 and `actions/setup-python` v7.0.0 to their verified upstream commit SHAs across CI and tagged-release workflows, removing the legacy Node 20 action references reported by GitHub.
