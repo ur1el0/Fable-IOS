@@ -13,9 +13,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out tagged source
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.11"
       - name: Install backend dependencies
@@ -40,7 +40,7 @@ jobs:
     runs-on: macos-15-intel
     steps:
       - name: Check out tagged source
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Verify Release API URL guard
         run: |
           if CONFIGURATION=Release FABLE_API_BASE_URL=http://127.0.0.1:8000/api/v1 scripts/validate_ios_release_config.sh; then
@@ -52,8 +52,6 @@ jobs:
             exit 1
           fi
           CONFIGURATION=Release FABLE_API_BASE_URL=https://api.example.com/api/v1 scripts/validate_ios_release_config.sh
-      - name: Install iOS simulator runtime
-        run: xcodebuild -downloadPlatform iOS -buildVersion 18.5
       - name: Build and test iOS app
         run: >-
           xcodebuild
@@ -83,7 +81,7 @@ jobs:
       packages: write
     steps:
       - name: Check out tagged source
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Publish versioned images and report the registry digest
         env:
