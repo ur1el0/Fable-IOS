@@ -705,3 +705,7 @@ This progress log tracks the transition of **Fable** from an editorial prototype
 - [x] Documented the current health-check boundary and required hosting alerts for availability, server errors, backup freshness, and SMTP delivery.
 - [x] PR #31 backend, Docker/Compose, iOS XCTest, and Release build checks passed in [GitHub Actions run 42218961300](https://github.com/ur1el0/Fable-IOS/actions/runs/42218961300). Local Xcode verification remains unavailable in this Fedora workspace.
 - [ ] Production HTTPS deployment, monitoring-provider setup, durable off-host backup and isolated restore drill, SMTP delivery verification, and physical-device/VoiceOver checks remain operator tasks.
+
+## Repository Guidance Cleanup (2026-11-06)
+
+- [x] Removed the root `AGENTS.md` and `CLAUDE.md` files from the current repository tree as requested. Their copies remain in earlier Git history.
