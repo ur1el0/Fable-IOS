@@ -687,3 +687,9 @@ This progress log tracks the transition of **Fable** from an editorial prototype
 - [x] Label manga page images and expose named accessibility actions for showing/hiding reader controls and moving between pages; add XCTest coverage for action and page labels.
 - [ ] Off-host destination setup and an isolated restore drill remain deployment operator checks.
 - [ ] Hosted iOS tests and hands-on VoiceOver/Switch Control verification remain pending; this workspace has no Xcode toolchain.
+
+## PR #30 iOS Compile Follow-up (2026-11-06)
+
+- [x] Hosted backend, Docker, and GitGuardian checks passed.
+- [x] Extracted manga reader accessibility actions into a dedicated view modifier after Xcode 16.4 could not type-check the expanded reader body.
+- [ ] Hosted macOS XCTest and Release build rerun pending the fix push.

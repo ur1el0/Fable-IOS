@@ -14,6 +14,29 @@ enum MangaReaderAccessibilityActions {
     }
 }
 
+private struct MangaReaderAccessibilityModifier: ViewModifier {
+    let isChromeVisible: Bool
+    let onToggleChrome: () -> Void
+    let onPreviousPage: () -> Void
+    let onNextPage: () -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Manga reader")
+            .accessibilityHint("Use reader actions to move between pages or show the reader controls.")
+            .accessibilityAction(named: Text(MangaReaderAccessibilityActions.chromeControls(isVisible: isChromeVisible))) {
+                onToggleChrome()
+            }
+            .accessibilityAction(named: Text(MangaReaderAccessibilityActions.previousPage)) {
+                onPreviousPage()
+            }
+            .accessibilityAction(named: Text(MangaReaderAccessibilityActions.nextPage)) {
+                onNextPage()
+            }
+    }
+}
+
 public enum MangaReadingMode: String, CaseIterable, Identifiable {
     case webtoon = "Webtoon"
     case paged = "Paging"
@@ -91,6 +114,19 @@ public struct MangaReaderView: View {
 
     private var activePageUrls: [String] {
         currentChapter?.pageUrls ?? []
+    }
+
+    private var accessibilityActions: MangaReaderAccessibilityModifier {
+        MangaReaderAccessibilityModifier(
+            isChromeVisible: isChromeVisible,
+            onToggleChrome: {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isChromeVisible.toggle()
+                }
+            },
+            onPreviousPage: { backtrackPage() },
+            onNextPage: { advancePage() }
+        )
     }
 
     public var body: some View {
@@ -573,20 +609,7 @@ public struct MangaReaderView: View {
                 .transition(.opacity)
             }
         }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Manga reader")
-        .accessibilityHint("Use reader actions to move between pages or show the reader controls.")
-        .accessibilityAction(named: Text(MangaReaderAccessibilityActions.chromeControls(isVisible: isChromeVisible))) {
-            withAnimation(.easeInOut(duration: 0.2)) {
-                isChromeVisible.toggle()
-            }
-        }
-        .accessibilityAction(named: Text(MangaReaderAccessibilityActions.previousPage)) {
-            backtrackPage()
-        }
-        .accessibilityAction(named: Text(MangaReaderAccessibilityActions.nextPage)) {
-            advancePage()
-        }
+        .modifier(accessibilityActions)
         .onAppear {
             self.sessionStartTime = Date()
         }
