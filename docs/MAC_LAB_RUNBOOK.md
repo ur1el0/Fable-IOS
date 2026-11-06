@@ -47,7 +47,7 @@ Before running, clear any potential cache conflicts from previous students:
 
 ### Step 5: Launch on Simulator
 - Press `Cmd + R` (**Product ➔ Run**).
-- The Simulator will launch, boot, and display Fable’s Library feed populated with full seed stories, images, and category chips.
+- The Simulator will launch and display the Library. Fresh installs do not include seeded stories; the feed depends on the configured backend and provider catalog. Without those services, expect an empty or previously cached library.
 
 ---
 
@@ -57,13 +57,13 @@ When demonstrating the application to your professor or grading committee in the
 
 | Step | Action on Simulator | What It Proves to the Grader |
 |---|---|---|
-| **1. Cold Launch & Auth** | App opens to `WelcomeView`; register a test account (`evaluator@university.edu`). | Exercises account-scoped authentication and secure device token storage. Passwords use versioned PBKDF2-HMAC-SHA256 hashes; successful logins upgrade legacy hashes. |
+| **1. Cold Launch & Auth** | App opens to `WelcomeView`; register a test account using an address reserved for testing. | Exercises account-scoped authentication and secure device token storage. Passwords use versioned PBKDF2-HMAC-SHA256 hashes; successful logins upgrade legacy hashes. |
 | **2. Pure Zero-Baseline State** | Switch to **"Shelf"** tab immediately upon registration. | Proves zero ghost data: authentic empty states render with 0 saved, 0 finished, and 0 reading streak days. |
-| **3. Multi-Format Library Feed** | Switch to **"Library"** tab. Observe mix of prose novels and graphic manga. | Demonstrates multi-format ingestion architecture (`ContentFormat`: `PROSE`, `MANGA`; `SourceProvider`: `GUTENBERG`, `STANDARD_EBOOKS`, `MANGADEX`). |
-| **4. Format Filter Pills** | Tap the **"Manga"** chip, then **"Novels"**, then **"All"**. | Proves reactive format filtering and clean sans-serif UI tag architecture. |
-| **5. Graphic Manga Reader** | Tap **"Chainsaw Devil: Special Edition"**. | Opens cinema black `MangaReaderView` with vertical continuous Webtoon scrolling and high-resolution sequential panel art. |
-| **6. Manga Reading Mode Switch** | Tap the mode toggle in top-right chrome to switch to **"Paging"**. | Demonstrates dual reading engine: transitions effortlessly from vertical continuous scroll to horizontal swipe paging. |
-| **7. Prose Reader & Typography** | Return to Library and open **"Dracula"** or **"The Legend of Sleepy Hollow"**. | Demonstrates adaptive typography engine (`ReaderFont`, `ReaderTheme`, `ReaderLineSpacing`) and pacing estimation. |
+| **3. Live Library Feed** | Switch to **"Library"** and wait for the configured provider catalog to load. | Demonstrates live provider content and metadata. A fresh install has no bundled catalog; do not expect a particular title or format. |
+| **4. Format Filters** | If the live catalog contains both formats, tap **"Manga"**, **"Novels"**, then **"All"**. | Demonstrates reactive format filtering for the formats actually returned by the backend. |
+| **5. Manga Reader** | If a manga with readable pages is available, open it from the live catalog. | Demonstrates `MangaReaderView`, vertical Webtoon scrolling, and provider page images. Skip this step when the configured catalog has no readable manga. |
+| **6. Manga Reading Mode Switch** | In an available manga, use the mode toggle to switch to **"Paging"**. | Demonstrates continuous scroll and horizontal page navigation. |
+| **7. Prose Reader & Typography** | Open a live prose title whose chapter endpoint returns readable text. | Demonstrates adaptive typography (`ReaderFont`, `ReaderTheme`, `ReaderLineSpacing`) and pacing estimation. Provider-only chapters without readable text should open their official source in the in-app browser. |
 | **8. Auditory Narration & Voice Picker** | Tap the **Audio Play** button in Reader toolbar; tap **Voice Selector**. | Activates `AVSpeechSynthesizer` narration state machine. Displays `VoiceSelectionSheet` with live voice audition across regional accents (`en-US`, `en-GB`, `en-AU`). |
 | **9. Community Publishing** | Tap **"Write"** tab; author a title and manuscript; tap **"Publish"**. | Validates manuscript, calculates word count, prepends to store catalog, and displays interactive `StoryPublishedSheet`. |
 | **10. Sign-Out & Isolation** | Tap **"Profile"** ➔ **Settings** icon ➔ **"Sign Out"**. | Purges reactive session, resets root view state, and returns to authentication screen without data leakage. |
@@ -76,8 +76,8 @@ The final capstone report requires clear, uncompressed retina screenshots of the
 
 1. In the iOS Simulator window, navigate to each target screen:
    - **Screen 1:** `WelcomeView` / `SignInView` (Modern sans-serif auth branding)
-   - **Screen 2:** `LibraryView` (Multi-format catalog showing both Novels and Manga)
-   - **Screen 3:** `MangaReaderView` (High-contrast cinema black manga reader in Webtoon mode)
+   - **Screen 2:** `LibraryView` (live provider catalog or its empty state)
+   - **Screen 3:** `MangaReaderView` (only when the configured live catalog provides readable manga pages)
    - **Screen 4:** `ReaderView` with `VoiceSelectionSheet` (AVSpeech voice selection modal)
    - **Screen 5:** `ReaderView` with `DisplayOptionsSheet` (Font & Theme customization modal)
    - **Screen 6:** `WriteView` (Manuscript draft with live reactive word counter)
@@ -98,7 +98,7 @@ Complete these checks against the actual release environment before publishing a
 1. Configure the iOS Release build with the production HTTPS API URL. Build and install it on a physical iPhone; verify sign-in, live catalog refresh, remote covers, readable provider chapters, and shelf synchronization. Provider-only chapters that do not expose readable text must open their official source in the in-app browser.
 2. Configure the Compose backup destination as durable off-host storage with restricted access. Load `FABLE_BACKUP_ENCRYPTION_KEY_B64` from a secret manager; the backup utility now writes authenticated, encrypted SQLite snapshots. Migrate any existing plaintext snapshots with the `encrypt` command, then verify the encrypted copy before removing the plaintext original. Keep the key separate from the backup destination and retain it for the full backup lifetime. Encryption at rest on the destination remains recommended as a separate layer.
 3. Verify a recent encrypted snapshot, restore it into an isolated database with the matching key, and verify representative accounts, stories, chapters, and shelf state before treating backups as recoverable.
-4. Enable GitHub Dependabot security alerts in the repository's **Settings → Code security and analysis**. This repository does not configure automatic version update PRs; security alerts and security update PRs are managed separately in GitHub settings.
+4. Configure availability, server-error, backup-freshness, and SMTP-delivery monitoring in the selected hosting/monitoring platform. Assign an operator to receive and act on alerts; the repository does not select a monitoring vendor or configure hosted alerts.
 5. Confirm the tagged release workflow has passed backend, Docker/Compose, iOS simulator, and Release build checks. The workflow publishes an image; deployment and the physical-device checks above remain operator tasks.
 
 ### Problem 1: Xcode says "No such module" or Package Dependencies Failed

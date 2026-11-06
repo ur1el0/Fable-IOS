@@ -12,6 +12,8 @@ Authentication endpoints use SQLite-backed per-IP and per-account/IP limits. Def
 
 The API token-bucket limiter is enabled by default. `FABLE_RATE_LIMIT_ENABLED` accepts `true`/`false`, `1`/`0`, `yes`/`no`, or `on`/`off` (case-insensitive); any other value stops application startup instead of silently disabling limits. The limiter stores at most `FABLE_RATE_LIMIT_MAX_CLIENT_BUCKETS` client/tier buckets (default 10,000) in SQLite. Workers sharing the same `FABLE_DB_PATH` share the same counters; stale buckets are pruned, and new client keys are temporarily rejected if the bucket table reaches capacity. Each request updates one bucket in a short SQLite transaction. Authentication and provider ingestion use the stricter auth tier; tune `RATE_LIMIT_AUTH_LIMIT` and `RATE_LIMIT_AUTH_WINDOW` if needed. Authentication-specific registration, login, and password-reset windows are also stored in SQLite. Separate hosts with separate database files do not share counters, so enforce limits at the trusted edge before horizontally scaling beyond one shared SQLite host.
 
+The Compose API container runs as the configured non-root UID/GID with a read-only root filesystem, a small `noexec`/`nosuid` `/tmp`, all Linux capabilities dropped, `no-new-privileges`, and a 128-process limit. Its `/app/data` mount remains writable for SQLite. Keep any additional writable paths explicit as dedicated mounts instead of disabling the read-only root filesystem.
+
 Password recovery requires SMTP configuration through `FABLE_SMTP_HOST`, `FABLE_SMTP_PORT`, and `FABLE_SMTP_FROM_EMAIL`. SMTP authentication credentials are optional as a pair. Port 465 uses implicit TLS; other ports must support STARTTLS. Recovery requests return the same accepted response for existing and unknown addresses, email a one-time code that expires after 15 minutes, and revoke all active sessions after a successful reset. Users enter the code in the in-app recovery form. Delivery runs in a background task; configure and monitor SMTP before advertising recovery as available.
 
 ## Provider ingestion and resource limits
@@ -91,3 +93,9 @@ Database startup applies additive compatibility changes and versioned migrations
 ## CI and release configuration
 
 GitHub Actions runs backend tests, builds the Docker image, builds the iOS app, and runs the iOS XCTest target on an iOS Simulator. The CI HTTPS host is only a build validation value; it is not a production deployment endpoint.
+
+## Monitoring and incident response
+
+The image health check calls `/api/v1/health` every 30 seconds after a 20-second startup grace period. That endpoint reports API and database health; it does not confirm provider availability, SMTP delivery, backup freshness, or end-to-end iOS behavior. Check the deployed HTTPS health URL from outside the host and configure the hosting platform to alert on sustained health-check failures, repeated container restarts, and elevated 5xx responses.
+
+For the backup profile, alert when no verified encrypted snapshot has arrived within the backup interval plus the operator's recovery grace period. Review `fable-backup` logs after failures and verify SMTP delivery separately before enabling account recovery. Keep alerts free of tokens, backup keys, and unnecessary user data. Select a monitoring provider, set thresholds and recipients, and document the on-call owner in the deployment runbook; those hosted settings cannot be configured from this repository.

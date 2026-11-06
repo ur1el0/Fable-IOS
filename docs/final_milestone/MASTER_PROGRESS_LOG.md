@@ -686,7 +686,7 @@ This progress log tracks the transition of **Fable** from an editorial prototype
 - [x] Store access tokens and session data with `WhenUnlockedThisDeviceOnly`; migrate existing Keychain items in place and add XTests for new and legacy records.
 - [x] Label manga page images and expose named accessibility actions for showing/hiding reader controls and moving between pages; add XCTest coverage for action and page labels.
 - [ ] Off-host destination setup and an isolated restore drill remain deployment operator checks.
-- [ ] Hosted iOS tests and hands-on VoiceOver/Switch Control verification remain pending; this workspace has no Xcode toolchain.
+- [x] Hosted iOS tests and Release build passed in [GitHub Actions run 42197105214](https://github.com/ur1el0/Fable-IOS/actions/runs/42197105214) on `a3dcaea`; hands-on VoiceOver/Switch Control verification remains pending. This workspace has no Xcode toolchain.
 
 ## PR #30 iOS Compile Follow-up (2026-11-06)
 
@@ -694,4 +694,14 @@ This progress log tracks the transition of **Fable** from an editorial prototype
 - [x] Extracted manga reader accessibility actions into a dedicated view modifier after Xcode 16.4 could not type-check the expanded reader body.
 - [x] The reader accessibility XCTest passed after the compile fix; the simulator run then exposed Keychain `errSecMissingEntitlement` failures because CI disabled code signing.
 - [x] Enabled ad hoc signing for the simulator test build so Keychain tests receive app entitlements; the separate Release build remains unsigned.
-- [ ] Hosted macOS XCTest and Release build rerun pending the CI configuration fix push.
+- [x] Hosted macOS XCTest and Release build passed in [GitHub Actions run 42197105214](https://github.com/ur1el0/Fable-IOS/actions/runs/42197105214) after the CI signing configuration fix.
+
+## Production Audit Follow-up (2026-11-06)
+
+- [x] Authenticated session persistence now requires a real server token and successful Keychain writes before exposing signed-in state; storage errors clear the local authenticated state. Guest metadata retains its credential-free fallback.
+- [x] Added regression tests for missing tokens and Keychain session/token write failures in both authentication state managers.
+- [x] Restricted the API Compose service with a read-only root filesystem, a bounded temporary filesystem, dropped capabilities, `no-new-privileges`, and a process limit.
+- [x] Replaced stale seeded-catalog and demo-title instructions with live-provider-aware Mac lab guidance.
+- [x] Documented the current health-check boundary and required hosting alerts for availability, server errors, backup freshness, and SMTP delivery.
+- [ ] Hosted CI for this follow-up branch is pending; this Fedora workspace does not include Xcode.
+- [ ] Production HTTPS deployment, monitoring-provider setup, durable off-host backup and isolated restore drill, SMTP delivery verification, and physical-device/VoiceOver checks remain operator tasks.
