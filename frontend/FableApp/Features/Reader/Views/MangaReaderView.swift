@@ -1,6 +1,42 @@
 import SafariServices
 import SwiftUI
 
+enum MangaReaderAccessibilityActions {
+    static func chromeControls(isVisible: Bool) -> String {
+        isVisible ? "Hide reader controls" : "Show reader controls"
+    }
+
+    static let previousPage = "Previous page"
+    static let nextPage = "Next page"
+
+    static func pageLabel(_ pageNumber: Int) -> String {
+        "Manga page \(pageNumber)"
+    }
+}
+
+private struct MangaReaderAccessibilityModifier: ViewModifier {
+    let isChromeVisible: Bool
+    let onToggleChrome: () -> Void
+    let onPreviousPage: () -> Void
+    let onNextPage: () -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Manga reader")
+            .accessibilityHint("Use reader actions to move between pages or show the reader controls.")
+            .accessibilityAction(named: Text(MangaReaderAccessibilityActions.chromeControls(isVisible: isChromeVisible))) {
+                onToggleChrome()
+            }
+            .accessibilityAction(named: Text(MangaReaderAccessibilityActions.previousPage)) {
+                onPreviousPage()
+            }
+            .accessibilityAction(named: Text(MangaReaderAccessibilityActions.nextPage)) {
+                onNextPage()
+            }
+    }
+}
+
 public enum MangaReadingMode: String, CaseIterable, Identifiable {
     case webtoon = "Webtoon"
     case paged = "Paging"
@@ -78,6 +114,19 @@ public struct MangaReaderView: View {
 
     private var activePageUrls: [String] {
         currentChapter?.pageUrls ?? []
+    }
+
+    private var accessibilityActions: MangaReaderAccessibilityModifier {
+        MangaReaderAccessibilityModifier(
+            isChromeVisible: isChromeVisible,
+            onToggleChrome: {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isChromeVisible.toggle()
+                }
+            },
+            onPreviousPage: { backtrackPage() },
+            onNextPage: { advancePage() }
+        )
     }
 
     public var body: some View {
@@ -296,6 +345,7 @@ public struct MangaReaderView: View {
                                     .frame(width: geo.size.width * 0.30)
                             }
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .accessibilityHidden(true)
                         }
                     }
                 }
@@ -447,6 +497,9 @@ public struct MangaReaderView: View {
                                     step: 1
                                 )
                                 .tint(FableTheme.brandPrimary)
+                                .accessibilityLabel("Page")
+                                .accessibilityValue("Page \(currentPageIndex + 1) of \(activePageUrls.count)")
+                                .accessibilityHint("Adjust to move to a page.")
 
                                 Text("\(activePageUrls.count)")
                                     .fableFont(size: 12, weight: .heavy, design: .monospaced)
@@ -556,6 +609,7 @@ public struct MangaReaderView: View {
                 .transition(.opacity)
             }
         }
+        .modifier(accessibilityActions)
         .onAppear {
             self.sessionStartTime = Date()
         }
@@ -815,6 +869,9 @@ private struct MangaPageView: View {
             }
         }
         .clipped()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(MangaReaderAccessibilityActions.pageLabel(pageNumber))
+        .accessibilityAddTraits(.isImage)
     }
 
     private var placeholder: some View {

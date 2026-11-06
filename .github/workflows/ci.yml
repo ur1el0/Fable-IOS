@@ -84,7 +84,9 @@ jobs:
           -scheme FableApp
           -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5'
           -derivedDataPath build/DerivedData
-          CODE_SIGNING_ALLOWED=NO
+          CODE_SIGNING_ALLOWED=YES
+          CODE_SIGNING_REQUIRED=NO
+          CODE_SIGN_IDENTITY=-
           test
       - name: Verify Release build
         run: >-

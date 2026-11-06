@@ -1860,33 +1860,144 @@ def test_runtime_configuration_rejects_invalid_rate_limit_flag(monkeypatch):
         validate_runtime_configuration()
 
 
+@pytest.mark.parametrize("environment", ["staging", "production", "prod"])
+def test_runtime_configuration_requires_rate_limiting_outside_development(monkeypatch, environment):
+    from core.settings import validate_runtime_configuration
+
+    monkeypatch.setenv("FABLE_ENV", environment)
+    monkeypatch.setenv("FABLE_RATE_LIMIT_ENABLED", "false")
+    with pytest.raises(RuntimeError, match="cannot be disabled in staging or production"):
+        validate_runtime_configuration()
+
+    monkeypatch.setenv("FABLE_RATE_LIMIT_ENABLED", "true")
+    validate_runtime_configuration()
+
+
+def test_runtime_configuration_allows_disabling_rate_limit_in_development(monkeypatch):
+    from core.settings import validate_runtime_configuration
+
+    monkeypatch.setenv("FABLE_ENV", "development")
+    monkeypatch.setenv("FABLE_RATE_LIMIT_ENABLED", "false")
+    validate_runtime_configuration()
+
+
 def test_sqlite_online_backup_and_integrity_check(tmp_path):
     import sqlite3
-    from scripts.sqlite_backup import create_backup, verify_database
+    from scripts.sqlite_backup import create_backup, restore_backup, verify_backup
 
     source = tmp_path / "source.sqlite3"
-    backup = tmp_path / "backups" / "snapshot.sqlite3"
+    backup = tmp_path / "backups" / "snapshot.sqlite3.enc"
+    restored = tmp_path / "restored.sqlite3"
+    encryption_key = bytes(range(32))
     with sqlite3.connect(source) as connection:
         connection.execute("CREATE TABLE entries (value TEXT NOT NULL)")
         connection.execute("INSERT INTO entries (value) VALUES ('preserved')")
 
-    create_backup(source, backup)
-    verify_database(backup)
-
-    with sqlite3.connect(backup) as connection:
-        assert connection.execute("SELECT value FROM entries").fetchone()[0] == "preserved"
+    create_backup(source, backup, encryption_key)
+    verify_backup(backup, encryption_key)
+    assert not backup.read_bytes().startswith(b"SQLite format 3")
     assert backup.stat().st_mode & 0o777 == 0o600
+
+    restore_backup(backup, restored, encryption_key)
+    with sqlite3.connect(restored) as connection:
+        assert connection.execute("SELECT value FROM entries").fetchone()[0] == "preserved"
 
     existing_snapshot = backup.read_bytes()
     with pytest.raises(FileExistsError):
-        create_backup(source, backup)
+        create_backup(source, backup, encryption_key)
     assert backup.read_bytes() == existing_snapshot
-    assert list(backup.parent.glob(".snapshot.sqlite3.*.partial")) == []
+    assert list(backup.parent.glob(".snapshot.sqlite3.enc.*.partial")) == []
+    with pytest.raises(FileExistsError):
+        restore_backup(backup, restored, encryption_key)
+
+
+def test_encrypted_backup_rejects_wrong_keys_and_tampering(tmp_path):
+    import sqlite3
+    from scripts.sqlite_backup import create_backup, verify_backup
+
+    source = tmp_path / "source.sqlite3"
+    backup = tmp_path / "snapshot.sqlite3.enc"
+    encryption_key = bytes(range(32))
+    with sqlite3.connect(source) as connection:
+        connection.execute("CREATE TABLE entries (value TEXT NOT NULL)")
+        connection.execute("INSERT INTO entries (value) VALUES ('protected')")
+
+    create_backup(source, backup, encryption_key)
+    with pytest.raises(RuntimeError, match="authentication failed"):
+        verify_backup(backup, bytes(reversed(range(32))))
+
+    encrypted_bytes = bytearray(backup.read_bytes())
+    encrypted_bytes[-1] ^= 1
+    backup.write_bytes(encrypted_bytes)
+    with pytest.raises(RuntimeError, match="authentication failed"):
+        verify_backup(backup, encryption_key)
+
+
+def test_encrypted_backup_round_trips_across_chunks(tmp_path):
+    import sqlite3
+    from scripts.sqlite_backup import BACKUP_CHUNK_BYTES, create_backup, restore_backup
+
+    source = tmp_path / "source.sqlite3"
+    backup = tmp_path / "snapshot.sqlite3.enc"
+    restored = tmp_path / "restored.sqlite3"
+    payload = "x" * (BACKUP_CHUNK_BYTES + 257)
+    encryption_key = bytes(range(32))
+    with sqlite3.connect(source) as connection:
+        connection.execute("CREATE TABLE entries (value TEXT NOT NULL)")
+        connection.execute("INSERT INTO entries (value) VALUES (?)", (payload,))
+
+    create_backup(source, backup, encryption_key)
+    restore_backup(backup, restored, encryption_key)
+
+    with sqlite3.connect(restored) as connection:
+        restored_payload = connection.execute("SELECT value FROM entries").fetchone()[0]
+    assert restored_payload == payload
+
+
+def test_backup_encryption_key_is_required_and_must_decode_to_32_bytes(tmp_path, monkeypatch):
+    import base64
+    import sqlite3
+    from scripts.sqlite_backup import create_backup, load_backup_encryption_key
+
+    source = tmp_path / "source.sqlite3"
+    with sqlite3.connect(source) as connection:
+        connection.execute("CREATE TABLE entries (value TEXT NOT NULL)")
+
+    destination = tmp_path / "snapshot.sqlite3.enc"
+    monkeypatch.delenv("FABLE_BACKUP_ENCRYPTION_KEY_B64", raising=False)
+    with pytest.raises(RuntimeError, match="FABLE_BACKUP_ENCRYPTION_KEY_B64"):
+        create_backup(source, destination)
+    assert not destination.exists()
+
+    monkeypatch.setenv("FABLE_BACKUP_ENCRYPTION_KEY_B64", base64.b64encode(b"short").decode("ascii"))
+    with pytest.raises(RuntimeError, match="FABLE_BACKUP_ENCRYPTION_KEY_B64"):
+        load_backup_encryption_key()
+
+    monkeypatch.setenv("FABLE_BACKUP_ENCRYPTION_KEY_B64", base64.b64encode(bytes(range(32))).decode("ascii"))
+    assert load_backup_encryption_key() == bytes(range(32))
+
+
+def test_legacy_plaintext_backup_can_be_encrypted_and_verified(tmp_path):
+    import sqlite3
+    from scripts.sqlite_backup import encrypt_existing_backup, verify_backup
+
+    legacy_backup = tmp_path / "legacy.sqlite3"
+    encrypted_backup = tmp_path / "legacy.sqlite3.enc"
+    encryption_key = bytes(range(32))
+    with sqlite3.connect(legacy_backup) as connection:
+        connection.execute("CREATE TABLE entries (value TEXT NOT NULL)")
+        connection.execute("INSERT INTO entries (value) VALUES ('legacy')")
+
+    encrypt_existing_backup(legacy_backup, encrypted_backup, encryption_key)
+
+    assert legacy_backup.exists()
+    assert not encrypted_backup.read_bytes().startswith(b"SQLite format 3")
+    verify_backup(encrypted_backup, encryption_key)
 
 
 def test_scheduled_sqlite_backup_verifies_snapshot_and_prunes_only_expired_backups(tmp_path):
     import sqlite3
-    from scripts.sqlite_backup import create_scheduled_backup, verify_database
+    from scripts.sqlite_backup import create_scheduled_backup, verify_backup
 
     source = tmp_path / "source.sqlite3"
     backup_directory = tmp_path / "backups"
@@ -1897,7 +2008,7 @@ def test_scheduled_sqlite_backup_verifies_snapshot_and_prunes_only_expired_backu
 
     now = datetime(2026, 10, 29, tzinfo=timezone.utc)
     expired_backup = backup_directory / "fable-expired.sqlite3"
-    retained_backup = backup_directory / "fable-retained.sqlite3"
+    retained_backup = backup_directory / "fable-retained.sqlite3.enc"
     unrelated_file = backup_directory / "notes.sqlite3"
     for path in (expired_backup, retained_backup, unrelated_file):
         path.write_text("placeholder")
@@ -1905,14 +2016,25 @@ def test_scheduled_sqlite_backup_verifies_snapshot_and_prunes_only_expired_backu
     os.utime(retained_backup, (now.timestamp() - 2 * 86_400,) * 2)
     os.utime(unrelated_file, (now.timestamp() - 31 * 86_400,) * 2)
 
-    backup = create_scheduled_backup(source, backup_directory, retention_days=30, now=now)
+    encryption_key = bytes(range(32))
+    backup = create_scheduled_backup(
+        source,
+        backup_directory,
+        retention_days=30,
+        now=now,
+        encryption_key=encryption_key,
+    )
 
-    assert backup.name == "fable-20261029T000000.000000Z.sqlite3"
-    verify_database(backup)
+    assert backup.name == "fable-20261029T000000.000000Z.sqlite3.enc"
+    verify_backup(backup, encryption_key)
     assert not expired_backup.exists()
     assert retained_backup.exists()
     assert unrelated_file.exists()
-    with sqlite3.connect(backup) as connection:
+    restored = backup_directory / "restored.sqlite3"
+    from scripts.sqlite_backup import restore_backup
+
+    restore_backup(backup, restored, encryption_key)
+    with sqlite3.connect(restored) as connection:
         assert connection.execute("SELECT value FROM entries").fetchone()[0] == "preserved"
 
 

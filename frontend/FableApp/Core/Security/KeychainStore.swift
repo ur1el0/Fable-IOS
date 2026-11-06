@@ -27,7 +27,7 @@ public final class KeychainStore {
             kSecAttrService as String: service,
             kSecAttrAccount as String: tokenAccount,
             kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock
+            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         ]
 
         let status = SecItemAdd(query as CFDictionary, nil)
@@ -42,13 +42,20 @@ public final class KeychainStore {
             kSecAttrService as String: service,
             kSecAttrAccount as String: tokenAccount,
             kSecReturnData as String: true,
+            kSecReturnAttributes as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne
         ]
 
-        var dataTypeRef: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &dataTypeRef)
+        var result: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
 
-        guard status == errSecSuccess, let data = dataTypeRef as? Data else {
+        guard status == errSecSuccess,
+              let attributes = result as? [String: Any],
+              let data = attributes[kSecValueData as String] as? Data,
+              migrateToDeviceOnlyAccessibility(
+                account: tokenAccount,
+                currentAccessibility: attributes[kSecAttrAccessible as String]
+              ) else {
             return nil
         }
 
@@ -80,7 +87,7 @@ public final class KeychainStore {
             kSecAttrService as String: service,
             kSecAttrAccount as String: key,
             kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock
+            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         ]
 
         let status = SecItemAdd(query as CFDictionary, nil)
@@ -94,13 +101,20 @@ public final class KeychainStore {
             kSecAttrService as String: service,
             kSecAttrAccount as String: key,
             kSecReturnData as String: true,
+            kSecReturnAttributes as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne
         ]
 
-        var dataTypeRef: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &dataTypeRef)
+        var result: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
 
-        guard status == errSecSuccess, let data = dataTypeRef as? Data else {
+        guard status == errSecSuccess,
+              let attributes = result as? [String: Any],
+              let data = attributes[kSecValueData as String] as? Data,
+              migrateToDeviceOnlyAccessibility(
+                account: key,
+                currentAccessibility: attributes[kSecAttrAccessible as String]
+              ) else {
             return nil
         }
 
@@ -118,5 +132,21 @@ public final class KeychainStore {
 
         let status = SecItemDelete(query as CFDictionary)
         return status == errSecSuccess || status == errSecItemNotFound
+    }
+
+    private func migrateToDeviceOnlyAccessibility(account: String, currentAccessibility: Any?) -> Bool {
+        let requiredAccessibility = kSecAttrAccessibleWhenUnlockedThisDeviceOnly as String
+        guard (currentAccessibility as? String) != requiredAccessibility else { return true }
+
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account
+        ]
+        let attributes: [String: Any] = [
+            // App API requests run while unlocked; device-only items do not migrate through backups.
+            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+        ]
+        return SecItemUpdate(query as CFDictionary, attributes as CFDictionary) == errSecSuccess
     }
 }

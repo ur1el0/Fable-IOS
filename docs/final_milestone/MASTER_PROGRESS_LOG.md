@@ -675,3 +675,23 @@ This progress log tracks the transition of **Fable** from an editorial prototype
 - [x] Parse `FABLE_RATE_LIMIT_ENABLED` strictly, default it to enabled, and reject invalid values instead of silently disabling the API limiter.
 - [x] Updated local backend launch instructions to set `FABLE_ENV=development`.
 - [x] Backend suite: **87 passed** locally; one Starlette/AnyIO deprecation warning under Python 3.14. Hosted CI is pending the pull request.
+
+## Audit Finding Follow-up (2026-11-05)
+
+- [x] Reject disabled general API rate limiting in staging and production while preserving the development/test override; add configuration boundary tests.
+- [x] Pin `cryptography` and add versioned, chunked AES-GCM backup artifacts with strict 256-bit key validation, authenticated verification, and non-overwriting restore.
+- [x] Add a safe migration command for legacy plaintext snapshots; scheduled retention now prunes expired plaintext and encrypted snapshots.
+- [x] Pass the backup key only to the isolated Compose backup service and document separate key custody, key retention, restore, and off-host storage requirements.
+- [x] Backend suite: **95 passed**; backup Compose configuration, Python compilation, and `git diff --check` passed.
+- [x] Store access tokens and session data with `WhenUnlockedThisDeviceOnly`; migrate existing Keychain items in place and add XTests for new and legacy records.
+- [x] Label manga page images and expose named accessibility actions for showing/hiding reader controls and moving between pages; add XCTest coverage for action and page labels.
+- [ ] Off-host destination setup and an isolated restore drill remain deployment operator checks.
+- [ ] Hosted iOS tests and hands-on VoiceOver/Switch Control verification remain pending; this workspace has no Xcode toolchain.
+
+## PR #30 iOS Compile Follow-up (2026-11-06)
+
+- [x] Hosted backend, Docker, and GitGuardian checks passed.
+- [x] Extracted manga reader accessibility actions into a dedicated view modifier after Xcode 16.4 could not type-check the expanded reader body.
+- [x] The reader accessibility XCTest passed after the compile fix; the simulator run then exposed Keychain `errSecMissingEntitlement` failures because CI disabled code signing.
+- [x] Enabled ad hoc signing for the simulator test build so Keychain tests receive app entitlements; the separate Release build remains unsigned.
+- [ ] Hosted macOS XCTest and Release build rerun pending the CI configuration fix push.

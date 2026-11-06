@@ -96,8 +96,8 @@ The final capstone report requires clear, uncompressed retina screenshots of the
 Complete these checks against the actual release environment before publishing a production build:
 
 1. Configure the iOS Release build with the production HTTPS API URL. Build and install it on a physical iPhone; verify sign-in, live catalog refresh, remote covers, readable provider chapters, and shelf synchronization. Provider-only chapters that do not expose readable text must open their official source in the in-app browser.
-2. Configure the Compose backup destination as durable off-host storage with encryption at rest and restricted access. The backup script creates SQLite snapshots but does not encrypt them itself.
-3. Restore a recent snapshot into an isolated database, run the SQLite integrity check, and verify representative accounts, stories, chapters, and shelf state before treating backups as recoverable.
+2. Configure the Compose backup destination as durable off-host storage with restricted access. Load `FABLE_BACKUP_ENCRYPTION_KEY_B64` from a secret manager; the backup utility now writes authenticated, encrypted SQLite snapshots. Migrate any existing plaintext snapshots with the `encrypt` command, then verify the encrypted copy before removing the plaintext original. Keep the key separate from the backup destination and retain it for the full backup lifetime. Encryption at rest on the destination remains recommended as a separate layer.
+3. Verify a recent encrypted snapshot, restore it into an isolated database with the matching key, and verify representative accounts, stories, chapters, and shelf state before treating backups as recoverable.
 4. Enable GitHub Dependabot security alerts in the repository's **Settings → Code security and analysis**. This repository does not configure automatic version update PRs; security alerts and security update PRs are managed separately in GitHub settings.
 5. Confirm the tagged release workflow has passed backend, Docker/Compose, iOS simulator, and Release build checks. The workflow publishes an image; deployment and the physical-device checks above remain operator tasks.
 

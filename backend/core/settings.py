@@ -33,8 +33,12 @@ def load_rate_limit_enabled() -> bool:
 
 
 def validate_runtime_configuration() -> None:
-    load_environment()
-    load_rate_limit_enabled()
+    environment = load_environment()
+    rate_limit_enabled = load_rate_limit_enabled()
+    if environment not in DEVELOPMENT_ENVIRONMENTS and not rate_limit_enabled:
+        raise RuntimeError(
+            "FABLE_RATE_LIMIT_ENABLED cannot be disabled in staging or production."
+        )
 
 
 def load_cors_origins() -> list[str]:
