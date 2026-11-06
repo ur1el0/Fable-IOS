@@ -41,6 +41,7 @@ jobs:
           cp .env.example .env
           trap 'rm -f .env' EXIT
           docker compose config --quiet
+          docker compose config --format json | python3 -c 'import json, sys; service = json.load(sys.stdin)["services"]["fable-backend"]; assert service["read_only"] is True; assert service["cap_drop"] == ["ALL"]; assert "no-new-privileges:true" in service["security_opt"]; assert service["pids_limit"] == 128; assert any(entry.startswith("/tmp:") and "noexec" in entry and "nosuid" in entry for entry in service["tmpfs"])'
 
   ios-verification:
     runs-on: macos-15
