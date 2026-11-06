@@ -692,4 +692,6 @@ This progress log tracks the transition of **Fable** from an editorial prototype
 
 - [x] Hosted backend, Docker, and GitGuardian checks passed.
 - [x] Extracted manga reader accessibility actions into a dedicated view modifier after Xcode 16.4 could not type-check the expanded reader body.
-- [ ] Hosted macOS XCTest and Release build rerun pending the fix push.
+- [x] The reader accessibility XCTest passed after the compile fix; the simulator run then exposed Keychain `errSecMissingEntitlement` failures because CI disabled code signing.
+- [x] Enabled ad hoc signing for the simulator test build so Keychain tests receive app entitlements; the separate Release build remains unsigned.
+- [ ] Hosted macOS XCTest and Release build rerun pending the CI configuration fix push.
