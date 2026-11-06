@@ -33,13 +33,17 @@ public final class AuthViewModel: ObservableObject {
     @Published public var isLoading: Bool = false
     @Published public var errorMessage: String? = nil
 
-    private let keychain: KeychainStore
+    private let keychain: KeychainStoring
     private let apiService: StoryAPIServiceProtocol
     private let sessionKeychainKey = "userSession"
     private let sessionDefaultsKey = "fable_persisted_session_v1"
 
-    public init(keychain: KeychainStore? = nil, apiService: StoryAPIServiceProtocol = StoryAPIService()) {
-        self.keychain = keychain ?? .shared
+    public convenience init(keychain: KeychainStore? = nil, apiService: StoryAPIServiceProtocol = StoryAPIService()) {
+        self.init(keychainStore: keychain ?? .shared, apiService: apiService)
+    }
+
+    init(keychainStore: KeychainStoring, apiService: StoryAPIServiceProtocol = StoryAPIService()) {
+        self.keychain = keychainStore
         self.apiService = apiService
     }
 
@@ -230,7 +234,7 @@ public final class AuthViewModel: ObservableObject {
     }
 
     @discardableResult
-    private func persistSession(_ session: UserSession, accessToken: String?) -> Bool {
+    func persistSession(_ session: UserSession, accessToken: String?) -> Bool {
         do {
             let data = try JSONEncoder().encode(session)
             if session.isGuest {
@@ -247,17 +251,21 @@ public final class AuthViewModel: ObservableObject {
                 return true
             }
 
-            guard keychain.saveData(key: sessionKeychainKey, data: data) else {
-                errorMessage = "Failed to store the local session securely."
+            guard let accessToken,
+                  !accessToken.isEmpty,
+                  !accessToken.hasPrefix("fable_token_"),
+                  !accessToken.hasPrefix("token_") else {
+                failSecurePersistence(message: "A valid access token is required to sign in securely.")
                 return false
             }
-            if let accessToken {
-                guard keychain.saveAccessToken(accessToken) else {
-                    keychain.deleteData(key: sessionKeychainKey)
-                    errorMessage = "Failed to store the access token securely."
-                    return false
-                }
+
+            guard keychain.saveData(key: sessionKeychainKey, data: data),
+                  keychain.saveAccessToken(accessToken) else {
+                failSecurePersistence(message: "Failed to store the local session securely.")
+                return false
             }
+
+            UserDefaults.standard.removeObject(forKey: sessionDefaultsKey)
             currentUser = session
             authState = .signedIn(session)
             errorMessage = nil
@@ -266,6 +274,18 @@ public final class AuthViewModel: ObservableObject {
         } catch {
             errorMessage = "Failed to store the local session securely."
             return false
+        }
+    }
+
+    private func failSecurePersistence(message: String) {
+        keychain.deleteData(key: sessionKeychainKey)
+        keychain.deleteAccessToken()
+        UserDefaults.standard.removeObject(forKey: sessionDefaultsKey)
+        currentUser = nil
+        authState = .signedOut
+        errorMessage = message
+        if keychain === KeychainStore.shared {
+            AuthManager.shared.clearLocalSession()
         }
     }
 

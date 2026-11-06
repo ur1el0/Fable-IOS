@@ -8,6 +8,7 @@ public final class AuthManager: ObservableObject {
     private let sessionStorageKey = "fable_persisted_session_v1"
     private let pendingProfileKeyPrefix = "fable_pending_profile_"
     private let apiService: StoryAPIServiceProtocol
+    private let keychain: KeychainStoring
 
     @Published public private(set) var currentSession: UserSession?
     @Published public private(set) var isAuthenticated: Bool = false
@@ -15,14 +16,22 @@ public final class AuthManager: ObservableObject {
     @Published public var authErrorMessage: String?
     @Published public var isLoading: Bool = false
 
-    public init(apiService: StoryAPIServiceProtocol = StoryAPIService()) {
+    public convenience init(apiService: StoryAPIServiceProtocol = StoryAPIService()) {
+        self.init(apiService: apiService, keychainStore: KeychainStore.shared)
+    }
+
+    init(
+        apiService: StoryAPIServiceProtocol = StoryAPIService(),
+        keychainStore: KeychainStoring
+    ) {
         self.apiService = apiService
+        self.keychain = keychainStore
         restoreSession()
     }
 
     // MARK: - Session Restoration
     private func restoreSession() {
-        if let sessionData = KeychainStore.shared.readData(key: "userSession"),
+        if let sessionData = keychain.readData(key: "userSession"),
            let session = try? JSONDecoder().decode(UserSession.self, from: sessionData) {
             restore(session)
             return
@@ -34,13 +43,13 @@ public final class AuthManager: ObservableObject {
         do {
             let session = try JSONDecoder().decode(UserSession.self, from: data)
             guard session.isGuest || hasServerAccessToken else {
-                KeychainStore.shared.deleteData(key: "userSession")
-                KeychainStore.shared.deleteAccessToken()
+                keychain.deleteData(key: "userSession")
+                keychain.deleteAccessToken()
                 UserDefaults.standard.removeObject(forKey: sessionStorageKey)
                 return
             }
             if let encoded = try? JSONEncoder().encode(session) {
-                if KeychainStore.shared.saveData(key: "userSession", data: encoded) {
+                if keychain.saveData(key: "userSession", data: encoded) {
                     UserDefaults.standard.removeObject(forKey: sessionStorageKey)
                 } else if !session.isGuest {
                     UserDefaults.standard.removeObject(forKey: sessionStorageKey)
@@ -54,18 +63,18 @@ public final class AuthManager: ObservableObject {
     }
 
     private var hasServerAccessToken: Bool {
-        guard let token = KeychainStore.shared.readAccessToken() else { return false }
+        guard let token = keychain.readAccessToken() else { return false }
         return !token.hasPrefix("fable_token_") && !token.hasPrefix("token_")
     }
 
     private func restore(_ session: UserSession) {
         guard session.isGuest || hasServerAccessToken else {
-            KeychainStore.shared.deleteData(key: "userSession")
-            KeychainStore.shared.deleteAccessToken()
+            keychain.deleteData(key: "userSession")
+            keychain.deleteAccessToken()
             return
         }
         if session.isGuest {
-            KeychainStore.shared.deleteAccessToken()
+            keychain.deleteAccessToken()
         }
         currentSession = session
         isAuthenticated = true
@@ -85,37 +94,60 @@ public final class AuthManager: ObservableObject {
     }
 
     @discardableResult
-    private func persistSession(_ session: UserSession, accessToken: String?) -> Bool {
+    func persistSession(_ session: UserSession, accessToken: String?) -> Bool {
         do {
             let data = try JSONEncoder().encode(session)
             if session.isGuest {
                 // Guest metadata has no credentials and remains usable without Keychain access.
-                if KeychainStore.shared.saveData(key: "userSession", data: data) {
+                if keychain.saveData(key: "userSession", data: data) {
                     UserDefaults.standard.removeObject(forKey: sessionStorageKey)
                 } else {
                     UserDefaults.standard.set(data, forKey: sessionStorageKey)
                 }
-                KeychainStore.shared.deleteAccessToken()
+                keychain.deleteAccessToken()
                 acceptSession(session)
                 return true
             }
 
-            if KeychainStore.shared.saveData(key: "userSession", data: data) {
-                UserDefaults.standard.removeObject(forKey: sessionStorageKey)
-            } else {
-                UserDefaults.standard.set(data, forKey: sessionStorageKey)
+            guard let token = accessToken ?? keychain.readAccessToken(),
+                  !token.isEmpty,
+                  !token.hasPrefix("fable_token_"),
+                  !token.hasPrefix("token_") else {
+                failSecurePersistence(message: "A valid access token is required to sign in securely.")
+                return false
             }
-            if let accessToken {
-                if !KeychainStore.shared.saveAccessToken(accessToken) {
-                    authErrorMessage = "Failed to secure the access token."
-                }
+
+            guard keychain.saveData(key: "userSession", data: data),
+                  keychain.saveAccessToken(token) else {
+                failSecurePersistence(message: "Failed to secure the local user session.")
+                return false
             }
+
+            UserDefaults.standard.removeObject(forKey: sessionStorageKey)
             acceptSession(session)
             return true
         } catch {
             authErrorMessage = "Failed to secure local user session."
             return false
         }
+    }
+
+    private func failSecurePersistence(message: String) {
+        clearLocalSession()
+        authErrorMessage = message
+        if self === Self.shared {
+            AuthViewModel.shared.adoptSignedOutState()
+        }
+    }
+
+    func clearLocalSession() {
+        keychain.deleteData(key: "userSession")
+        keychain.deleteAccessToken()
+        UserDefaults.standard.removeObject(forKey: sessionStorageKey)
+        currentSession = nil
+        isAuthenticated = false
+        isGuestMode = false
+        authErrorMessage = nil
     }
 
     func acceptSession(_ session: UserSession) {
@@ -211,7 +243,7 @@ public final class AuthManager: ObservableObject {
         if let data = try? JSONEncoder().encode(request) {
             UserDefaults.standard.set(data, forKey: pendingKey)
         }
-        guard let token = KeychainStore.shared.readAccessToken() else {
+        guard let token = keychain.readAccessToken() else {
             authErrorMessage = "Profile saved locally. It will sync after the next sign in."
             return false
         }
@@ -233,7 +265,7 @@ public final class AuthManager: ObservableObject {
 
     public func syncPendingProfile() async {
         guard let session = currentSession, !session.isGuest,
-              let token = KeychainStore.shared.readAccessToken() else { return }
+              let token = keychain.readAccessToken() else { return }
         let pendingKey = pendingProfileKeyPrefix + session.id.uuidString
         guard let data = UserDefaults.standard.data(forKey: pendingKey),
               let request = try? JSONDecoder().decode(ProfileUpdateRequest.self, from: data) else { return }
@@ -249,14 +281,14 @@ public final class AuthManager: ObservableObject {
 
     public func signOut() {
         if let session = currentSession, !session.isGuest,
-           let token = KeychainStore.shared.readAccessToken() {
+           let token = keychain.readAccessToken() {
             Task { try? await apiService.logout(token: token) }
         }
         if let session = currentSession {
             UserDefaults.standard.removeObject(forKey: pendingProfileKeyPrefix + session.id.uuidString)
         }
-        KeychainStore.shared.deleteData(key: "userSession")
-        KeychainStore.shared.deleteAccessToken()
+        keychain.deleteData(key: "userSession")
+        keychain.deleteAccessToken()
         UserDefaults.standard.removeObject(forKey: sessionStorageKey)
         self.currentSession = nil
         self.isAuthenticated = false
