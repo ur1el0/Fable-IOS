@@ -4,7 +4,16 @@ import Security
 /// Native iOS Keychain Store
 /// Manages hardware-backed, encrypted credential and session storage
 /// via Apple's Security framework (SecItemAdd, SecItemCopyMatching, SecItemDelete).
-public final class KeychainStore {
+public protocol KeychainStoring: AnyObject {
+    func saveAccessToken(_ token: String) -> Bool
+    func readAccessToken() -> String?
+    func deleteAccessToken() -> Bool
+    func saveData(key: String, data: Data) -> Bool
+    func readData(key: String) -> Data?
+    func deleteData(key: String) -> Bool
+}
+
+public final class KeychainStore: KeychainStoring {
     public static let shared = KeychainStore()
 
     private let service = "mseuf.edu.ph.fable.auth"
