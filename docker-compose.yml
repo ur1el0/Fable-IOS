@@ -45,6 +45,7 @@ services:
       FABLE_DB_PATH: /app/data/fable.sqlite3
       FABLE_BACKUP_INTERVAL_SECONDS: ${FABLE_BACKUP_INTERVAL_SECONDS:-86400}
       FABLE_BACKUP_RETENTION_DAYS: ${FABLE_BACKUP_RETENTION_DAYS:-30}
+      FABLE_BACKUP_HEALTH_MAX_AGE_SECONDS: ${FABLE_BACKUP_HEALTH_MAX_AGE_SECONDS:-93600}
       FABLE_BACKUP_ENCRYPTION_KEY_B64: ${FABLE_BACKUP_ENCRYPTION_KEY_B64:-}
     command: ["python", "/app/scripts/sqlite_backup.py", "schedule", "/app/data/fable.sqlite3", "/app/backups"]
     network_mode: none
@@ -53,5 +54,9 @@ services:
     security_opt:
       - no-new-privileges:true
     healthcheck:
-      disable: true
+      test: ["CMD", "python", "/app/scripts/check_backup_freshness.py", "/app/backups"]
+      interval: 5m
+      timeout: 10s
+      retries: 2
+      start_period: 15m
     restart: unless-stopped

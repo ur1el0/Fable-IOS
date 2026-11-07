@@ -1,0 +1,18 @@
+[Unit]
+Description=Check freshness of encrypted Fable SQLite backups
+OnFailure=fable-backup-alert@freshness.service
+
+[Service]
+Type=oneshot
+User=1000
+Group=1000
+WorkingDirectory=/opt/fable
+Environment=HOME=/tmp
+EnvironmentFile=/etc/fable/backup-upload.env
+ExecStart=/usr/bin/python3 /opt/fable/scripts/check_backup_freshness.py ${FABLE_BACKUP_HOST_DIR}
+NoNewPrivileges=true
+PrivateDevices=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadOnlyPaths=/srv/fable/backups

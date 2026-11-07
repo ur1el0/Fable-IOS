@@ -30,6 +30,7 @@ COPY backend/models/ ./models/
 COPY backend/schemas/ ./schemas/
 COPY backend/services/ ./services/
 COPY --chown=fableuser:fable scripts/sqlite_backup.py /app/scripts/sqlite_backup.py
+COPY --chown=fableuser:fable scripts/check_backup_freshness.py /app/scripts/check_backup_freshness.py
 
 USER fableuser
 

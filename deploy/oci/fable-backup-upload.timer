@@ -1,0 +1,11 @@
+[Unit]
+Description=Periodically upload encrypted Fable backups to OCI Object Storage
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+RandomizedDelaySec=10m
+Unit=fable-backup-upload.service
+
+[Install]
+WantedBy=timers.target
