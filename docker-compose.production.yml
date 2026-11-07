@@ -1,0 +1,44 @@
+services:
+  fable-backend:
+    environment:
+      FORWARDED_ALLOW_IPS: ${FABLE_PROXY_CADDY_IP:-172.29.241.2}
+    networks:
+      fable-edge:
+        ipv4_address: ${FABLE_PROXY_BACKEND_IP:-172.29.241.3}
+
+  caddy:
+    image: caddy:2.11.9-alpine
+    restart: unless-stopped
+    depends_on:
+      fable-backend:
+        condition: service_healthy
+    environment:
+      FABLE_DOMAIN: ${FABLE_DOMAIN:?Set FABLE_DOMAIN to the public API hostname}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/oci/Caddyfile:/etc/caddy/Caddyfile:ro
+      - fable-caddy-data:/data
+      - fable-caddy-config:/config
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    networks:
+      fable-edge:
+        ipv4_address: ${FABLE_PROXY_CADDY_IP:-172.29.241.2}
+
+networks:
+  fable-edge:
+    ipam:
+      config:
+        - subnet: ${FABLE_PROXY_NETWORK_CIDR:-172.29.241.0/29}
+
+volumes:
+  fable-caddy-data:
+  fable-caddy-config:

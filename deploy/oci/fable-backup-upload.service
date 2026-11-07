@@ -1,0 +1,21 @@
+[Unit]
+Description=Upload encrypted Fable SQLite backups to OCI Object Storage
+Wants=network-online.target
+After=network-online.target
+OnFailure=fable-backup-alert@upload.service
+
+[Service]
+Type=oneshot
+User=1000
+Group=1000
+WorkingDirectory=/opt/fable
+Environment=HOME=/tmp
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+EnvironmentFile=/etc/fable/backup-upload.env
+ExecStart=/opt/fable/scripts/upload_encrypted_backups_to_oci.sh
+NoNewPrivileges=true
+PrivateDevices=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadOnlyPaths=/srv/fable/backups

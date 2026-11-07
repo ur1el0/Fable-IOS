@@ -1,0 +1,4 @@
+{$FABLE_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy fable-backend:8000
+}

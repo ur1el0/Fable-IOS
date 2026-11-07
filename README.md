@@ -165,6 +165,11 @@ Fable is architected around **Feature-Driven Vertical Slices** combined with **M
 
 ---
 
+### Deployment and Operations
+
+- [Backend operations, backups, and restore procedures](docs/OPERATIONS.md)
+- [OCI production deployment, HTTPS, Object Storage backups, and monitoring](docs/OCI_DEPLOYMENT.md)
+
 ## 4. Project Directory Topology
 
 ```text
