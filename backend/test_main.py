@@ -22,10 +22,14 @@ from core.rate_limit import SlidingWindowRateLimiter
 
 @pytest.fixture(autouse=True)
 def setup_teardown_db():
+    from services import gutenberg
+
+    gutenberg._GUTENBERG_CATALOG_CACHE.clear()
     if os.path.exists("test_fable.sqlite3"):
         os.remove("test_fable.sqlite3")
     init_db()
     yield
+    gutenberg._GUTENBERG_CATALOG_CACHE.clear()
     if os.path.exists("test_fable.sqlite3"):
         os.remove("test_fable.sqlite3")
 
@@ -674,6 +678,111 @@ def test_gutenberg_catalog_failure_does_not_return_local_catalog(monkeypatch):
     response = client.get("/api/v1/public/gutenberg")
     assert response.status_code == 502
     assert response.json()["detail"] == "Gutenberg catalog service is unavailable"
+
+
+def test_gutenberg_catalog_rejects_malformed_provider_payload(monkeypatch):
+    import httpx
+
+    async def malformed_response(self, url, params=None, headers=None):
+        return httpx.Response(200, json=[])
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", malformed_response)
+    response = client.get("/api/v1/public/gutenberg")
+
+    assert response.status_code == 502
+    assert response.json()["detail"] == "Gutenberg catalog service returned invalid data"
+
+
+def test_gutenberg_catalog_serves_stale_metadata_on_provider_failure(monkeypatch):
+    import httpx
+    from services import gutenberg
+
+    now = [1_000.0]
+    online = [True]
+    calls = [0]
+    monkeypatch.setattr(gutenberg.time, "monotonic", lambda: now[0])
+
+    async def mock_get(self, url, params=None, headers=None):
+        calls[0] += 1
+        if not online[0]:
+            raise httpx.ConnectError("private transport detail")
+        return httpx.Response(200, json={
+            "results": [{
+                "id": 1342,
+                "title": "Pride and Prejudice",
+                "authors": [{"name": "Austen, Jane"}],
+                "subjects": ["Fiction"],
+                "summaries": ["A cached provider summary."],
+                "download_count": 5000,
+                "formats": {
+                    "image/jpeg": "https://www.gutenberg.org/cover1342.jpg",
+                    "text/plain; charset=utf-8": "https://www.gutenberg.org/ebooks/1342.txt.utf-8",
+                },
+            }]
+        })
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", mock_get)
+    url = "/api/v1/public/gutenberg?search=Alice"
+
+    first = client.get(url)
+    fresh = client.get("/api/v1/public/gutenberg?search=alice")
+    assert first.status_code == 200
+    assert fresh.status_code == 200
+    assert calls[0] == 1
+
+    now[0] += gutenberg.GUTENBERG_CATALOG_CACHE_TTL_SECONDS + 1
+    online[0] = False
+    stale = client.get(url)
+    assert stale.status_code == 200
+    assert stale.json()[0]["title"] == "Pride and Prejudice"
+    assert stale.json()[0]["content"] == ""
+    assert stale.json()[0].get("chapters") is None
+    assert calls[0] == 2
+
+    now[0] += gutenberg.GUTENBERG_CATALOG_CACHE_STALE_TTL_SECONDS + 1
+    expired = client.get(url)
+    assert expired.status_code == 502
+    assert expired.json()["detail"] == "Gutenberg catalog service is unavailable"
+    assert calls[0] == 3
+
+
+def test_gutenberg_catalog_cache_enforces_entry_and_byte_bounds(monkeypatch):
+    from services import gutenberg
+
+    now = [2_000.0]
+    monkeypatch.setattr(gutenberg.time, "monotonic", lambda: now[0])
+    monkeypatch.setattr(gutenberg, "GUTENBERG_CATALOG_CACHE_MAX_ENTRIES", 1)
+    monkeypatch.setattr(gutenberg, "GUTENBERG_CATALOG_CACHE_MAX_BYTES", 10_000)
+
+    def story(book_id, title):
+        return gutenberg._story_from_gutenberg_metadata({
+            "id": book_id,
+            "title": title,
+            "authors": [{"name": "Author, Test"}],
+            "subjects": ["Fiction"],
+            "summaries": ["A short summary."],
+            "download_count": 1,
+            "formats": {"image/jpeg": "https://example.test/cover.jpg"},
+        })
+
+    first_key = ("fiction", "first")
+    second_key = ("fiction", "second")
+    first = story(101, "First Book")
+    second = story(202, "Second Book")
+    assert first is not None
+    assert second is not None
+
+    gutenberg._cache_gutenberg_catalog(first_key, [first])
+    gutenberg._cache_gutenberg_catalog(second_key, [second])
+    assert gutenberg._cached_gutenberg_catalog(first_key) is None
+    assert gutenberg._cached_gutenberg_catalog(second_key)[0].title == "Second Book"
+    assert len(gutenberg._GUTENBERG_CATALOG_CACHE) == 1
+
+    gutenberg._GUTENBERG_CATALOG_CACHE.clear()
+    monkeypatch.setattr(gutenberg, "GUTENBERG_CATALOG_CACHE_MAX_BYTES", 1)
+    gutenberg._cache_gutenberg_catalog(first_key, [first])
+    assert gutenberg._cached_gutenberg_catalog(first_key) is None
+    assert len(gutenberg._GUTENBERG_CATALOG_CACHE) == 0
 
 
 def test_password_hashes_upgrade_legacy_credentials_on_login():
@@ -2262,7 +2371,6 @@ of some one or other of their daughters.
         return httpx.Response(404)
 
     monkeypatch.setattr(httpx.AsyncClient, "get", mock_get)
-    patch_async_client_stream_with_get(monkeypatch)
     response = client.get("/api/v1/public/gutenberg?topic=fiction")
     assert response.status_code == 200
     stories = response.json()
@@ -2270,10 +2378,16 @@ of some one or other of their daughters.
     story = stories[0]
     assert story["title"] == "Pride and Prejudice"
     assert "automatically generated summary" not in story["synopsis"].lower()
-    assert "It is a truth universally acknowledged" in story["synopsis"]
-    assert "It is a truth universally acknowledged" in story["content"]
-    assert story["totalChapters"] == 1
-    assert len(story["chapters"]) == 1
+    assert story["synopsis"] == ""
+    assert story["content"] == ""
+    assert story.get("chapters") is None
+    assert story["totalChapters"] == 0
+
+    patch_async_client_stream_with_get(monkeypatch)
+    chapter_response = client.get("/api/v1/public/gutenberg/1342/chapters")
+    assert chapter_response.status_code == 200
+    assert len(chapter_response.json()) == 1
+    assert "It is a truth universally acknowledged" in chapter_response.json()[0]["content"]
 
 
 def test_manga_search_excludes_titles_without_direct_panels(monkeypatch):

@@ -19,7 +19,14 @@ GUTENBERG_CHAPTER_CACHE_TTL_SECONDS = 600.0
 GUTENBERG_CHAPTER_CACHE_MAX_ENTRIES = 32
 GUTENBERG_CHAPTER_CACHE_MAX_BYTES = 16 * 1024 * 1024
 GUTENBERG_MAX_CONCURRENT_FETCHES = 3
+GUTENBERG_CATALOG_CACHE_TTL_SECONDS = 600.0
+GUTENBERG_CATALOG_CACHE_STALE_TTL_SECONDS = 86_400.0
+GUTENBERG_CATALOG_CACHE_MAX_ENTRIES = 32
+GUTENBERG_CATALOG_CACHE_MAX_BYTES = 2 * 1024 * 1024
 _GUTENBERG_CHAPTER_CACHE: OrderedDict[int, tuple[float, list[ChapterDTO]]] = OrderedDict()
+_GUTENBERG_CATALOG_CACHE: OrderedDict[
+    tuple[str, str], tuple[float, list[StoryDTO], int]
+] = OrderedDict()
 _GUTENBERG_FETCH_SEMAPHORE = asyncio.Semaphore(GUTENBERG_MAX_CONCURRENT_FETCHES)
 
 
@@ -59,6 +66,78 @@ def _cache_gutenberg_chapters(gutenberg_id: int, chapters: list[ChapterDTO]) -> 
         current_bytes -= sum(len(chapter.content.encode("utf-8")) for chapter in evicted_chapters)
 
     _GUTENBERG_CHAPTER_CACHE[gutenberg_id] = (now, chapters)
+
+
+def _gutenberg_catalog_cache_key(
+    topic: Optional[str],
+    search: Optional[str],
+) -> tuple[str, str]:
+    normalized_topic = (topic or "").strip().lower()
+    normalized_search = (search or "").strip().casefold()
+    if normalized_topic == "all":
+        normalized_topic = ""
+    return normalized_topic, normalized_search
+
+
+def _cached_gutenberg_catalog(
+    key: tuple[str, str],
+    *,
+    allow_stale: bool = False,
+) -> Optional[list[StoryDTO]]:
+    cached = _GUTENBERG_CATALOG_CACHE.get(key)
+    if cached is None:
+        return None
+
+    cached_at, stories, _ = cached
+    age = time.monotonic() - cached_at
+    if age >= GUTENBERG_CATALOG_CACHE_STALE_TTL_SECONDS:
+        del _GUTENBERG_CATALOG_CACHE[key]
+        return None
+    if age >= GUTENBERG_CATALOG_CACHE_TTL_SECONDS and not allow_stale:
+        return None
+
+    _GUTENBERG_CATALOG_CACHE.move_to_end(key)
+    return [story.model_copy(deep=True) for story in stories]
+
+
+def _cache_gutenberg_catalog(
+    key: tuple[str, str],
+    stories: list[StoryDTO],
+) -> None:
+    if not stories:
+        return
+
+    cached_stories = [
+        story.model_copy(
+            update={
+                "synopsis": story.synopsis[:320],
+                "content": "",
+                "chapters": None,
+            }
+        )
+        for story in stories
+    ]
+    payload_bytes = sum(
+        len(story.model_dump_json().encode("utf-8"))
+        for story in cached_stories
+    )
+    if payload_bytes > GUTENBERG_CATALOG_CACHE_MAX_BYTES:
+        return
+
+    now = time.monotonic()
+    for cached_key, (cached_at, _, _) in list(_GUTENBERG_CATALOG_CACHE.items()):
+        if now - cached_at >= GUTENBERG_CATALOG_CACHE_STALE_TTL_SECONDS:
+            del _GUTENBERG_CATALOG_CACHE[cached_key]
+
+    _GUTENBERG_CATALOG_CACHE.pop(key, None)
+    current_bytes = sum(size for _, _, size in _GUTENBERG_CATALOG_CACHE.values())
+    while _GUTENBERG_CATALOG_CACHE and (
+        len(_GUTENBERG_CATALOG_CACHE) >= GUTENBERG_CATALOG_CACHE_MAX_ENTRIES
+        or current_bytes + payload_bytes > GUTENBERG_CATALOG_CACHE_MAX_BYTES
+    ):
+        _, (_, _, evicted_bytes) = _GUTENBERG_CATALOG_CACHE.popitem(last=False)
+        current_bytes -= evicted_bytes
+    _GUTENBERG_CATALOG_CACHE[key] = (now, cached_stories, payload_bytes)
 
 
 def _has_plain_text_format(book: dict) -> bool:
@@ -417,6 +496,12 @@ async def get_gutenberg_stories(
     topic: Optional[str] = None,
     search: Optional[str] = None,
 ) -> list[StoryDTO]:
+    cache_key = _gutenberg_catalog_cache_key(topic, search)
+    cached_stories = _cached_gutenberg_catalog(cache_key)
+    if cached_stories is not None:
+        return cached_stories
+
+    stale_stories = _cached_gutenberg_catalog(cache_key, allow_stale=True)
     params = {}
     if topic and topic.lower() != "all":
         params["topic"] = topic.lower()
@@ -431,28 +516,34 @@ async def get_gutenberg_stories(
                 headers=PROVIDER_HEADERS,
             )
     except httpx.HTTPError as error:
+        if stale_stories is not None:
+            return stale_stories
         raise HTTPException(status_code=502, detail="Gutenberg catalog service is unavailable") from error
     if response.status_code != 200:
+        if stale_stories is not None:
+            return stale_stories
         raise HTTPException(status_code=502, detail="Gutenberg catalog service returned an error")
 
-    raw_books = response.json().get("results", [])[:12]
+    try:
+        payload = response.json()
+    except ValueError as error:
+        if stale_stories is not None:
+            return stale_stories
+        raise HTTPException(status_code=502, detail="Gutenberg catalog service returned invalid data") from error
+
+    if not isinstance(payload, dict) or not isinstance(payload.get("results", []), list):
+        if stale_stories is not None:
+            return stale_stories
+        raise HTTPException(status_code=502, detail="Gutenberg catalog service returned invalid data")
+
+    raw_books = [book for book in payload.get("results", [])[:12] if isinstance(book, dict)]
     enforce_live_text = any(_has_plain_text_format(book) for book in raw_books)
-
-    async def _hydrate_book(book: dict) -> Optional[StoryDTO]:
-        book_id = book.get("id")
-        if not book_id:
-            return None
-        if enforce_live_text:
-            if not _has_plain_text_format(book):
-                return None
-            try:
-                chapters = await get_gutenberg_chapters(int(book_id))
-            except Exception:
-                return None
-            if not chapters:
-                return None
-            return _story_from_gutenberg_metadata(book, fallback_genre=topic, chapters=chapters)
-        return _story_from_gutenberg_metadata(book, fallback_genre=topic)
-
-    hydrated = await asyncio.gather(*(_hydrate_book(book) for book in raw_books))
-    return [story for story in hydrated if story is not None]
+    stories = []
+    for book in raw_books:
+        if enforce_live_text and not _has_plain_text_format(book):
+            continue
+        story = _story_from_gutenberg_metadata(book, fallback_genre=topic)
+        if story is not None:
+            stories.append(story)
+    _cache_gutenberg_catalog(cache_key, stories)
+    return stories
