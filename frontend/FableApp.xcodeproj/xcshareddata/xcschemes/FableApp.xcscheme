@@ -69,7 +69,7 @@
       <EnvironmentVariables>
          <EnvironmentVariable
             key = "FABLE_API_BASE_URL"
-            value = "https://testing-platforms-feature-practitioner.trycloudflare.com/api/v1"
+            value = "https://hepatitis-notebook-cole-given.trycloudflare.com/api/v1"
             isEnabled = "YES">
          </EnvironmentVariable>
       </EnvironmentVariables>
