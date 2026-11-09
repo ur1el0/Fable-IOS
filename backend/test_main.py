@@ -43,8 +43,8 @@ def patch_async_client_stream_with_get(monkeypatch):
     import httpx
 
     @asynccontextmanager
-    async def stream(self, method, url, params=None, headers=None):
-        response = await self.get(url, params=params, headers=headers)
+    async def stream(self, method, url, params=None, headers=None, **kwargs):
+        response = await self.get(url, params=params, headers=headers, **kwargs)
         yield response
 
     monkeypatch.setattr(httpx.AsyncClient, "stream", stream)
@@ -664,16 +664,198 @@ A second complete chapter also comes from the provider and has sufficient text c
     assert len(second.json()["chapters"]) == 2
 
 
-def test_gutenberg_catalog_failure_does_not_return_local_catalog(monkeypatch):
+def test_gutenberg_catalog_failure_does_not_return_local_catalog(monkeypatch, tmp_path):
     import httpx
+    from services import gutenberg
 
-    async def unavailable(self, url, params=None, headers=None):
+    async def unavailable(self, url, params=None, headers=None, **kwargs):
         raise httpx.ConnectError("private transport detail")
 
+    monkeypatch.setattr(gutenberg, "_GUTENBERG_CATALOG_CACHE", None)
+    monkeypatch.setattr(gutenberg, "_GUTENBERG_CATALOG_STALE_CACHE", None)
+    monkeypatch.setattr(gutenberg, "_GUTENBERG_CATALOG_LAST_REFRESH_ATTEMPT", 0.0)
+    monkeypatch.setattr(
+        gutenberg,
+        "_gutenberg_catalog_cache_path",
+        lambda: tmp_path / "missing-catalog.csv.gz",
+    )
     monkeypatch.setattr(httpx.AsyncClient, "get", unavailable)
+    patch_async_client_stream_with_get(monkeypatch)
     response = client.get("/api/v1/public/gutenberg")
     assert response.status_code == 502
     assert response.json()["detail"] == "Gutenberg catalog service is unavailable"
+
+
+@pytest.mark.anyio
+async def test_gutenberg_catalog_rejects_incomplete_snapshot_download(monkeypatch):
+    import httpx
+    from fastapi import HTTPException
+    from services import gutenberg
+
+    async def incomplete(self, url, params=None, headers=None, **kwargs):
+        return httpx.Response(200, content=b"partial", headers={"content-length": "100"})
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", incomplete)
+    patch_async_client_stream_with_get(monkeypatch)
+
+    async with httpx.AsyncClient() as client:
+        with pytest.raises(HTTPException, match="incomplete"):
+            await gutenberg._download_gutenberg_catalog_snapshot(client)
+
+
+def test_gutenberg_catalog_falls_back_to_official_csv_snapshot_and_rdf(monkeypatch, tmp_path):
+    import csv
+    import gzip
+    import io
+    import httpx
+    from services import gutenberg
+
+    csv_buffer = io.StringIO(newline="")
+    csv_writer = csv.DictWriter(
+        csv_buffer,
+        fieldnames=["Text#", "Type", "Issued", "Title", "Language", "Authors", "Subjects", "LoCC", "Bookshelves"],
+    )
+    csv_writer.writeheader()
+    csv_writer.writerow({
+        "Text#": "1342",
+        "Type": "Text",
+        "Title": "Pride and Prejudice",
+        "Language": "en",
+        "Authors": "Austen, Jane",
+        "Subjects": "Fiction",
+        "Bookshelves": "Classics",
+    })
+    csv_writer.writerow({
+        "Text#": "9999",
+        "Type": "Audio",
+        "Title": "Pride and Prejudice Audio",
+        "Language": "en",
+        "Authors": "Austen, Jane",
+    })
+    compressed_catalog = gzip.compress(csv_buffer.getvalue().encode("utf-8"))
+    rdf = """<?xml version="1.0"?>
+    <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+             xmlns:dc="http://purl.org/dc/terms/"
+             xmlns:pg="http://www.gutenberg.org/2009/pgterms/">
+      <pg:ebook rdf:about="ebooks/1342">
+        <dc:title>Pride and Prejudice</dc:title>
+        <dc:creator><pg:agent><pg:name>Austen, Jane</pg:name></pg:agent></dc:creator>
+        <pg:downloads>5000</pg:downloads>
+        <pg:marc520>Generated summary. (This is an automatically generated summary.)</pg:marc520>
+        <dc:subject><rdf:Description><rdf:value>Fiction</rdf:value></rdf:Description></dc:subject>
+        <dc:hasFormat>
+          <pg:file rdf:about="https://www.gutenberg.org/ebooks/1342.txt.utf-8">
+            <dc:format><rdf:Description><rdf:value>text/plain; charset=utf-8</rdf:value></rdf:Description></dc:format>
+          </pg:file>
+        </dc:hasFormat>
+        <dc:hasFormat>
+          <pg:file rdf:about="https://www.gutenberg.org/cache/epub/1342/pg1342.cover.medium.jpg">
+            <dc:format><rdf:Description><rdf:value>image/jpeg</rdf:value></rdf:Description></dc:format>
+          </pg:file>
+        </dc:hasFormat>
+        <dc:hasFormat>
+          <pg:file rdf:about="https://www.gutenberg.org/cache/epub/1342/pg1342.cover.small.jpg">
+            <dc:format><rdf:Description><rdf:value>image/jpeg</rdf:value></rdf:Description></dc:format>
+          </pg:file>
+        </dc:hasFormat>
+      </pg:ebook>
+    </rdf:RDF>"""
+    source_text = """
+*** START OF THE PROJECT GUTENBERG EBOOK PRIDE AND PREJUDICE ***
+
+CHAPTER I.
+
+It is a truth universally acknowledged, that a single man in possession
+of a good fortune must be in want of a wife.
+*** END OF THE PROJECT GUTENBERG EBOOK PRIDE AND PREJUDICE ***
+"""
+    catalog_requests = 0
+
+    async def mock_get(self, url, params=None, headers=None, **kwargs):
+        nonlocal catalog_requests
+        if "gutendex.com" in str(url):
+            raise httpx.ConnectError("Gutendex is unavailable")
+        if str(url) == gutenberg.GUTENBERG_CATALOG_URL:
+            catalog_requests += 1
+            return httpx.Response(
+                200,
+                content=compressed_catalog,
+                headers={"content-length": str(len(compressed_catalog))},
+            )
+        if str(url).endswith("/cache/epub/1342/pg1342.rdf"):
+            return httpx.Response(200, text=rdf)
+        raise AssertionError(f"Unexpected provider URL: {url}")
+
+    async def fetch_text(_gutenberg_id):
+        return source_text
+
+    gutenberg._GUTENBERG_CHAPTER_CACHE.clear()
+    monkeypatch.setattr(gutenberg, "_GUTENBERG_CATALOG_CACHE", None)
+    monkeypatch.setattr(gutenberg, "_GUTENBERG_CATALOG_STALE_CACHE", None)
+    monkeypatch.setattr(gutenberg, "_GUTENBERG_CATALOG_LAST_REFRESH_ATTEMPT", 0.0)
+    catalog_cache_path = tmp_path / "gutenberg-catalog.csv.gz"
+    monkeypatch.setattr(gutenberg, "_gutenberg_catalog_cache_path", lambda: catalog_cache_path)
+    monkeypatch.setattr(httpx.AsyncClient, "get", mock_get)
+    patch_async_client_stream_with_get(monkeypatch)
+    monkeypatch.setattr(gutenberg, "_fetch_gutenberg_text", fetch_text)
+    response = client.get("/api/v1/public/gutenberg?search=Pride%20and%20Prejudice")
+
+    assert response.status_code == 200
+    stories = response.json()
+    assert len(stories) == 1
+    assert stories[0]["title"] == "Pride and Prejudice"
+    assert stories[0]["author"] == "Jane Austen"
+    assert stories[0]["coverImageUrl"].endswith("pg1342.cover.medium.jpg")
+    assert stories[0]["providerDownloadCount"] == 5000
+    assert stories[0]["totalChapters"] == 1
+    assert "It is a truth universally acknowledged" in stories[0]["synopsis"]
+    assert catalog_cache_path.exists()
+
+    gutenberg._GUTENBERG_CATALOG_CACHE = None
+    cached_response = client.get("/api/v1/public/gutenberg?search=Pride%20and%20Prejudice")
+    assert cached_response.status_code == 200
+    assert len(cached_response.json()) == 1
+    assert catalog_requests == 1
+
+
+@pytest.mark.anyio
+async def test_gutenberg_stale_catalog_is_used_when_refresh_fails(monkeypatch, tmp_path):
+    import csv
+    import gzip
+    import httpx
+    import io
+    import os
+    import time
+    from services import gutenberg
+
+    csv_buffer = io.StringIO(newline="")
+    writer = csv.DictWriter(
+        csv_buffer,
+        fieldnames=["Text#", "Type", "Issued", "Title", "Language", "Authors", "Subjects", "LoCC", "Bookshelves"],
+    )
+    writer.writeheader()
+    writer.writerow({"Text#": "1342", "Type": "Text", "Title": "Pride and Prejudice", "Authors": "Austen, Jane"})
+    cache_path = tmp_path / "gutenberg-catalog.csv.gz"
+    cache_path.write_bytes(gzip.compress(csv_buffer.getvalue().encode("utf-8")))
+    old_timestamp = time.time() - gutenberg.GUTENBERG_CATALOG_TTL_SECONDS - 10
+    os.utime(cache_path, (old_timestamp, old_timestamp))
+
+    async def unavailable(self, url, params=None, headers=None, **kwargs):
+        raise httpx.ConnectError("catalog refresh temporarily failed")
+
+    monkeypatch.setattr(gutenberg, "_GUTENBERG_CATALOG_CACHE", None)
+    monkeypatch.setattr(gutenberg, "_GUTENBERG_CATALOG_STALE_CACHE", None)
+    monkeypatch.setattr(gutenberg, "_GUTENBERG_CATALOG_LAST_REFRESH_ATTEMPT", 0.0)
+    monkeypatch.setattr(gutenberg, "_gutenberg_catalog_cache_path", lambda: cache_path)
+    monkeypatch.setattr(httpx.AsyncClient, "get", unavailable)
+    patch_async_client_stream_with_get(monkeypatch)
+
+    async with httpx.AsyncClient() as client:
+        entries = await gutenberg._load_gutenberg_catalog(client)
+
+    assert len(entries) == 1
+    assert entries[0].gutenberg_id == 1342
+    assert gutenberg._GUTENBERG_CATALOG_STALE_CACHE is not None
 
 
 def test_password_hashes_upgrade_legacy_credentials_on_login():
@@ -1318,6 +1500,42 @@ async def test_get_gutenberg_story_by_id_returns_live_metadata(monkeypatch):
     assert story.author == "Jane Austen"
     assert story.source_provider == "GUTENBERG"
     assert story.cover_image_url == "https://www.gutenberg.org/cover.jpg"
+
+
+@pytest.mark.anyio
+async def test_get_gutenberg_story_by_id_falls_back_to_project_gutenberg_rdf(monkeypatch):
+    import httpx
+    from services import gutenberg
+
+    rdf = """<?xml version="1.0"?>
+    <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+             xmlns:dc="http://purl.org/dc/terms/"
+             xmlns:pg="http://www.gutenberg.org/2009/pgterms/">
+      <pg:ebook rdf:about="ebooks/1342">
+        <dc:title>Pride and Prejudice</dc:title>
+        <dc:creator><pg:agent><pg:name>Austen, Jane</pg:name></pg:agent></dc:creator>
+        <pg:downloads>5000</pg:downloads>
+        <dc:hasFormat>
+          <pg:file rdf:about="https://www.gutenberg.org/cache/epub/1342/pg1342.cover.medium.jpg">
+            <dc:format><rdf:Description><rdf:value>image/jpeg</rdf:value></rdf:Description></dc:format>
+          </pg:file>
+        </dc:hasFormat>
+      </pg:ebook>
+    </rdf:RDF>"""
+
+    async def mock_get(self, url, params=None, headers=None):
+        if "gutendex.com" in str(url):
+            raise httpx.ConnectError("Gutendex is unavailable")
+        assert str(url).endswith("/cache/epub/1342/pg1342.rdf")
+        return httpx.Response(200, text=rdf)
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", mock_get)
+    story = await gutenberg.get_gutenberg_story_by_id(1342)
+
+    assert story.title == "Pride and Prejudice"
+    assert story.author == "Jane Austen"
+    assert story.provider_download_count == 5000
+    assert story.cover_image_url.endswith("pg1342.cover.medium.jpg")
 
 
 
