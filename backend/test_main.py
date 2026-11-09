@@ -67,6 +67,44 @@ def test_health_check():
     assert data["status"] == "healthy"
     assert data["database"] == "connected"
 
+
+@pytest.mark.anyio
+async def test_unhandled_exception_logs_trace_without_exception_message(caplog):
+    import re
+
+    from fastapi import Request
+    from main import sanitized_unhandled_exception_handler
+
+    request = Request({
+        "type": "http",
+        "http_version": "1.1",
+        "method": "POST",
+        "scheme": "https",
+        "path": "/api/v1/auth/login",
+        "raw_path": b"/api/v1/auth/login",
+        "query_string": b"",
+        "headers": [],
+        "client": ("198.51.100.9", 43210),
+        "server": ("fable.example", 443),
+    })
+    secret_message = "private-value-should-not-enter-logs"
+    caplog.set_level("ERROR", logger="main")
+
+    try:
+        raise RuntimeError(secret_message)
+    except RuntimeError as error:
+        response = await sanitized_unhandled_exception_handler(request, error)
+
+    assert response.status_code == 500
+    assert response.body == b'{"detail":"An internal server error occurred."}'
+    assert secret_message not in caplog.text
+    assert "RuntimeError" in caplog.text
+    assert "/api/v1/auth/login" in caplog.text
+    match = re.search(r"request_id=([a-f0-9]{32})", caplog.text)
+    assert match is not None
+    assert response.headers["X-Request-ID"] == match.group(1)
+
+
 def test_get_stories_starts_without_embedded_catalog():
     response = client.get("/api/v1/stories")
     assert response.status_code == 200

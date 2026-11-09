@@ -1,5 +1,7 @@
 from contextlib import asynccontextmanager
 import logging
+from traceback import format_tb
+from uuid import uuid4
 
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
@@ -75,10 +77,24 @@ async def sanitized_unhandled_exception_handler(
     request: Request,
     error: Exception,
 ) -> JSONResponse:
-    logger.exception("Unhandled server error on %s %s: %s", request.method, request.url.path, error)
+    request_id = uuid4().hex
+    stack = "".join(format_tb(error.__traceback__)).rstrip()
+    route = request.scope.get("route")
+    path = getattr(route, "path", request.url.path)
+    safe_path = "".join(character for character in path if character.isprintable())[:256]
+    safe_method = "".join(character for character in request.method if character.isprintable())[:16]
+    logger.error(
+        "Unhandled server error (request_id=%s method=%s path=%s exception_type=%s)\n%s",
+        request_id,
+        safe_method,
+        safe_path,
+        type(error).__name__,
+        stack,
+    )
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={"detail": "An internal server error occurred."},
+        headers={"X-Request-ID": request_id},
     )
 
 

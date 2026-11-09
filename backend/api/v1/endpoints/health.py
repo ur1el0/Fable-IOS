@@ -16,7 +16,10 @@ def health_check():
         if not row or row[0] != 1:
             raise RuntimeError("Unexpected database ping result")
     except Exception as exc:
-        logger.error("Health check database ping failed: %s", exc)
+        logger.error(
+            "Health check database ping failed (exception_type=%s)",
+            type(exc).__name__,
+        )
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Database health check failed.",
