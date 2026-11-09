@@ -1,10 +1,20 @@
 import asyncio
-import httpx
+import csv
+import gzip
+import io
+import logging
+import os
+import tempfile
 import time
+import xml.etree.ElementTree as ET
+import zlib
 from collections import OrderedDict
 from datetime import datetime, timezone
-from typing import Optional
+from pathlib import Path
+from typing import NamedTuple, Optional
 from uuid import UUID, uuid5
+
+import httpx
 from fastapi import HTTPException
 
 from core.database import get_db
@@ -12,8 +22,15 @@ from schemas.schemas import ChapterDTO, StoryDTO
 from services.text_parser import extract_chapters_from_text
 from services.story_service import row_to_story_dto
 
+logger = logging.getLogger(__name__)
 GUTENBERG_CHAPTER_NAMESPACE = UUID("d3675b18-25d3-5aa7-9c4f-65ea90fb89b2")
 PROVIDER_HEADERS = {"User-Agent": "FableReader/1.0 (public-domain-text-client)"}
+GUTENBERG_CATALOG_URL = "https://www.gutenberg.org/cache/epub/feeds/pg_catalog.csv.gz"
+GUTENBERG_CATALOG_TTL_SECONDS = 7 * 24 * 60 * 60
+GUTENBERG_CATALOG_REFRESH_RETRY_SECONDS = 60 * 60
+GUTENBERG_CATALOG_MAX_COMPRESSED_BYTES = 12 * 1024 * 1024
+GUTENBERG_CATALOG_MAX_UNCOMPRESSED_BYTES = 40 * 1024 * 1024
+GUTENBERG_MAX_METADATA_BYTES = 2 * 1024 * 1024
 GUTENBERG_MAX_TEXT_BYTES = 8 * 1024 * 1024
 GUTENBERG_CHAPTER_CACHE_TTL_SECONDS = 600.0
 GUTENBERG_CHAPTER_CACHE_MAX_ENTRIES = 32
@@ -21,6 +38,358 @@ GUTENBERG_CHAPTER_CACHE_MAX_BYTES = 16 * 1024 * 1024
 GUTENBERG_MAX_CONCURRENT_FETCHES = 3
 _GUTENBERG_CHAPTER_CACHE: OrderedDict[int, tuple[float, list[ChapterDTO]]] = OrderedDict()
 _GUTENBERG_FETCH_SEMAPHORE = asyncio.Semaphore(GUTENBERG_MAX_CONCURRENT_FETCHES)
+_GUTENBERG_METADATA_SEMAPHORE = asyncio.Semaphore(GUTENBERG_MAX_CONCURRENT_FETCHES)
+_GUTENBERG_CATALOG_LOCK = asyncio.Lock()
+_GUTENBERG_CATALOG_CACHE: tuple[float, list["GutenbergCatalogEntry"]] | None = None
+_GUTENBERG_CATALOG_STALE_CACHE: tuple[float, list["GutenbergCatalogEntry"]] | None = None
+_GUTENBERG_CATALOG_LAST_REFRESH_ATTEMPT = 0.0
+
+_RDF_NAMESPACES = {
+    "dc": "http://purl.org/dc/terms/",
+    "pg": "http://www.gutenberg.org/2009/pgterms/",
+    "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+}
+
+
+class GutenbergCatalogEntry(NamedTuple):
+    gutenberg_id: int
+    title: str
+    authors: str
+    subjects: str
+    bookshelves: str
+    language: str
+
+
+def _gutenberg_catalog_cache_path() -> Path:
+    database_path = Path(os.environ.get("FABLE_DB_PATH", "fable.sqlite3"))
+    return database_path.with_name("gutenberg-catalog.csv.gz")
+
+
+def _parse_gutenberg_catalog_snapshot(compressed_payload: bytes) -> list[GutenbergCatalogEntry]:
+    if len(compressed_payload) > GUTENBERG_CATALOG_MAX_COMPRESSED_BYTES:
+        raise HTTPException(status_code=502, detail="Gutenberg catalog exceeds the supported download size")
+    try:
+        with gzip.GzipFile(fileobj=io.BytesIO(compressed_payload)) as catalog_file:
+            csv_payload = catalog_file.read(GUTENBERG_CATALOG_MAX_UNCOMPRESSED_BYTES + 1)
+        if len(csv_payload) > GUTENBERG_CATALOG_MAX_UNCOMPRESSED_BYTES:
+            raise HTTPException(status_code=502, detail="Gutenberg catalog exceeds the supported expanded size")
+        catalog_text = csv_payload.decode("utf-8-sig")
+        reader = csv.DictReader(io.StringIO(catalog_text, newline=""))
+    except HTTPException:
+        raise
+    except (OSError, EOFError, UnicodeError, csv.Error, zlib.error) as error:
+        raise HTTPException(status_code=502, detail="Gutenberg catalog snapshot is invalid") from error
+
+    required_columns = {"Text#", "Type", "Title", "Language", "Authors", "Subjects", "Bookshelves"}
+    if not reader.fieldnames or not required_columns.issubset(reader.fieldnames):
+        raise HTTPException(status_code=502, detail="Gutenberg catalog snapshot has an unsupported format")
+
+    entries = []
+    try:
+        for row in reader:
+            if (row.get("Type") or "").strip().casefold() != "text":
+                continue
+            try:
+                gutenberg_id = int(row.get("Text#", ""))
+            except (TypeError, ValueError):
+                continue
+            title = (row.get("Title") or "").strip()
+            if gutenberg_id < 1 or not title:
+                continue
+            entries.append(
+                GutenbergCatalogEntry(
+                    gutenberg_id=gutenberg_id,
+                    title=title,
+                    authors=(row.get("Authors") or "").strip(),
+                    subjects=(row.get("Subjects") or "").strip(),
+                    bookshelves=(row.get("Bookshelves") or "").strip(),
+                    language=(row.get("Language") or "").strip(),
+                )
+            )
+    except csv.Error as error:
+        raise HTTPException(status_code=502, detail="Gutenberg catalog snapshot is invalid") from error
+    if not entries:
+        raise HTTPException(status_code=502, detail="Gutenberg catalog snapshot contained no text books")
+    return entries
+
+
+def _read_cached_gutenberg_catalog(path: Path) -> tuple[list[GutenbergCatalogEntry], float] | None:
+    try:
+        file_stat = path.stat()
+        if file_stat.st_size > GUTENBERG_CATALOG_MAX_COMPRESSED_BYTES:
+            logger.warning("Ignoring oversized cached Gutenberg catalog snapshot")
+            return None
+        modified_at = file_stat.st_mtime
+        payload = path.read_bytes()
+    except OSError:
+        return None
+    try:
+        entries = _parse_gutenberg_catalog_snapshot(payload)
+    except HTTPException:
+        logger.warning("Ignoring invalid cached Gutenberg catalog snapshot")
+        return None
+    age_seconds = max(0.0, time.time() - modified_at)
+    return entries, age_seconds
+
+
+def _write_gutenberg_catalog_cache(path: Path, payload: bytes) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary_path = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="wb",
+            prefix=f"{path.name}.",
+            suffix=".tmp",
+            dir=path.parent,
+            delete=False,
+        ) as cache_file:
+            temporary_path = Path(cache_file.name)
+            cache_file.write(payload)
+            cache_file.flush()
+            os.fsync(cache_file.fileno())
+        os.replace(temporary_path, path)
+    finally:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
+
+
+async def _download_gutenberg_catalog_snapshot(client: httpx.AsyncClient) -> bytes:
+    try:
+        async with client.stream(
+            "GET",
+            GUTENBERG_CATALOG_URL,
+            headers={**PROVIDER_HEADERS, "Accept-Encoding": "identity"},
+            timeout=60.0,
+        ) as response:
+            if response.status_code != 200:
+                raise HTTPException(status_code=502, detail="Gutenberg catalog service returned an error")
+
+            content_length = response.headers.get("content-length")
+            if content_length and content_length.isdigit():
+                if int(content_length) > GUTENBERG_CATALOG_MAX_COMPRESSED_BYTES:
+                    raise HTTPException(status_code=502, detail="Gutenberg catalog exceeds the supported download size")
+
+            chunks = bytearray()
+            async for chunk in response.aiter_bytes():
+                if len(chunks) + len(chunk) > GUTENBERG_CATALOG_MAX_COMPRESSED_BYTES:
+                    raise HTTPException(status_code=502, detail="Gutenberg catalog exceeds the supported download size")
+                chunks.extend(chunk)
+    except httpx.HTTPError as error:
+        raise HTTPException(status_code=502, detail="Gutenberg catalog service is unavailable") from error
+    if content_length and content_length.isdigit() and int(content_length) != len(chunks):
+        raise HTTPException(status_code=502, detail="Gutenberg catalog download was incomplete")
+    payload = bytes(chunks)
+    _parse_gutenberg_catalog_snapshot(payload)
+    return payload
+
+
+async def _load_gutenberg_catalog(client: httpx.AsyncClient) -> list[GutenbergCatalogEntry]:
+    global _GUTENBERG_CATALOG_CACHE, _GUTENBERG_CATALOG_STALE_CACHE, _GUTENBERG_CATALOG_LAST_REFRESH_ATTEMPT
+
+    now = time.monotonic()
+    if _GUTENBERG_CATALOG_CACHE and now - _GUTENBERG_CATALOG_CACHE[0] < GUTENBERG_CATALOG_TTL_SECONDS:
+        return _GUTENBERG_CATALOG_CACHE[1]
+    if (
+        _GUTENBERG_CATALOG_STALE_CACHE
+        and now - _GUTENBERG_CATALOG_LAST_REFRESH_ATTEMPT < GUTENBERG_CATALOG_REFRESH_RETRY_SECONDS
+    ):
+        return _GUTENBERG_CATALOG_STALE_CACHE[1]
+
+    async with _GUTENBERG_CATALOG_LOCK:
+        now = time.monotonic()
+        if _GUTENBERG_CATALOG_CACHE and now - _GUTENBERG_CATALOG_CACHE[0] < GUTENBERG_CATALOG_TTL_SECONDS:
+            return _GUTENBERG_CATALOG_CACHE[1]
+        if (
+            _GUTENBERG_CATALOG_STALE_CACHE
+            and now - _GUTENBERG_CATALOG_LAST_REFRESH_ATTEMPT < GUTENBERG_CATALOG_REFRESH_RETRY_SECONDS
+        ):
+            return _GUTENBERG_CATALOG_STALE_CACHE[1]
+
+        cache_path = _gutenberg_catalog_cache_path()
+        disk_cache = _read_cached_gutenberg_catalog(cache_path)
+        if disk_cache and disk_cache[1] < GUTENBERG_CATALOG_TTL_SECONDS:
+            _GUTENBERG_CATALOG_CACHE = (now, disk_cache[0])
+            _GUTENBERG_CATALOG_STALE_CACHE = None
+            return disk_cache[0]
+
+        if (
+            disk_cache
+            and now - _GUTENBERG_CATALOG_LAST_REFRESH_ATTEMPT < GUTENBERG_CATALOG_REFRESH_RETRY_SECONDS
+        ):
+            _GUTENBERG_CATALOG_STALE_CACHE = (now, disk_cache[0])
+            return disk_cache[0]
+
+        _GUTENBERG_CATALOG_LAST_REFRESH_ATTEMPT = now
+        try:
+            compressed_payload = await _download_gutenberg_catalog_snapshot(client)
+            entries = _parse_gutenberg_catalog_snapshot(compressed_payload)
+        except HTTPException:
+            if disk_cache:
+                logger.warning("Gutenberg catalog refresh failed; serving the cached snapshot")
+                _GUTENBERG_CATALOG_STALE_CACHE = (time.monotonic(), disk_cache[0])
+                return disk_cache[0]
+            raise
+
+        try:
+            _write_gutenberg_catalog_cache(cache_path, compressed_payload)
+        except OSError:
+            logger.warning("Could not persist Gutenberg catalog snapshot; keeping it in memory")
+        _GUTENBERG_CATALOG_CACHE = (time.monotonic(), entries)
+        _GUTENBERG_CATALOG_STALE_CACHE = None
+        return entries
+
+
+def _search_gutenberg_catalog(
+    entries: list[GutenbergCatalogEntry],
+    params: dict,
+) -> list[GutenbergCatalogEntry]:
+    search = str(params.get("search") or "").strip().casefold()
+    topic = str(params.get("topic") or "").strip().casefold()
+    matching = []
+    for entry in entries:
+        title = entry.title.casefold()
+        authors = entry.authors.casefold()
+        subjects = f"{entry.subjects} {entry.bookshelves}".casefold()
+        if search and search not in f"{title} {authors}":
+            continue
+        if topic and topic not in subjects:
+            continue
+        if search:
+            rank = 0 if title == search else 1 if title.startswith(search) else 2 if search in title else 3
+        else:
+            rank = 0
+        matching.append((rank, entry.gutenberg_id, entry))
+
+    if not search and not topic:
+        return [entry for _, _, entry in matching[-12:]]
+    matching.sort(key=lambda item: (item[0], item[1]))
+    return [entry for _, _, entry in matching[:12]]
+
+
+def _gutenberg_book_from_rdf(payload: bytes, expected_id: int) -> Optional[dict]:
+    if len(payload) > GUTENBERG_MAX_METADATA_BYTES:
+        raise HTTPException(status_code=502, detail="Gutenberg metadata exceeds the supported size limit")
+    try:
+        root = ET.fromstring(payload)
+    except ET.ParseError as error:
+        raise HTTPException(status_code=502, detail="Gutenberg catalog returned invalid metadata") from error
+
+    ebook = root.find("pg:ebook", _RDF_NAMESPACES)
+    if ebook is None or ebook.get(f"{{{_RDF_NAMESPACES['rdf']}}}about") != f"ebooks/{expected_id}":
+        return None
+
+    title = ebook.findtext("dc:title", default="", namespaces=_RDF_NAMESPACES).strip()
+    author_name = ebook.findtext(
+        "dc:creator/pg:agent/pg:name", default="", namespaces=_RDF_NAMESPACES
+    ).strip()
+    if not title or not author_name:
+        return None
+
+    subjects = [
+        value.text.strip()
+        for value in ebook.findall("dc:subject/rdf:Description/rdf:value", _RDF_NAMESPACES)
+        if value.text and value.text.strip()
+    ]
+    formats: dict[str, str] = {}
+    for file_entry in ebook.findall("dc:hasFormat/pg:file", _RDF_NAMESPACES):
+        url = file_entry.get(f"{{{_RDF_NAMESPACES['rdf']}}}about", "").strip()
+        if not url.startswith("https://www.gutenberg.org/"):
+            continue
+        for mime_node in file_entry.findall("dc:format/rdf:Description/rdf:value", _RDF_NAMESPACES):
+            mime_type = (mime_node.text or "").strip()
+            if mime_type:
+                existing_url = formats.get(mime_type, "")
+                is_medium_cover = mime_type == "image/jpeg" and "cover.medium.jpg" in url
+                existing_is_medium_cover = "cover.medium.jpg" in existing_url
+                if not existing_url or (is_medium_cover and not existing_is_medium_cover):
+                    formats[mime_type] = url
+
+    try:
+        download_count = max(
+            0,
+            int(ebook.findtext("pg:downloads", default="0", namespaces=_RDF_NAMESPACES)),
+        )
+    except ValueError:
+        download_count = 0
+
+    summaries = [
+        node.text.strip()
+        for node in ebook.findall("pg:marc520", _RDF_NAMESPACES)
+        if node.text and node.text.strip()
+    ]
+    return {
+        "id": expected_id,
+        "title": title,
+        "authors": [{"name": author_name}],
+        "subjects": subjects,
+        "summaries": summaries,
+        "download_count": download_count,
+        "formats": formats,
+    }
+
+
+async def _fetch_gutendex_books(client: httpx.AsyncClient, params: dict) -> Optional[list[dict]]:
+    try:
+        response = await client.get(
+            "https://gutendex.com/books/",
+            params=params,
+            headers=PROVIDER_HEADERS,
+        )
+        if response.status_code != 200:
+            return None
+        payload = response.json()
+        results = payload.get("results") if isinstance(payload, dict) else None
+        if not isinstance(results, list):
+            return None
+        return [book for book in results if isinstance(book, dict)]
+    except (httpx.HTTPError, ValueError):
+        return None
+
+
+async def _fetch_gutenberg_rdf_book(client: httpx.AsyncClient, gutenberg_id: int) -> Optional[dict]:
+    metadata_url = f"https://www.gutenberg.org/cache/epub/{gutenberg_id}/pg{gutenberg_id}.rdf"
+    try:
+        async with _GUTENBERG_METADATA_SEMAPHORE:
+            response = await client.get(metadata_url, headers=PROVIDER_HEADERS)
+    except httpx.HTTPError as error:
+        raise HTTPException(status_code=502, detail="Gutenberg catalog service is unavailable") from error
+    if response.status_code == 404:
+        return None
+    if response.status_code != 200:
+        raise HTTPException(status_code=502, detail="Gutenberg catalog service returned an error")
+    return _gutenberg_book_from_rdf(response.content, gutenberg_id)
+
+
+async def _fetch_gutenberg_catalog_books(client: httpx.AsyncClient, params: dict) -> list[dict]:
+    catalog = await _load_gutenberg_catalog(client)
+    candidates = _search_gutenberg_catalog(catalog, params)
+
+    async def fetch_readable_book(entry: GutenbergCatalogEntry) -> Optional[dict]:
+        book = await _fetch_gutenberg_rdf_book(client, entry.gutenberg_id)
+        if book is None or not _has_plain_text_format(book):
+            return None
+        return book
+
+    results = await asyncio.gather(
+        *(fetch_readable_book(entry) for entry in candidates),
+        return_exceptions=True,
+    )
+    books = [result for result in results if isinstance(result, dict)]
+    errors = [result for result in results if isinstance(result, HTTPException)]
+    if errors:
+        logger.warning("Gutenberg catalog fallback skipped %d unavailable metadata record(s)", len(errors))
+    if not books and errors:
+        raise errors[0]
+    return books
+
+
+async def _fetch_gutenberg_book_metadata(client: httpx.AsyncClient, gutenberg_id: int) -> Optional[dict]:
+    books = await _fetch_gutendex_books(client, {"ids": str(gutenberg_id)})
+    if books is not None:
+        book = next((item for item in books if item.get("id") == gutenberg_id), None)
+        if book is not None:
+            return book
+    return await _fetch_gutenberg_rdf_book(client, gutenberg_id)
 
 
 def _cached_gutenberg_chapters(gutenberg_id: int) -> Optional[list[ChapterDTO]]:
@@ -183,23 +552,10 @@ async def ingest_gutenberg_book(
     gutenberg_id: int,
     genre: Optional[str] = None,
 ) -> StoryDTO:
-    metadata_url = "https://gutendex.com/books/"
-    try:
-        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
-            metadata_response = await client.get(
-                metadata_url,
-                params={"ids": str(gutenberg_id)},
-                headers=PROVIDER_HEADERS,
-            )
-            if metadata_response.status_code != 200:
-                raise HTTPException(status_code=502, detail="Gutenberg catalog service returned an error")
-            results = metadata_response.json().get("results", [])
-            book = next((item for item in results if item.get("id") == gutenberg_id), None)
-            if not book:
-                raise HTTPException(status_code=404, detail="Gutenberg book was not found")
-
-    except httpx.HTTPError as error:
-        raise HTTPException(status_code=502, detail="Gutenberg services are unavailable") from error
+    async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+        book = await _fetch_gutenberg_book_metadata(client, gutenberg_id)
+    if not book:
+        raise HTTPException(status_code=404, detail="Gutenberg book was not found")
 
     raw_text = await _fetch_gutenberg_text(gutenberg_id)
 
@@ -380,21 +736,8 @@ def _story_from_gutenberg_metadata(
 
 
 async def get_gutenberg_story_by_id(gutenberg_id: int) -> StoryDTO:
-    try:
-        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
-            response = await client.get(
-                "https://gutendex.com/books/",
-                params={"ids": str(gutenberg_id)},
-                headers=PROVIDER_HEADERS,
-            )
-    except httpx.HTTPError as error:
-        raise HTTPException(status_code=502, detail="Gutenberg catalog service is unavailable") from error
-    if response.status_code != 200:
-        raise HTTPException(status_code=502, detail="Gutenberg catalog service returned an error")
-    book = next(
-        (item for item in response.json().get("results", []) if item.get("id") == gutenberg_id),
-        None,
-    )
+    async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+        book = await _fetch_gutenberg_book_metadata(client, gutenberg_id)
     if book is None:
         raise HTTPException(status_code=404, detail="Gutenberg book was not found")
 
@@ -423,19 +766,11 @@ async def get_gutenberg_stories(
     if search:
         params["search"] = search
 
-    try:
-        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
-            response = await client.get(
-                "https://gutendex.com/books/",
-                params=params,
-                headers=PROVIDER_HEADERS,
-            )
-    except httpx.HTTPError as error:
-        raise HTTPException(status_code=502, detail="Gutenberg catalog service is unavailable") from error
-    if response.status_code != 200:
-        raise HTTPException(status_code=502, detail="Gutenberg catalog service returned an error")
-
-    raw_books = response.json().get("results", [])[:12]
+    async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+        raw_books = await _fetch_gutendex_books(client, params)
+        if raw_books is None:
+            raw_books = await _fetch_gutenberg_catalog_books(client, params)
+    raw_books = raw_books[:12]
     enforce_live_text = any(_has_plain_text_format(book) for book in raw_books)
 
     async def _hydrate_book(book: dict) -> Optional[StoryDTO]:
