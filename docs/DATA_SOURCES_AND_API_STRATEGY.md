@@ -90,6 +90,7 @@ If the goal is to access a vast, pre-existing library of real-world literature w
 - **Base Endpoint:** `https://api.mangadex.org`
 - **What It Provides:** High-resolution sequential panel art manifests for graphic novels and manga (e.g. *Chainsaw Devil: Special Edition*).
 - **Format:** Ingested as `ContentFormat.manga` with provenance `SourceProvider.mangadex`. Each chapter includes an ordered `pageUrls` array of image URLs consumed by `MangaReaderView`.
+- **Known Limitation & Licensing Gaps:** Upstream MangaDex feeds are subject to commercial publisher DMCA takedowns (e.g. Seven Seas Entertainment's English license for *Mushoku Tensei: Jobless Reincarnation* caused the purge of Chapters 1–108). In such cases, MangaDex upstream only provides late-stage scanlations (Chapters 109+), rather than an uninterrupted stream from Chapter 1. Fable mitigates initial onboarding via local SQLite seeding of authentic opening chapters, but full contiguous serialization requires multi-provider aggregator failover.
 
 ---
 

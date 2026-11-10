@@ -180,3 +180,20 @@ To ensure the application feels fresh, accessible, and equally tailored to moder
    - Tests chapter `pageUrls` array extraction and empty fallback.
    - Validates store catalog content format and source provider diversity.
    - Tests `MangaReadingMode` icons and active page resolution hierarchy.
+
+---
+
+## 7. Known Issues & Upstream Provider Constraints
+
+### 7.1 Issue: Incomplete Chapter Backlogs & Licensing Purges
+* **Observed Symptom:** In certain manga titles (prominently observed in *Mushoku Tensei: Jobless Reincarnation*, and potentially other commercially licensed titles), the chapter list in the app does not display a continuous, complete sequence from Chapter 1 to the latest chapter. Instead, it displays only a subset of chapters.
+* **Root Cause Analysis (Upstream Licensing & DMCA Purging):**
+  1. **Commercial Takedowns:** Major publishers (such as Seven Seas Entertainment, Kodansha, and Yen Press) actively enforce copyright on officially licensed English manga releases. Seven Seas holds the official English print/digital license for *Mushoku Tensei* Volumes 1–22.
+  2. **Upstream Catalog Gaps:** In compliance with DMCA notices, MangaDex purged Chapters 1 through 108 of *Mushoku Tensei*, retaining only recent fan scanlations (Chapters 109 through 123) that have not yet been published in compiled English volumes.
+  3. **Contrast with Unlicensed/Permitted Works:** In contrast, titles without active publisher takedowns on MangaDex (such as *Chainsaw Man* or *The Eminence in Shadow*) retain complete, uninterrupted chapter streams from Chapter 1 onwards.
+* **Implemented Mitigation (Local Starter Seeding):**
+  - To guarantee that new readers always start from the genuine beginning, Fable seeds authentic scanlation panels for opening chapters (Chapters 1–5 for *Mushoku Tensei*) into SQLite via [`scripts/seed_comprehensive_catalog.py`](file:///Users/maclab/Documents/roosc/Fable-IOS/scripts/seed_comprehensive_catalog.py).
+  - However, the intermediate catalog (Chapters 6–108) remains unserved by MangaDex upstream.
+* **Architectural Next Steps & Recommendations:**
+  1. **Multi-Source Aggregator Pipeline (Tachiyomi-style extensions):** Introduce secondary and tertiary provider adapters in `backend/services/manga.py` that can query alternative aggregators or community archives when primary MangaDex feeds exhibit chapter number gaps.
+  2. **Upstream Gap Detection & In-App Notice:** Add a UI indicator in `MangaReaderView.swift` when `chapters` exhibit non-sequential chapter increments (e.g. `nextChapterNumber - currentChapterNumber > 1`) displaying an informative banner: *"Intermediate chapters unavailable from upstream provider due to official commercial licensing."*

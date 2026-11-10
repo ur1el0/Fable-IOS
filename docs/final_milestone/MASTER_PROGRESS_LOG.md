@@ -729,3 +729,4 @@ This progress log tracks the transition of **Fable** from an editorial prototype
 - [x] Verified full backend test suite: **100/100 tests passed** in 7.54s (`FABLE_ENV=test ./.venv/bin/pytest backend/test_main.py`).
 - [x] Verified native iOS test suite: **22/22 tests passed** on `iPhone 17 Pro` via `xcodebuild test`.
 - [x] Installed and launched updated app build on booted `iPhone 17 Pro` simulator.
+- [x] Documented known architectural issue and upstream provider limitation in `docs/final_milestone/05_MULTI_FORMAT_AND_MANGA_ARCHITECTURE.md` (§7) and `docs/DATA_SOURCES_AND_API_STRATEGY.md` (§3.D): Upstream MangaDex catalog gaps caused by commercial publisher DMCA purges (e.g., *Mushoku Tensei* Chapters 1–108 missing upstream), resulting in partial chapter availability rather than full contiguous serialization up to the latest chapter without multi-source aggregator failover.
