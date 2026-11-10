@@ -717,3 +717,4 @@ This progress log tracks the transition of **Fable** from an editorial prototype
 - [x] Verified full backend test suite: **100/100 tests passed** in 7.97s (`FABLE_ENV=test ./.venv/bin/pytest backend/test_main.py`).
 - [x] Verified native iOS test suite: **22/22 tests passed** on `iPhone 17 Pro` via `xcodebuild test`.
 - [x] Verified clean development startup with `FABLE_ENV=development`.
+- [x] Implemented `scripts/ingest_mushoku_chapters.py` to ingest Chapters 1 through 5 of *Mushoku Tensei: Jobless Reincarnation* into SQLite, guaranteeing that the manga reader starts from Chapter 1 with 23 high-resolution CDN panels.
