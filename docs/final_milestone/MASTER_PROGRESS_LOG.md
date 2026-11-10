@@ -730,3 +730,12 @@ This progress log tracks the transition of **Fable** from an editorial prototype
 - [x] Verified native iOS test suite: **22/22 tests passed** on `iPhone 17 Pro` via `xcodebuild test`.
 - [x] Installed and launched updated app build on booted `iPhone 17 Pro` simulator.
 - [x] Documented known architectural issue and upstream provider limitation in `docs/final_milestone/05_MULTI_FORMAT_AND_MANGA_ARCHITECTURE.md` (§7) and `docs/DATA_SOURCES_AND_API_STRATEGY.md` (§3.D): Upstream MangaDex catalog gaps caused by commercial publisher DMCA purges (e.g., *Mushoku Tensei* Chapters 1–108 missing upstream), resulting in partial chapter availability rather than full contiguous serialization up to the latest chapter without multi-source aggregator failover.
+
+## Feature-Flagged Manga Removal & Open-Source Literature Focus (2026-11-10)
+
+- [x] Added `StoryStore.isMangaEnabled = false` in `frontend/FableApp/Features/Library/ViewModels/StoryStore.swift` to disable manga catalog visibility and ingestion on the iOS client, adhering strictly to Apple App Store Review Guideline 5.2 (Intellectual Property) and focusing the app 100% on legal, open-source literature (Project Gutenberg classics, Aesop's Fables, and user-authored works).
+- [x] Filtered out manga across all iOS discovery and reading surfaces (`StoryStore.swift`, `LibraryView.swift`, `ExploreView.swift`, `GenreDetailView.swift`, `AuthorDetailView.swift`, `ShelfView.swift`, and `WelcomeView.swift`) while preserving multi-format data models and contract tests.
+- [x] Updated `FEATURED_CATALOG_AUTHORS` in `backend/services/story_service.py` to replace manga creators with public-domain authors (`Lewis Carroll`, `Aesop`).
+- [x] Verified full backend test suite: **100/100 tests passed** (`FABLE_ENV=test ./.venv/bin/pytest backend/test_main.py`).
+- [x] Verified native iOS test suite: **22/22 tests passed** on `iPhone 17 Pro` via `xcodebuild test`.
+- [x] Visually verified updated Welcome (`BOOKS & FABLES`) and Library (`All`, `Fables`, `Classics`, `Mystery`, `Fiction`) screens on `iPhone 17 Pro` simulator.

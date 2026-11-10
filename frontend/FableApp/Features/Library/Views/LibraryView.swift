@@ -8,11 +8,30 @@ public struct LibraryView: View {
     @State private var selectedStoryToRead: Story?
     @State private var isShowingProfileSheet: Bool = false
     
-    var filterCategories: [String] { ["All"] + store.genres.map(\.name) }
+    var filterCategories: [String] {
+        let base = ["All"] + store.genres.map(\.name)
+        if !StoryStore.isMangaEnabled {
+            return base.filter { $0.caseInsensitiveCompare("manga") != .orderedSame }
+        }
+        return base
+    }
     
     var filteredRecentStories: [Story] {
-        if selectedFilter == "Manga" {
-            let mangaStories = store.stories.filter { $0.contentFormat == .manga || $0.genre == .manga }
+        let validStories = store.stories.filter { story in
+            if PersistenceService.legacyDemoStoryIds.contains(story.id) { return false }
+            if !StoryStore.isMangaEnabled {
+                if story.contentFormat == .manga
+                    || story.genre == .manga
+                    || story.sourceProvider == .mangadex
+                    || story.genre.rawValue.caseInsensitiveCompare("manga") == .orderedSame {
+                    return false
+                }
+            }
+            return true
+        }
+
+        if selectedFilter == "Manga" && StoryStore.isMangaEnabled {
+            let mangaStories = validStories.filter { $0.contentFormat == .manga || $0.genre == .manga }
             var seen = Set<String>()
             var uniqueManga: [Story] = []
             for item in mangaStories {
@@ -31,7 +50,6 @@ public struct LibraryView: View {
                 return false
             }
         }
-        let validStories = store.stories.filter { !PersistenceService.legacyDemoStoryIds.contains($0.id) }
         if selectedFilter == "All" {
             return validStories
         } else {
@@ -488,8 +506,10 @@ public struct LibraryView: View {
                 if let filter = ProcessInfo.processInfo.environment["AUTO_SELECT_FILTER"], !filter.isEmpty {
                     selectedFilter = filter
                 }
-                Task {
-                    await store.fetchMangaPublicStories()
+                if StoryStore.isMangaEnabled {
+                    Task {
+                        await store.fetchMangaPublicStories()
+                    }
                 }
                 if let targetTitle = ProcessInfo.processInfo.environment["AUTO_OPEN_MANGA"], !targetTitle.isEmpty {
                     Task { @MainActor in

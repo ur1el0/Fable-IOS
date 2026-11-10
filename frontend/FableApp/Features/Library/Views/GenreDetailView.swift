@@ -19,6 +19,14 @@ public struct GenreDetailView: View {
     var genreStories: [Story] {
         let target = genre.name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let matching = store.stories.filter { story in
+            if !StoryStore.isMangaEnabled {
+                if story.contentFormat == .manga
+                    || story.genre == .manga
+                    || story.sourceProvider == .mangadex
+                    || story.genre.rawValue.caseInsensitiveCompare("manga") == .orderedSame {
+                    return false
+                }
+            }
             let g = story.genre.rawValue.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
             return g == target || g.contains(target) || target.contains(g)
         }

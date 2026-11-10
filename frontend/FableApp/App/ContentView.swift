@@ -55,6 +55,10 @@ struct ContentView: View {
         }
         .task {
             await authVM.checkExistingSession()
+            if case .signedOut = authVM.authState,
+               ProcessInfo.processInfo.environment["AUTO_GUEST_LOGIN"] == "1" {
+                authVM.continueAsGuest()
+            }
         }
         .animation(.easeInOut(duration: 0.25), value: authVM.authState)
         .onChange(of: auth.currentSession?.id) { _, _ in

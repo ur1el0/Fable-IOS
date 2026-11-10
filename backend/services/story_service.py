@@ -400,7 +400,8 @@ FEATURED_CATALOG_AUTHORS = [
     "Arthur Conan Doyle",
     "Jane Austen",
     "Edgar Allan Poe",
-    "Tatsuki Fujimoto",
+    "Lewis Carroll",
+    "Aesop",
 ]
 
 

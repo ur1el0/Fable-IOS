@@ -39,13 +39,13 @@ public struct WelcomeView: View {
                             .fableFont(size: 42, weight: .black)
                             .foregroundColor(FableTheme.textPrimary)
 
-                        Text("STORIES & MANGA")
+                        Text(StoryStore.isMangaEnabled ? "STORIES & MANGA" : "BOOKS & FABLES")
                             .fableFont(size: 11, weight: .bold)
                             .tracking(2.0)
                             .foregroundColor(FableTheme.brandPrimary)
                     }
 
-                    Text("A modern, distraction-free platform for reading novels, manga, and original stories.")
+                    Text(StoryStore.isMangaEnabled ? "A modern, distraction-free platform for reading novels, manga, and original stories." : "A modern, distraction-free platform for reading classic books, fables, and original stories.")
                         .fableFont(size: 15, weight: .regular)
                         .foregroundColor(FableTheme.textSecondary)
                         .multilineTextAlignment(.center)
@@ -71,7 +71,7 @@ public struct WelcomeView: View {
                             Text("Read Anywhere")
                                 .fableFont(size: 13, weight: .bold)
                                 .foregroundColor(FableTheme.textPrimary)
-                            Text("Manga & Novels • Offline mode • Adaptive reader")
+                            Text(StoryStore.isMangaEnabled ? "Manga & Novels • Offline mode • Adaptive reader" : "Classics & Fables • Offline mode • Adaptive reader")
                                 .fableFont(size: 11)
                                 .foregroundColor(FableTheme.textMuted)
                         }
