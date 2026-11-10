@@ -718,3 +718,14 @@ This progress log tracks the transition of **Fable** from an editorial prototype
 - [x] Verified native iOS test suite: **22/22 tests passed** on `iPhone 17 Pro` via `xcodebuild test`.
 - [x] Verified clean development startup with `FABLE_ENV=development`.
 - [x] Implemented `scripts/ingest_mushoku_chapters.py` to ingest Chapters 1 through 5 of *Mushoku Tensei: Jobless Reincarnation* into SQLite, guaranteeing that the manga reader starts from Chapter 1 with 23 high-resolution CDN panels.
+
+## Comprehensive Catalog Ingestion & Chapter 1 Guarantee (2026-11-10)
+
+- [x] Ingested authentic *Mushoku Tensei: Jobless Reincarnation* Chapters 1–5 (38 authentic pages for Chapter 1 featuring 34-year-old NEET reincarnating into baby Rudeus learning water magic with Paul and Zenith in Buena village, 42 pages for Chapter 2 with Roxy, 22 for Chapter 3 with Sylphie, 26 for Chapter 4, and 42 for Chapter 5 with Eris), replacing the mismatched *Despondent Magician Arc* spin-off panels.
+- [x] Ingested classic Gutenberg literature into SQLite with full Chapter 1+ manuscripts: *Alice's Adventures in Wonderland* (12 chapters), *Pride and Prejudice* (61 chapters), *Frankenstein; or, The Modern Prometheus* (26 chapters), and *The Adventures of Sherlock Holmes* (14 chapters).
+- [x] Ingested classic Aesop fables into SQLite starting at Chapter 1: *The Tortoise and the Hare*, *The Boy Who Cried Wolf*, *The Fox and the Grapes*, and *The North Wind and the Sun*.
+- [x] Hardened `MangaReaderView.swift` and `ReaderView.swift` to ensure ascending chapter order (`sorted(by: { $0.chapterNumber < $1.chapterNumber })`) and fallback to Chapter 1, Page 1 when opening any new or unread title.
+- [x] Purged stale cached chapters and out-of-bounds reading progress from simulator `default.store`.
+- [x] Verified full backend test suite: **100/100 tests passed** in 7.54s (`FABLE_ENV=test ./.venv/bin/pytest backend/test_main.py`).
+- [x] Verified native iOS test suite: **22/22 tests passed** on `iPhone 17 Pro` via `xcodebuild test`.
+- [x] Installed and launched updated app build on booted `iPhone 17 Pro` simulator.
