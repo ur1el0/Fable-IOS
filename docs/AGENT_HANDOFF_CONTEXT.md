@@ -1,7 +1,7 @@
 # Fable iOS — Agent Handoff & Full Session Context
 
-**Last Updated:** 2026-11-10  
-**Active Git Branch:** `fix/python39-runtime-compatibility`  
+**Last Updated:** 2026-11-10
+**Active Git Branch:** `fix/python39-runtime-compatibility`
 **Primary Next Task:** Execute **[`docs/plans/06_SECURITY_VULNERABILITIES_AND_ARCHITECTURE_REMEDIATION.md`](./plans/06_SECURITY_VULNERABILITIES_AND_ARCHITECTURE_REMEDIATION.md)** (4-Phase Security & Architecture Hardening Plan)
 
 ---

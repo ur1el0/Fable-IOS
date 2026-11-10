@@ -739,3 +739,18 @@ This progress log tracks the transition of **Fable** from an editorial prototype
 - [x] Verified full backend test suite: **100/100 tests passed** (`FABLE_ENV=test ./.venv/bin/pytest backend/test_main.py`).
 - [x] Verified native iOS test suite: **22/22 tests passed** on `iPhone 17 Pro` via `xcodebuild test`.
 - [x] Visually verified updated Welcome (`BOOKS & FABLES`) and Library (`All`, `Fables`, `Classics`, `Mystery`, `Fiction`) screens on `iPhone 17 Pro` simulator.
+
+## Complete UI Screenshot & Screen Video Capture Archive (2026-11-10)
+
+- [x] Captured **29 Retina PNG screenshots** (`01_welcome_screen.png` through `29_settings_sheet.png`) across every screen, endpoint, filter pill (`All`, `Fables`, `Classics`, `Mystery`, `Fiction`), reader theme (`Parchment`, `Sepia`, `Midnight`), voice selection sheet, write composer, shelf tabs, profile, and settings sheet on `iPhone 17 Pro`.
+- [x] Recorded and compressed a full continuous walkthrough video (`docs/simulator_captures/fable_ios_full_walkthrough.mp4`, 19 MB H.264) demonstrating the end-to-end app journey.
+- [x] Created a master visual index in [`docs/simulator_captures/README.md`](../simulator_captures/README.md) and pushed in commit `90b076e`.
+
+## Full-Stack Security Audit, Plan 06 & Laptop Agent Handoff (2026-11-10)
+
+- [x] Conducted a comprehensive full-stack security and architectural audit of the non-manga codebase, uncovering 11 concrete vulnerabilities and bottlenecks (`SEC-01` through `SEC-04`, `PERF-01` through `PERF-03`, `DOM-01` through `DOM-02`, and `IOS-01` through `IOS-02`).
+- [x] Authored **[`docs/plans/06_SECURITY_VULNERABILITIES_AND_ARCHITECTURE_REMEDIATION.md`](../plans/06_SECURITY_VULNERABILITIES_AND_ARCHITECTURE_REMEDIATION.md)** with Mermaid architecture diagrams, exact code blueprints, and a 4-phase execution checklist.
+- [x] Added formal Architecture Decision Records:
+  - **[`ADR 0002`](../adr/0002-ios-open-source-literature-focus-and-manga-feature-flag.md):** Feature-flagging Manga on iOS (`StoryStore.isMangaEnabled = false`) for App Store Guideline 5.2 compliance and open-source books/fables focus.
+  - **[`ADR 0003`](../adr/0003-comprehensive-catalog-seeding-and-chapter-1-continuity.md):** Unified multi-chapter catalog seeding (`data/curated_catalog.json`) and Chapter 1 continuity guarantee.
+- [x] Created **[`AGENTS.md`](../../AGENTS.md)** and **[`docs/AGENT_HANDOFF_CONTEXT.md`](../AGENT_HANDOFF_CONTEXT.md)** so coding agents on the developer's laptop have complete session context, exact file/line references, and compiler/runtime notes.

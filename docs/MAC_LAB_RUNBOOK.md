@@ -59,14 +59,17 @@ When demonstrating the application to your professor or grading committee in the
 |---|---|---|
 | **1. Cold Launch & Auth** | App opens to `WelcomeView`; register a test account using an address reserved for testing. | Exercises account-scoped authentication and secure device token storage. Passwords use versioned PBKDF2-HMAC-SHA256 hashes; successful logins upgrade legacy hashes. |
 | **2. Pure Zero-Baseline State** | Switch to **"Shelf"** tab immediately upon registration. | Proves zero ghost data: authentic empty states render with 0 saved, 0 finished, and 0 reading streak days. |
-| **3. Live Library Feed** | Switch to **"Library"** and wait for the configured provider catalog to load. | Demonstrates live provider content and metadata. A fresh install has no bundled catalog; do not expect a particular title or format. |
-| **4. Format Filters** | If the live catalog contains both formats, tap **"Manga"**, **"Novels"**, then **"All"**. | Demonstrates reactive format filtering for the formats actually returned by the backend. |
-| **5. Manga Reader** | If a manga with readable pages is available, open it from the live catalog. | Demonstrates `MangaReaderView`, vertical Webtoon scrolling, and provider page images. Skip this step when the configured catalog has no readable manga. |
-| **6. Manga Reading Mode Switch** | In an available manga, use the mode toggle to switch to **"Paging"**. | Demonstrates continuous scroll and horizontal page navigation. |
-| **7. Prose Reader & Typography** | Open a live prose title whose chapter endpoint returns readable text. | Demonstrates adaptive typography (`ReaderFont`, `ReaderTheme`, `ReaderLineSpacing`) and pacing estimation. Provider-only chapters without readable text should open their official source in the in-app browser. |
+| **3. Curated Library Feed** | Switch to **"Library"** and inspect the featured hero book, **"Classic Fables & Folklore"**, and **"Trending Literature"** rails. | Demonstrates automatic catalog synchronization from `data/curated_catalog.json` / FastAPI (`init_db()`), with every book and fable guaranteed to start at Chapter 1. |
+| **4. Category Filter Pills** | Tap **"Fables"**, **"Classics"**, **"Mystery"**, **"Fiction"**, then **"All"**. | Demonstrates reactive category filtering across open-source books, Aesop's Fables, folklore, mystery, and classic literature (`StoryStore.isMangaEnabled = false`). |
+| **5. Multi-Chapter Book Reader & TOC** | Open a classic novel (e.g., *Alice's Adventures in Wonderland* or *Pride and Prejudice*) and tap the **Table of Contents (list)** icon. | Proves every multi-chapter book starts cleanly at **Chapter 1** (`chapterNumber == 1`) with full chapter-to-chapter navigation. |
+| **6. Reader Typography & Themes** | Tap the **Display Options (`Aa`)** button in the reader toolbar and toggle between **Parchment**, **Sepia**, **Midnight**, and **OLED** themes and **Serif / Sans / Mono** fonts. | Demonstrates adaptive editorial typography (`ReaderFont`, `ReaderTheme`, `ReaderLineSpacing`) and pacing estimation. |
+| **7. Classic Fable Reading** | Return to Library, tap **"Fables"**, and open an Aesop fable (e.g., *The Tortoise and the Hare* or *The Fox and the Grapes*). | Demonstrates concise fable reading with moral takeaway formatting and immediate progress ring updates. |
 | **8. Auditory Narration & Voice Picker** | Tap the **Audio Play** button in Reader toolbar; tap **Voice Selector**. | Activates `AVSpeechSynthesizer` narration state machine. Displays `VoiceSelectionSheet` with live voice audition across regional accents (`en-US`, `en-GB`, `en-AU`). |
 | **9. Community Publishing** | Tap **"Write"** tab; author a title and manuscript; tap **"Publish"**. | Validates manuscript, calculates word count, prepends to store catalog, and displays interactive `StoryPublishedSheet`. |
 | **10. Sign-Out & Isolation** | Tap **"Profile"** ➔ **Settings** icon ➔ **"Sign Out"**. | Purges reactive session, resets root view state, and returns to authentication screen without data leakage. |
+
+> [!TIP]
+> **Pre-Captured Visual Archive:** All **29 full-screen iOS Simulator screenshots** covering every screen, filter pill, modal, and theme—plus a continuous walkthrough video (`fable_ios_full_walkthrough.mp4`)—are already archived and indexed in **[`docs/simulator_captures/README.md`](./simulator_captures/README.md)**.
 
 ---
 

@@ -1,4 +1,4 @@
-# Fable iOS: Curated Multi-Format Literature & Graphic Manga Platform
+# Fable iOS: Curated Open-Source Books, Classic Fables & Community Literature Platform
 
 [![Swift 5.10](https://img.shields.io/badge/Swift-5.10-orange.svg)](https://swift.org)
 [![iOS 17.0+](https://img.shields.io/badge/iOS-17.0+-blue.svg)](https://developer.apple.com/ios/)
@@ -7,11 +7,29 @@
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI%200.110+-009688.svg)](https://fastapi.tiangolo.com)
 [![Pydantic v2](https://img.shields.io/badge/Contract-Pydantic%20v2-e92063.svg)](https://docs.pydantic.dev/)
 [![Database](https://img.shields.io/badge/Database-SQLite-4169E1.svg)](https://www.sqlite.org/)
-[![Pytest](https://img.shields.io/badge/Backend%20Tests-Automated-brightgreen.svg)](https://pytest.org)
-[![Multi-Format](https://img.shields.io/badge/Format-Prose%20%7C%20Manga-indigo.svg)](https://developer.apple.com)
+[![Pytest](https://img.shields.io/badge/Backend%20Tests-100%20Passed-brightgreen.svg)](https://pytest.org)
+[![XCTest](https://img.shields.io/badge/iOS%20Tests-22%20Passed-brightgreen.svg)](https://developer.apple.com/xcode/)
 [![Figma Prototype](https://img.shields.io/badge/Figma-100%25%20Prototype-pink.svg)](https://www.figma.com/proto/fable-ios-prototype-midterm)
 
-**Fable** is a bespoke, native iOS multi-format reading platform and companion REST backend engineered as a distraction-free sanctuary for classic literature, folklore, and serialized graphic novels/manga. In contrast to commercial reading platforms diluted with aggressive ads, social feeds, and micro-transactions, Fable couples an Electric Indigo modern aesthetic with an enterprise-grade, offline-first, contract-first system architecture.
+**Fable** is a native iOS literary reading and community publishing platform with a companion FastAPI REST backend, engineered as a distraction-free sanctuary for **open-source classic books, world folklore, timeless fables, and original community manuscripts**. Fable couples a refined editorial aesthetic with an offline-first, contract-first system architecture where every book and fable is guaranteed to open at **Chapter 1** with full multi-chapter Table of Contents navigation.
+
+> [!NOTE]
+> **Open-Source Literature Focus (`StoryStore.isMangaEnabled = false`):** While Fable's underlying engine supports multi-format prose and graphic chapters, manga is disabled by default on iOS via `StoryStore.isMangaEnabled = false` to ensure 100% compliance with **Apple App Store Review Guideline 5.2 (Intellectual Property)** and avoid upstream scanlation chapter gaps (see [`ADR 0002`](docs/adr/0002-ios-open-source-literature-focus-and-manga-feature-flag.md) and [`docs/DATA_SOURCES_AND_API_STRATEGY.md`](docs/DATA_SOURCES_AND_API_STRATEGY.md)).
+
+---
+
+## Quick Documentation & Handoff Index
+
+| Document | Purpose |
+|---|---|
+| **[`AGENTS.md`](AGENTS.md)** | Root entrypoint for AI coding agents resuming work on a laptop or lab machine |
+| **[`docs/AGENT_HANDOFF_CONTEXT.md`](docs/AGENT_HANDOFF_CONTEXT.md)** | Complete session handoff context, commit log, exact file/line references, and compiler gotchas |
+| **[`docs/plans/06_SECURITY_VULNERABILITIES_AND_ARCHITECTURE_REMEDIATION.md`](docs/plans/06_SECURITY_VULNERABILITIES_AND_ARCHITECTURE_REMEDIATION.md)** | **Plan 06:** 4-Phase Security & Architecture Hardening Plan (`SEC-01`–`SEC-04`, `PERF-01`–`PERF-03`, `DOM-01`–`DOM-02`, `IOS-01`–`IOS-02`) |
+| **[`docs/simulator_captures/README.md`](docs/simulator_captures/README.md)** | **29 Retina iOS Simulator Screenshots** across every screen/filter/modal + **Full Walkthrough Video (`fable_ios_full_walkthrough.mp4`)** |
+| **[`docs/DATA_SOURCES_AND_API_STRATEGY.md`](docs/DATA_SOURCES_AND_API_STRATEGY.md)** | Multi-chapter catalog seeding (`data/curated_catalog.json`), Chapter 1 continuity guarantee, and upstream manga gap analysis |
+| **[`docs/adr/`](docs/adr/)** | Architecture Decision Records: [`ADR 0001`](docs/adr/0001-password-hash-versioning.md) (Password Hashing), [`ADR 0002`](docs/adr/0002-ios-open-source-literature-focus-and-manga-feature-flag.md) (Manga Feature Flag), [`ADR 0003`](docs/adr/0003-comprehensive-catalog-seeding-and-chapter-1-continuity.md) (Catalog Seeding) |
+| **[`docs/final_milestone/MASTER_PROGRESS_LOG.md`](docs/final_milestone/MASTER_PROGRESS_LOG.md)** | Chronological engineering progress log across all phases and PRs |
+| **[`docs/MAC_LAB_RUNBOOK.md`](docs/MAC_LAB_RUNBOOK.md)** | Step-by-step computer lab setup, grading demo runbook, and troubleshooting |
 
 ---
 
@@ -124,17 +142,16 @@ Fable is architected around **Feature-Driven Vertical Slices** combined with **M
    pip install -r backend/requirements-test.txt
    ```
 
-4. **Execute Backend Verification Tests:**
+4. **Execute Backend Verification Tests (100 Automated Tests):**
    ```bash
-   pytest backend/test_main.py -v
+   FABLE_ENV=test ./.venv/bin/pytest backend/test_main.py -v
    ```
-   *(All tests must pass, verifying health checks, serialization contracts, chapter extraction, and sync logic).*
+   *(All 100 tests must pass, verifying health checks, serialization contracts, Chapter 1 continuity, rate limits, auth hashing, and shelf sync logic).*
 
 5. **Start the FastAPI Development Server:**
    ```bash
    cd backend
-   export FABLE_ENV=development
-   uvicorn main:app --reload --host 127.0.0.1 --port 8000
+   FABLE_ENV=development ../.venv/bin/uvicorn main:app --reload --host 127.0.0.1 --port 8000
    ```
    * **API Base URL:** `http://127.0.0.1:8000/api/v1`
    * **Interactive Swagger UI:** Open your browser and navigate to `http://127.0.0.1:8000/docs`
@@ -175,40 +192,53 @@ Fable is architected around **Feature-Driven Vertical Slices** combined with **M
 ```text
 Fable-IOS/
 ├── README.md                               # Repository guide & setup documentation (this file)
-├── AGENTS.md                               # AI senior technical instructor protocol
+├── AGENTS.md                               # Root entrypoint for AI coding agents on laptop/lab machines
 ├── Package.swift                           # Swift Package Manager manifest
-├── backend/                                # Asynchronous Python / FastAPI Backend
+├── data/
+│   └── curated_catalog.json                # Canonical multi-chapter seed catalog (Chapter 1 guaranteed)
+├── scripts/
+│   └── seed_comprehensive_catalog.py       # Catalog seeding & Chapter 1 verification script
+├── backend/                                # Asynchronous Python 3.9+ / FastAPI Backend
 │   ├── main.py                             # Application entrypoint & middleware configuration
 │   ├── requirements.txt                    # Runtime dependencies (FastAPI, Uvicorn, Pydantic, HTTPX)
 │   ├── requirements-test.txt               # Runtime plus pytest for local and CI verification
-│   ├── test_main.py                        # Backend contract and service tests
+│   ├── test_main.py                        # Pytest runner entrypoint (executes 100-test suite)
+│   ├── tests/
+│   │   └── test_api_v1.py                  # Comprehensive 100-case API, auth, backup, and catalog test suite
 │   ├── api/v1/
 │   │   ├── api.py                          # Unified API router mounting
 │   │   └── endpoints/                      # Route controllers (auth, stories, shelf, gutenberg, health)
 │   ├── core/
-│   │   └── database.py                     # SQLite connection and additive schema bootstrap
-│   ├── models/                             # Data models
-│   ├── schemas/                            # Pydantic v2 DTOs with serialization aliases
-│   └── services/                           # Business logic (story service, shelf sync, gutenberg parser)
-├── frontend/                               # Native iOS Application
-│   ├── FableApp.xcodeproj/                 # Xcode 16 project file (Synchronized Root Group)
+│   │   ├── config.py                       # Environment & security settings
+│   │   ├── database.py                     # SQLite connection, schema bootstrap & curated catalog upsert
+│   │   ├── operator_auth.py                # Operator key guard for ingestion routes
+│   │   └── rate_limit.py                   # Sliding-window and SQLite token-bucket rate limiters
+│   ├── models/                             # Pydantic v2 DTOs with camelCase serialization aliases
+│   └── services/                           # Business logic (auth_service, story_service, shelf_service, gutenberg)
+├── frontend/                               # Native iOS Application (22 XCTests)
+│   ├── FableApp.xcodeproj/                 # Xcode 16 project file
 │   └── FableApp/
 │       ├── App/                            # Lifecycle bootstrap (FableApp.swift, ContentView.swift)
 │       ├── Core/                           # Foundation tokens, FableTheme, FableImageView, KeychainStore
 │       ├── Features/                       # Domain-Driven Vertical Slices
 │       │   ├── Auth/                       # Welcome, SignIn, SignUp, AuthManager, AuthTests
 │       │   ├── Library/                    # LibraryView, ExploreView, GenreDetail, StoryStore, APIService, AppHealthTests
-│       │   ├── Reader/                     # ReaderView, MangaReaderView, DisplayOptionsSheet, VoiceSelectionSheet, AudioNarrator
+│       │   ├── Reader/                     # ReaderView, MangaReaderView (dormant), DisplayOptionsSheet, VoiceSelectionSheet
 │       │   ├── Shelf/                      # ShelfView, ProfileView, SettingsView, SystemDiagnosticsSheet, ShelfTests
 │       │   └── Write/                      # WriteView, StoryComposer, StoryPublishedSheet, WriteTests
-│       └── Assets.xcassets/                # App icon and accent color; editorial images come from providers
-├── docs/                                   # Architectural specifications & academic documentation
-│   ├── final_milestone/                    # Capstone ADRs, multi-format architecture, master progress log
+│       └── Assets.xcassets/                # App icon and accent color
+├── docs/                                   # Architectural specifications & engineering documentation
+│   ├── AGENT_HANDOFF_CONTEXT.md            # Complete session handoff context for laptop agents
+│   ├── adr/                                # Architecture Decision Records (ADR 0001, 0002, 0003)
+│   ├── plans/                              # Feature & Security Remediation Plans (Plans 01 through 06)
+│   ├── simulator_captures/                 # 29 Retina UI screenshots + full walkthrough MP4 video
+│   ├── final_milestone/                    # Capstone specs & MASTER_PROGRESS_LOG.md
 │   ├── FINAL_MILESTONE_PROGRESS.md         # Comprehensive milestone progression audit
-│   ├── DATA_SOURCES_AND_API_STRATEGY.md    # Multi-format gateway pattern & API contracts
+│   ├── DATA_SOURCES_AND_API_STRATEGY.md    # Catalog seeding architecture & upstream manga gap analysis
 │   ├── ARCHITECTURE.md                     # System architecture & vertical slice design
 │   ├── SYSTEM_DESIGN.md                    # Critical system design & 5 pillars specification
-│   ├── FIGMA.md                            # Complete Figma frame inventory & interaction matrix
+│   ├── OPERATIONS.md                       # Encrypted backup, verification, and restore runbook
+│   ├── OCI_DEPLOYMENT.md                   # Oracle Cloud production deployment guide
 │   └── MAC_LAB_RUNBOOK.md                  # Step-by-step computer lab verification runbook
 └── prototype_reference/                    # High-resolution screenshots of all 10 prototype screens
 ```
