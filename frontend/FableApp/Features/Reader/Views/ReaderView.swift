@@ -780,6 +780,9 @@ public struct ReaderView: View {
             tableOfContentsSheetView
                 .presentationDetents([.medium, .large])
         }
+        .onChange(of: store.isShowingChapterIndexSheet) { _, newValue in
+            isShowingChapterSheet = newValue
+        }
     }
     
     // View helper for rendered manuscript paragraph with marginalia highlighting & oral audio sync

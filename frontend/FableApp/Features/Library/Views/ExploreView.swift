@@ -443,6 +443,20 @@ public struct ExploreView: View {
                 AuthorDetailView(writer: writer)
                     .environmentObject(store)
             }
+            .onChange(of: store.tourExploreFilter) { _, newValue in
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    selectedFilter = newValue
+                }
+            }
+            .onChange(of: store.tourExploreSearchText) { _, newValue in
+                searchText = newValue
+            }
+            .onChange(of: store.selectedGenre) { _, newValue in
+                selectedGenreForDetail = newValue
+            }
+            .onChange(of: store.tourSelectedWriter) { _, newValue in
+                selectedWriter = newValue
+            }
         }
     }
 }

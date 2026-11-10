@@ -502,6 +502,14 @@ public struct LibraryView: View {
                 ProfileView()
                     .environmentObject(store)
             }
+            .onChange(of: store.selectedCategory) { _, newValue in
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    selectedFilter = newValue
+                }
+            }
+            .onChange(of: store.activeReaderStory) { _, newValue in
+                selectedStoryToRead = newValue
+            }
             .onAppear {
                 if let filter = ProcessInfo.processInfo.environment["AUTO_SELECT_FILTER"], !filter.isEmpty {
                     selectedFilter = filter

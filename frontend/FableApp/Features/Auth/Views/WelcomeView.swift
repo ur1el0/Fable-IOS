@@ -156,6 +156,22 @@ public struct WelcomeView: View {
                 }
             })
         }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("FableTourWelcomeState"))) { note in
+            let mode = note.object as? String ?? "none"
+            switch mode {
+            case "signIn":
+                isShowingSignUp = false
+                isShowingSignIn = true
+            case "signUp":
+                isShowingSignIn = false
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                    isShowingSignUp = true
+                }
+            default:
+                isShowingSignIn = false
+                isShowingSignUp = false
+            }
+        }
     }
 }
 

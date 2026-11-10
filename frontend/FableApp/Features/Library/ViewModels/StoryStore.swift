@@ -15,6 +15,11 @@ public final class StoryStore: ObservableObject {
     @Published var isPublishingStory: Bool = false
     @Published var publishErrorMessage: String?
     @Published var selectedTab: FableTab = .library
+    @Published var tourExploreFilter: String = "All"
+    @Published var tourExploreSearchText: String = ""
+    @Published var tourSelectedWriter: Writer?
+    @Published var tourShelfTab: String = "Saved"
+    @Published var isShowingChapterIndexSheet: Bool = false
 
     // Reader Preferences (Persisted across launches)
     @Published var readerFont: ReaderFont = .serif {

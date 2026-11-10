@@ -539,6 +539,17 @@ public struct ShelfView: View {
                 ProfileView()
                     .environmentObject(store)
             }
+            .onChange(of: store.tourShelfTab) { _, newValue in
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    selectedTab = newValue
+                }
+            }
+            .onChange(of: store.isShowingSettings) { _, newValue in
+                isShowingSettingsSheet = newValue
+            }
+            .onChange(of: store.isShowingProfile) { _, newValue in
+                isShowingProfileSheet = newValue
+            }
             .onAppear {
                 store.reloadReadingStats()
             }
