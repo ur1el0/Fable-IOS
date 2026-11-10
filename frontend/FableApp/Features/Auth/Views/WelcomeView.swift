@@ -19,20 +19,17 @@ public struct WelcomeView: View {
 
                 // Modern Brand Header
                 VStack(spacing: 16) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 24)
-                            .fill(FableTheme.surface)
-                            .frame(width: 80, height: 80)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 24)
-                                    .stroke(FableTheme.brandPrimary.opacity(0.2), lineWidth: 1)
-                            )
-                            .shadow(color: Color.black.opacity(0.04), radius: 10, y: 4)
-
-                        Image(systemName: "square.stack.3d.up.fill")
-                            .fableFont(size: 36)
-                            .foregroundColor(FableTheme.brandPrimary)
-                    }
+                    Image("FableLogo")
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 80, height: 80)
+                        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                                .stroke(FableTheme.brandPrimary.opacity(0.2), lineWidth: 1)
+                        )
+                        .shadow(color: Color.black.opacity(0.08), radius: 10, y: 4)
+                        .accessibilityLabel("Fable logo")
 
                     VStack(spacing: 6) {
                         Text("Fable")

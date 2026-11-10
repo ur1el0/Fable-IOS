@@ -67,6 +67,13 @@ struct ContentView: View {
         ZStack {
             FableTheme.background.ignoresSafeArea()
             VStack(spacing: 16) {
+                Image("FableLogo")
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 88, height: 88)
+                    .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                    .accessibilityLabel("Fable logo")
+
                 Text("Fable")
                     .fableFont(size: 40, weight: .black)
                     .foregroundColor(FableTheme.brandPrimary)
