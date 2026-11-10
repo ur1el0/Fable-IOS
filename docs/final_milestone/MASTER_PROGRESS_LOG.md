@@ -709,3 +709,11 @@ This progress log tracks the transition of **Fable** from an editorial prototype
 ## Repository Guidance Cleanup (2026-11-06)
 
 - [x] Removed the root `AGENTS.md` and `CLAUDE.md` files from the current repository tree as requested. Their copies remain in earlier Git history.
+
+## Mac Lab Python 3.9 Runtime Compatibility (2026-11-10)
+
+- [x] Restored Python 3.9 compatibility across backend modules (`backend/core/operator_auth.py`, `backend/core/rate_limit.py`, `backend/services/auth_service.py`, `backend/services/gutenberg.py`, `backend/services/password_reset_email.py`) by adding `from __future__ import annotations` and using `typing.Optional` / `typing.Union` instead of bare PEP 604 pipe unions.
+- [x] Installed missing runtime dependencies (`email-validator`, `cryptography`) in the local virtual environment.
+- [x] Verified full backend test suite: **100/100 tests passed** in 7.97s (`FABLE_ENV=test ./.venv/bin/pytest backend/test_main.py`).
+- [x] Verified native iOS test suite: **22/22 tests passed** on `iPhone 17 Pro` via `xcodebuild test`.
+- [x] Verified clean development startup with `FABLE_ENV=development`.
