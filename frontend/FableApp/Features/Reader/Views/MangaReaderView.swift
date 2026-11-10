@@ -755,7 +755,7 @@ public struct MangaReaderView: View {
             return
         }
         if !fetched.isEmpty {
-            self.chapters = fetched
+            self.chapters = fetched.sorted(by: { $0.chapterNumber < $1.chapterNumber })
         } else {
             // Synthesize single chapter with story pageUrls if present
             let single = Chapter(
@@ -781,6 +781,11 @@ public struct MangaReaderView: View {
         } else if let chapterNumber = progress.lastReadChapterNumber,
                   let savedIndex = chapters.firstIndex(where: { $0.chapterNumber == chapterNumber }) {
             currentChapterIndex = savedIndex
+        } else {
+            currentChapterIndex = 0
+        }
+        if !chapters.indices.contains(currentChapterIndex) {
+            currentChapterIndex = 0
         }
         if progress.currentPage > 1 {
             let restoredPage = progress.currentPage - 1
