@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 import hmac
 import os
+from typing import Optional
 
 from fastapi import Header, HTTPException, status
 
@@ -8,7 +11,7 @@ MINIMUM_INGESTION_KEY_BYTES = 32
 
 
 def require_ingestion_api_key(
-    api_key: str | None = Header(default=None, alias="X-Fable-Ingestion-Key"),
+    api_key: Optional[str] = Header(default=None, alias="X-Fable-Ingestion-Key"),
 ) -> None:
     configured_key = os.environ.get("FABLE_INGESTION_API_KEY", "")
     configured_key_bytes = configured_key.encode("utf-8")

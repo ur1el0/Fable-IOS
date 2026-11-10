@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 from email.message import EmailMessage
 import logging
 import os
 import smtplib
 import ssl
+from typing import Optional
 
 from core.email_validation import normalize_email_address
 from services.auth_service import discard_password_reset_token
@@ -20,8 +23,8 @@ class EmailDeliveryConfigurationError(RuntimeError):
 class SMTPSettings:
     host: str
     port: int
-    username: str | None
-    password: str | None
+    username: Optional[str]
+    password: Optional[str]
     from_address: str
 
 

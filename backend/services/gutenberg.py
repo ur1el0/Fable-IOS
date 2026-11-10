@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import csv
 import gzip
@@ -11,7 +13,7 @@ import zlib
 from collections import OrderedDict
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import NamedTuple, Optional
+from typing import NamedTuple, Optional, Tuple, List
 from uuid import UUID, uuid5
 
 import httpx
@@ -40,8 +42,8 @@ _GUTENBERG_CHAPTER_CACHE: OrderedDict[int, tuple[float, list[ChapterDTO]]] = Ord
 _GUTENBERG_FETCH_SEMAPHORE = asyncio.Semaphore(GUTENBERG_MAX_CONCURRENT_FETCHES)
 _GUTENBERG_METADATA_SEMAPHORE = asyncio.Semaphore(GUTENBERG_MAX_CONCURRENT_FETCHES)
 _GUTENBERG_CATALOG_LOCK = asyncio.Lock()
-_GUTENBERG_CATALOG_CACHE: tuple[float, list["GutenbergCatalogEntry"]] | None = None
-_GUTENBERG_CATALOG_STALE_CACHE: tuple[float, list["GutenbergCatalogEntry"]] | None = None
+_GUTENBERG_CATALOG_CACHE: Optional[Tuple[float, List["GutenbergCatalogEntry"]]] = None
+_GUTENBERG_CATALOG_STALE_CACHE: Optional[Tuple[float, List["GutenbergCatalogEntry"]]] = None
 _GUTENBERG_CATALOG_LAST_REFRESH_ATTEMPT = 0.0
 
 _RDF_NAMESPACES = {
@@ -113,7 +115,7 @@ def _parse_gutenberg_catalog_snapshot(compressed_payload: bytes) -> list[Gutenbe
     return entries
 
 
-def _read_cached_gutenberg_catalog(path: Path) -> tuple[list[GutenbergCatalogEntry], float] | None:
+def _read_cached_gutenberg_catalog(path: Path) -> Optional[Tuple[List[GutenbergCatalogEntry], float]]:
     try:
         file_stat = path.stat()
         if file_stat.st_size > GUTENBERG_CATALOG_MAX_COMPRESSED_BYTES:

@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 import os
 import time
 import threading
 import math
 import hashlib
 from collections import deque
-from typing import Tuple, Dict
+from typing import Tuple, Dict, Optional, Union
 from core.database import get_db
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.concurrency import run_in_threadpool
@@ -199,7 +201,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     def __init__(
         self,
         app,
-        rate_limiter: SlidingWindowRateLimiter | SharedTokenBucketRateLimiter | None = None,
+        rate_limiter: Optional[Union[SlidingWindowRateLimiter, SharedTokenBucketRateLimiter]] = None,
     ):
         super().__init__(app)
         self.rate_limiter = rate_limiter or limiter

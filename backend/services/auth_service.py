@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import hashlib
 import hmac
 import secrets
 from datetime import datetime, timedelta, timezone
 from uuid import UUID, uuid4
-from typing import Optional
+from typing import Optional, Tuple
 from fastapi import HTTPException, status
 from core.database import get_db
 from schemas.schemas import UserDTO, RegisterRequest, LoginRequest, AuthResponse, ProfileUpdateRequest
@@ -52,7 +54,7 @@ def hash_password(password: str) -> str:
     return f"{PASSWORD_HASH_ALGORITHM}${PASSWORD_HASH_ITERATIONS}${salt.hex()}${key.hex()}"
 
 
-def _password_hash_parameters(stored_hash: str) -> tuple[bytes, bytes, int] | None:
+def _password_hash_parameters(stored_hash: str) -> Optional[Tuple[bytes, bytes, int]]:
     try:
         parts = stored_hash.split("$")
         if len(parts) == 2:
@@ -267,7 +269,7 @@ def update_current_user(token: str, req: ProfileUpdateRequest) -> UserDTO:
     return _to_user_dto(row)
 
 
-def issue_password_reset_token(email: str) -> str | None:
+def issue_password_reset_token(email: str) -> Optional[str]:
     normalized_email = email.strip().lower()
     conn = get_db()
     try:
