@@ -175,7 +175,7 @@ public struct LibraryView: View {
                                         selectedStoryToRead = featuredStory
                                     } label: {
                                         ZStack(alignment: .bottom) {
-                                            FableImageView(name: featuredStory.effectiveCoverImage, placeholderIcon: "square.stack")
+                                            FableImageView(name: featuredStory.effectiveCoverImage, title: featuredStory.title, placeholderIcon: "square.stack")
                                                 .frame(maxWidth: .infinity)
                                                 .frame(height: 220)
                                                 .clipped()
@@ -303,7 +303,7 @@ public struct LibraryView: View {
                                     selectedStoryToRead = inProgressStory
                                 }) {
                                     HStack(spacing: 14) {
-                                        FableImageView(name: inProgressStory.effectiveCoverImage ?? inProgressStory.effectiveHeroImage, placeholderIcon: "square.stack")
+                                        FableImageView(name: inProgressStory.effectiveCoverImage ?? inProgressStory.effectiveHeroImage, title: inProgressStory.title, placeholderIcon: "square.stack")
                                             .frame(width: 64, height: 80)
                                             .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                                             .overlay(
@@ -417,7 +417,7 @@ public struct LibraryView: View {
                                             selectedStoryToRead = story
                                         } label: {
                                             HStack(alignment: .top, spacing: 14) {
-                                                FableImageView(name: story.effectiveCoverImage, placeholderIcon: "square.stack")
+                                                FableImageView(name: story.effectiveCoverImage, title: story.title, placeholderIcon: "square.stack")
                                                     .frame(width: 72, height: 96)
                                                     .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                                                     .overlay(
