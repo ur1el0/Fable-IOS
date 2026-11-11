@@ -1,8 +1,8 @@
 # Fable iOS — Agent Handoff & Full Session Context
 
-**Last Updated:** 2026-11-10
-**Active Git Branch:** `fix/python39-runtime-compatibility`
-**Primary Next Task:** Execute **[`docs/plans/06_SECURITY_VULNERABILITIES_AND_ARCHITECTURE_REMEDIATION.md`](./plans/06_SECURITY_VULNERABILITIES_AND_ARCHITECTURE_REMEDIATION.md)** (4-Phase Security & Architecture Hardening Plan)
+**Last Updated:** 2026-11-11
+**Active Git Branch:** `fix/mac-reported-issues`
+**Primary Next Task:** Build and run the iOS Simulator app on a Mac; verify live Gutenberg covers and in-app chapter reading against the local API on port 8001.
 
 ---
 
@@ -11,7 +11,7 @@
 If you are an AI coding agent picking up this repository on the developer's laptop, read these three files first:
 1. **`docs/AGENT_HANDOFF_CONTEXT.md`** *(this file — complete session history, architectural decisions, exact line numbers, and compiler/runtime gotchas)*
 2. **[`docs/plans/06_SECURITY_VULNERABILITIES_AND_ARCHITECTURE_REMEDIATION.md`](./plans/06_SECURITY_VULNERABILITIES_AND_ARCHITECTURE_REMEDIATION.md)** *(the 4-phase hardening specification to execute next)*
-3. **[`docs/DATA_SOURCES_AND_API_STRATEGY.md`](./DATA_SOURCES_AND_API_STRATEGY.md)** *(data architecture, Chapter 1 continuity invariant, and why Manga is disabled on iOS)*
+3. **[`docs/DATA_SOURCES_AND_API_STRATEGY.md`](./DATA_SOURCES_AND_API_STRATEGY.md)** *(live provider data, on-demand chapter loading, and why Manga is disabled on iOS)*
 
 ---
 
@@ -31,9 +31,9 @@ If you are an AI coding agent picking up this repository on the developer's lapt
 
 1. **Manga Must Remain Hidden on iOS (`StoryStore.isMangaEnabled == false`):**
    - `StoryStore.isMangaEnabled` in `frontend/FableApp/Features/Library/ViewModels/StoryStore.swift` (around line 193) is intentionally `false`.
-   - **Why backend manga routes still exist:** Backend `/api/v1/public/manga` endpoints and manga seed rows in `curated_catalog.json` are kept intact so the existing backend pytest suite (`100/100 passed`) and `AppHealthTests` continue to pass without breaking contract tests, while `StoryStore.visibleCatalogStories` filters out `.manga` on the iOS client.
-2. **Chapter 1 Continuity Invariant:**
-   - Every multi-chapter story in `data/curated_catalog.json` and `stories.chapters_json` must start at `chapterNumber == 1` (`index == 0`). `backend/tests/test_api_v1.py` enforces this via automated tests.
+   - **Why backend manga routes still exist:** Backend MangaDex routes remain as provider API functionality, while `StoryStore.visibleCatalogStories` filters `.manga` out of the iOS client until source continuity and rights are verified. No local scanlation catalog is seeded.
+2. **Live Provider Reading:**
+   - Provider catalog responses contain metadata and official cover URLs. Gutenberg chapters are fetched from the provider's plain-text source by `/api/v1/public/gutenberg/{id}/chapters` when the user opens a book; no Gutenberg chapter bodies are downloaded for every catalog item.
 3. **Python 3.9 Runtime Compatibility:**
    - The macOS system/lab Python environment may run Python 3.9+. Always include `from __future__ import annotations` at the top of Python modules if using `X | Y` union type syntax or `list[...]` / `dict[...]` built-in generics.
 

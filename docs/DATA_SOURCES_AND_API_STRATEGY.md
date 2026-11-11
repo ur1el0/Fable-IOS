@@ -57,7 +57,7 @@ This architecture mirrors consumer reading platforms like **Medium, Substack, an
 ```
 
 ### Key Characteristics
-1. **Curated Editorial Catalog:** The backend database contains the initial seed of historical folklore, mythology, and editorial shorts (e.g. *The Clockmaker of Prague*, *The Loom of Arachne*, *Maria Makiling*).
+1. **Live Public-Domain Catalog:** The app-facing catalog is fetched from Project Gutenberg through Gutendex/RDF metadata. Fable does not bundle or seed placeholder provider stories. Cover URLs come from Gutenberg metadata, and the reader fetches book text only when a user opens a title.
 2. **User-Generated Content (UGC):** When a user crafts a story in `WriteView` and taps **Publish**, the app sends an HTTP `POST /api/v1/stories` request. The backend validates and persists the story, making it instantly discoverable for other users.
 3. **Data Integrity & Exact Formatting:** Because we define the database schema, all fields (chapter numbers, reading time, excerpt, full body text) match the iOS view models with 100% accuracy.
 
@@ -90,7 +90,7 @@ If the goal is to access a vast, pre-existing library of real-world literature w
 - **Base Endpoint:** `https://api.mangadex.org`
 - **What It Provides:** High-resolution sequential panel art manifests for graphic novels and manga (e.g. *Chainsaw Devil: Special Edition*).
 - **Format:** Ingested as `ContentFormat.manga` with provenance `SourceProvider.mangadex`. Each chapter includes an ordered `pageUrls` array of image URLs consumed by `MangaReaderView`.
-- **Known Limitation & Licensing Gaps:** Upstream MangaDex feeds are subject to commercial publisher DMCA takedowns (e.g. Seven Seas Entertainment's English license for *Mushoku Tensei: Jobless Reincarnation* caused the purge of Chapters 1–108). In such cases, MangaDex upstream only provides late-stage scanlations (Chapters 109+), rather than an uninterrupted stream from Chapter 1. Fable mitigates initial onboarding via local SQLite seeding of authentic opening chapters, but full contiguous serialization requires multi-provider aggregator failover.
+- **Known Limitation & Licensing Gaps:** MangaDex feeds can contain chapter gaps and user uploaded scanlations. Fable does not seed third-party scanlation pages into its database; manga remains hidden in the iOS catalog until source continuity and rights can be verified.
 
 ---
 
@@ -154,22 +154,9 @@ In the iOS client, fetching live data follows a clean three-layer separation of 
 
 ---
 
-## 6. Implementation Roadmap
+## 6. Local Provider and Reader Flow
 
-To activate live fetching:
-
-1. **Step 1: Start the Local Backend Server**
-   ```bash
-   cd backend
-   export FABLE_ENV=development
-   python3 -m uvicorn main:app --reload --port 8000
-   ```
-2. **Step 2: Populate the Database**
-   Seed the SQLite database with the full 10-story editorial suite or configure the Gutendex crawler.
-3. **Step 3: Enable Live Networking in iOS**
-   In `frontend/FableApp/Controllers/StoryController.swift`, set:
-   ```swift
-   public var isLiveBackendEnabled: Bool = true
-   ```
-4. **Step 4: Verify Live Feed in iOS Simulator**
-   Launch the app (`Cmd + R`); the feed will now dynamically pull from the live HTTP endpoint.
+1. Start the backend with `docker compose up -d --build`. Compose maps host port `8001` to container port `8000`; check `http://127.0.0.1:8001/api/v1/health`.
+2. The iOS Debug build uses `http://127.0.0.1:8001/api/v1` by default. Use an HTTPS API URL for Release builds.
+3. The catalog endpoint returns provider metadata and official cover URLs without downloading every book's text.
+4. `ReaderView` requests Gutenberg chapters from `/api/v1/public/gutenberg/{id}/chapters` when a user opens a book. The backend fetches and parses the official plain-text source, then caches chapters for subsequent reads.

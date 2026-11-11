@@ -1,7 +1,9 @@
 # ADR 0003: Unified multi-chapter catalog seeding and Chapter 1 continuity guarantee
 
-- **Status:** Accepted
+- **Status:** Superseded by live-provider metadata and on-demand chapters (2026-11-11)
 - **Date:** 2026-11-10
+
+> This historical decision described a bundled catalog and manual chapter seeding. The current app does not ship that seed catalog or seed scripts. Provider catalog responses use live metadata, and reader text is loaded from the provider's official plain-text endpoint on demand. See `docs/DATA_SOURCES_AND_API_STRATEGY.md` for current behavior.
 
 ## Context
 

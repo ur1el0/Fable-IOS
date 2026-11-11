@@ -5,7 +5,7 @@ This guide deploys the FastAPI backend on an OCI Compute instance with Caddy han
 ## Deployment layout
 
 - Caddy is public on TCP 80 and 443 and obtains and renews the certificate for `FABLE_DOMAIN`.
-- FastAPI listens on container port 8000 and is attached only to a private Docker bridge. The base Compose file publishes it on host loopback (`127.0.0.1:8000`), never on a public interface.
+- FastAPI listens on container port 8000 and is attached only to a private Docker bridge. The base Compose file publishes it on host loopback (`127.0.0.1:8001`), never on a public interface.
 - The backup container has no network access. It creates and verifies authenticated-encrypted SQLite snapshots in a host directory.
 - A separate host systemd timer uploads only `fable-*.sqlite3.enc` snapshots to OCI Object Storage using the instance principal. It never uploads the database or encryption key.
 - A second systemd timer checks local backup freshness and can publish upload or freshness failures to an OCI Notifications topic.

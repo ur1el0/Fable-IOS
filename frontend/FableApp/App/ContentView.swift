@@ -54,15 +54,19 @@ struct ContentView: View {
             }
         }
         .task {
+#if DEBUG
             if ProcessInfo.processInfo.environment["AUTO_UI_TOUR"] == "1" {
                 await runAutomatedUITour()
                 return
             }
+#endif
             await authVM.checkExistingSession()
+#if DEBUG
             if case .signedOut = authVM.authState,
                ProcessInfo.processInfo.environment["AUTO_GUEST_LOGIN"] == "1" {
                 authVM.continueAsGuest()
             }
+#endif
         }
         .animation(.easeInOut(duration: 0.25), value: authVM.authState)
         .onChange(of: auth.currentSession?.id) { _, _ in
@@ -154,6 +158,7 @@ struct ContentView: View {
         }
     }
 
+#if DEBUG
     @MainActor
     private func signalCaptureAndWait(_ filename: String, settleDelayMs: UInt64 = 900) async {
         try? await Task.sleep(nanoseconds: settleDelayMs * 1_000_000)
@@ -318,6 +323,7 @@ struct ContentView: View {
         store.selectedCategory = "All"
         await signalCaptureAndWait("COMPLETE", settleDelayMs: 600)
     }
+#endif
 }
 
 #Preview {

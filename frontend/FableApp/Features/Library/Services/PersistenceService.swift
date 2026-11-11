@@ -44,7 +44,11 @@ public final class PersistenceService {
         UUID(uuidString: "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee")!,
         UUID(uuidString: "ffffffff-ffff-ffff-ffff-ffffffffffff")!,
         UUID(uuidString: "10101010-1010-1010-1010-101010101010")!,
-        UUID(uuidString: "20202020-2020-2020-2020-202020202020")!
+        UUID(uuidString: "20202020-2020-2020-2020-202020202020")!,
+        UUID(uuidString: "e1a10001-0000-0000-0000-000000000001")!,
+        UUID(uuidString: "e1a10002-0000-0000-0000-000000000002")!,
+        UUID(uuidString: "e1a10003-0000-0000-0000-000000000003")!,
+        UUID(uuidString: "e1a10004-0000-0000-0000-000000000004")!
     ]
 
     public func purgeLegacyDemoStories() {

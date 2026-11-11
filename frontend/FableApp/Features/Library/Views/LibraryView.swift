@@ -511,14 +511,17 @@ public struct LibraryView: View {
                 selectedStoryToRead = newValue
             }
             .onAppear {
+#if DEBUG
                 if let filter = ProcessInfo.processInfo.environment["AUTO_SELECT_FILTER"], !filter.isEmpty {
                     selectedFilter = filter
                 }
+#endif
                 if StoryStore.isMangaEnabled {
                     Task {
                         await store.fetchMangaPublicStories()
                     }
                 }
+#if DEBUG
                 if let targetTitle = ProcessInfo.processInfo.environment["AUTO_OPEN_MANGA"], !targetTitle.isEmpty {
                     Task { @MainActor in
                         try? await Task.sleep(nanoseconds: 800_000_000)
@@ -527,6 +530,7 @@ public struct LibraryView: View {
                         }
                     }
                 }
+#endif
             }
         }
     }

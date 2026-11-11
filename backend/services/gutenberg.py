@@ -38,6 +38,8 @@ GUTENBERG_CHAPTER_CACHE_TTL_SECONDS = 600.0
 GUTENBERG_CHAPTER_CACHE_MAX_ENTRIES = 32
 GUTENBERG_CHAPTER_CACHE_MAX_BYTES = 16 * 1024 * 1024
 GUTENBERG_MAX_CONCURRENT_FETCHES = 3
+# Small, stable default catalog instead of a broad, slow Gutendex topic query.
+FEATURED_GUTENBERG_IDS = (11, 1342, 84, 1661)
 _GUTENBERG_CHAPTER_CACHE: OrderedDict[int, tuple[float, list[ChapterDTO]]] = OrderedDict()
 _GUTENBERG_FETCH_SEMAPHORE = asyncio.Semaphore(GUTENBERG_MAX_CONCURRENT_FETCHES)
 _GUTENBERG_METADATA_SEMAPHORE = asyncio.Semaphore(GUTENBERG_MAX_CONCURRENT_FETCHES)
@@ -743,16 +745,11 @@ async def get_gutenberg_story_by_id(gutenberg_id: int) -> StoryDTO:
     if book is None:
         raise HTTPException(status_code=404, detail="Gutenberg book was not found")
 
-    chapters = None
-    if _has_plain_text_format(book):
-        try:
-            chapters = await get_gutenberg_chapters(gutenberg_id)
-        except HTTPException:
-            chapters = None
-        if not chapters:
-            raise HTTPException(status_code=422, detail="Gutenberg book has no readable text")
-
-    story = _story_from_gutenberg_metadata(book, chapters=chapters)
+    # Keep metadata/detail requests light. The reader loads chapter text only
+    # when the user opens a book through the dedicated chapters endpoint.
+    if not _has_plain_text_format(book):
+        raise HTTPException(status_code=422, detail="Gutenberg book has no readable text")
+    story = _story_from_gutenberg_metadata(book)
     if story is None:
         raise HTTPException(status_code=422, detail="Gutenberg metadata is incomplete")
     return story
@@ -763,33 +760,40 @@ async def get_gutenberg_stories(
     search: Optional[str] = None,
 ) -> list[StoryDTO]:
     params = {}
-    if topic and topic.lower() != "all":
+    use_featured_fallback = not search and (not topic or topic.lower() in {"all", "fiction", "classics", "classic"})
+    if not use_featured_fallback and topic and topic.lower() != "all":
         params["topic"] = topic.lower()
     if search:
         params["search"] = search
 
     async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
-        raw_books = await _fetch_gutendex_books(client, params)
-        if raw_books is None:
-            raw_books = await _fetch_gutenberg_catalog_books(client, params)
+        if use_featured_fallback:
+            # Project Gutenberg's per-book RDF metadata is much quicker and
+            # more dependable than asking Gutendex for the entire featured set.
+            results = await asyncio.gather(
+                *(_fetch_gutenberg_rdf_book(client, book_id) for book_id in FEATURED_GUTENBERG_IDS),
+                return_exceptions=True,
+            )
+            raw_books = [book for book in results if isinstance(book, dict)]
+            if len(raw_books) != len(FEATURED_GUTENBERG_IDS):
+                logger.warning(
+                    "Gutenberg featured catalog returned %d of %d books",
+                    len(raw_books),
+                    len(FEATURED_GUTENBERG_IDS),
+                )
+        else:
+            raw_books = await _fetch_gutendex_books(client, params)
+            if raw_books is None:
+                raw_books = await _fetch_gutenberg_catalog_books(client, params)
+        if not raw_books:
+            raise HTTPException(status_code=502, detail="Gutenberg catalog service is unavailable")
     raw_books = raw_books[:12]
-    enforce_live_text = any(_has_plain_text_format(book) for book in raw_books)
 
-    async def _hydrate_book(book: dict) -> Optional[StoryDTO]:
+    def _map_book(book: dict) -> Optional[StoryDTO]:
         book_id = book.get("id")
-        if not book_id:
+        if not book_id or not _has_plain_text_format(book):
             return None
-        if enforce_live_text:
-            if not _has_plain_text_format(book):
-                return None
-            try:
-                chapters = await get_gutenberg_chapters(int(book_id))
-            except Exception:
-                return None
-            if not chapters:
-                return None
-            return _story_from_gutenberg_metadata(book, fallback_genre=topic, chapters=chapters)
         return _story_from_gutenberg_metadata(book, fallback_genre=topic)
 
-    hydrated = await asyncio.gather(*(_hydrate_book(book) for book in raw_books))
-    return [story for story in hydrated if story is not None]
+    # Full text is fetched on demand by /public/gutenberg/{id}/chapters.
+    return [story for book in raw_books if (story := _map_book(book)) is not None]

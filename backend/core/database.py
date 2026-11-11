@@ -2,7 +2,7 @@ import sqlite3
 import os
 
 DB_PATH = os.environ.get("FABLE_DB_PATH", "fable.sqlite3")
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 LEGACY_DEMO_STORY_IDS = (
     "66666666-6666-6666-6666-666666666666",
     "77777777-7777-7777-7777-777777777777",
@@ -16,6 +16,10 @@ LEGACY_DEMO_STORY_IDS = (
     "ffffffff-ffff-ffff-ffff-ffffffffffff",
     "10101010-1010-1010-1010-101010101010",
     "20202020-2020-2020-2020-202020202020",
+    "e1a10001-0000-0000-0000-000000000001",
+    "e1a10002-0000-0000-0000-000000000002",
+    "e1a10003-0000-0000-0000-000000000003",
+    "e1a10004-0000-0000-0000-000000000004",
 )
 
 def get_db():
@@ -240,5 +244,23 @@ def init_db():
                     "ON password_reset_tokens (user_id, expires_at_utc)"
                 )
                 conn.execute("PRAGMA user_version = 3")
+
+            if current_version < 4:
+                placeholders = ", ".join("?" for _ in LEGACY_DEMO_STORY_IDS)
+                for table_name in ("shelf_items", "account_shelf_items"):
+                    conn.execute(
+                        f"DELETE FROM {table_name} WHERE story_id IN ({placeholders})",
+                        LEGACY_DEMO_STORY_IDS,
+                    )
+                for table_name in ("reading_sessions", "chapters"):
+                    conn.execute(
+                        f"DELETE FROM {table_name} WHERE story_id IN ({placeholders})",
+                        LEGACY_DEMO_STORY_IDS,
+                    )
+                conn.execute(
+                    f"DELETE FROM stories WHERE id IN ({placeholders})",
+                    LEGACY_DEMO_STORY_IDS,
+                )
+                conn.execute("PRAGMA user_version = 4")
     finally:
         conn.close()

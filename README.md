@@ -11,10 +11,10 @@
 [![XCTest](https://img.shields.io/badge/iOS%20Tests-22%20Passed-brightgreen.svg)](https://developer.apple.com/xcode/)
 [![Figma Prototype](https://img.shields.io/badge/Figma-100%25%20Prototype-pink.svg)](https://www.figma.com/proto/fable-ios-prototype-midterm)
 
-**Fable** is a native iOS literary reading and community publishing platform with a companion FastAPI REST backend, engineered as a distraction-free sanctuary for **open-source classic books, world folklore, timeless fables, and original community manuscripts**. Fable couples a refined editorial aesthetic with an offline-first, contract-first system architecture where every book and fable is guaranteed to open at **Chapter 1** with full multi-chapter Table of Contents navigation.
+**Fable** is a native iOS literary reading and community publishing platform with a companion FastAPI REST backend, engineered as a distraction-free sanctuary for **open-source classic books, world folklore, timeless fables, and original community manuscripts**. Fable couples a refined editorial aesthetic with an offline-first, contract-first system architecture: the live catalog returns provider metadata and official covers, while the reader fetches chapter text when a book is opened and caches it for offline reading.
 
 > [!NOTE]
-> **Open-Source Literature Focus (`StoryStore.isMangaEnabled = false`):** While Fable's underlying engine supports multi-format prose and graphic chapters, manga is disabled by default on iOS via `StoryStore.isMangaEnabled = false` to ensure 100% compliance with **Apple App Store Review Guideline 5.2 (Intellectual Property)** and avoid upstream scanlation chapter gaps (see [`ADR 0002`](docs/adr/0002-ios-open-source-literature-focus-and-manga-feature-flag.md) and [`docs/DATA_SOURCES_AND_API_STRATEGY.md`](docs/DATA_SOURCES_AND_API_STRATEGY.md)).
+> **Open-Source Literature Focus (`StoryStore.isMangaEnabled = false`):** Manga remains disabled by default on iOS while chapter continuity and rights are unverified (see [`ADR 0002`](docs/adr/0002-ios-open-source-literature-focus-and-manga-feature-flag.md) and [`docs/DATA_SOURCES_AND_API_STRATEGY.md`](docs/DATA_SOURCES_AND_API_STRATEGY.md)).
 
 ---
 
@@ -22,11 +22,10 @@
 
 | Document | Purpose |
 |---|---|
-| **[`AGENTS.md`](AGENTS.md)** | Root entrypoint for AI coding agents resuming work on a laptop or lab machine |
-| **[`docs/AGENT_HANDOFF_CONTEXT.md`](docs/AGENT_HANDOFF_CONTEXT.md)** | Complete session handoff context, commit log, exact file/line references, and compiler gotchas |
+| **[`docs/AGENT_HANDOFF_CONTEXT.md`](docs/AGENT_HANDOFF_CONTEXT.md)** | Architecture notes, current implementation boundaries, and verification guidance |
 | **[`docs/plans/06_SECURITY_VULNERABILITIES_AND_ARCHITECTURE_REMEDIATION.md`](docs/plans/06_SECURITY_VULNERABILITIES_AND_ARCHITECTURE_REMEDIATION.md)** | **Plan 06:** 4-Phase Security & Architecture Hardening Plan (`SEC-01`–`SEC-04`, `PERF-01`–`PERF-03`, `DOM-01`–`DOM-02`, `IOS-01`–`IOS-02`) |
 | **[`docs/simulator_captures/README.md`](docs/simulator_captures/README.md)** | **29 Retina iOS Simulator Screenshots** across every screen/filter/modal + **Full Walkthrough Video (`fable_ios_full_walkthrough.mp4`)** |
-| **[`docs/DATA_SOURCES_AND_API_STRATEGY.md`](docs/DATA_SOURCES_AND_API_STRATEGY.md)** | Multi-chapter catalog seeding (`data/curated_catalog.json`), Chapter 1 continuity guarantee, and upstream manga gap analysis |
+| **[`docs/DATA_SOURCES_AND_API_STRATEGY.md`](docs/DATA_SOURCES_AND_API_STRATEGY.md)** | Live provider metadata, official covers, on-demand book chapters, and upstream source limits |
 | **[`docs/adr/`](docs/adr/)** | Architecture Decision Records: [`ADR 0001`](docs/adr/0001-password-hash-versioning.md) (Password Hashing), [`ADR 0002`](docs/adr/0002-ios-open-source-literature-focus-and-manga-feature-flag.md) (Manga Feature Flag), [`ADR 0003`](docs/adr/0003-comprehensive-catalog-seeding-and-chapter-1-continuity.md) (Catalog Seeding) |
 | **[`docs/final_milestone/MASTER_PROGRESS_LOG.md`](docs/final_milestone/MASTER_PROGRESS_LOG.md)** | Chronological engineering progress log across all phases and PRs |
 | **[`docs/MAC_LAB_RUNBOOK.md`](docs/MAC_LAB_RUNBOOK.md)** | Step-by-step computer lab setup, grading demo runbook, and troubleshooting |
@@ -50,7 +49,7 @@
 * **Networking & HTTP:** Native `URLSession` with ATS enabled; development API base URL is configurable
 
 ### Server-Side (Backend API)
-* **Runtime & Framework:** Python 3.11+ / FastAPI (High-performance asynchronous REST API)
+* **Runtime & Framework:** Python 3.9+ / FastAPI (High-performance asynchronous REST API)
 * **Data Validation & Contracts:** Pydantic v2 with `serialization_alias` (Strict camelCase client / snake_case server parity)
 * **Database & Persistence:** SQLite 3 with additive schema initialization and account-scoped shelf, reading-session, and user records.
 * **HTTP Client:** HTTPX for live Gutendex/Project Gutenberg and Open Library requests.
@@ -118,7 +117,7 @@ Fable is architected around **Feature-Driven Vertical Slices** combined with **M
 ### Prerequisites
 * **macOS:** macOS Sonoma (14.0+) or Sequoia (15.0+)
 * **Xcode:** Xcode 15.4 or Xcode 16.0+
-* **Python:** Python 3.11 or higher
+* **Python:** Python 3.9 or higher
 * **Git:** Git 2.39+
 
 ---
@@ -151,11 +150,11 @@ Fable is architected around **Feature-Driven Vertical Slices** combined with **M
 5. **Start the FastAPI Development Server:**
    ```bash
    cd backend
-   FABLE_ENV=development ../.venv/bin/uvicorn main:app --reload --host 127.0.0.1 --port 8000
+   FABLE_ENV=development ../.venv/bin/uvicorn main:app --reload --host 127.0.0.1 --port 8001
    ```
-   * **API Base URL:** `http://127.0.0.1:8000/api/v1`
-   * **Interactive Swagger UI:** Open your browser and navigate to `http://127.0.0.1:8000/docs`
-   * **Health Check:** `curl http://127.0.0.1:8000/api/v1/health`
+   * **API Base URL:** `http://127.0.0.1:8001/api/v1`
+   * **Interactive Swagger UI:** Open your browser and navigate to `http://127.0.0.1:8001/docs`
+   * **Health Check:** `curl http://127.0.0.1:8001/api/v1/health`
 
 ---
 
@@ -172,8 +171,8 @@ Fable is architected around **Feature-Driven Vertical Slices** combined with **M
    * Select an iOS Simulator running **iOS 17.0+** (e.g., **iPhone 16 Pro** or **iPhone 15 Pro**).
 
 3. **Configure the API URL:**
-   * The `FABLE_API_BASE_URL` Xcode build setting is exposed through the generated Info.plist. It defaults to `http://127.0.0.1:8000/api/v1` for the iOS Simulator.
-   * For a physical device, set it to the development machine's LAN address, such as `http://192.168.1.20:8000/api/v1`, and bind FastAPI to `0.0.0.0`. For release builds, use the deployed HTTPS API URL.
+   * The `FABLE_API_BASE_URL` Xcode build setting is exposed through the generated Info.plist. It defaults to `http://127.0.0.1:8001/api/v1`, matching the Docker Compose host port.
+   * For a physical device, set it to the development machine's LAN address, such as `http://192.168.1.20:8001/api/v1`, and bind FastAPI to `0.0.0.0`. For release builds, use the deployed HTTPS API URL.
    * ATS allows local networking for development and keeps arbitrary HTTP loads disabled.
 
 4. **Build & Launch:**
@@ -192,12 +191,9 @@ Fable is architected around **Feature-Driven Vertical Slices** combined with **M
 ```text
 Fable-IOS/
 ├── README.md                               # Repository guide & setup documentation (this file)
-├── AGENTS.md                               # Root entrypoint for AI coding agents on laptop/lab machines
 ├── Package.swift                           # Swift Package Manager manifest
-├── data/
-│   └── curated_catalog.json                # Canonical multi-chapter seed catalog (Chapter 1 guaranteed)
 ├── scripts/
-│   └── seed_comprehensive_catalog.py       # Catalog seeding & Chapter 1 verification script
+│   └── sqlite_backup.py                    # Encrypted SQLite backup/restore utility
 ├── backend/                                # Asynchronous Python 3.9+ / FastAPI Backend
 │   ├── main.py                             # Application entrypoint & middleware configuration
 │   ├── requirements.txt                    # Runtime dependencies (FastAPI, Uvicorn, Pydantic, HTTPX)
@@ -250,7 +246,7 @@ Fable-IOS/
 | Issue Encountered | Root Cause | Resolution |
 |---|---|---|
 | **Xcode defaults to "My Mac" destination** | Xcode auto-selected Mac Catalyst or macOS destination | Click the target dropdown at the top of Xcode ➔ Choose `iOS Simulators` ➔ `iPhone 16 Pro`. |
-| **Simulator fails to connect to `127.0.0.1:8000`** | FastAPI server is not running in terminal | In terminal, ensure virtual environment is active, set `FABLE_ENV=development`, and run `uvicorn main:app --reload --port 8000`. |
+| **Simulator fails to connect to `127.0.0.1:8001`** | The API container is stopped or the app URL uses a different host port | Start it with `docker compose up -d --build` and verify `curl http://127.0.0.1:8001/api/v1/health`. Keep the Xcode Debug URL on port 8001. |
 | **Old cached build artifacts fail** | Previous user left stale build cache | Press `Shift + Cmd + K` (**Product** ➔ **Clean Build Folder**), then press `Cmd + B` to rebuild. |
 | **Offline Lab Network (No Internet)** | Campus Wi-Fi blocked or offline computer | Fable reads previously cached stories, chapters, images, and per-account shelf data. A first launch without network has no catalog to display. |
 
