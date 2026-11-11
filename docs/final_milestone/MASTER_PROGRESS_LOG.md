@@ -754,3 +754,10 @@ This progress log tracks the transition of **Fable** from an editorial prototype
   - **[`ADR 0002`](../adr/0002-ios-open-source-literature-focus-and-manga-feature-flag.md):** Feature-flagging Manga on iOS (`StoryStore.isMangaEnabled = false`) for App Store Guideline 5.2 compliance and open-source books/fables focus.
   - **[`ADR 0003`](../adr/0003-comprehensive-catalog-seeding-and-chapter-1-continuity.md):** Unified multi-chapter catalog seeding (`data/curated_catalog.json`) and Chapter 1 continuity guarantee.
 - [x] Created **[`AGENTS.md`](../../AGENTS.md)** and **[`docs/AGENT_HANDOFF_CONTEXT.md`](../AGENT_HANDOFF_CONTEXT.md)** so coding agents on the developer's laptop have complete session context, exact file/line references, and compiler/runtime notes.
+
+## UI Semantic Cover Foil Binding & Placeholder Hardening (2026-11-12)
+
+- [x] Bound `title: story.title` to `FableImageView` across `LibraryView.swift` (Featured hero card, In-progress card, and standard catalog rows), ensuring procedural cover placeholders properly utilize title semantic keys to render genre-themed foil jackets during asynchronous network fetching.
+- [x] Verified full backend test suite: **101/101 tests passed** in 27.25s (`PYTHONPATH=.:backend pytest backend/test_main.py -q`).
+- [x] Verified Docker Compose configuration security constraints and `validate_ios_release_config.sh` release guards.
+
