@@ -303,8 +303,10 @@ def test_get_genres_endpoint():
 
 def test_get_top_authors_endpoint(monkeypatch):
     import httpx
+    requested = []
 
     async def mock_get(self, url, params=None, headers=None):
+        requested.append((str(url), params))
         if url.endswith("/trending/daily.json"):
             return httpx.Response(200, json={
                 "works": [{"author_name": ["Bram Stoker"]}]
@@ -327,6 +329,11 @@ def test_get_top_authors_endpoint(monkeypatch):
     assert writers[0]["avatarImageName"] == ""
     assert writers[0]["avatarImageUrl"] == "https://covers.openlibrary.org/a/olid/OL123A-M.jpg?default=false"
     assert writers[0]["rating"] is None
+    assert any(url.endswith("/trending/daily.json") for url, _ in requested)
+    assert any(
+        url.endswith("/search/authors.json") and params == {"q": "Bram Stoker", "limit": 1}
+        for url, params in requested
+    )
 
 
 def test_gutenberg_cover_and_download_count_are_live(monkeypatch):
@@ -353,6 +360,9 @@ def test_gutenberg_cover_and_download_count_are_live(monkeypatch):
     assert response.status_code == 200
     story = response.json()[0]
     assert story["providerId"] == "38269"
+    assert story["title"] == "The Legend of Maria Makiling"
+    assert story["author"] == "Jose Rizal"
+    assert story["sourceProvider"] == "GUTENBERG"
     assert story["coverImageUrl"] == "https://www.gutenberg.org/cache/epub/38269/pg38269.cover.medium.jpg"
     assert story["providerDownloadCount"] == 281
     assert story["content"] == ""
@@ -575,6 +585,20 @@ def test_get_gutenberg_public_stories(monkeypatch):
     assert data[0]["providerDownloadCount"] == 940
 
 
+def test_gutenberg_empty_search_is_a_successful_empty_http_response(monkeypatch):
+    import httpx
+
+    async def no_matches(self, url, params=None, headers=None):
+        assert params == {"search": "No Such Book"}
+        return httpx.Response(200, json={"results": []})
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", no_matches)
+    response = client.get("/api/v1/public/gutenberg?search=No%20Such%20Book")
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
 @pytest.mark.anyio
 async def test_featured_gutenberg_catalog_uses_fast_metadata_without_preloading_text(monkeypatch):
     from services import gutenberg
@@ -634,6 +658,50 @@ This is the complete source text for the second chapter. It also has enough word
     assert "complete source text" in chapters[0]["content"]
     assert second_response.status_code == 200
     assert chapters[0]["id"] == second_response.json()[0]["id"]
+
+
+def test_gutenberg_chapters_http_endpoint_falls_back_and_returns_provider_text(monkeypatch):
+    from contextlib import asynccontextmanager
+    import httpx
+    from collections import OrderedDict
+    from services import gutenberg
+
+    gutenberg_id = 271828
+    requested_urls = []
+    monkeypatch.setattr(gutenberg, "_GUTENBERG_CHAPTER_CACHE", OrderedDict())
+    source_text = """
+*** START OF THE PROJECT GUTENBERG EBOOK HTTP TEST ***
+
+CHAPTER I. THE OPENING
+The chapter text fetched through the HTTP route is returned to readers in the app.
+
+CHAPTER II. THE NEXT PART
+The second chapter is also fetched from the provider and serialized in order.
+*** END OF THE PROJECT GUTENBERG EBOOK HTTP TEST ***
+"""
+
+    @asynccontextmanager
+    async def provider_stream(self, method, url, headers=None, **kwargs):
+        requested_urls.append(str(url))
+        if str(url).endswith(f"/cache/epub/{gutenberg_id}/pg{gutenberg_id}.txt"):
+            raise httpx.ConnectError("primary Gutenberg text URL unavailable")
+        assert str(url).endswith(f"/ebooks/{gutenberg_id}.txt.utf-8")
+        yield httpx.Response(200, text=source_text)
+
+    monkeypatch.setattr(httpx.AsyncClient, "stream", provider_stream)
+    response = client.get(f"/api/v1/public/gutenberg/{gutenberg_id}/chapters")
+
+    assert response.status_code == 200
+    chapters = response.json()
+    assert len(chapters) == 2
+    assert [chapter["chapterNumber"] for chapter in chapters] == [1, 2]
+    assert chapters[0]["title"] == "CHAPTER I. THE OPENING"
+    assert "fetched through the HTTP route" in chapters[0]["content"]
+    assert "fetched from the provider" in chapters[1]["content"]
+    assert requested_urls == [
+        f"https://www.gutenberg.org/cache/epub/{gutenberg_id}/pg{gutenberg_id}.txt",
+        f"https://www.gutenberg.org/ebooks/{gutenberg_id}.txt.utf-8",
+    ]
 
 
 def test_gutenberg_chapter_cache_expires_and_evicts_old_entries(monkeypatch):

@@ -819,6 +819,8 @@ async def get_gutenberg_stories(
         if raw_books is None:
             raise HTTPException(status_code=502, detail="Gutenberg catalog service is unavailable")
         if not raw_books:
+            if use_featured_fallback:
+                raise HTTPException(status_code=502, detail="Gutenberg catalog service is unavailable")
             # An empty search result is a valid response, not an upstream outage.
             return []
     raw_books = raw_books[:12]
