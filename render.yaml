@@ -3,6 +3,7 @@ services:
     name: fable-api
     runtime: docker
     plan: free
+    region: singapore
     dockerfilePath: ./backend/Dockerfile
     dockerContext: .
     healthCheckPath: /api/v1/health
