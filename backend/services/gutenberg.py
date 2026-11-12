@@ -473,12 +473,26 @@ async def _fetch_gutenberg_text(gutenberg_id: int) -> str:
     ]
     last_status = None
     last_error = None
+    upstream_failed = False
+    empty_response = False
     try:
         async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
             for url in urls:
-                async with client.stream("GET", url, headers=PROVIDER_HEADERS) as response:
-                    last_status = response.status_code
-                    if response.status_code == 200:
+                try:
+                    async with client.stream("GET", url, headers=PROVIDER_HEADERS) as response:
+                        last_status = response.status_code
+                        if response.status_code != 200:
+                            if response.status_code != 404:
+                                upstream_failed = True
+                            # Gutenberg has two public text URL patterns. Treat transient
+                            # upstream responses like a failed mirror and try the other one.
+                            logger.warning(
+                                "Gutenberg text endpoint returned HTTP %d for ebook %d; trying fallback",
+                                response.status_code,
+                                gutenberg_id,
+                            )
+                            continue
+
                         content_length = response.headers.get("content-length")
                         if (
                             content_length
@@ -500,19 +514,36 @@ async def _fetch_gutenberg_text(gutenberg_id: int) -> str:
                             chunks.extend(chunk)
                         response_text = chunks.decode(response.encoding or "utf-8", errors="replace")
                         if not response_text.strip():
-                            raise HTTPException(status_code=422, detail="Gutenberg book has no readable text")
+                            empty_response = True
+                            logger.warning(
+                                "Gutenberg text endpoint returned an empty response for ebook %d; trying fallback",
+                                gutenberg_id,
+                            )
+                            continue
                         return response_text
-                    if response.status_code != 404:
-                        break
+                except httpx.HTTPError as error:
+                    # A timeout or interrupted stream from one URL should not prevent
+                    # attempting Gutenberg's alternate URL for the same ebook.
+                    last_error = error
+                    upstream_failed = True
+                    logger.warning(
+                        "Gutenberg text endpoint failed for ebook %d; trying fallback (%s)",
+                        gutenberg_id,
+                        type(error).__name__,
+                    )
+                    continue
     except HTTPException:
         raise
-    except httpx.HTTPError as error:
-        last_error = error
 
-    if last_error is not None:
-        raise HTTPException(status_code=502, detail="Gutenberg text service is unavailable") from last_error
+    if upstream_failed:
+        error = HTTPException(status_code=502, detail="Gutenberg text service is unavailable")
+        if last_error is not None:
+            raise error from last_error
+        raise error
     if last_status == 404:
         raise HTTPException(status_code=404, detail="Gutenberg book was not found")
+    if empty_response:
+        raise HTTPException(status_code=422, detail="Gutenberg book has no readable text")
     raise HTTPException(status_code=502, detail="Gutenberg text service returned an error")
 
 
@@ -785,8 +816,11 @@ async def get_gutenberg_stories(
             raw_books = await _fetch_gutendex_books(client, params)
             if raw_books is None:
                 raw_books = await _fetch_gutenberg_catalog_books(client, params)
-        if not raw_books:
+        if raw_books is None:
             raise HTTPException(status_code=502, detail="Gutenberg catalog service is unavailable")
+        if not raw_books:
+            # An empty search result is a valid response, not an upstream outage.
+            return []
     raw_books = raw_books[:12]
 
     def _map_book(book: dict) -> Optional[StoryDTO]:
