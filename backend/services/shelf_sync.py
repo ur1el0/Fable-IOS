@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from uuid import UUID
-from core.database import get_db
+from core.database import get_db, lock_transaction_key
 from schemas.schemas import ShelfSyncPayload, ShelfSyncResponse, ShelfSyncItemDTO
 
 def to_utc(dt: datetime) -> datetime:
@@ -19,6 +19,10 @@ def sync_shelf(payload: ShelfSyncPayload, owner_user_id: UUID) -> ShelfSyncRespo
     with conn:
         for item in payload.items:
             story_id_str = str(item.story_id)
+            lock_transaction_key(
+                conn,
+                f"account_shelf_items:{owner_user_id_str}:{device_id_str}:{story_id_str}",
+            )
             row = conn.execute(
                 """SELECT * FROM account_shelf_items
                    WHERE owner_user_id = ? AND device_id = ? AND story_id = ?""",

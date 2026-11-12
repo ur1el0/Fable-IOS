@@ -7,7 +7,7 @@ import math
 import hashlib
 from collections import deque
 from typing import Tuple, Dict, Optional, Union
-from core.database import get_db
+from core.database import get_db, lock_transaction_key
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.concurrency import run_in_threadpool
 from starlette.requests import Request
@@ -89,7 +89,7 @@ class SlidingWindowRateLimiter:
 
 
 class SharedTokenBucketRateLimiter:
-    """SQLite-backed limiter shared by workers using the same database file."""
+    """Database-backed limiter shared by API workers."""
 
     def __init__(
         self,
@@ -132,9 +132,15 @@ class SharedTokenBucketRateLimiter:
                 (bucket_key,),
             ).fetchone()
             if row is None:
+                lock_transaction_key(connection, "request_rate_limit_buckets:capacity")
+                row = connection.execute(
+                    "SELECT available_tokens, updated_at FROM request_rate_limit_buckets WHERE bucket_key = ?",
+                    (bucket_key,),
+                ).fetchone()
+            if row is None:
                 bucket_count = connection.execute(
-                    "SELECT COUNT(*) FROM request_rate_limit_buckets"
-                ).fetchone()[0]
+                    "SELECT COUNT(*) AS bucket_count FROM request_rate_limit_buckets"
+                ).fetchone()["bucket_count"]
                 if bucket_count >= self._max_client_buckets:
                     connection.commit()
                     return False, 1
@@ -145,6 +151,15 @@ class SharedTokenBucketRateLimiter:
                 )
                 connection.commit()
                 return True, 0
+
+            lock_transaction_key(connection, bucket_key)
+            row = connection.execute(
+                "SELECT available_tokens, updated_at FROM request_rate_limit_buckets WHERE bucket_key = ?",
+                (bucket_key,),
+            ).fetchone()
+            if row is None:
+                connection.commit()
+                return False, 1
 
             elapsed = max(0.0, now - row["updated_at"])
             available_tokens = min(

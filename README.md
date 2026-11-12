@@ -6,7 +6,7 @@
 [![Architecture](https://img.shields.io/badge/Architecture-Modular%20MVVM%2BS-green.svg)](https://developer.apple.com)
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI%200.110+-009688.svg)](https://fastapi.tiangolo.com)
 [![Pydantic v2](https://img.shields.io/badge/Contract-Pydantic%20v2-e92063.svg)](https://docs.pydantic.dev/)
-[![Database](https://img.shields.io/badge/Database-SQLite-4169E1.svg)](https://www.sqlite.org/)
+[![Database](https://img.shields.io/badge/Database-SQLite%20%2B%20PostgreSQL-4169E1.svg)](https://www.sqlite.org/)
 [![Pytest](https://img.shields.io/badge/Backend%20Tests-100%20Passed-brightgreen.svg)](https://pytest.org)
 [![XCTest](https://img.shields.io/badge/iOS%20Tests-22%20Passed-brightgreen.svg)](https://developer.apple.com/xcode/)
 [![Figma Prototype](https://img.shields.io/badge/Figma-100%25%20Prototype-pink.svg)](https://www.figma.com/proto/fable-ios-prototype-midterm)
@@ -26,7 +26,8 @@
 | **[`docs/plans/06_SECURITY_VULNERABILITIES_AND_ARCHITECTURE_REMEDIATION.md`](docs/plans/06_SECURITY_VULNERABILITIES_AND_ARCHITECTURE_REMEDIATION.md)** | **Plan 06:** 4-Phase Security & Architecture Hardening Plan (`SEC-01`–`SEC-04`, `PERF-01`–`PERF-03`, `DOM-01`–`DOM-02`, `IOS-01`–`IOS-02`) |
 | **[`docs/simulator_captures/README.md`](docs/simulator_captures/README.md)** | **29 Retina iOS Simulator Screenshots** across every screen/filter/modal + **Full Walkthrough Video (`fable_ios_full_walkthrough.mp4`)** |
 | **[`docs/DATA_SOURCES_AND_API_STRATEGY.md`](docs/DATA_SOURCES_AND_API_STRATEGY.md)** | Live provider metadata, official covers, on-demand book chapters, and upstream source limits |
-| **[`docs/adr/`](docs/adr/)** | Architecture Decision Records: [`ADR 0001`](docs/adr/0001-password-hash-versioning.md) (Password Hashing), [`ADR 0002`](docs/adr/0002-ios-open-source-literature-focus-and-manga-feature-flag.md) (Manga Feature Flag), [`ADR 0003`](docs/adr/0003-comprehensive-catalog-seeding-and-chapter-1-continuity.md) (Catalog Seeding) |
+| **[`docs/RENDER_NEON_DEPLOYMENT.md`](docs/RENDER_NEON_DEPLOYMENT.md)** | Free-tier Render + Neon deployment setup, limits, secrets, and operator steps |
+| **[`docs/adr/`](docs/adr/)** | Architecture Decision Records: [`ADR 0001`](docs/adr/0001-password-hash-versioning.md) (Password Hashing), [`ADR 0002`](docs/adr/0002-ios-open-source-literature-focus-and-manga-feature-flag.md) (Manga Feature Flag), [`ADR 0003`](docs/adr/0003-comprehensive-catalog-seeding-and-chapter-1-continuity.md) (Catalog Seeding), [`ADR 0004`](docs/adr/0004-render-neon-postgres-deployment.md) (Render + Neon) |
 | **[`docs/final_milestone/MASTER_PROGRESS_LOG.md`](docs/final_milestone/MASTER_PROGRESS_LOG.md)** | Chronological engineering progress log across all phases and PRs |
 | **[`docs/MAC_LAB_RUNBOOK.md`](docs/MAC_LAB_RUNBOOK.md)** | Step-by-step computer lab setup, grading demo runbook, and troubleshooting |
 
@@ -51,7 +52,7 @@
 ### Server-Side (Backend API)
 * **Runtime & Framework:** Python 3.9+ / FastAPI (High-performance asynchronous REST API)
 * **Data Validation & Contracts:** Pydantic v2 with `serialization_alias` (Strict camelCase client / snake_case server parity)
-* **Database & Persistence:** SQLite 3 with additive schema initialization and account-scoped shelf, reading-session, and user records.
+* **Database & Persistence:** SQLite 3 by default for local development; PostgreSQL via Neon for hosted persistence, with additive schema initialization and account-scoped shelf, reading-session, and user records.
 * **HTTP Client:** HTTPX for live Gutendex/Project Gutenberg and Open Library requests.
 * **Security:** Salted PBKDF2-HMAC-SHA256 password hashes, SHA-256 digests of random bearer tokens, 30-day session expiry, server-side logout revocation, and operator-key protected provider ingestion.
 * **ASGI Web Server:** Uvicorn.

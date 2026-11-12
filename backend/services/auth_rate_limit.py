@@ -4,7 +4,7 @@ import time
 from typing import Optional
 from fastapi import HTTPException
 
-from core.database import get_db
+from core.database import get_db, lock_transaction_key
 
 
 def _positive_int(name: str, default: int) -> int:
@@ -59,6 +59,8 @@ def enforce_auth_rate_limit(action: str, client_host: str, identity: Optional[st
     try:
         with connection:
             connection.execute("BEGIN IMMEDIATE")
+            for bucket_key, _limit in sorted(buckets):
+                lock_transaction_key(connection, bucket_key)
             connection.execute(
                 "DELETE FROM auth_rate_limits WHERE window_expires_at <= ?",
                 (now,),

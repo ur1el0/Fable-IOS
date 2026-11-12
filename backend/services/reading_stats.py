@@ -10,9 +10,10 @@ def record_reading_session(owner_user_id: UUID, request: ReadingSessionRequest) 
     try:
         with conn:
             conn.execute(
-                """INSERT OR IGNORE INTO reading_sessions
+                """INSERT INTO reading_sessions
                    (owner_user_id, id, story_id, seconds_read, read_at_utc, is_completed)
-                   VALUES (?, ?, ?, ?, ?, ?)""",
+                   VALUES (?, ?, ?, ?, ?, ?)
+                   ON CONFLICT (owner_user_id, id) DO NOTHING""",
                 (
                     str(owner_user_id),
                     str(request.id),
@@ -33,7 +34,7 @@ def get_reading_stats(owner_user_id: UUID) -> ReadingStatsDTO:
             """SELECT
                    COUNT(DISTINCT CASE WHEN is_completed = 1 THEN story_id END) AS stories_read_count,
                    COALESCE(SUM(seconds_read), 0) AS total_seconds,
-                   COUNT(DISTINCT date(read_at_utc)) AS active_days
+                   COUNT(DISTINCT substr(read_at_utc, 1, 10)) AS active_days
                FROM reading_sessions
                WHERE owner_user_id = ?""",
             (str(owner_user_id),),
@@ -41,7 +42,7 @@ def get_reading_stats(owner_user_id: UUID) -> ReadingStatsDTO:
         active_dates = {
             date.fromisoformat(item["read_day"])
             for item in conn.execute(
-                """SELECT DISTINCT date(read_at_utc) AS read_day
+                """SELECT DISTINCT substr(read_at_utc, 1, 10) AS read_day
                    FROM reading_sessions WHERE owner_user_id = ?""",
                 (str(owner_user_id),),
             ).fetchall()

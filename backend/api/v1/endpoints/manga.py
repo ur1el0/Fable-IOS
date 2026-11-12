@@ -51,6 +51,6 @@ async def ingest_manga_story(
     manga_id: str = Path(..., description="External manga identifier to persist into Fable")
 ):
     """
-    Ingest and persist a manga title and its chapters into the Fable SQLite library.
+    Ingest and persist a manga title and its chapters into the Fable library.
     """
     return await manga_service.ingest_manga_story(manga_id=manga_id)

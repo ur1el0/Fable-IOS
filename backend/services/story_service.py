@@ -1,7 +1,6 @@
 import json
-import sqlite3
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Any, Optional
 from urllib.parse import urlsplit
 from uuid import UUID, uuid4, uuid5
 
@@ -55,9 +54,9 @@ def _cover_url_without_legacy_demo(value: Optional[str]) -> Optional[str]:
 
 
 def row_to_story_dto(
-    row: sqlite3.Row,
+    row: Any,
     include_chapters: bool = False,
-    conn: Optional[sqlite3.Connection] = None,
+    conn: Optional[Any] = None,
     include_content: bool = True,
 ) -> StoryDTO:
     story_id = UUID(row["id"])
@@ -347,7 +346,7 @@ def get_genres() -> list[GenreDTO]:
             FROM stories
             LEFT JOIN account_shelf_items ON account_shelf_items.story_id = stories.id
             GROUP BY stories.genre
-            ORDER BY story_count DESC, stories.genre COLLATE NOCASE ASC
+            ORDER BY story_count DESC, LOWER(stories.genre) ASC
             """
         ).fetchall()
         return [
