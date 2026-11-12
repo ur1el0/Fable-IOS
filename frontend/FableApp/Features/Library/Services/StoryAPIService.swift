@@ -248,7 +248,7 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
         let configuredBaseURL = ProcessInfo.processInfo.environment["FABLE_API_BASE_URL"] ?? infoBaseURL
         self.baseURL = baseURL
             ?? configuredBaseURL.flatMap { URL(string: $0) }
-            ?? URL(string: "http://127.0.0.1:8000/api/v1")!
+            ?? URL(string: "http://127.0.0.1:8001/api/v1")!
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 5.0
         self.session = URLSession(configuration: config)

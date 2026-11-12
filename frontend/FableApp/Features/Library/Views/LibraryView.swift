@@ -8,11 +8,30 @@ public struct LibraryView: View {
     @State private var selectedStoryToRead: Story?
     @State private var isShowingProfileSheet: Bool = false
     
-    var filterCategories: [String] { ["All"] + store.genres.map(\.name) }
+    var filterCategories: [String] {
+        let base = ["All"] + store.genres.map(\.name)
+        if !StoryStore.isMangaEnabled {
+            return base.filter { $0.caseInsensitiveCompare("manga") != .orderedSame }
+        }
+        return base
+    }
     
     var filteredRecentStories: [Story] {
-        if selectedFilter == "Manga" {
-            let mangaStories = store.stories.filter { $0.contentFormat == .manga || $0.genre == .manga }
+        let validStories = store.stories.filter { story in
+            if PersistenceService.legacyDemoStoryIds.contains(story.id) { return false }
+            if !StoryStore.isMangaEnabled {
+                if story.contentFormat == .manga
+                    || story.genre == .manga
+                    || story.sourceProvider == .mangadex
+                    || story.genre.rawValue.caseInsensitiveCompare("manga") == .orderedSame {
+                    return false
+                }
+            }
+            return true
+        }
+
+        if selectedFilter == "Manga" && StoryStore.isMangaEnabled {
+            let mangaStories = validStories.filter { $0.contentFormat == .manga || $0.genre == .manga }
             var seen = Set<String>()
             var uniqueManga: [Story] = []
             for item in mangaStories {
@@ -31,7 +50,6 @@ public struct LibraryView: View {
                 return false
             }
         }
-        let validStories = store.stories.filter { !PersistenceService.legacyDemoStoryIds.contains($0.id) }
         if selectedFilter == "All" {
             return validStories
         } else {
@@ -157,7 +175,7 @@ public struct LibraryView: View {
                                         selectedStoryToRead = featuredStory
                                     } label: {
                                         ZStack(alignment: .bottom) {
-                                            FableImageView(name: featuredStory.effectiveCoverImage, placeholderIcon: "square.stack")
+                                            FableImageView(name: featuredStory.effectiveCoverImage, title: featuredStory.title, placeholderIcon: "square.stack")
                                                 .frame(maxWidth: .infinity)
                                                 .frame(height: 220)
                                                 .clipped()
@@ -285,7 +303,7 @@ public struct LibraryView: View {
                                     selectedStoryToRead = inProgressStory
                                 }) {
                                     HStack(spacing: 14) {
-                                        FableImageView(name: inProgressStory.effectiveCoverImage ?? inProgressStory.effectiveHeroImage, placeholderIcon: "square.stack")
+                                        FableImageView(name: inProgressStory.effectiveCoverImage ?? inProgressStory.effectiveHeroImage, title: inProgressStory.title, placeholderIcon: "square.stack")
                                             .frame(width: 64, height: 80)
                                             .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                                             .overlay(
@@ -399,7 +417,7 @@ public struct LibraryView: View {
                                             selectedStoryToRead = story
                                         } label: {
                                             HStack(alignment: .top, spacing: 14) {
-                                                FableImageView(name: story.effectiveCoverImage, placeholderIcon: "square.stack")
+                                                FableImageView(name: story.effectiveCoverImage, title: story.title, placeholderIcon: "square.stack")
                                                     .frame(width: 72, height: 96)
                                                     .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                                                     .overlay(
@@ -484,13 +502,26 @@ public struct LibraryView: View {
                 ProfileView()
                     .environmentObject(store)
             }
+            .onChange(of: store.selectedCategory) { _, newValue in
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    selectedFilter = newValue
+                }
+            }
+            .onChange(of: store.activeReaderStory) { _, newValue in
+                selectedStoryToRead = newValue
+            }
             .onAppear {
+#if DEBUG
                 if let filter = ProcessInfo.processInfo.environment["AUTO_SELECT_FILTER"], !filter.isEmpty {
                     selectedFilter = filter
                 }
-                Task {
-                    await store.fetchMangaPublicStories()
+#endif
+                if StoryStore.isMangaEnabled {
+                    Task {
+                        await store.fetchMangaPublicStories()
+                    }
                 }
+#if DEBUG
                 if let targetTitle = ProcessInfo.processInfo.environment["AUTO_OPEN_MANGA"], !targetTitle.isEmpty {
                     Task { @MainActor in
                         try? await Task.sleep(nanoseconds: 800_000_000)
@@ -499,6 +530,7 @@ public struct LibraryView: View {
                         }
                     }
                 }
+#endif
             }
         }
     }

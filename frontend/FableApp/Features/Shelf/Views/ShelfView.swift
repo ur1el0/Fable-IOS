@@ -11,7 +11,13 @@ public struct ShelfView: View {
     let tabs = ["Saved", "Finished", "My Drafts"]
     
     var displayedStories: [Story] {
-        let activePool = store.stories.filter { !PersistenceService.legacyDemoStoryIds.contains($0.id) }
+        let basePool = store.stories.filter { !PersistenceService.legacyDemoStoryIds.contains($0.id) }
+        let activePool = StoryStore.isMangaEnabled ? basePool : basePool.filter {
+            $0.contentFormat != .manga
+                && $0.genre != .manga
+                && $0.sourceProvider != .mangadex
+                && $0.genre.rawValue.caseInsensitiveCompare("manga") != .orderedSame
+        }
         switch selectedTab {
         case "Finished":
             return activePool.filter { $0.isCompleted || $0.progressPercent >= 100 }
@@ -342,7 +348,7 @@ public struct ShelfView: View {
                                             .fableFont(size: 16, weight: .bold, design: .serif)
                                             .foregroundColor(FableTheme.textPrimary)
                                         
-                                        Text(selectedTab == "My Drafts" ? "Head to the Write tab to begin drafting your first tale." : "Explore the library to discover novels, short fiction, and manga.")
+                                        Text(selectedTab == "My Drafts" ? "Head to the Write tab to begin drafting your first tale." : (StoryStore.isMangaEnabled ? "Explore the library to discover novels, short fiction, and manga." : "Explore the library to discover classic books, fables, and short fiction."))
                                             .fableFont(size: 13)
                                             .foregroundColor(FableTheme.textMuted)
                                             .multilineTextAlignment(.center)
@@ -532,6 +538,17 @@ public struct ShelfView: View {
             .sheet(isPresented: $isShowingProfileSheet) {
                 ProfileView()
                     .environmentObject(store)
+            }
+            .onChange(of: store.tourShelfTab) { _, newValue in
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    selectedTab = newValue
+                }
+            }
+            .onChange(of: store.isShowingSettings) { _, newValue in
+                isShowingSettingsSheet = newValue
+            }
+            .onChange(of: store.isShowingProfile) { _, newValue in
+                isShowingProfileSheet = newValue
             }
             .onAppear {
                 store.reloadReadingStats()

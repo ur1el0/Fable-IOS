@@ -29,6 +29,7 @@ All plans are formulated under **strict critical system design tenets**:
 | **[`03_PAGINATION_AND_PACING_ENGINE.md`](./03_PAGINATION_AND_PACING_ENGINE.md)** | Pagination & Reading Velocity | Authentic page-turning & adaptive WPM tracker | Dynamic word tokenization; remaining chapter time recalculation based on actual reader pacing |
 | **[`04_ORAL_FOLKLORE_AUDIO_SYNTHESIZER.md`](./04_ORAL_FOLKLORE_AUDIO_SYNTHESIZER.md)** | Audio Narration & Accessibility | Native text-to-speech audio reader (`AVSpeechSynthesizer`) | Lock-screen `MPNowPlaying` metadata; sentence-level highlighting synchronization; zero audio clipping |
 | **[`05_FASTAPI_CLOUD_SYNC_PIPELINE.md`](./05_FASTAPI_CLOUD_SYNC_PIPELINE.md)** | Distributed Cloud Synchronization | Minimalist FastAPI backend & SQLite cloud sync | Contract-first OpenAPI pipeline; Last-Write-Wins (LWW) conflict resolution; zero enterprise bloat |
+| **[`06_SECURITY_VULNERABILITIES_AND_ARCHITECTURE_REMEDIATION.md`](./06_SECURITY_VULNERABILITIES_AND_ARCHITECTURE_REMEDIATION.md)** | Security & Architecture Hardening | Auth rate-limit hardening, N+1 query elimination, CRUD & account deletion lifecycle, SwiftData resilience | Zero proxy IP collapse; bounded rate-limit tables; App Store 5.1.1(v) compliance; non-fatal SwiftData recovery |
 
 ---
 
@@ -84,4 +85,5 @@ To ensure manageable, incremental progress aligned with our technical instructor
 7. **Phase 7: Multi-Format Architecture & Manga Engine** — [COMPLETE] Evolved data contracts (`ContentFormat`, `SourceProvider`) and built `MangaReaderView` supporting cinema-black continuous Webtoon vertical scroll and horizontal swipe paging.
 8. **Phase 8: Enterprise Security, Automated Tests & ADR Baseline** — [COMPLETE] Implemented BCrypt/PBKDF2 auth, token keychain storage, 22-case pytest suite, and formal Architecture Decision Records.
 9. **Phase 9: App Health Diagnostics & Media Layout Invariants** — [COMPLETE] Enforced strict `.clipped()` anti-overlap geometry, built `AppHealthTests`, and wired interactive on-device `SystemDiagnosticsSheet`.
+10. **Phase 10: Security Vulnerabilities & Architectural Remediation (Plan 06)** — [PLANNED] Remediate auth rate-limiting gaps, reverse-proxy IP collapse, author impersonation, per-GET SQLite write locks, 1+N story read-count queries, missing story/account deletion endpoints, and SwiftData launch resilience.
 

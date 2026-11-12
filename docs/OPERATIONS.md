@@ -2,7 +2,7 @@
 
 ## Deployment boundary
 
-The backend container serves plain HTTP on port 8000. In production, place it behind a TLS-terminating reverse proxy or managed ingress. Keep port 8000 private to that proxy. The checked-in Compose file binds it to loopback by default; set `FABLE_BIND_ADDRESS=0.0.0.0` only for a trusted development LAN.
+The backend listens on container port 8000. Docker Compose publishes it on host port 8001 by default (`FABLE_PORT`), bound to `127.0.0.1`. In production, place it behind a TLS-terminating reverse proxy or managed ingress and keep the container port private to that proxy. Set `FABLE_BIND_ADDRESS=0.0.0.0` only for a trusted development LAN.
 
 Uvicorn's proxy middleware only accepts forwarded headers from peers listed in `FORWARDED_ALLOW_IPS`. Set that variable to the reverse-proxy source IP addresses or networks for the deployment; do not use `*`. The proxy must replace incoming `X-Forwarded-For` values with the observed client address. Fable's application middleware ignores raw forwarded headers and uses the ASGI client address, so an untrusted header cannot change a rate-limit bucket. If the proxy address is not trusted, clients will share the proxy's rate-limit bucket.
 

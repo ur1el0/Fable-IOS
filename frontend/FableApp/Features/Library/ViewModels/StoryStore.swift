@@ -15,6 +15,11 @@ public final class StoryStore: ObservableObject {
     @Published var isPublishingStory: Bool = false
     @Published var publishErrorMessage: String?
     @Published var selectedTab: FableTab = .library
+    @Published var tourExploreFilter: String = "All"
+    @Published var tourExploreSearchText: String = ""
+    @Published var tourSelectedWriter: Writer?
+    @Published var tourShelfTab: String = "Saved"
+    @Published var isShowingChapterIndexSheet: Bool = false
 
     // Reader Preferences (Persisted across launches)
     @Published var readerFont: ReaderFont = .serif {
@@ -188,6 +193,11 @@ public final class StoryStore: ObservableObject {
         let synopsis: String
         let manuscript: String
     }
+
+    /// Feature flag controlling manga catalog visibility on iOS.
+    /// Kept false to adhere strictly to Apple App Store copyright guidelines (5.2)
+    /// and focus exclusively on open-source books, fables, and original writing.
+    public static let isMangaEnabled: Bool = false
 
     // These collections populate from the server; cached stories remain available offline.
     @Published var genres: [GenreCategory] = []
@@ -427,6 +437,15 @@ public final class StoryStore: ObservableObject {
         let persisted = PersistenceService.shared.fetchAllStories()
         if !persisted.isEmpty {
             for entity in persisted {
+                if !Self.isMangaEnabled {
+                    let formatRaw = entity.contentFormatRaw ?? ""
+                    let providerRaw = entity.sourceProviderRaw ?? ""
+                    if formatRaw.caseInsensitiveCompare("manga") == .orderedSame
+                        || providerRaw.caseInsensitiveCompare("mangadex") == .orderedSame
+                        || entity.genreRaw.caseInsensitiveCompare("manga") == .orderedSame {
+                        continue
+                    }
+                }
                 let provider = SourceProvider(rawValue: entity.sourceProviderRaw ?? "FABLE_ORIGINAL") ?? .fableOriginal
                 if provider != .fableOriginal && (entity.providerId?.isEmpty ?? true) {
                     continue
@@ -596,7 +615,7 @@ public final class StoryStore: ObservableObject {
     private func restoreDiscoveryCache() {
         if let data = UserDefaults.standard.data(forKey: "fable_cached_genres"),
            let cached = try? JSONDecoder().decode([GenreCategory].self, from: data) {
-            genres = cached
+            genres = Self.isMangaEnabled ? cached : cached.filter { $0.name.caseInsensitiveCompare("manga") != .orderedSame }
         }
         if let data = UserDefaults.standard.data(forKey: "fable_cached_writers"),
            let cached = try? JSONDecoder().decode([Writer].self, from: data) {
@@ -624,6 +643,9 @@ public final class StoryStore: ObservableObject {
 
             var synchronizedStoryIds = Set<UUID>()
             for remote in remoteStories {
+                if !Self.isMangaEnabled && (remote.contentFormat == .manga || remote.sourceProvider == .mangadex || remote.genre == .manga || remote.genre.rawValue.caseInsensitiveCompare("manga") == .orderedSame) {
+                    continue
+                }
                 if remote.sourceProvider != .fableOriginal && (remote.providerId?.isEmpty ?? true) {
                     continue
                 }
@@ -660,7 +682,8 @@ public final class StoryStore: ObservableObject {
             await refreshProviderCatalogs()
 
             // 2. Fetch live dynamic categories/genres from backend and merge catalog taxonomy
-            let liveGenres = (try? await apiService.fetchGenres()) ?? []
+            let rawLiveGenres = (try? await apiService.fetchGenres()) ?? []
+            let liveGenres = Self.isMangaEnabled ? rawLiveGenres : rawLiveGenres.filter { $0.name.caseInsensitiveCompare("manga") != .orderedSame }
             let synthesized = deriveGenresFromCatalog(stories)
             var mergedGenres = liveGenres
             for item in synthesized {
@@ -780,6 +803,9 @@ public final class StoryStore: ObservableObject {
 
         if let remoteStories = try? await apiService.fetchStories(genre: nil, search: search) {
             for remote in remoteStories where remote.sourceProvider == .fableOriginal || remote.providerId?.isEmpty == false {
+                if !Self.isMangaEnabled && (remote.contentFormat == .manga || remote.sourceProvider == .mangadex || remote.genre == .manga || remote.genre.rawValue.caseInsensitiveCompare("manga") == .orderedSame) {
+                    continue
+                }
                 guard !stories.contains(where: { $0.id == remote.id }) else { continue }
                 var cached = remote
                 cached.coverImageUrl = validCoverImageURL(remote.coverImageUrl)
@@ -790,7 +816,9 @@ public final class StoryStore: ObservableObject {
             }
         }
         await fetchGutenbergPublicStories(topic: nil, search: search)
-        await fetchMangaPublicStories(search: search)
+        if Self.isMangaEnabled {
+            await fetchMangaPublicStories(search: search)
+        }
     }
 
     func matchesAuthor(storyAuthor: String, writerName: String) -> Bool {
@@ -821,12 +849,19 @@ public final class StoryStore: ObservableObject {
     }
 
     func fetchAuthorStories(for writer: Writer) async -> [Story] {
-        async let gutenbergSearch: () = fetchGutenbergPublicStories(topic: nil, search: writer.name)
-        async let mangaSearch: () = fetchMangaPublicStories(search: writer.name)
-        _ = await (gutenbergSearch, mangaSearch)
+        if Self.isMangaEnabled {
+            async let gutenbergSearch: () = fetchGutenbergPublicStories(topic: nil, search: writer.name)
+            async let mangaSearch: () = fetchMangaPublicStories(search: writer.name)
+            _ = await (gutenbergSearch, mangaSearch)
+        } else {
+            await fetchGutenbergPublicStories(topic: nil, search: writer.name)
+        }
 
         if let remoteStories = try? await apiService.fetchStories(genre: nil, search: writer.name) {
             for remote in remoteStories where remote.sourceProvider == .fableOriginal || remote.providerId?.isEmpty == false {
+                if !Self.isMangaEnabled && (remote.contentFormat == .manga || remote.sourceProvider == .mangadex || remote.genre == .manga || remote.genre.rawValue.caseInsensitiveCompare("manga") == .orderedSame) {
+                    continue
+                }
                 guard !stories.contains(where: { $0.id == remote.id }) else { continue }
                 var cached = remote
                 cached.coverImageUrl = validCoverImageURL(remote.coverImageUrl)
@@ -955,7 +990,9 @@ public final class StoryStore: ObservableObject {
         isRefreshingProviderCatalogs = true
         defer { isRefreshingProviderCatalogs = false }
         await fetchGutenbergPublicStories(topic: "fiction", search: nil)
-        await fetchMangaPublicStories(search: nil)
+        if Self.isMangaEnabled {
+            await fetchMangaPublicStories(search: nil)
+        }
     }
 
     private func deriveGenresFromCatalog(_ catalog: [Story]) -> [GenreCategory] {
@@ -972,6 +1009,7 @@ public final class StoryStore: ObservableObject {
 
         var results: [GenreCategory] = []
         for (name, matcher) in candidates {
+            if !Self.isMangaEnabled && name == "Manga" { continue }
             let matchingStories = catalog.filter { story in
                 let g = (story.genre.rawValue + " " + story.title + " " + story.synopsis).lowercased()
                 return matcher(g)
@@ -994,8 +1032,12 @@ public final class StoryStore: ObservableObject {
     }
 
     public func storyMatchesCategory(_ story: Story, category: String) -> Bool {
+        if !Self.isMangaEnabled && (story.contentFormat == .manga || story.genre == .manga || story.sourceProvider == .mangadex || story.genre.rawValue.caseInsensitiveCompare("manga") == .orderedSame) {
+            return false
+        }
         if category == "All" { return true }
         if category == "Manga" {
+            guard Self.isMangaEnabled else { return false }
             return story.contentFormat == .manga || story.genre == .manga || story.sourceProvider == .mangadex
         }
         let lowerCat = category.lowercased()

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import csv
 import gzip
@@ -11,7 +13,7 @@ import zlib
 from collections import OrderedDict
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import NamedTuple, Optional
+from typing import NamedTuple, Optional, Tuple, List
 from uuid import UUID, uuid5
 
 import httpx
@@ -36,12 +38,14 @@ GUTENBERG_CHAPTER_CACHE_TTL_SECONDS = 600.0
 GUTENBERG_CHAPTER_CACHE_MAX_ENTRIES = 32
 GUTENBERG_CHAPTER_CACHE_MAX_BYTES = 16 * 1024 * 1024
 GUTENBERG_MAX_CONCURRENT_FETCHES = 3
+# Small, stable default catalog instead of a broad, slow Gutendex topic query.
+FEATURED_GUTENBERG_IDS = (11, 1342, 84, 1661)
 _GUTENBERG_CHAPTER_CACHE: OrderedDict[int, tuple[float, list[ChapterDTO]]] = OrderedDict()
 _GUTENBERG_FETCH_SEMAPHORE = asyncio.Semaphore(GUTENBERG_MAX_CONCURRENT_FETCHES)
 _GUTENBERG_METADATA_SEMAPHORE = asyncio.Semaphore(GUTENBERG_MAX_CONCURRENT_FETCHES)
 _GUTENBERG_CATALOG_LOCK = asyncio.Lock()
-_GUTENBERG_CATALOG_CACHE: tuple[float, list["GutenbergCatalogEntry"]] | None = None
-_GUTENBERG_CATALOG_STALE_CACHE: tuple[float, list["GutenbergCatalogEntry"]] | None = None
+_GUTENBERG_CATALOG_CACHE: Optional[Tuple[float, List["GutenbergCatalogEntry"]]] = None
+_GUTENBERG_CATALOG_STALE_CACHE: Optional[Tuple[float, List["GutenbergCatalogEntry"]]] = None
 _GUTENBERG_CATALOG_LAST_REFRESH_ATTEMPT = 0.0
 
 _RDF_NAMESPACES = {
@@ -113,7 +117,7 @@ def _parse_gutenberg_catalog_snapshot(compressed_payload: bytes) -> list[Gutenbe
     return entries
 
 
-def _read_cached_gutenberg_catalog(path: Path) -> tuple[list[GutenbergCatalogEntry], float] | None:
+def _read_cached_gutenberg_catalog(path: Path) -> Optional[Tuple[List[GutenbergCatalogEntry], float]]:
     try:
         file_stat = path.stat()
         if file_stat.st_size > GUTENBERG_CATALOG_MAX_COMPRESSED_BYTES:
@@ -469,12 +473,26 @@ async def _fetch_gutenberg_text(gutenberg_id: int) -> str:
     ]
     last_status = None
     last_error = None
+    upstream_failed = False
+    empty_response = False
     try:
         async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
             for url in urls:
-                async with client.stream("GET", url, headers=PROVIDER_HEADERS) as response:
-                    last_status = response.status_code
-                    if response.status_code == 200:
+                try:
+                    async with client.stream("GET", url, headers=PROVIDER_HEADERS) as response:
+                        last_status = response.status_code
+                        if response.status_code != 200:
+                            if response.status_code != 404:
+                                upstream_failed = True
+                            # Gutenberg has two public text URL patterns. Treat transient
+                            # upstream responses like a failed mirror and try the other one.
+                            logger.warning(
+                                "Gutenberg text endpoint returned HTTP %d for ebook %d; trying fallback",
+                                response.status_code,
+                                gutenberg_id,
+                            )
+                            continue
+
                         content_length = response.headers.get("content-length")
                         if (
                             content_length
@@ -496,19 +514,36 @@ async def _fetch_gutenberg_text(gutenberg_id: int) -> str:
                             chunks.extend(chunk)
                         response_text = chunks.decode(response.encoding or "utf-8", errors="replace")
                         if not response_text.strip():
-                            raise HTTPException(status_code=422, detail="Gutenberg book has no readable text")
+                            empty_response = True
+                            logger.warning(
+                                "Gutenberg text endpoint returned an empty response for ebook %d; trying fallback",
+                                gutenberg_id,
+                            )
+                            continue
                         return response_text
-                    if response.status_code != 404:
-                        break
+                except httpx.HTTPError as error:
+                    # A timeout or interrupted stream from one URL should not prevent
+                    # attempting Gutenberg's alternate URL for the same ebook.
+                    last_error = error
+                    upstream_failed = True
+                    logger.warning(
+                        "Gutenberg text endpoint failed for ebook %d; trying fallback (%s)",
+                        gutenberg_id,
+                        type(error).__name__,
+                    )
+                    continue
     except HTTPException:
         raise
-    except httpx.HTTPError as error:
-        last_error = error
 
-    if last_error is not None:
-        raise HTTPException(status_code=502, detail="Gutenberg text service is unavailable") from last_error
+    if upstream_failed:
+        error = HTTPException(status_code=502, detail="Gutenberg text service is unavailable")
+        if last_error is not None:
+            raise error from last_error
+        raise error
     if last_status == 404:
         raise HTTPException(status_code=404, detail="Gutenberg book was not found")
+    if empty_response:
+        raise HTTPException(status_code=422, detail="Gutenberg book has no readable text")
     raise HTTPException(status_code=502, detail="Gutenberg text service returned an error")
 
 
@@ -741,16 +776,11 @@ async def get_gutenberg_story_by_id(gutenberg_id: int) -> StoryDTO:
     if book is None:
         raise HTTPException(status_code=404, detail="Gutenberg book was not found")
 
-    chapters = None
-    if _has_plain_text_format(book):
-        try:
-            chapters = await get_gutenberg_chapters(gutenberg_id)
-        except HTTPException:
-            chapters = None
-        if not chapters:
-            raise HTTPException(status_code=422, detail="Gutenberg book has no readable text")
-
-    story = _story_from_gutenberg_metadata(book, chapters=chapters)
+    # Keep metadata/detail requests light. The reader loads chapter text only
+    # when the user opens a book through the dedicated chapters endpoint.
+    if not _has_plain_text_format(book):
+        raise HTTPException(status_code=422, detail="Gutenberg book has no readable text")
+    story = _story_from_gutenberg_metadata(book)
     if story is None:
         raise HTTPException(status_code=422, detail="Gutenberg metadata is incomplete")
     return story
@@ -761,33 +791,45 @@ async def get_gutenberg_stories(
     search: Optional[str] = None,
 ) -> list[StoryDTO]:
     params = {}
-    if topic and topic.lower() != "all":
+    use_featured_fallback = not search and (not topic or topic.lower() in {"all", "fiction", "classics", "classic"})
+    if not use_featured_fallback and topic and topic.lower() != "all":
         params["topic"] = topic.lower()
     if search:
         params["search"] = search
 
     async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
-        raw_books = await _fetch_gutendex_books(client, params)
+        if use_featured_fallback:
+            # Project Gutenberg's per-book RDF metadata is much quicker and
+            # more dependable than asking Gutendex for the entire featured set.
+            results = await asyncio.gather(
+                *(_fetch_gutenberg_rdf_book(client, book_id) for book_id in FEATURED_GUTENBERG_IDS),
+                return_exceptions=True,
+            )
+            raw_books = [book for book in results if isinstance(book, dict)]
+            if len(raw_books) != len(FEATURED_GUTENBERG_IDS):
+                logger.warning(
+                    "Gutenberg featured catalog returned %d of %d books",
+                    len(raw_books),
+                    len(FEATURED_GUTENBERG_IDS),
+                )
+        else:
+            raw_books = await _fetch_gutendex_books(client, params)
+            if raw_books is None:
+                raw_books = await _fetch_gutenberg_catalog_books(client, params)
         if raw_books is None:
-            raw_books = await _fetch_gutenberg_catalog_books(client, params)
+            raise HTTPException(status_code=502, detail="Gutenberg catalog service is unavailable")
+        if not raw_books:
+            if use_featured_fallback:
+                raise HTTPException(status_code=502, detail="Gutenberg catalog service is unavailable")
+            # An empty search result is a valid response, not an upstream outage.
+            return []
     raw_books = raw_books[:12]
-    enforce_live_text = any(_has_plain_text_format(book) for book in raw_books)
 
-    async def _hydrate_book(book: dict) -> Optional[StoryDTO]:
+    def _map_book(book: dict) -> Optional[StoryDTO]:
         book_id = book.get("id")
-        if not book_id:
+        if not book_id or not _has_plain_text_format(book):
             return None
-        if enforce_live_text:
-            if not _has_plain_text_format(book):
-                return None
-            try:
-                chapters = await get_gutenberg_chapters(int(book_id))
-            except Exception:
-                return None
-            if not chapters:
-                return None
-            return _story_from_gutenberg_metadata(book, fallback_genre=topic, chapters=chapters)
         return _story_from_gutenberg_metadata(book, fallback_genre=topic)
 
-    hydrated = await asyncio.gather(*(_hydrate_book(book) for book in raw_books))
-    return [story for story in hydrated if story is not None]
+    # Full text is fetched on demand by /public/gutenberg/{id}/chapters.
+    return [story for book in raw_books if (story := _map_book(book)) is not None]

@@ -780,6 +780,9 @@ public struct ReaderView: View {
             tableOfContentsSheetView
                 .presentationDetents([.medium, .large])
         }
+        .onChange(of: store.isShowingChapterIndexSheet) { _, newValue in
+            isShowingChapterSheet = newValue
+        }
     }
     
     // View helper for rendered manuscript paragraph with marginalia highlighting & oral audio sync
@@ -1031,7 +1034,7 @@ public struct ReaderView: View {
         do {
             let fetched = try await store.fetchChapters(for: story)
             if !fetched.isEmpty {
-                chapters = fetched
+                chapters = fetched.sorted(by: { $0.chapterNumber < $1.chapterNumber })
                 restoreSavedChapter()
                 loadCurrentChapterPages(preserveCurrentPage: true)
             }
@@ -1084,9 +1087,16 @@ public struct ReaderView: View {
         } else if let chapterNumber = progress.lastReadChapterNumber,
                   let savedIndex = chapters.firstIndex(where: { $0.chapterNumber == chapterNumber }) {
             currentChapterIndex = savedIndex
+        } else {
+            currentChapterIndex = 0
+        }
+        if !chapters.indices.contains(currentChapterIndex) {
+            currentChapterIndex = 0
         }
         if progress.currentPage > 0 {
             currentPage = progress.currentPage
+        } else {
+            currentPage = 1
         }
     }
 

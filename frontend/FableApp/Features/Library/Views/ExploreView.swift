@@ -17,25 +17,44 @@ public struct ExploreView: View {
             return []
         }
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        return store.stories.filter {
+        let matches = store.stories.filter {
             $0.title.localizedCaseInsensitiveContains(query) ||
             $0.author.localizedCaseInsensitiveContains(query) ||
             $0.genre.rawValue.localizedCaseInsensitiveContains(query) ||
             $0.synopsis.localizedCaseInsensitiveContains(query)
         }
+        if !StoryStore.isMangaEnabled {
+            return matches.filter {
+                $0.contentFormat != .manga
+                    && $0.genre != .manga
+                    && $0.sourceProvider != .mangadex
+                    && $0.genre.rawValue.caseInsensitiveCompare("manga") != .orderedSame
+            }
+        }
+        return matches
     }
     
     var curatedStories: [Story] {
+        let base: [Story]
         switch selectedFilter {
         case "Under 5 mins":
-            return store.stories.filter { $0.readingTimeMinutes > 0 && $0.readingTimeMinutes <= 5 }
+            base = store.stories.filter { $0.readingTimeMinutes > 0 && $0.readingTimeMinutes <= 5 }
         case "Community Favorites":
-            return store.stories.filter { (Int($0.savesCount) ?? 0) > 0 }
+            base = store.stories.filter { (Int($0.savesCount) ?? 0) > 0 }
         case "Quick Reads":
-            return store.stories.filter { $0.readingTimeMinutes > 0 && $0.readingTimeMinutes <= 3 }
+            base = store.stories.filter { $0.readingTimeMinutes > 0 && $0.readingTimeMinutes <= 3 }
         default:
-            return store.stories
+            base = store.stories
         }
+        if !StoryStore.isMangaEnabled {
+            return base.filter {
+                $0.contentFormat != .manga
+                    && $0.genre != .manga
+                    && $0.sourceProvider != .mangadex
+                    && $0.genre.rawValue.caseInsensitiveCompare("manga") != .orderedSame
+            }
+        }
+        return base
     }
     
     public init() {}
@@ -92,7 +111,7 @@ public struct ExploreView: View {
                                 .fableFont(size: 16)
                                 .foregroundColor(isSearchFocused ? FableTheme.brandPrimary : FableTheme.textMuted)
                             
-                            TextField("Search stories, manga, or authors...", text: $searchText)
+                            TextField(StoryStore.isMangaEnabled ? "Search stories, manga, or authors..." : "Search books, fables, or authors...", text: $searchText)
                                 .fableFont(size: 15)
                                 .foregroundColor(FableTheme.textPrimary)
                                 .focused($isSearchFocused)
@@ -423,6 +442,20 @@ public struct ExploreView: View {
             .sheet(item: $selectedWriter) { writer in
                 AuthorDetailView(writer: writer)
                     .environmentObject(store)
+            }
+            .onChange(of: store.tourExploreFilter) { _, newValue in
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    selectedFilter = newValue
+                }
+            }
+            .onChange(of: store.tourExploreSearchText) { _, newValue in
+                searchText = newValue
+            }
+            .onChange(of: store.selectedGenre) { _, newValue in
+                selectedGenreForDetail = newValue
+            }
+            .onChange(of: store.tourSelectedWriter) { _, newValue in
+                selectedWriter = newValue
             }
         }
     }

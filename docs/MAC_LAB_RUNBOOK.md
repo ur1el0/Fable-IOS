@@ -26,6 +26,15 @@ git clone https://github.com/ur1el0/Fable-IOS.git
 cd Fable-IOS
 ```
 
+### Step 1a: Start the API
+From the repository root, start the local backend before launching the app:
+```bash
+cp .env.example .env
+docker compose up -d --build
+curl http://127.0.0.1:8001/api/v1/health
+```
+The Docker container listens on port `8000`; Compose publishes it locally on `8001`. The iOS Debug build defaults to `http://127.0.0.1:8001/api/v1`.
+
 ### Step 2: Open Directly in Xcode
 Run the following command in Terminal:
 ```bash
@@ -47,7 +56,7 @@ Before running, clear any potential cache conflicts from previous students:
 
 ### Step 5: Launch on Simulator
 - Press `Cmd + R` (**Product ➔ Run**).
-- The Simulator will launch and display the Library. Fresh installs do not include seeded stories; the feed depends on the configured backend and provider catalog. Without those services, expect an empty or previously cached library.
+- The Simulator will launch and display the Library. The catalog loads live Gutenberg metadata and official covers; full text is fetched from the chapter endpoint when a book is opened. Without network access, expect a previously cached library or an empty state.
 
 ---
 
@@ -59,14 +68,17 @@ When demonstrating the application to your professor or grading committee in the
 |---|---|---|
 | **1. Cold Launch & Auth** | App opens to `WelcomeView`; register a test account using an address reserved for testing. | Exercises account-scoped authentication and secure device token storage. Passwords use versioned PBKDF2-HMAC-SHA256 hashes; successful logins upgrade legacy hashes. |
 | **2. Pure Zero-Baseline State** | Switch to **"Shelf"** tab immediately upon registration. | Proves zero ghost data: authentic empty states render with 0 saved, 0 finished, and 0 reading streak days. |
-| **3. Live Library Feed** | Switch to **"Library"** and wait for the configured provider catalog to load. | Demonstrates live provider content and metadata. A fresh install has no bundled catalog; do not expect a particular title or format. |
-| **4. Format Filters** | If the live catalog contains both formats, tap **"Manga"**, **"Novels"**, then **"All"**. | Demonstrates reactive format filtering for the formats actually returned by the backend. |
-| **5. Manga Reader** | If a manga with readable pages is available, open it from the live catalog. | Demonstrates `MangaReaderView`, vertical Webtoon scrolling, and provider page images. Skip this step when the configured catalog has no readable manga. |
-| **6. Manga Reading Mode Switch** | In an available manga, use the mode toggle to switch to **"Paging"**. | Demonstrates continuous scroll and horizontal page navigation. |
-| **7. Prose Reader & Typography** | Open a live prose title whose chapter endpoint returns readable text. | Demonstrates adaptive typography (`ReaderFont`, `ReaderTheme`, `ReaderLineSpacing`) and pacing estimation. Provider-only chapters without readable text should open their official source in the in-app browser. |
+| **3. Live Library Feed** | Switch to **"Library"** and inspect the available catalog and cover images. | Demonstrates live metadata and official cover URLs from the configured Gutenberg provider. |
+| **4. Category Filter Pills** | Tap **"Fables"**, **"Classics"**, **"Mystery"**, **"Fiction"**, then **"All"**. | Demonstrates reactive category filtering across open-source books, Aesop's Fables, folklore, mystery, and classic literature (`StoryStore.isMangaEnabled = false`). |
+| **5. Multi-Chapter Book Reader & TOC** | Open a readable classic book (e.g., *Pride and Prejudice*) and tap the **Table of Contents (list)** icon. | Proves the app fetches official Gutenberg plain text on demand and displays its chapters in the in-app reader. |
+| **6. Reader Typography & Themes** | Tap the **Display Options (`Aa`)** button in the reader toolbar and toggle between **Parchment**, **Sepia**, **Midnight**, and **OLED** themes and **Serif / Sans / Mono** fonts. | Demonstrates adaptive editorial typography (`ReaderFont`, `ReaderTheme`, `ReaderLineSpacing`) and pacing estimation. |
+| **7. Cached Reading** | Open a previously cached book while offline. | Demonstrates offline reading for content already downloaded by the reader. |
 | **8. Auditory Narration & Voice Picker** | Tap the **Audio Play** button in Reader toolbar; tap **Voice Selector**. | Activates `AVSpeechSynthesizer` narration state machine. Displays `VoiceSelectionSheet` with live voice audition across regional accents (`en-US`, `en-GB`, `en-AU`). |
 | **9. Community Publishing** | Tap **"Write"** tab; author a title and manuscript; tap **"Publish"**. | Validates manuscript, calculates word count, prepends to store catalog, and displays interactive `StoryPublishedSheet`. |
 | **10. Sign-Out & Isolation** | Tap **"Profile"** ➔ **Settings** icon ➔ **"Sign Out"**. | Purges reactive session, resets root view state, and returns to authentication screen without data leakage. |
+
+> [!TIP]
+> **Pre-Captured Visual Archive:** All **29 full-screen iOS Simulator screenshots** covering every screen, filter pill, modal, and theme—plus a continuous walkthrough video (`fable_ios_full_walkthrough.mp4`)—are already archived and indexed in **[`docs/simulator_captures/README.md`](./simulator_captures/README.md)**.
 
 ---
 

@@ -141,7 +141,7 @@ public struct AuthorDetailView: View {
                                 Text("No titles currently cached for this author.")
                                     .fableFont(size: 14, weight: .semibold)
                                     .foregroundColor(FableTheme.textPrimary)
-                                Text("Tap below to query Project Gutenberg and MangaDex.")
+                                Text(StoryStore.isMangaEnabled ? "Tap below to query Project Gutenberg and MangaDex." : "Tap below to query Project Gutenberg.")
                                     .fableFont(size: 12)
                                     .foregroundColor(FableTheme.textMuted)
                                     .multilineTextAlignment(.center)

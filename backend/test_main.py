@@ -51,11 +51,12 @@ def patch_async_client_stream_with_get(monkeypatch):
 
 
 def auth_headers(name="Test Author"):
+    unique_handle = f"reader-{uuid4().hex[:10]}"
     response = client.post("/api/v1/auth/register", json={
         "email": f"{uuid4()}@example.test",
         "password": "secure-password",
         "name": name,
-        "handle": name.lower().replace(" ", "")
+        "handle": unique_handle
     })
     assert response.status_code == 201
     return {"Authorization": f"Bearer {response.json()['accessToken']}"}
@@ -302,8 +303,10 @@ def test_get_genres_endpoint():
 
 def test_get_top_authors_endpoint(monkeypatch):
     import httpx
+    requested = []
 
     async def mock_get(self, url, params=None, headers=None):
+        requested.append((str(url), params))
         if url.endswith("/trending/daily.json"):
             return httpx.Response(200, json={
                 "works": [{"author_name": ["Bram Stoker"]}]
@@ -326,6 +329,12 @@ def test_get_top_authors_endpoint(monkeypatch):
     assert writers[0]["avatarImageName"] == ""
     assert writers[0]["avatarImageUrl"] == "https://covers.openlibrary.org/a/olid/OL123A-M.jpg?default=false"
     assert writers[0]["rating"] is None
+    assert any(url.endswith("/trending/daily.json") for url, _ in requested)
+    assert any(
+        url.endswith("/search/authors.json") and params == {"q": "Bram Stoker", "limit": 1}
+        for url, params in requested
+    )
+
 
 
 def test_gutenberg_cover_and_download_count_are_live(monkeypatch):
@@ -341,7 +350,8 @@ def test_gutenberg_cover_and_download_count_are_live(monkeypatch):
                 "summaries": ["Provider synopsis"],
                 "download_count": 281,
                 "formats": {
-                    "image/jpeg": "https://www.gutenberg.org/cache/epub/38269/pg38269.cover.medium.jpg"
+                    "image/jpeg": "https://www.gutenberg.org/cache/epub/38269/pg38269.cover.medium.jpg",
+                    "text/plain; charset=utf-8": "https://www.gutenberg.org/ebooks/38269.txt.utf-8",
                 }
             }]
         })
@@ -351,6 +361,9 @@ def test_gutenberg_cover_and_download_count_are_live(monkeypatch):
     assert response.status_code == 200
     story = response.json()[0]
     assert story["providerId"] == "38269"
+    assert story["title"] == "The Legend of Maria Makiling"
+    assert story["author"] == "Jose Rizal"
+    assert story["sourceProvider"] == "GUTENBERG"
     assert story["coverImageUrl"] == "https://www.gutenberg.org/cache/epub/38269/pg38269.cover.medium.jpg"
     assert story["providerDownloadCount"] == 281
     assert story["content"] == ""
@@ -556,18 +569,23 @@ def test_get_gutenberg_public_stories(monkeypatch):
                 "subjects": ["Science fiction"],
                 "summaries": ["Source synopsis"],
                 "download_count": 940,
-                "formats": {"image/jpeg": "https://www.gutenberg.org/cover.jpg"}
+                "formats": {
+                    "image/jpeg": "https://www.gutenberg.org/cover.jpg",
+                    "text/plain; charset=utf-8": "https://www.gutenberg.org/ebooks/84.txt.utf-8",
+                }
             }]
         })
 
     monkeypatch.setattr(httpx.AsyncClient, "get", mock_get)
-    response = client.get("/api/v1/public/gutenberg?topic=fiction")
+    response = client.get("/api/v1/public/gutenberg?search=Frankenstein")
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 1
     assert data[0]["sourceProvider"] == "GUTENBERG"
     assert data[0]["providerId"] == "84"
     assert data[0]["providerDownloadCount"] == 940
+
+
 
 
 def test_gutenberg_live_chapters_use_source_text_and_stable_ids(monkeypatch):
@@ -599,6 +617,9 @@ This is the complete source text for the second chapter. It also has enough word
     assert "complete source text" in chapters[0]["content"]
     assert second_response.status_code == 200
     assert chapters[0]["id"] == second_response.json()[0]["id"]
+
+
+
 
 
 def test_gutenberg_chapter_cache_expires_and_evicts_old_entries(monkeypatch):
@@ -798,15 +819,6 @@ def test_gutenberg_catalog_falls_back_to_official_csv_snapshot_and_rdf(monkeypat
         </dc:hasFormat>
       </pg:ebook>
     </rdf:RDF>"""
-    source_text = """
-*** START OF THE PROJECT GUTENBERG EBOOK PRIDE AND PREJUDICE ***
-
-CHAPTER I.
-
-It is a truth universally acknowledged, that a single man in possession
-of a good fortune must be in want of a wife.
-*** END OF THE PROJECT GUTENBERG EBOOK PRIDE AND PREJUDICE ***
-"""
     catalog_requests = 0
 
     async def mock_get(self, url, params=None, headers=None, **kwargs):
@@ -824,9 +836,6 @@ of a good fortune must be in want of a wife.
             return httpx.Response(200, text=rdf)
         raise AssertionError(f"Unexpected provider URL: {url}")
 
-    async def fetch_text(_gutenberg_id):
-        return source_text
-
     gutenberg._GUTENBERG_CHAPTER_CACHE.clear()
     monkeypatch.setattr(gutenberg, "_GUTENBERG_CATALOG_CACHE", None)
     monkeypatch.setattr(gutenberg, "_GUTENBERG_CATALOG_STALE_CACHE", None)
@@ -835,7 +844,6 @@ of a good fortune must be in want of a wife.
     monkeypatch.setattr(gutenberg, "_gutenberg_catalog_cache_path", lambda: catalog_cache_path)
     monkeypatch.setattr(httpx.AsyncClient, "get", mock_get)
     patch_async_client_stream_with_get(monkeypatch)
-    monkeypatch.setattr(gutenberg, "_fetch_gutenberg_text", fetch_text)
     response = client.get("/api/v1/public/gutenberg?search=Pride%20and%20Prejudice")
 
     assert response.status_code == 200
@@ -845,8 +853,10 @@ of a good fortune must be in want of a wife.
     assert stories[0]["author"] == "Jane Austen"
     assert stories[0]["coverImageUrl"].endswith("pg1342.cover.medium.jpg")
     assert stories[0]["providerDownloadCount"] == 5000
-    assert stories[0]["totalChapters"] == 1
-    assert "It is a truth universally acknowledged" in stories[0]["synopsis"]
+    assert stories[0]["content"] == ""
+    assert stories[0]["totalChapters"] == 0
+    assert stories[0]["chapters"] is None
+    assert stories[0]["synopsis"] == ""
     assert catalog_cache_path.exists()
 
     gutenberg._GUTENBERG_CATALOG_CACHE = None
@@ -1527,7 +1537,10 @@ async def test_get_gutenberg_story_by_id_returns_live_metadata(monkeypatch):
             "authors": [{"name": "Austen, Jane"}],
             "subjects": ["Fiction"],
             "summaries": ["Provider synopsis."],
-            "formats": {"image/jpeg": "https://www.gutenberg.org/cover.jpg"},
+            "formats": {
+                "image/jpeg": "https://www.gutenberg.org/cover.jpg",
+                "text/plain; charset=utf-8": "https://www.gutenberg.org/ebooks/1342.txt.utf-8",
+            },
             "download_count": 500,
         }]})
 
@@ -1538,6 +1551,8 @@ async def test_get_gutenberg_story_by_id_returns_live_metadata(monkeypatch):
     assert story.author == "Jane Austen"
     assert story.source_provider == "GUTENBERG"
     assert story.cover_image_url == "https://www.gutenberg.org/cover.jpg"
+    assert story.content == ""
+    assert story.chapters is None
 
 
 @pytest.mark.anyio
@@ -1553,6 +1568,11 @@ async def test_get_gutenberg_story_by_id_falls_back_to_project_gutenberg_rdf(mon
         <dc:title>Pride and Prejudice</dc:title>
         <dc:creator><pg:agent><pg:name>Austen, Jane</pg:name></pg:agent></dc:creator>
         <pg:downloads>5000</pg:downloads>
+        <dc:hasFormat>
+          <pg:file rdf:about="https://www.gutenberg.org/ebooks/1342.txt.utf-8">
+            <dc:format><rdf:Description><rdf:value>text/plain; charset=utf-8</rdf:value></rdf:Description></dc:format>
+          </pg:file>
+        </dc:hasFormat>
         <dc:hasFormat>
           <pg:file rdf:about="https://www.gutenberg.org/cache/epub/1342/pg1342.cover.medium.jpg">
             <dc:format><rdf:Description><rdf:value>image/jpeg</rdf:value></rdf:Description></dc:format>
@@ -1574,6 +1594,7 @@ async def test_get_gutenberg_story_by_id_falls_back_to_project_gutenberg_rdf(mon
     assert story.author == "Jane Austen"
     assert story.provider_download_count == 5000
     assert story.cover_image_url.endswith("pg1342.cover.medium.jpg")
+    assert story.chapters is None
 
 
 
@@ -1621,7 +1642,7 @@ def test_init_db_removes_only_legacy_demo_stories_and_chapters():
                 "2026-01-01T00:00:00+00:00", "2026-01-01T00:00:00+00:00", str(uuid4()),
             ),
         )
-        connection.execute("PRAGMA user_version = 0")
+        connection.execute("PRAGMA user_version = 3")
         connection.commit()
     finally:
         connection.close()
@@ -2436,7 +2457,7 @@ def test_init_db_migrates_legacy_demo_stories_and_shelf_references_once():
     assert legacy_account_shelf_count == 0
     assert legacy_reading_session_count == 0
     assert authored_story["id"] == authored_story_id
-    assert schema_version == 3
+    assert schema_version == 4
     assert {"request_rate_limit_buckets", "password_reset_tokens"} <= migration_tables
 
 
@@ -2519,17 +2540,23 @@ of some one or other of their daughters.
 
     monkeypatch.setattr(httpx.AsyncClient, "get", mock_get)
     patch_async_client_stream_with_get(monkeypatch)
-    response = client.get("/api/v1/public/gutenberg?topic=fiction")
+    response = client.get("/api/v1/public/gutenberg?search=Pride%20and%20Prejudice")
     assert response.status_code == 200
     stories = response.json()
     assert len(stories) == 1
     story = stories[0]
     assert story["title"] == "Pride and Prejudice"
-    assert "automatically generated summary" not in story["synopsis"].lower()
-    assert "It is a truth universally acknowledged" in story["synopsis"]
-    assert "It is a truth universally acknowledged" in story["content"]
-    assert story["totalChapters"] == 1
-    assert len(story["chapters"]) == 1
+    assert story["synopsis"] == ""
+    assert story["content"] == ""
+    assert story["totalChapters"] == 0
+    assert story["chapters"] is None
+
+    # Full source text is loaded only when the reader requests the chapter route.
+    chapters_response = client.get("/api/v1/public/gutenberg/1342/chapters")
+    assert chapters_response.status_code == 200
+    chapters = chapters_response.json()
+    assert len(chapters) == 1
+    assert "It is a truth universally acknowledged" in chapters[0]["content"]
 
 
 def test_manga_search_excludes_titles_without_direct_panels(monkeypatch):
