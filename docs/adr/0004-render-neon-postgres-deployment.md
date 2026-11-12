@@ -9,7 +9,7 @@ The backend currently uses SQLite for zero-setup development and local runs. Ren
 
 ## Decision
 
-Keep SQLite as the default backend for local development and tests. Add a PostgreSQL connection path selected by `FABLE_DATABASE_BACKEND=postgres` and `DATABASE_URL`, then use Neon as the persistent hosted database. Deploy the existing Docker backend as a Render Free web service with an HTTP health check and the Render-assigned port. Use a pooled Neon TLS connection string.
+Keep SQLite as the default backend for local development and tests. Add a PostgreSQL connection path selected by `FABLE_DATABASE_BACKEND=postgres` and `DATABASE_URL`, then use Neon as the persistent hosted database. Deploy the existing Docker backend as a Render Free web service with an HTTP health check and the Render-assigned port. Use a pooled Neon TLS connection string and place both providers in Singapore to keep app-to-database traffic in the same region.
 
 ## Consequences
 

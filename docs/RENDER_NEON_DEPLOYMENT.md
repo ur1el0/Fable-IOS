@@ -11,7 +11,7 @@ This deployment keeps SQLite as the local default and uses Neon PostgreSQL when 
 
 ## Create the Neon database
 
-1. Create a Neon project on the Free plan. Choose a nearby region, such as Singapore.
+1. Create a Neon project on the Free plan. Choose **AWS Asia Pacific 1 (Singapore)** to colocate it with the Render service.
 2. Open **Connect** for the project's primary branch and database.
 3. Enable **Pooled connection** and copy the connection string. It must use TLS (`sslmode=require` or stronger). Treat this URL as a password; do not commit it or send it in chat.
 
@@ -19,7 +19,7 @@ This deployment keeps SQLite as the local default and uses Neon PostgreSQL when 
 
 1. Push this branch or merge its changes to `main`, then open the Render Dashboard and choose **New → Blueprint**.
 2. Connect `ur1el0/Fable-IOS` and choose the branch containing `render.yaml`.
-3. Review the service before applying it. Confirm the plan is **Free** and the service is named `fable-api`.
+3. Review the service before applying it. Confirm the plan is **Free**, the region is **Singapore**, and the service is named `fable-api`.
 4. When Render prompts for unsynced environment values, paste the Neon pooled `DATABASE_URL`. Generate a separate ingestion key in your local terminal with `openssl rand -hex 32`, then provide it as `FABLE_INGESTION_API_KEY`. Never reuse your Neon password for the ingestion key.
 5. Apply the Blueprint and wait for the first deploy to pass its health check. Render provides an HTTPS URL such as `https://fable-api.onrender.com`.
 6. Open `https://<service-name>.onrender.com/api/v1/health`. It should report `healthy` and `database: connected`.
