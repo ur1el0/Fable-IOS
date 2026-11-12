@@ -28,6 +28,37 @@ jobs:
       - name: Run backend tests
         run: PYTHONPATH=.:backend pytest backend -v
 
+  postgres-verification:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: fable
+          POSTGRES_PASSWORD: "${{ github.run_id }}-${{ github.run_attempt }}"
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d fable"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      FABLE_ENV: test
+      FABLE_DATABASE_BACKEND: postgres
+      DATABASE_URL: "postgresql://postgres:${{ github.run_id }}-${{ github.run_attempt }}@localhost:5432/fable?sslmode=disable"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+      - name: Install backend dependencies
+        run: pip install -r backend/requirements-test.txt
+      - name: Run PostgreSQL integration tests
+        run: PYTHONPATH=.:backend pytest backend/test_postgres_database.py -v
+
   docker-build-verification:
     runs-on: ubuntu-latest
     steps:
