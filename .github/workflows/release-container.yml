@@ -21,7 +21,7 @@ jobs:
       - name: Install backend dependencies
         run: pip install -r backend/requirements-test.txt
       - name: Run backend suite
-        run: PYTHONPATH=.:backend pytest backend/test_main.py -v
+        run: PYTHONPATH=.:backend pytest backend -v
       - name: Build backend image
         run: docker build -t fable-backend:release-check -f backend/Dockerfile .
       - name: Verify test tooling and source are excluded from runtime image
