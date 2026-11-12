@@ -12,8 +12,8 @@ def health_check():
     conn = None
     try:
         conn = get_db()
-        row = conn.execute("SELECT 1").fetchone()
-        if not row or row[0] != 1:
+        row = conn.execute("SELECT 1 AS connected").fetchone()
+        if not row or row["connected"] != 1:
             raise RuntimeError("Unexpected database ping result")
     except Exception as exc:
         logger.error(

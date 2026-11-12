@@ -1,5 +1,11 @@
-import sqlite3
+from __future__ import annotations
+
 import os
+import sqlite3
+from urllib.parse import parse_qs, urlsplit
+
+import psycopg
+from psycopg.rows import dict_row
 
 DB_PATH = os.environ.get("FABLE_DB_PATH", "fable.sqlite3")
 SCHEMA_VERSION = 4
@@ -22,7 +28,124 @@ LEGACY_DEMO_STORY_IDS = (
     "e1a10004-0000-0000-0000-000000000004",
 )
 
+
+def _postgres_url() -> str | None:
+    backend = os.environ.get("FABLE_DATABASE_BACKEND", "auto").strip().lower()
+    if backend not in {"auto", "sqlite", "postgres"}:
+        raise RuntimeError("FABLE_DATABASE_BACKEND must be auto, sqlite, or postgres.")
+
+    value = os.environ.get("DATABASE_URL", "").strip()
+    if backend == "sqlite":
+        return None
+    if not value:
+        if backend == "postgres":
+            raise RuntimeError("DATABASE_URL is required when FABLE_DATABASE_BACKEND=postgres.")
+        return None
+    parsed_url = urlsplit(value)
+    if parsed_url.scheme not in {"postgres", "postgresql"}:
+        raise RuntimeError("DATABASE_URL must use the PostgreSQL URL scheme.")
+    sslmode = parse_qs(parsed_url.query).get("sslmode", [None])[0]
+    if sslmode not in {
+        "require",
+        "verify-ca",
+        "verify-full",
+    } and os.environ.get("FABLE_ENV", "").strip().lower() not in {
+        "development",
+        "dev",
+        "local",
+        "test",
+    }:
+        raise RuntimeError("DATABASE_URL must require TLS with sslmode=require or stronger.")
+    return value
+
+
+def _postgres_placeholders(statement: str) -> str:
+    """Translate SQLite qmark parameters while leaving quoted SQL untouched."""
+    output: list[str] = []
+    quote: str | None = None
+    index = 0
+    while index < len(statement):
+        character = statement[index]
+        if quote:
+            output.append(character)
+            if character == quote:
+                if index + 1 < len(statement) and statement[index + 1] == quote:
+                    output.append(statement[index + 1])
+                    index += 1
+                else:
+                    quote = None
+        elif character in {"'", '"'}:
+            quote = character
+            output.append(character)
+        elif character == "?":
+            output.append("%s")
+        else:
+            output.append(character)
+        index += 1
+    return "".join(output)
+
+
+class PostgresConnection:
+    """Expose the small SQLite-style connection surface used by the services."""
+
+    def __init__(self, connection: psycopg.Connection):
+        self._connection = connection
+
+    def execute(self, statement: str, parameters=()):
+        if statement.strip().upper() == "BEGIN IMMEDIATE":
+            statement = "SELECT 1 AS transaction_started"
+        else:
+            statement = _postgres_placeholders(statement)
+        return self._connection.execute(statement, parameters)
+
+    def lock_key(self, key: str) -> None:
+        self.execute(
+            "SELECT pg_advisory_xact_lock(hashtextextended(?, 0))",
+            (key,),
+        )
+
+    @property
+    def in_transaction(self) -> bool:
+        from psycopg.pq import TransactionStatus
+
+        return self._connection.info.transaction_status != TransactionStatus.IDLE
+
+    def commit(self) -> None:
+        self._connection.commit()
+
+    def rollback(self) -> None:
+        self._connection.rollback()
+
+    def close(self) -> None:
+        self._connection.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exception_type, _exception, _traceback):
+        if exception_type is None:
+            self.commit()
+        else:
+            self.rollback()
+
+
+def lock_transaction_key(conn, key: str) -> None:
+    """Serialize updates to a logical key on PostgreSQL; SQLite already serializes writers."""
+    if isinstance(conn, PostgresConnection):
+        conn.lock_key(key)
+
 def get_db():
+    postgres_url = _postgres_url()
+    if postgres_url:
+        return PostgresConnection(
+            psycopg.connect(
+                postgres_url,
+                row_factory=dict_row,
+                connect_timeout=10,
+                application_name="fable-api",
+            )
+        )
+
     # Dynamic lookup so tests can override os.environ["FABLE_DB_PATH"]
     current_db_path = os.environ.get("FABLE_DB_PATH", DB_PATH)
     conn = sqlite3.connect(current_db_path, timeout=10.0)
@@ -33,21 +156,63 @@ def get_db():
 
 
 def _add_column_if_missing(conn, table_name, column_name, column_definition):
-    existing_columns = {
-        row["name"]
-        for row in conn.execute(f"PRAGMA table_info({table_name})").fetchall()
-    }
+    if isinstance(conn, PostgresConnection):
+        existing_columns = {
+            row["column_name"]
+            for row in conn.execute(
+                """SELECT column_name FROM information_schema.columns
+                   WHERE table_schema = current_schema() AND table_name = ?""",
+                (table_name,),
+            ).fetchall()
+        }
+    else:
+        existing_columns = {
+            row["name"]
+            for row in conn.execute(f"PRAGMA table_info({table_name})").fetchall()
+        }
     if column_name not in existing_columns:
         conn.execute(
             f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_definition}"
         )
 
 
+def _get_schema_version(conn) -> int:
+    if isinstance(conn, PostgresConnection):
+        conn.execute(
+            """CREATE TABLE IF NOT EXISTS fable_schema_version (
+                   id SMALLINT PRIMARY KEY CHECK (id = 1),
+                   version INTEGER NOT NULL
+               )"""
+        )
+        conn.execute(
+            "INSERT INTO fable_schema_version (id, version) VALUES (1, 0) ON CONFLICT (id) DO NOTHING"
+        )
+        row = conn.execute(
+            "SELECT version FROM fable_schema_version WHERE id = 1"
+        ).fetchone()
+        return int(row["version"])
+
+    return int(conn.execute("PRAGMA user_version").fetchone()[0])
+
+
+def _set_schema_version(conn, version: int) -> None:
+    if isinstance(conn, PostgresConnection):
+        conn.execute(
+            "UPDATE fable_schema_version SET version = ? WHERE id = 1",
+            (version,),
+        )
+    else:
+        conn.execute(f"PRAGMA user_version = {version}")
+
+
 def init_db():
     conn = get_db()
     try:
-        conn.execute("PRAGMA journal_mode = WAL;")
-        current_version = conn.execute("PRAGMA user_version").fetchone()[0]
+        if isinstance(conn, PostgresConnection):
+            conn.execute("SELECT pg_advisory_xact_lock(472993481)")
+        else:
+            conn.execute("PRAGMA journal_mode = WAL;")
+        current_version = _get_schema_version(conn)
         if current_version > SCHEMA_VERSION:
             raise RuntimeError(
                 f"Database schema version {current_version} is newer than supported version {SCHEMA_VERSION}."
@@ -211,14 +376,14 @@ def init_db():
                     f"DELETE FROM stories WHERE id IN ({placeholders})",
                     LEGACY_DEMO_STORY_IDS,
                 )
-                conn.execute("PRAGMA user_version = 1")
+                _set_schema_version(conn, 1)
 
             if current_version < 2:
                 conn.execute("""
                     CREATE TABLE IF NOT EXISTS request_rate_limit_buckets (
                         bucket_key TEXT NOT NULL,
-                        available_tokens REAL NOT NULL,
-                        updated_at REAL NOT NULL,
+                        available_tokens DOUBLE PRECISION NOT NULL,
+                        updated_at DOUBLE PRECISION NOT NULL,
                         PRIMARY KEY (bucket_key)
                     );
                 """)
@@ -226,7 +391,7 @@ def init_db():
                     "CREATE INDEX IF NOT EXISTS idx_request_rate_limit_updated "
                     "ON request_rate_limit_buckets (updated_at)"
                 )
-                conn.execute("PRAGMA user_version = 2")
+                _set_schema_version(conn, 2)
 
             if current_version < 3:
                 conn.execute("""
@@ -243,7 +408,7 @@ def init_db():
                     "CREATE INDEX IF NOT EXISTS idx_password_reset_user "
                     "ON password_reset_tokens (user_id, expires_at_utc)"
                 )
-                conn.execute("PRAGMA user_version = 3")
+                _set_schema_version(conn, 3)
 
             if current_version < 4:
                 placeholders = ", ".join("?" for _ in LEGACY_DEMO_STORY_IDS)
@@ -261,6 +426,6 @@ def init_db():
                     f"DELETE FROM stories WHERE id IN ({placeholders})",
                     LEGACY_DEMO_STORY_IDS,
                 )
-                conn.execute("PRAGMA user_version = 4")
+                _set_schema_version(conn, 4)
     finally:
         conn.close()

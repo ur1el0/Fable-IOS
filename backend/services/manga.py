@@ -226,7 +226,7 @@ async def _probe_direct_chapters(manga_id: str) -> bool:
     if cached is not None:
         return cached
 
-    # 1. First check if fable.sqlite3 contains ingested chapters with page_urls
+    # 1. First check whether the database contains ingested chapters with page_urls
     try:
         conn = get_db()
         try:
@@ -358,7 +358,7 @@ async def get_manga_chapters(manga_id: str, limit: int = 20) -> list[ChapterDTO]
     if cached is not None:
         return cached
 
-    # 1. Check if fable.sqlite3 contains ingested chapters with page_urls
+    # 1. Check whether the database contains ingested chapters with page_urls
     try:
         conn = get_db()
         try:
