@@ -5,7 +5,6 @@ from typing import Optional
 from urllib.parse import urlsplit
 from uuid import UUID, uuid4, uuid5
 
-import httpx
 from fastapi import HTTPException
 
 from core.database import get_db
@@ -367,135 +366,15 @@ def get_genres() -> list[GenreDTO]:
         conn.close()
 
 
-def _local_writers() -> list[WriterDTO]:
-    conn = get_db()
-    try:
-        rows = conn.execute(
-            """
-            SELECT author, COUNT(*) AS story_count
-            FROM stories
-            GROUP BY author
-            ORDER BY story_count DESC, author COLLATE NOCASE ASC
-            LIMIT 6
-            """
-        ).fetchall()
-        return [
-            WriterDTO(
-                id=uuid5(IDENTIFIER_NAMESPACE, f"fable-author:{row['author'].casefold()}"),
-                name=row["author"],
-                avatar_image_name="",
-                avatar_image_url=None,
-                story_count=row["story_count"],
-                rating=None,
-            )
-            for row in rows
-        ]
-    finally:
-        conn.close()
-
-
-FEATURED_CATALOG_AUTHORS = [
-    "Mary Shelley",
-    "Bram Stoker",
-    "Arthur Conan Doyle",
-    "Jane Austen",
-    "Edgar Allan Poe",
-    "Lewis Carroll",
-    "Aesop",
-]
-
-
 async def get_top_authors() -> list[WriterDTO]:
-    headers = {"User-Agent": "Fable/1.0 (author metadata client)"}
-    local = _local_writers()
     try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            trending = await client.get(
-                "https://openlibrary.org/trending/daily.json",
-                headers=headers,
-            )
-            works = trending.json().get("works", []) if trending.status_code == 200 else []
-            if not works:
-                return local
+        # Import locally to avoid the Gutenberg service's story serializer
+        # creating a module import cycle.
+        from services.gutenberg import get_gutenberg_authors
 
-            # Check if upstream returned authors that exist in Fable's reading catalog or local stories
-            catalog_names_set = {a.casefold() for a in FEATURED_CATALOG_AUTHORS}
-            local_names_set = {w.name.casefold() for w in local}
-            valid_catalog_names = catalog_names_set | local_names_set
-
-            matched_trending_names: list[str] = []
-            for work in works:
-                for name in work.get("author_name", []):
-                    if isinstance(name, str) and name.strip():
-                        trimmed = name.strip()
-                        if trimmed.casefold() in valid_catalog_names and trimmed not in matched_trending_names:
-                            matched_trending_names.append(trimmed)
-                    if len(matched_trending_names) == 6:
-                        break
-                if len(matched_trending_names) == 6:
-                    break
-
-            # If trending list matched catalog authors (e.g. unit tests or catalog trending), use them.
-            # In production (len(works) > 1), supplement up to 6 from catalog masters so the carousel is always full.
-            names = list(matched_trending_names)
-            if len(works) > 1:
-                for author in FEATURED_CATALOG_AUTHORS:
-                    if len(names) >= 6:
-                        break
-                    if author.casefold() not in {n.casefold() for n in names}:
-                        names.append(author)
-            elif not names:
-                names = [w.name for w in local] + [
-                    a for a in FEATURED_CATALOG_AUTHORS if a.casefold() not in local_names_set
-                ]
-                names = names[:6]
-
-            writers: list[WriterDTO] = []
-            for name in names:
-                try:
-                    response = await client.get(
-                        "https://openlibrary.org/search/authors.json",
-                        params={"q": name, "limit": 1},
-                        headers=headers,
-                    )
-                    if response.status_code == 200:
-                        docs = response.json().get("docs", [])
-                        if docs:
-                            document = docs[0]
-                            author_key = document.get("key", "").rsplit("/", 1)[-1]
-                            if author_key:
-                                work_count = document.get("work_count", 0)
-                                writers.append(
-                                    WriterDTO(
-                                        id=uuid5(IDENTIFIER_NAMESPACE, f"openlibrary:{author_key}"),
-                                        name=name,
-                                        avatar_image_name="",
-                                        avatar_image_url=(
-                                            f"https://covers.openlibrary.org/a/olid/{author_key}-M.jpg?default=false"
-                                        ),
-                                        story_count=max(0, int(work_count)),
-                                        rating=None,
-                                    )
-                                )
-                                continue
-                except Exception:
-                    pass
-
-                # Fallback writer DTO if search doc was missing or timed out
-                writers.append(
-                    WriterDTO(
-                        id=uuid5(IDENTIFIER_NAMESPACE, f"fable-creator:{name.casefold()}"),
-                        name=name,
-                        avatar_image_name="",
-                        avatar_image_url=None,
-                        story_count=12,
-                        rating=None,
-                    )
-                )
-
-            return writers if writers else (local if local else _local_writers())
-    except (httpx.HTTPError, ValueError, TypeError):
-        return local if local else _local_writers()
+        return await get_gutenberg_authors()
+    except HTTPException:
+        return []
 
 
 def get_update_feed() -> UpdateFeedDTO:
