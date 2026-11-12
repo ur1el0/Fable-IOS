@@ -27,25 +27,67 @@ def setup_teardown_provider_http_db():
 client = TestClient(app)
 
 
-def test_top_authors_http_endpoint_uses_readable_fallback_when_author_lookup_fails(monkeypatch):
+def test_top_authors_http_endpoint_returns_catalog_authors_and_real_work_counts(monkeypatch, tmp_path):
+    from contextlib import asynccontextmanager
+    import csv
+    import gzip
+    import io
     import httpx
+    from services import gutenberg
 
-    async def mock_get(self, url, params=None, headers=None):
-        if url.endswith("/trending/daily.json"):
-            return httpx.Response(200, json={"works": [{"author_name": ["Bram Stoker"]}]})
-        return httpx.Response(503, json={"error": "temporarily unavailable"})
+    buffer = io.StringIO(newline="")
+    writer = csv.DictWriter(
+        buffer,
+        fieldnames=["Text#", "Type", "Title", "Language", "Authors", "Subjects", "Bookshelves"],
+    )
+    writer.writeheader()
+    for gutenberg_id, title, author in (
+        (1342, "Pride and Prejudice", "Austen, Jane, 1775-1817"),
+        (161, "Sense and Sensibility", "Austen, Jane, 1775-1817"),
+        (345, "Dracula", "Stoker, Bram, 1847-1912"),
+    ):
+        writer.writerow({
+            "Text#": gutenberg_id,
+            "Type": "Text",
+            "Title": title,
+            "Language": "en",
+            "Authors": author,
+            "Subjects": "Fiction",
+            "Bookshelves": "",
+        })
+    snapshot = gzip.compress(buffer.getvalue().encode("utf-8"))
 
-    monkeypatch.setattr(httpx.AsyncClient, "get", mock_get)
+    @asynccontextmanager
+    async def mock_stream(self, method, url, headers=None, **kwargs):
+        assert method == "GET"
+        assert str(url) == gutenberg.GUTENBERG_CATALOG_URL
+        yield httpx.Response(
+            200,
+            content=snapshot,
+            headers={"content-length": str(len(snapshot))},
+        )
+
+    async def unexpected_get(self, url, params=None, headers=None, **kwargs):
+        raise AssertionError(f"Unexpected non-catalog provider request: {url}")
+
+    monkeypatch.setattr(gutenberg, "_GUTENBERG_CATALOG_CACHE", None)
+    monkeypatch.setattr(gutenberg, "_GUTENBERG_CATALOG_STALE_CACHE", None)
+    monkeypatch.setattr(gutenberg, "_GUTENBERG_CATALOG_LAST_REFRESH_ATTEMPT", 0.0)
+    monkeypatch.setattr(gutenberg, "_gutenberg_catalog_cache_path", lambda: tmp_path / "catalog.csv.gz")
+    monkeypatch.setattr(httpx.AsyncClient, "stream", mock_stream)
+    monkeypatch.setattr(httpx.AsyncClient, "get", unexpected_get)
     response = client.get("/api/v1/authors/top")
 
     assert response.status_code == 200
     writers = response.json()
-    assert len(writers) == 1
-    assert writers[0]["name"] == "Bram Stoker"
-    assert writers[0]["avatarImageUrl"] is None
-    assert writers[0]["storyCount"] == 12
+    assert {writer["name"]: writer["storyCount"] for writer in writers} == {
+        "Jane Austen": 2,
+        "Bram Stoker": 1,
+    }
+    assert all(writer["avatarImageUrl"] is None for writer in writers)
 
-def test_gutenberg_book_detail_http_endpoint_falls_back_to_rdf_metadata(monkeypatch):
+
+def test_gutenberg_book_detail_http_endpoint_uses_official_rdf_metadata(monkeypatch):
     import httpx
 
     gutenberg_id = 1342
@@ -73,7 +115,7 @@ def test_gutenberg_book_detail_http_endpoint_falls_back_to_rdf_metadata(monkeypa
 
     async def mock_get(self, url, params=None, headers=None):
         if "gutendex.com" in str(url):
-            return httpx.Response(200, json={"results": []})
+            raise AssertionError("A valid official Gutenberg RDF record should not need a secondary catalog")
         assert str(url).endswith(f"/cache/epub/{gutenberg_id}/pg{gutenberg_id}.rdf")
         return httpx.Response(200, text=rdf)
 
@@ -91,13 +133,13 @@ def test_gutenberg_book_detail_http_endpoint_falls_back_to_rdf_metadata(monkeypa
     assert book["content"] == ""
 
 def test_gutenberg_empty_search_is_a_successful_empty_http_response(monkeypatch):
-    import httpx
+    from services import gutenberg
 
-    async def no_matches(self, url, params=None, headers=None):
+    async def no_matches(_client, params):
         assert params == {"search": "No Such Book"}
-        return httpx.Response(200, json={"results": []})
+        return []
 
-    monkeypatch.setattr(httpx.AsyncClient, "get", no_matches)
+    monkeypatch.setattr(gutenberg, "_fetch_gutenberg_catalog_books", no_matches)
     response = client.get("/api/v1/public/gutenberg?search=No%20Such%20Book")
 
     assert response.status_code == 200

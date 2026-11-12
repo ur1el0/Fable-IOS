@@ -613,6 +613,14 @@ public final class StoryStore: ObservableObject {
     }
 
     private func restoreDiscoveryCache() {
+        let cacheVersionKey = "fable_discovery_cache_version"
+        let currentCacheVersion = 2
+        if UserDefaults.standard.integer(forKey: cacheVersionKey) < currentCacheVersion {
+            UserDefaults.standard.removeObject(forKey: "fable_cached_genres")
+            UserDefaults.standard.removeObject(forKey: "fable_cached_writers")
+            UserDefaults.standard.set(currentCacheVersion, forKey: cacheVersionKey)
+        }
+
         if let data = UserDefaults.standard.data(forKey: "fable_cached_genres"),
            let cached = try? JSONDecoder().decode([GenreCategory].self, from: data) {
             genres = Self.isMangaEnabled ? cached : cached.filter { $0.name.caseInsensitiveCompare("manga") != .orderedSame }
@@ -696,7 +704,7 @@ public final class StoryStore: ObservableObject {
                 persistDiscoveryCache(mergedGenres, key: "fable_cached_genres")
             }
 
-            // 3. Fetch live trending authors from backend/Open Library
+            // 3. Fetch authors and catalog work counts from Project Gutenberg.
             if let liveWriters = try? await apiService.fetchTopAuthors() {
                 self.writers = liveWriters
                 persistDiscoveryCache(liveWriters, key: "fable_cached_writers")
@@ -996,39 +1004,27 @@ public final class StoryStore: ObservableObject {
     }
 
     private func deriveGenresFromCatalog(_ catalog: [Story]) -> [GenreCategory] {
-        let candidates: [(name: String, matcher: (String) -> Bool)] = [
-            ("Manga", { $0.contains("manga") }),
-            ("Fiction", { $0.contains("fiction") }),
-            ("Classics", { $0.contains("classic") || $0.contains("19th century") || $0.contains("literature") }),
-            ("Sci-Fi", { $0.contains("sci-fi") || $0.contains("science fiction") || $0.contains("space") || $0.contains("time") }),
-            ("Gothic", { $0.contains("gothic") || $0.contains("vampire") || $0.contains("dracula") || $0.contains("frankenstein") || $0.contains("monster") }),
-            ("Romance", { $0.contains("romance") || $0.contains("courtship") || $0.contains("love") || $0.contains("pride") }),
-            ("Adventure", { $0.contains("adventure") || $0.contains("voyage") || $0.contains("sea") || $0.contains("journey") }),
-            ("Horror", { $0.contains("horror") || $0.contains("ghost") || $0.contains("supernatural") || $0.contains("terror") })
-        ]
+        let genreGroups = Dictionary(grouping: catalog.compactMap { story -> (String, Story)? in
+            let name = story.genre.rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !name.isEmpty else { return nil }
+            if !Self.isMangaEnabled && name.caseInsensitiveCompare("manga") == .orderedSame {
+                return nil
+            }
+            return (name, story)
+        }, by: { $0.0.lowercased() })
 
-        var results: [GenreCategory] = []
-        for (name, matcher) in candidates {
-            if !Self.isMangaEnabled && name == "Manga" { continue }
-            let matchingStories = catalog.filter { story in
-                let g = (story.genre.rawValue + " " + story.title + " " + story.synopsis).lowercased()
-                return matcher(g)
-            }
-            if !matchingStories.isEmpty {
-                results.append(
-                    GenreCategory(
-                        id: UUID(),
-                        name: name,
-                        storyCount: matchingStories.count,
-                        readersCount: "\(matchingStories.count * 15 + 40)",
-                        description: "Curated \(name.lowercased()) works from our digital collection.",
-                        imageName: "",
-                        imageUrl: nil
-                    )
-                )
-            }
-        }
-        return results
+        return genreGroups.values.compactMap { group in
+            guard let first = group.first else { return nil }
+            let name = first.0
+            return GenreCategory(
+                name: name,
+                storyCount: group.count,
+                readersCount: "",
+                description: "",
+                imageName: "",
+                imageUrl: nil
+            )
+        }.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
     public func storyMatchesCategory(_ story: Story, category: String) -> Bool {
@@ -1040,26 +1036,7 @@ public final class StoryStore: ObservableObject {
             guard Self.isMangaEnabled else { return false }
             return story.contentFormat == .manga || story.genre == .manga || story.sourceProvider == .mangadex
         }
-        let lowerCat = category.lowercased()
-        let haystack = (story.genre.rawValue + " " + story.title + " " + story.synopsis).lowercased()
-        switch lowerCat {
-        case "fiction":
-            return haystack.contains("fiction") || story.contentFormat == .prose
-        case "classics":
-            return haystack.contains("classic") || haystack.contains("literature") || haystack.contains("19th century") || story.sourceProvider == .gutenberg
-        case "sci-fi":
-            return haystack.contains("sci-fi") || haystack.contains("science fiction") || haystack.contains("space") || haystack.contains("time")
-        case "gothic":
-            return haystack.contains("gothic") || haystack.contains("vampire") || haystack.contains("dracula") || haystack.contains("frankenstein") || haystack.contains("monster")
-        case "romance":
-            return haystack.contains("romance") || haystack.contains("courtship") || haystack.contains("love") || haystack.contains("pride")
-        case "adventure":
-            return haystack.contains("adventure") || haystack.contains("voyage") || haystack.contains("sea") || haystack.contains("journey")
-        case "horror":
-            return haystack.contains("horror") || haystack.contains("ghost") || haystack.contains("supernatural") || haystack.contains("terror")
-        default:
-            return haystack.contains(lowerCat)
-        }
+        return story.genre.rawValue.localizedCaseInsensitiveCompare(category) == .orderedSame
     }
 
     private var shelfStateStorageKey: String {

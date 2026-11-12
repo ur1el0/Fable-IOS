@@ -44,7 +44,9 @@ def patch_async_client_stream_with_get(monkeypatch):
 
     @asynccontextmanager
     async def stream(self, method, url, params=None, headers=None, **kwargs):
-        response = await self.get(url, params=params, headers=headers, **kwargs)
+        # The test response mocks only model the request fields relevant to the
+        # provider call; streaming-only options such as timeout are not passed on.
+        response = await self.get(url, params=params, headers=headers)
         yield response
 
     monkeypatch.setattr(httpx.AsyncClient, "stream", stream)
@@ -301,42 +303,6 @@ def test_get_genres_endpoint():
     assert gothic["imageUrl"] is None
 
 
-def test_get_top_authors_endpoint(monkeypatch):
-    import httpx
-    requested = []
-
-    async def mock_get(self, url, params=None, headers=None):
-        requested.append((str(url), params))
-        if url.endswith("/trending/daily.json"):
-            return httpx.Response(200, json={
-                "works": [{"author_name": ["Bram Stoker"]}]
-            })
-        return httpx.Response(200, json={
-            "docs": [{
-                "key": "OL123A",
-                "name": "Bram Stoker",
-                "work_count": 35
-            }]
-        })
-
-    monkeypatch.setattr(httpx.AsyncClient, "get", mock_get)
-    response = client.get("/api/v1/authors/top")
-    assert response.status_code == 200
-    writers = response.json()
-    assert len(writers) == 1
-    assert writers[0]["name"] == "Bram Stoker"
-    assert writers[0]["storyCount"] == 35
-    assert writers[0]["avatarImageName"] == ""
-    assert writers[0]["avatarImageUrl"] == "https://covers.openlibrary.org/a/olid/OL123A-M.jpg?default=false"
-    assert writers[0]["rating"] is None
-    assert any(url.endswith("/trending/daily.json") for url, _ in requested)
-    assert any(
-        url.endswith("/search/authors.json") and params == {"q": "Bram Stoker", "limit": 1}
-        for url, params in requested
-    )
-
-
-
 def test_gutenberg_cover_and_download_count_are_live(monkeypatch):
     import httpx
 
@@ -357,6 +323,7 @@ def test_gutenberg_cover_and_download_count_are_live(monkeypatch):
         })
 
     monkeypatch.setattr(httpx.AsyncClient, "get", mock_get)
+    patch_async_client_stream_with_get(monkeypatch)
     response = client.get("/api/v1/public/gutenberg?search=Maria")
     assert response.status_code == 200
     story = response.json()[0]
@@ -577,6 +544,7 @@ def test_get_gutenberg_public_stories(monkeypatch):
         })
 
     monkeypatch.setattr(httpx.AsyncClient, "get", mock_get)
+    patch_async_client_stream_with_get(monkeypatch)
     response = client.get("/api/v1/public/gutenberg?search=Frankenstein")
     assert response.status_code == 200
     data = response.json()
@@ -762,7 +730,7 @@ async def test_gutenberg_catalog_rejects_incomplete_snapshot_download(monkeypatc
             await gutenberg._download_gutenberg_catalog_snapshot(client)
 
 
-def test_gutenberg_catalog_falls_back_to_official_csv_snapshot_and_rdf(monkeypatch, tmp_path):
+def test_gutenberg_catalog_uses_official_csv_snapshot_and_rdf(monkeypatch, tmp_path):
     import csv
     import gzip
     import io
@@ -1413,11 +1381,16 @@ def test_create_manga_story_via_api():
 
 def test_internal_health_and_media_invariants(monkeypatch):
     import httpx
+    from services import gutenberg
 
     async def empty_provider(self, url, params=None, headers=None):
         return httpx.Response(200, json={"works": []})
 
+    async def no_catalog_authors():
+        return []
+
     monkeypatch.setattr(httpx.AsyncClient, "get", empty_provider)
+    monkeypatch.setattr(gutenberg, "get_gutenberg_authors", no_catalog_authors)
     feed = client.get("/api/v1/updates").json()
     assert feed["totalStories"] == 0
     assert feed["taleOfTheDay"] is None
@@ -1525,7 +1498,7 @@ def test_bearer_session_survives_process_cache_loss_and_logout_revokes_it():
 
 
 @pytest.mark.anyio
-async def test_get_gutenberg_story_by_id_returns_live_metadata(monkeypatch):
+async def test_get_gutenberg_story_by_id_uses_secondary_catalog_when_rdf_is_missing(monkeypatch):
     import httpx
     from services import gutenberg
 
@@ -1544,6 +1517,10 @@ async def test_get_gutenberg_story_by_id_returns_live_metadata(monkeypatch):
             "download_count": 500,
         }]})
 
+    async def missing_rdf(_client, _gutenberg_id):
+        return None
+
+    monkeypatch.setattr(gutenberg, "_fetch_gutenberg_rdf_book", missing_rdf)
     monkeypatch.setattr(httpx.AsyncClient, "get", mock_get)
     story = await gutenberg.get_gutenberg_story_by_id(1342)
     assert story.id.int == 1342
@@ -1556,7 +1533,7 @@ async def test_get_gutenberg_story_by_id_returns_live_metadata(monkeypatch):
 
 
 @pytest.mark.anyio
-async def test_get_gutenberg_story_by_id_falls_back_to_project_gutenberg_rdf(monkeypatch):
+async def test_get_gutenberg_story_by_id_uses_official_project_gutenberg_rdf(monkeypatch):
     import httpx
     from services import gutenberg
 

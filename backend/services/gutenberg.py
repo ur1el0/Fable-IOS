@@ -20,12 +20,13 @@ import httpx
 from fastapi import HTTPException
 
 from core.database import get_db
-from schemas.schemas import ChapterDTO, StoryDTO
+from schemas.schemas import ChapterDTO, StoryDTO, WriterDTO
 from services.text_parser import extract_chapters_from_text
 from services.story_service import row_to_story_dto
 
 logger = logging.getLogger(__name__)
 GUTENBERG_CHAPTER_NAMESPACE = UUID("d3675b18-25d3-5aa7-9c4f-65ea90fb89b2")
+GUTENBERG_AUTHOR_NAMESPACE = UUID("44ca3de2-17a9-53c4-b0a1-5f739e28b67e")
 PROVIDER_HEADERS = {"User-Agent": "FableReader/1.0 (public-domain-text-client)"}
 GUTENBERG_CATALOG_URL = "https://www.gutenberg.org/cache/epub/feeds/pg_catalog.csv.gz"
 GUTENBERG_CATALOG_TTL_SECONDS = 7 * 24 * 60 * 60
@@ -38,8 +39,6 @@ GUTENBERG_CHAPTER_CACHE_TTL_SECONDS = 600.0
 GUTENBERG_CHAPTER_CACHE_MAX_ENTRIES = 32
 GUTENBERG_CHAPTER_CACHE_MAX_BYTES = 16 * 1024 * 1024
 GUTENBERG_MAX_CONCURRENT_FETCHES = 3
-# Small, stable default catalog instead of a broad, slow Gutendex topic query.
-FEATURED_GUTENBERG_IDS = (11, 1342, 84, 1661)
 _GUTENBERG_CHAPTER_CACHE: OrderedDict[int, tuple[float, list[ChapterDTO]]] = OrderedDict()
 _GUTENBERG_FETCH_SEMAPHORE = asyncio.Semaphore(GUTENBERG_MAX_CONCURRENT_FETCHES)
 _GUTENBERG_METADATA_SEMAPHORE = asyncio.Semaphore(GUTENBERG_MAX_CONCURRENT_FETCHES)
@@ -115,6 +114,15 @@ def _parse_gutenberg_catalog_snapshot(compressed_payload: bytes) -> list[Gutenbe
     if not entries:
         raise HTTPException(status_code=502, detail="Gutenberg catalog snapshot contained no text books")
     return entries
+
+
+def _display_catalog_author(value: str) -> str:
+    parts = [part.strip() for part in value.split(",") if part.strip()]
+    if len(parts) >= 3 and any(character.isdigit() for character in parts[2]):
+        parts = parts[:2]
+    if len(parts) >= 2:
+        return f"{' '.join(parts[1:])} {parts[0]}".strip()
+    return parts[0] if parts else ""
 
 
 def _read_cached_gutenberg_catalog(path: Path) -> Optional[Tuple[List[GutenbergCatalogEntry], float]]:
@@ -253,8 +261,12 @@ def _search_gutenberg_catalog(
     for entry in entries:
         title = entry.title.casefold()
         authors = entry.authors.casefold()
+        display_authors = " ".join(
+            _display_catalog_author(author).casefold()
+            for author in entry.authors.split(";")
+        )
         subjects = f"{entry.subjects} {entry.bookshelves}".casefold()
-        if search and search not in f"{title} {authors}":
+        if search and search not in f"{title} {authors} {display_authors}":
             continue
         if topic and topic not in subjects:
             continue
@@ -266,7 +278,7 @@ def _search_gutenberg_catalog(
 
     if not search and not topic:
         return [entry for _, _, entry in matching[-12:]]
-    matching.sort(key=lambda item: (item[0], item[1]))
+    matching.sort(key=lambda item: (item[0], -item[1] if topic and not search else item[1]))
     return [entry for _, _, entry in matching[:12]]
 
 
@@ -388,12 +400,48 @@ async def _fetch_gutenberg_catalog_books(client: httpx.AsyncClient, params: dict
 
 
 async def _fetch_gutenberg_book_metadata(client: httpx.AsyncClient, gutenberg_id: int) -> Optional[dict]:
+    try:
+        book = await _fetch_gutenberg_rdf_book(client, gutenberg_id)
+    except HTTPException as official_error:
+        books = await _fetch_gutendex_books(client, {"ids": str(gutenberg_id)})
+        if books is None:
+            raise official_error
+        return next((item for item in books if item.get("id") == gutenberg_id), None)
+    if book is not None:
+        return book
     books = await _fetch_gutendex_books(client, {"ids": str(gutenberg_id)})
-    if books is not None:
-        book = next((item for item in books if item.get("id") == gutenberg_id), None)
-        if book is not None:
-            return book
-    return await _fetch_gutenberg_rdf_book(client, gutenberg_id)
+    if books is None:
+        return None
+    return next((item for item in books if item.get("id") == gutenberg_id), None)
+
+
+async def get_gutenberg_authors(limit: int = 6) -> list[WriterDTO]:
+    """Return authors and book counts from the live Project Gutenberg catalog."""
+    async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+        entries = await _load_gutenberg_catalog(client)
+
+    authors: dict[str, tuple[str, int]] = {}
+    for entry in entries:
+        for raw_author in entry.authors.split(";"):
+            name = _display_catalog_author(raw_author)
+            key = name.casefold()
+            if not name:
+                continue
+            display_name, count = authors.get(key, (name, 0))
+            authors[key] = (display_name, count + 1)
+
+    ranked_authors = sorted(authors.values(), key=lambda author: (-author[1], author[0].casefold()))
+    return [
+        WriterDTO(
+            id=uuid5(GUTENBERG_AUTHOR_NAMESPACE, name.casefold()),
+            name=name,
+            avatar_image_name="",
+            avatar_image_url=None,
+            story_count=count,
+            rating=None,
+        )
+        for name, count in ranked_authors[:max(0, limit)]
+    ]
 
 
 def _cached_gutenberg_chapters(gutenberg_id: int) -> Optional[list[ChapterDTO]]:
@@ -710,7 +758,6 @@ async def ingest_gutenberg_book(
 
 def _story_from_gutenberg_metadata(
     book: dict,
-    fallback_genre: Optional[str] = None,
     chapters: Optional[list[ChapterDTO]] = None,
 ) -> Optional[StoryDTO]:
     book_id = book.get("id")
@@ -724,7 +771,7 @@ def _story_from_gutenberg_metadata(
         author_name = f"{given_names} {family_name}"
 
     subjects = book.get("subjects", [])
-    genre = str(subjects[0]).strip() if subjects else (fallback_genre or "")
+    genre = str(subjects[0]).strip() if subjects else ""
     summaries = book.get("summaries", [])
     synopsis = _resolve_authentic_synopsis(summaries, chapters)
     cover_url = book.get("formats", {}).get("image/jpeg")
@@ -791,36 +838,22 @@ async def get_gutenberg_stories(
     search: Optional[str] = None,
 ) -> list[StoryDTO]:
     params = {}
-    use_featured_fallback = not search and (not topic or topic.lower() in {"all", "fiction", "classics", "classic"})
-    if not use_featured_fallback and topic and topic.lower() != "all":
+    if topic and topic.lower() != "all":
         params["topic"] = topic.lower()
     if search:
         params["search"] = search
 
     async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
-        if use_featured_fallback:
-            # Project Gutenberg's per-book RDF metadata is much quicker and
-            # more dependable than asking Gutendex for the entire featured set.
-            results = await asyncio.gather(
-                *(_fetch_gutenberg_rdf_book(client, book_id) for book_id in FEATURED_GUTENBERG_IDS),
-                return_exceptions=True,
-            )
-            raw_books = [book for book in results if isinstance(book, dict)]
-            if len(raw_books) != len(FEATURED_GUTENBERG_IDS):
-                logger.warning(
-                    "Gutenberg featured catalog returned %d of %d books",
-                    len(raw_books),
-                    len(FEATURED_GUTENBERG_IDS),
-                )
-        else:
+        try:
+            raw_books = await _fetch_gutenberg_catalog_books(client, params)
+        except HTTPException as official_error:
+            # Keep the catalog available during a Gutenberg feed outage, but
+            # always prefer its own CSV/RDF metadata when the official source works.
             raw_books = await _fetch_gutendex_books(client, params)
             if raw_books is None:
-                raw_books = await _fetch_gutenberg_catalog_books(client, params)
-        if raw_books is None:
-            raise HTTPException(status_code=502, detail="Gutenberg catalog service is unavailable")
+                raise official_error
+            logger.warning("Official Gutenberg catalog unavailable; used Gutendex fallback metadata")
         if not raw_books:
-            if use_featured_fallback:
-                raise HTTPException(status_code=502, detail="Gutenberg catalog service is unavailable")
             # An empty search result is a valid response, not an upstream outage.
             return []
     raw_books = raw_books[:12]
@@ -829,7 +862,7 @@ async def get_gutenberg_stories(
         book_id = book.get("id")
         if not book_id or not _has_plain_text_format(book):
             return None
-        return _story_from_gutenberg_metadata(book, fallback_genre=topic)
+        return _story_from_gutenberg_metadata(book)
 
     # Full text is fetched on demand by /public/gutenberg/{id}/chapters.
     return [story for book in raw_books if (story := _map_book(book)) is not None]
