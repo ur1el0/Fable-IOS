@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: fable-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: FABLE_ENV
+        value: production
+      - key: FABLE_DATABASE_BACKEND
+        value: postgres
+      - key: DATABASE_URL
+        sync: false
+      - key: FABLE_DB_PATH
+        value: /tmp/fable.sqlite3
+      - key: FORWARDED_ALLOW_IPS
+        value: "*"
+      - key: FABLE_INGESTION_API_KEY
+        sync: false
