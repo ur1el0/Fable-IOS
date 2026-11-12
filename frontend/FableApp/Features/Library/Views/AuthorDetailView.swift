@@ -14,24 +14,6 @@ public struct AuthorDetailView: View {
         self.writer = writer
     }
 
-    private var authorBio: String {
-        let name = writer.name.lowercased()
-        if name.contains("shelley") {
-            return "Pioneering novelist of Gothic horror and science fiction, renowned for Frankenstein and The Last Man."
-        } else if name.contains("doyle") {
-            return "Master of Victorian detective fiction, creator of Sherlock Holmes and Dr. John Watson."
-        } else if name.contains("stoker") {
-            return "Iconic author of Gothic literature, defining vampire folklore with his 1897 masterpiece Dracula."
-        } else if name.contains("austen") {
-            return "Celebrated literary realist and social satirist, author of Pride and Prejudice, Emma, and Sense and Sensibility."
-        } else if name.contains("poe") {
-            return "Father of the modern detective story and psychological horror, famed for The Raven and Tales of the Grotesque."
-        } else if name.contains("fujimoto") {
-            return "Acclaimed Japanese manga creator known for dark fantasy, cinematic pacing, Chainsaw Man, and Look Back."
-        }
-        return "Featured creator in the Fable reading catalog with works available across prose literature and graphic manga."
-    }
-
     public var body: some View {
         NavigationStack {
             ZStack {
@@ -57,18 +39,12 @@ public struct AuthorDetailView: View {
                             }
 
                             VStack(spacing: 4) {
-                                HStack(spacing: 6) {
-                                    Text(writer.name)
-                                        .fableFont(size: 24, weight: .bold, design: .serif)
-                                        .foregroundColor(FableTheme.textPrimary)
-
-                                    Image(systemName: "checkmark.seal.fill")
-                                        .fableFont(size: 16)
-                                        .foregroundColor(FableTheme.brandPrimary)
-                                }
+                                Text(writer.name)
+                                    .fableFont(size: 24, weight: .bold, design: .serif)
+                                    .foregroundColor(FableTheme.textPrimary)
 
                                 HStack(spacing: 8) {
-                                    Text("Catalog Creator")
+                                    Text("Project Gutenberg")
                                         .fableFont(size: 11, weight: .bold)
                                         .foregroundColor(FableTheme.brandPrimary)
                                         .padding(.horizontal, 8)
@@ -84,13 +60,6 @@ public struct AuthorDetailView: View {
                                         .foregroundColor(FableTheme.textMuted)
                                 }
                             }
-
-                            Text(authorBio)
-                                .fableFont(size: 13, weight: .regular)
-                                .foregroundColor(FableTheme.textSecondary)
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal, 24)
-                                .lineSpacing(3)
                         }
                         .padding(.top, 16)
 

@@ -123,9 +123,15 @@ public struct GenreDetailView: View {
                                 .fableFont(size: 28, weight: .black)
                                 .foregroundColor(FableTheme.textPrimary)
                             
-                            Text("\(genre.storyCount) Titles  •  \(genre.readersCount) Readers")
-                                .fableFont(size: 12, weight: .medium)
-                                .foregroundColor(FableTheme.textMuted)
+                            if let readersCount = Int(genre.readersCount), readersCount > 0 {
+                                Text("\(genre.storyCount) Titles  •  \(readersCount) Readers")
+                                    .fableFont(size: 12, weight: .medium)
+                                    .foregroundColor(FableTheme.textMuted)
+                            } else {
+                                Text("\(genre.storyCount) Titles")
+                                    .fableFont(size: 12, weight: .medium)
+                                    .foregroundColor(FableTheme.textMuted)
+                            }
                             
                             if !genre.description.isEmpty {
                                 Text(genre.description)
