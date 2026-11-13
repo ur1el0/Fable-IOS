@@ -56,8 +56,25 @@ public final class StoryStore: ObservableObject {
     @Published private(set) var isRefreshingProviderCatalogs = false
     private let apiService: StoryAPIServiceProtocol = StoryAPIService()
 
+    static let currentExternalChapterParserVersion = 2
+    private static let externalChapterParserVersionsDefaultsKey = "fable_external_chapter_parser_versions_v1"
+
     private func providerCatalogRefreshKey(_ provider: CatalogProvider) -> String {
         "fable_provider_catalog_last_success_\(provider.rawValue)"
+    }
+
+    private func verifiedChapterParserVersion(for storyId: UUID) -> Int {
+        let versions = UserDefaults.standard.dictionary(forKey: Self.externalChapterParserVersionsDefaultsKey) as? [String: Int]
+        return versions?[storyId.uuidString] ?? 0
+    }
+
+    private func markChapterParserVersionVerified(
+        for storyId: UUID,
+        version: Int = StoryStore.currentExternalChapterParserVersion
+    ) {
+        var versions = UserDefaults.standard.dictionary(forKey: Self.externalChapterParserVersionsDefaultsKey) as? [String: Int] ?? [:]
+        versions[storyId.uuidString] = version
+        UserDefaults.standard.set(versions, forKey: Self.externalChapterParserVersionsDefaultsKey)
     }
 
     public var persistentDeviceId: UUID {
@@ -496,6 +513,113 @@ public final class StoryStore: ObservableObject {
         }
     }
 
+    static func hasUsableCachedChapters(
+        _ chapters: [Chapter]?,
+        format: ContentFormat,
+        allowExternalMangaSource: Bool = false
+    ) -> Bool {
+        guard let chapters, !chapters.isEmpty else { return false }
+        if format == .manga {
+            return chapters.contains {
+                !$0.pageUrls.isEmpty || (allowExternalMangaSource && $0.externalSourceURL != nil)
+            }
+        }
+        return chapters.contains(where: \.hasReadableText)
+    }
+
+    static func shouldInvalidateCachedChapters(
+        _ chapters: [Chapter]?,
+        sourceProvider: SourceProvider,
+        verifiedParserVersion: Int
+    ) -> Bool {
+        guard sourceProvider == .gutenberg || sourceProvider == .standardEbooks else {
+            return false
+        }
+        guard verifiedParserVersion < currentExternalChapterParserVersion else {
+            return false
+        }
+        guard let chapters, !chapters.isEmpty else {
+            return false
+        }
+        guard chapters.count <= 1 else {
+            return false
+        }
+        let firstChapter = chapters.first
+        return firstChapter?.title == "Chapter I: The Complete Tale"
+            || (firstChapter?.wordCount ?? 0) >= 1_500
+    }
+
+    static func staleUnengagedExternalStoryIDs(
+        in stories: [Story],
+        provider: SourceProvider,
+        liveStoryIDs: Set<UUID>,
+        isAnnotatedProvider: (UUID) -> Bool
+    ) -> Set<UUID> {
+        guard !liveStoryIDs.isEmpty else { return [] }
+        var staleIDs = Set<UUID>()
+        for story in stories {
+            guard story.sourceProvider == provider,
+                  story.ownerUserId == nil,
+                  !liveStoryIDs.contains(story.id),
+                  !story.isBookmarked,
+                  !story.isCompleted,
+                  story.progressPercent == 0,
+                  story.lastReadChapterId == nil,
+                  !isAnnotatedProvider(story.id) else {
+                continue
+            }
+            staleIDs.insert(story.id)
+        }
+        return staleIDs
+    }
+
+    static func isLocallyReadable(
+        content: String,
+        chapters: [Chapter]?,
+        format: ContentFormat
+    ) -> Bool {
+        if !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return true
+        }
+        return hasUsableCachedChapters(chapters, format: format)
+    }
+
+    static func shouldHydratePersistedStory(
+        content: String,
+        cachedChapters: [Chapter],
+        format: ContentFormat,
+        isBookmarked: Bool,
+        isCompleted: Bool,
+        readingProgress: Double,
+        lastReadChapterId: String?
+    ) -> Bool {
+        if isLocallyReadable(content: content, chapters: cachedChapters, format: format) {
+            return true
+        }
+        return isBookmarked || isCompleted || readingProgress > 0 || lastReadChapterId != nil
+    }
+
+    static func staleUnavailableOriginalStoryIDs(
+        in stories: [Story],
+        remoteStoryIDs: Set<UUID>,
+        profileStoryIDs: Set<UUID>,
+        cachedChaptersProvider: (UUID) -> [Chapter]
+    ) -> Set<UUID> {
+        let activeIDs = remoteStoryIDs.union(profileStoryIDs)
+        var staleIDs = Set<UUID>()
+        for story in stories {
+            guard story.sourceProvider == .fableOriginal,
+                  !activeIDs.contains(story.id) else {
+                continue
+            }
+            let localChapters = story.chapters ?? cachedChaptersProvider(story.id)
+            if !isLocallyReadable(content: story.content, chapters: localChapters, format: story.contentFormat) {
+                staleIDs.insert(story.id)
+            }
+        }
+        return staleIDs
+    }
+
     private func syncWithPersistence() {
         // Hydrate and reconcile from SQLite
         let persisted = PersistenceService.shared.fetchAllStories()
@@ -532,31 +656,46 @@ public final class StoryStore: ObservableObject {
                     stories[idx].contentFormat = ContentFormat(rawValue: entity.contentFormatRaw ?? "PROSE") ?? .prose
                     stories[idx].sourceProvider = SourceProvider(rawValue: entity.sourceProviderRaw ?? "FABLE_ORIGINAL") ?? .fableOriginal
                     let cachedChapters = PersistenceService.shared.cachedChapters(storyId: entity.id)
-                    let isUsable: Bool
-                    if stories[idx].contentFormat == .manga {
-                        isUsable = cachedChapters.contains { !$0.pageUrls.isEmpty }
-                    } else {
-                        isUsable = cachedChapters.contains(where: \.hasReadableText)
+                    let verifiedVersion = verifiedChapterParserVersion(for: entity.id)
+                    let isStaleChapterCache = Self.shouldInvalidateCachedChapters(
+                        cachedChapters,
+                        sourceProvider: stories[idx].sourceProvider,
+                        verifiedParserVersion: verifiedVersion
+                    )
+                    if isStaleChapterCache {
+                        PersistenceService.shared.clearCachedChapters(storyId: entity.id)
+                        stories[idx].chapters = nil
+                    } else if Self.hasUsableCachedChapters(cachedChapters, format: stories[idx].contentFormat) {
+                        stories[idx].chapters = cachedChapters
                     }
-                    if isUsable { stories[idx].chapters = cachedChapters }
                     stories[idx].lastReadChapterId = entity.lastReadChapterId
                     stories[idx].lastReadChapterNumber = entity.lastReadChapterNumber
                 } else {
                     let initialCached = PersistenceService.shared.cachedChapters(storyId: entity.id)
                     let format = ContentFormat(rawValue: entity.contentFormatRaw ?? "PROSE") ?? .prose
-                    let isUsableInitial = format == .manga
-                        ? initialCached.contains { !$0.pageUrls.isEmpty }
-                        : initialCached.contains(where: \.hasReadableText)
-                    if provider != .fableOriginal
-                        && !isUsableInitial
-                        && entity.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                        && !entity.isBookmarked
-                        && !entity.isCompleted
-                        && entity.readingProgress <= 0
-                        && entity.lastReadChapterId == nil {
+                    let verifiedVersion = verifiedChapterParserVersion(for: entity.id)
+                    let isStaleInitialCache = Self.shouldInvalidateCachedChapters(
+                        initialCached,
+                        sourceProvider: provider,
+                        verifiedParserVersion: verifiedVersion
+                    )
+                    if isStaleInitialCache {
+                        PersistenceService.shared.clearCachedChapters(storyId: entity.id)
+                    }
+                    let effectiveCached = isStaleInitialCache ? [] : initialCached
+                    let isUsableInitial = Self.hasUsableCachedChapters(effectiveCached, format: format)
+                    guard Self.shouldHydratePersistedStory(
+                        content: entity.content,
+                        cachedChapters: effectiveCached,
+                        format: format,
+                        isBookmarked: entity.isBookmarked,
+                        isCompleted: entity.isCompleted,
+                        readingProgress: entity.readingProgress,
+                        lastReadChapterId: entity.lastReadChapterId
+                    ) else {
                         continue
                     }
-                    let validInitial = isUsableInitial ? initialCached : nil
+                    let validInitial = isUsableInitial ? effectiveCached : nil
                     let userStory = Story(
                         id: entity.id,
                         title: entity.title,
@@ -755,6 +894,19 @@ public final class StoryStore: ObservableObject {
                 }
             }
 
+            let staleOriginalIDs = Self.staleUnavailableOriginalStoryIDs(
+                in: stories,
+                remoteStoryIDs: synchronizedStoryIds,
+                profileStoryIDs: Set(profileStories.map(\.id)),
+                cachedChaptersProvider: { PersistenceService.shared.cachedChapters(storyId: $0) }
+            )
+            if !staleOriginalIDs.isEmpty {
+                stories.removeAll { staleOriginalIDs.contains($0.id) }
+                for staleID in staleOriginalIDs {
+                    PersistenceService.shared.deleteStory(storyId: staleID, onlyIfUnannotated: true)
+                }
+            }
+
             await refreshProviderCatalogs()
 
             // 2. Fetch live dynamic categories/genres from backend and merge catalog taxonomy
@@ -838,38 +990,52 @@ public final class StoryStore: ObservableObject {
 
     /// Loads authentic chapters on demand for the active reading story
     func fetchChapters(for story: Story) async throws -> [Chapter] {
-        let isUsable = { (chaps: [Chapter]?) -> Bool in
-            guard let chaps, !chaps.isEmpty else { return false }
-            if story.contentFormat == .manga {
-                return chaps.contains { !$0.pageUrls.isEmpty || $0.externalSourceURL != nil }
-            }
-            return chaps.contains(where: \.hasReadableText)
-        }
+        let verifiedVersion = verifiedChapterParserVersion(for: story.id)
+        var offlineFallbackChapters: [Chapter]? = nil
 
-        if let existing = story.chapters, isUsable(existing) {
-            return existing
+        if let existing = story.chapters,
+           Self.hasUsableCachedChapters(existing, format: story.contentFormat, allowExternalMangaSource: true) {
+            if !Self.shouldInvalidateCachedChapters(existing, sourceProvider: story.sourceProvider, verifiedParserVersion: verifiedVersion) {
+                return existing
+            }
+            offlineFallbackChapters = existing
         }
         let cached = PersistenceService.shared.cachedChapters(storyId: story.id)
-        if isUsable(cached) {
-            return cached
+        if Self.hasUsableCachedChapters(cached, format: story.contentFormat, allowExternalMangaSource: true) {
+            if !Self.shouldInvalidateCachedChapters(cached, sourceProvider: story.sourceProvider, verifiedParserVersion: verifiedVersion) {
+                return cached
+            }
+            if offlineFallbackChapters == nil {
+                offlineFallbackChapters = cached
+            }
         }
-        let fetched = try await apiService.fetchChapters(
-            for: story.id,
-            sourceProvider: story.sourceProvider.rawValue,
-            providerId: story.providerId
-        )
-        if let idx = stories.firstIndex(where: { $0.id == story.id }) {
-            stories[idx].chapters = fetched
-            stories[idx].totalChapters = max(1, fetched.count)
+        do {
+            let fetched = try await apiService.fetchChapters(
+                for: story.id,
+                sourceProvider: story.sourceProvider.rawValue,
+                providerId: story.providerId
+            )
+            if let idx = stories.firstIndex(where: { $0.id == story.id }) {
+                stories[idx].chapters = fetched
+                stories[idx].totalChapters = max(1, fetched.count)
+            }
+            if activeReaderStory?.id == story.id {
+                activeReaderStory?.chapters = fetched
+                activeReaderStory?.totalChapters = max(1, fetched.count)
+            }
+            let updatedStory = stories.first(where: { $0.id == story.id }) ?? story
+            PersistenceService.shared.saveStory(updatedStory)
+            PersistenceService.shared.saveCachedChapters(fetched, storyId: story.id)
+            if story.sourceProvider == .gutenberg || story.sourceProvider == .standardEbooks {
+                markChapterParserVersionVerified(for: story.id)
+            }
+            return fetched
+        } catch {
+            if let offlineFallbackChapters {
+                return offlineFallbackChapters
+            }
+            throw error
         }
-        if activeReaderStory?.id == story.id {
-            activeReaderStory?.chapters = fetched
-            activeReaderStory?.totalChapters = max(1, fetched.count)
-        }
-        let updatedStory = stories.first(where: { $0.id == story.id }) ?? story
-        PersistenceService.shared.saveStory(updatedStory)
-        PersistenceService.shared.saveCachedChapters(fetched, storyId: story.id)
-        return fetched
     }
 
 
@@ -891,7 +1057,9 @@ public final class StoryStore: ObservableObject {
                 PersistenceService.shared.saveStory(cached)
             }
         }
-        await fetchGutenbergPublicStories(topic: nil, search: search)
+        async let seSearch: () = fetchStandardEbooksPublicStories(topic: nil, search: search)
+        async let gutenbergSearch: () = fetchGutenbergPublicStories(topic: nil, search: search)
+        _ = await (seSearch, gutenbergSearch)
         if Self.isMangaEnabled {
             await fetchMangaPublicStories(search: search)
         }
@@ -926,11 +1094,14 @@ public final class StoryStore: ObservableObject {
 
     func fetchAuthorStories(for writer: Writer) async -> [Story] {
         if Self.isMangaEnabled {
+            async let seSearch: () = fetchStandardEbooksPublicStories(topic: nil, search: writer.name)
             async let gutenbergSearch: () = fetchGutenbergPublicStories(topic: nil, search: writer.name)
             async let mangaSearch: () = fetchMangaPublicStories(search: writer.name)
-            _ = await (gutenbergSearch, mangaSearch)
+            _ = await (seSearch, gutenbergSearch, mangaSearch)
         } else {
-            await fetchGutenbergPublicStories(topic: nil, search: writer.name)
+            async let seSearch: () = fetchStandardEbooksPublicStories(topic: nil, search: writer.name)
+            async let gutenbergSearch: () = fetchGutenbergPublicStories(topic: nil, search: writer.name)
+            _ = await (seSearch, gutenbergSearch)
         }
 
         if let remoteStories = try? await apiService.fetchStories(genre: nil, search: writer.name) {
@@ -960,48 +1131,94 @@ public final class StoryStore: ObservableObject {
         return authorStories.first ?? stories(for: writer).first
     }
 
+    private func mergePublicProseBooks(
+        _ fetched: [Story],
+        provider: CatalogProvider,
+        replaceUnengagedSnapshot: Bool = false
+    ) {
+        recordProviderCatalogResult(provider, succeeded: true)
+        if replaceUnengagedSnapshot && !fetched.isEmpty {
+            let sourceProvider: SourceProvider = provider == .standardEbooks ? .standardEbooks : .gutenberg
+            let staleIDs = Self.staleUnengagedExternalStoryIDs(
+                in: stories,
+                provider: sourceProvider,
+                liveStoryIDs: Set(fetched.map(\.id)),
+                isAnnotatedProvider: { PersistenceService.shared.hasAnyAnnotations(for: $0) }
+            )
+            if !staleIDs.isEmpty {
+                stories.removeAll { staleIDs.contains($0.id) }
+                for staleID in staleIDs {
+                    PersistenceService.shared.deleteStory(storyId: staleID, onlyIfUnannotated: true)
+                }
+            }
+        }
+        for book in fetched {
+            if let index = stories.firstIndex(where: { $0.id == book.id }) {
+                stories[index].title = book.title
+                if !book.genre.rawValue.isEmpty {
+                    stories[index].genre = book.genre
+                }
+                stories[index].synopsis = book.synopsis
+                if !book.content.isEmpty {
+                    stories[index].content = book.content
+                }
+                if book.readTimeMinutes > 0 {
+                    stories[index].readTimeMinutes = book.readTimeMinutes
+                }
+                if let chaps = book.chapters, !chaps.isEmpty {
+                    stories[index].chapters = chaps
+                    PersistenceService.shared.saveCachedChapters(chaps, storyId: book.id)
+                } else if let existingChaps = stories[index].chapters,
+                          Self.shouldInvalidateCachedChapters(
+                              existingChaps,
+                              sourceProvider: book.sourceProvider,
+                              verifiedParserVersion: verifiedChapterParserVersion(for: book.id)
+                          ) {
+                    stories[index].chapters = nil
+                    PersistenceService.shared.clearCachedChapters(storyId: book.id)
+                }
+                stories[index].coverImageUrl = validCoverImageURL(book.coverImageUrl)
+                stories[index].contentFormat = book.contentFormat
+                stories[index].sourceProvider = book.sourceProvider
+                stories[index].providerId = book.providerId
+                stories[index].providerDownloadCount = book.providerDownloadCount
+                stories[index].totalChapters = max(stories[index].chapters?.count ?? 0, book.totalChapters)
+                if stories[index].progressPercent == 0,
+                   let savedState = loadShelfStateCache()[stories[index].id.uuidString],
+                   !savedState.isEmpty {
+                    applyShelfState(savedState, to: &stories[index])
+                }
+                PersistenceService.shared.saveStory(stories[index])
+            } else {
+                var liveBook = book
+                liveBook.coverImageUrl = validCoverImageURL(book.coverImageUrl)
+                if let savedState = loadShelfStateCache()[liveBook.id.uuidString] {
+                    applyShelfState(savedState, to: &liveBook)
+                }
+                stories.append(liveBook)
+                PersistenceService.shared.saveStory(liveBook)
+                if let chaps = liveBook.chapters, !chaps.isEmpty {
+                    PersistenceService.shared.saveCachedChapters(chaps, storyId: liveBook.id)
+                }
+            }
+        }
+    }
+
+    func fetchStandardEbooksPublicStories(topic: String? = nil, search: String? = nil) async {
+        do {
+            let fetched = try await apiService.fetchStandardEbooksStories(topic: topic, search: search)
+            let isBrowseSnapshot = topic != nil && (search ?? "").isEmpty
+            mergePublicProseBooks(fetched, provider: .standardEbooks, replaceUnengagedSnapshot: isBrowseSnapshot)
+        } catch {
+            recordProviderCatalogResult(.standardEbooks, succeeded: false)
+        }
+    }
+
     func fetchGutenbergPublicStories(topic: String? = nil, search: String? = nil) async {
         do {
             let fetched = try await apiService.fetchGutenbergStories(topic: topic, search: search)
-            recordProviderCatalogResult(.gutenberg, succeeded: true)
-            for book in fetched {
-                if let index = stories.firstIndex(where: { $0.id == book.id }) {
-                    stories[index].synopsis = book.synopsis
-                    if !book.content.isEmpty {
-                        stories[index].content = book.content
-                    }
-                    if book.readTimeMinutes > 0 {
-                        stories[index].readTimeMinutes = book.readTimeMinutes
-                    }
-                    if let chaps = book.chapters, !chaps.isEmpty {
-                        stories[index].chapters = chaps
-                        PersistenceService.shared.saveCachedChapters(chaps, storyId: book.id)
-                    }
-                    stories[index].coverImageUrl = validCoverImageURL(book.coverImageUrl)
-                    stories[index].contentFormat = book.contentFormat
-                    stories[index].sourceProvider = book.sourceProvider
-                    stories[index].providerId = book.providerId
-                    stories[index].providerDownloadCount = book.providerDownloadCount
-                    stories[index].totalChapters = max(stories[index].chapters?.count ?? 0, book.totalChapters)
-                    if stories[index].progressPercent == 0,
-                       let savedState = loadShelfStateCache()[stories[index].id.uuidString],
-                       !savedState.isEmpty {
-                        applyShelfState(savedState, to: &stories[index])
-                    }
-                    PersistenceService.shared.saveStory(stories[index])
-                } else {
-                    var liveBook = book
-                    liveBook.coverImageUrl = validCoverImageURL(book.coverImageUrl)
-                    if let savedState = loadShelfStateCache()[liveBook.id.uuidString] {
-                        applyShelfState(savedState, to: &liveBook)
-                    }
-                    stories.append(liveBook)
-                    PersistenceService.shared.saveStory(liveBook)
-                    if let chaps = liveBook.chapters, !chaps.isEmpty {
-                        PersistenceService.shared.saveCachedChapters(chaps, storyId: liveBook.id)
-                    }
-                }
-            }
+            let isBrowseSnapshot = topic != nil && (search ?? "").isEmpty
+            mergePublicProseBooks(fetched, provider: .gutenberg, replaceUnengagedSnapshot: isBrowseSnapshot)
         } catch {
             recordProviderCatalogResult(.gutenberg, succeeded: false)
         }
@@ -1065,7 +1282,9 @@ public final class StoryStore: ObservableObject {
         guard !isRefreshingProviderCatalogs else { return }
         isRefreshingProviderCatalogs = true
         defer { isRefreshingProviderCatalogs = false }
-        await fetchGutenbergPublicStories(topic: "fiction", search: nil)
+        async let standardEbooksRefresh: () = fetchStandardEbooksPublicStories(topic: "fiction", search: nil)
+        async let gutenbergRefresh: () = fetchGutenbergPublicStories(topic: "fiction", search: nil)
+        _ = await (standardEbooksRefresh, gutenbergRefresh)
         if Self.isMangaEnabled {
             await fetchMangaPublicStories(search: nil)
         }

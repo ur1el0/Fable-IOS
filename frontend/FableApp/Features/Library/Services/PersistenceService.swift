@@ -404,7 +404,7 @@ public final class PersistenceService {
     }
     
     // Delete story
-    public func deleteStory(storyId: UUID) {
+    public func deleteStory(storyId: UUID, onlyIfUnannotated: Bool = false) {
         var descriptor = FetchDescriptor<StoryEntity>(
             predicate: #Predicate { $0.id == storyId }
         )
@@ -412,6 +412,9 @@ public final class PersistenceService {
         
         do {
             if let entity = try context.fetch(descriptor).first {
+                if onlyIfUnannotated && !entity.annotations.isEmpty {
+                    return
+                }
                 context.delete(entity)
                 try context.save()
             }
@@ -437,6 +440,33 @@ public final class PersistenceService {
             isPinnedToJournal: entity.isPinnedToJournal,
             createdAt: entity.createdAtUtc
         )
+    }
+
+    public func clearCachedChapters(storyId: UUID) {
+        var descriptor = FetchDescriptor<StoryEntity>(
+            predicate: #Predicate { $0.id == storyId }
+        )
+        descriptor.fetchLimit = 1
+        do {
+            guard let entity = try context.fetch(descriptor).first,
+                  entity.cachedChaptersData != nil else { return }
+            entity.cachedChaptersData = nil
+            entity.updatedAtUtc = Date()
+            try context.save()
+        } catch {
+            print("Failed to clear cached story chapters: \(error)")
+        }
+    }
+
+    public func hasAnyAnnotations(for storyId: UUID) -> Bool {
+        var descriptor = FetchDescriptor<StoryEntity>(
+            predicate: #Predicate { $0.id == storyId }
+        )
+        descriptor.fetchLimit = 1
+        guard let storyEntity = try? context.fetch(descriptor).first else {
+            return false
+        }
+        return !storyEntity.annotations.isEmpty
     }
 
     public func fetchAnnotations(for storyId: UUID, ownerUserId: UUID?) -> [Annotation] {

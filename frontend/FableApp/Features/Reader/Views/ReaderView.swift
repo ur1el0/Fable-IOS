@@ -1179,7 +1179,13 @@ public struct ReaderView: View {
             persistCurrentProseProgress()
             triggerScrollRestore()
         } catch {
-            chapterLoadError = "Couldn't load chapters. Check your connection and try again."
+            if activeParagraphs.isEmpty {
+                chapterLoadError = "Couldn't load chapters. Check your connection and try again."
+            } else {
+                chapterLoadError = nil
+                loadCurrentChapterPages(preserveCurrentPage: true)
+                applyPendingAnnotationTargetIfReady()
+            }
         }
     }
 
@@ -1328,7 +1334,7 @@ public struct ReaderView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 36)
-                } else if let chapterLoadError {
+                } else if let chapterLoadError, activeParagraphs.isEmpty {
                     VStack(spacing: 12) {
                         Text(chapterLoadError)
                             .fableFont(size: 14, weight: .medium)
