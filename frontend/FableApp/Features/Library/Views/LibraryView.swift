@@ -56,6 +56,22 @@ public struct LibraryView: View {
             return validStories.filter { store.storyMatchesCategory($0, category: selectedFilter) }
         }
     }
+
+    var featuredStory: Story? {
+        if selectedFilter == "All" {
+            return filteredRecentStories.first(where: { $0.isTaleOfTheDay }) ?? filteredRecentStories.first
+        }
+        return filteredRecentStories.first
+    }
+
+    var latestReleaseStories: [Story] {
+        Self.latestStories(from: filteredRecentStories, excluding: featuredStory?.id)
+    }
+
+    static func latestStories(from filteredStories: [Story], excluding featuredStoryID: UUID?) -> [Story] {
+        guard let featuredStoryID else { return filteredStories }
+        return filteredStories.filter { $0.id != featuredStoryID }
+    }
     
     public init() {}
     
@@ -168,27 +184,44 @@ public struct LibraryView: View {
                         }
 
                         // Featured Hero Card
-                        if let featuredStory = (selectedFilter == "All" ? (filteredRecentStories.first(where: { $0.isTaleOfTheDay }) ?? filteredRecentStories.first) : filteredRecentStories.first) {
+                        if let featuredStory {
                             VStack(alignment: .leading, spacing: 0) {
                                 ZStack(alignment: .top) {
                                     Button {
                                         selectedStoryToRead = featuredStory
                                     } label: {
-                                        ZStack(alignment: .bottom) {
+                                        ZStack {
                                             FableImageView(name: featuredStory.effectiveCoverImage, title: featuredStory.title, placeholderIcon: "square.stack")
-                                                .frame(maxWidth: .infinity)
-                                                .frame(height: 220)
-                                                .clipped()
+                                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                                .blur(radius: 18)
+                                                .scaleEffect(1.15)
+                                                .opacity(0.75)
 
-                                            // Elegant gradient scrim for contrast
+                                            // Atmospheric scrim keeps header badges legible over bright artwork
                                             LinearGradient(
-                                                colors: [Color.clear, Color.black.opacity(0.45)],
-                                                startPoint: .center,
+                                                colors: [Color.black.opacity(0.2), Color.black.opacity(0.45)],
+                                                startPoint: .top,
                                                 endPoint: .bottom
                                             )
+
+                                            FableImageView(
+                                                name: featuredStory.effectiveCoverImage,
+                                                title: featuredStory.title,
+                                                placeholderIcon: "square.stack",
+                                                contentMode: .fit
+                                            )
+                                            .frame(width: 134, height: 188)
+                                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                                    .stroke(Color.white.opacity(0.28), lineWidth: 1)
+                                            )
+                                            .shadow(color: Color.black.opacity(0.28), radius: 10, y: 4)
+                                            .padding(.top, 26)
+                                            .padding(.bottom, 12)
                                         }
                                         .frame(maxWidth: .infinity)
-                                        .frame(height: 220)
+                                        .frame(height: 232)
                                         .clipped()
                                         .contentShape(Rectangle())
                                     }
@@ -396,22 +429,23 @@ public struct LibraryView: View {
                         }
                         
                         // Latest Releases Section
-                        VStack(alignment: .leading, spacing: 12) {
-                            HStack {
-                                Text("Latest Releases")
-                                    .fableFont(size: 18, weight: .bold, design: .default)
-                                    .foregroundColor(FableTheme.textPrimary)
-                                    
-                                    Spacer()
-                                    
-                                Text("\(filteredRecentStories.count) titles")
-                                    .fableFont(size: 12, weight: .medium)
-                                    .foregroundColor(FableTheme.textMuted)
-                            }
-                            .padding(.horizontal, 20)
-                            
-                            VStack(spacing: 12) {
-                                ForEach(filteredRecentStories) { story in
+                        if !latestReleaseStories.isEmpty {
+                            VStack(alignment: .leading, spacing: 12) {
+                                HStack {
+                                    Text("Latest Releases")
+                                        .fableFont(size: 18, weight: .bold, design: .default)
+                                        .foregroundColor(FableTheme.textPrimary)
+
+                                        Spacer()
+
+                                    Text(StoryStore.pluralizedCount(latestReleaseStories.count, singular: "title"))
+                                        .fableFont(size: 12, weight: .medium)
+                                        .foregroundColor(FableTheme.textMuted)
+                                }
+                                .padding(.horizontal, 20)
+
+                                VStack(spacing: 12) {
+                                    ForEach(latestReleaseStories) { story in
                                     HStack(alignment: .top, spacing: 10) {
                                         Button {
                                             selectedStoryToRead = story
@@ -481,9 +515,10 @@ public struct LibraryView: View {
                             }
                         }
                         .padding(.top, 6)
-                        .padding(.bottom, 90) // spacing for custom tab bar
                     }
                 }
+                .padding(.bottom, 90) // spacing for custom tab bar
+            }
                 .refreshable {
                     await store.syncWithCloudBackend()
                 }

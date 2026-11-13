@@ -819,7 +819,7 @@ public final class StoryStore: ObservableObject {
 
     private func restoreDiscoveryCache() {
         let cacheVersionKey = "fable_discovery_cache_version"
-        let currentCacheVersion = 2
+        let currentCacheVersion = 3
         if UserDefaults.standard.integer(forKey: cacheVersionKey) < currentCacheVersion {
             UserDefaults.standard.removeObject(forKey: "fable_cached_genres")
             UserDefaults.standard.removeObject(forKey: "fable_cached_writers")
@@ -832,7 +832,7 @@ public final class StoryStore: ObservableObject {
         }
         if let data = UserDefaults.standard.data(forKey: "fable_cached_writers"),
            let cached = try? JSONDecoder().decode([Writer].self, from: data) {
-            writers = cached
+            writers = cached.filter { !Self.isExcludedPlaceholderAuthor($0.name) }
         }
     }
 
@@ -926,8 +926,9 @@ public final class StoryStore: ObservableObject {
 
             // 3. Fetch authors and catalog work counts from Project Gutenberg.
             if let liveWriters = try? await apiService.fetchTopAuthors() {
-                self.writers = liveWriters
-                persistDiscoveryCache(liveWriters, key: "fable_cached_writers")
+                let filteredWriters = liveWriters.filter { !Self.isExcludedPlaceholderAuthor($0.name) }
+                self.writers = filteredWriters
+                persistDiscoveryCache(filteredWriters, key: "fable_cached_writers")
             }
 
             // 4. Fetch live update feed (Tale of the Day, Curator Spotlight)
@@ -1324,6 +1325,22 @@ public final class StoryStore: ObservableObject {
             return story.contentFormat == .manga || story.genre == .manga || story.sourceProvider == .mangadex
         }
         return story.genre.rawValue.localizedCaseInsensitiveCompare(category) == .orderedSame
+    }
+
+    public static let excludedPlaceholderAuthors: Set<String> = ["various", "anonymous", "unknown"]
+
+    public static func isExcludedPlaceholderAuthor(_ name: String) -> Bool {
+        let normalized = name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return normalized.isEmpty || excludedPlaceholderAuthors.contains(normalized)
+    }
+
+    public func displayStoryCount(for genre: GenreCategory) -> Int {
+        let localMatches = stories.filter { storyMatchesCategory($0, category: genre.name) }.count
+        return max(genre.storyCount, localMatches)
+    }
+
+    public static func pluralizedCount(_ count: Int, singular: String, plural: String? = nil) -> String {
+        "\(count) \(count == 1 ? singular : (plural ?? "\(singular)s"))"
     }
 
     private var shelfStateStorageKey: String {

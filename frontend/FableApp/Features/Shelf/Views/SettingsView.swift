@@ -286,7 +286,7 @@ public struct SettingsView: View {
                                                     .fableFont(size: 15, weight: .medium)
                                                     .foregroundColor(FableTheme.textPrimary)
                                                 
-                                                Text("Verify chapter updates, genres, artists, and analytics")
+                                                Text("Verify chapter updates, genres, authors, and analytics")
                                                     .fableFont(size: 11)
                                                     .foregroundColor(FableTheme.textMuted)
                                             }

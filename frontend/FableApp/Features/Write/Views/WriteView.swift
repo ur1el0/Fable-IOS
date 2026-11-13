@@ -302,59 +302,60 @@ public struct WriteView: View {
                             .shadow(color: Color.black.opacity(0.04), radius: 8, y: 3)
                             .padding(.horizontal, 20)
                             
-                            // Bottom spacing so content clears the floating HUD and glass nav bar
-                            Spacer().frame(height: 140)
+                            // Bottom spacing inside scroll viewport above docked status HUD
+                            Spacer().frame(height: 16)
                         }
                     }
+
+                    // Docked Translucent Glass Status HUD above Floating Navigation Pill
+                    HStack(spacing: 0) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "text.alignleft")
+                                .fableFont(size: 11)
+                            Text("\(store.draftWordCount) words")
+                                .fableFont(size: 12, weight: .bold)
+                                .monospacedDigit()
+                        }
+                        .foregroundColor(FableTheme.brandPrimary)
+                        .frame(maxWidth: .infinity)
+
+                        Divider().frame(height: 18)
+
+                        HStack(spacing: 5) {
+                            Image(systemName: "clock")
+                                .fableFont(size: 11)
+                            Text("~\(max(1, store.draftWordCount / 150)) min read")
+                                .fableFont(size: 12, weight: .medium)
+                        }
+                        .foregroundColor(FableTheme.textMuted)
+                        .frame(maxWidth: .infinity)
+
+                        Divider().frame(height: 18)
+
+                        HStack(spacing: 5) {
+                            Circle()
+                                .fill(Color.green)
+                                .frame(width: 6, height: 6)
+                            Text("Saved locally")
+                                .fableFont(size: 11, weight: .medium)
+                        }
+                        .foregroundColor(FableTheme.textMuted)
+                        .frame(maxWidth: .infinity)
+                    }
+                    .padding(.vertical, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 24, style: .continuous)
+                            .fill(.ultraThinMaterial)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                                    .stroke(Color.white.opacity(0.4), lineWidth: 0.8)
+                            )
+                            .shadow(color: Color.black.opacity(0.06), radius: 10, y: 4)
+                    )
+                    .padding(.horizontal, 20)
+                    .padding(.top, 8)
+                    .padding(.bottom, 82) // Positioned cleanly above the floating translucent navigation pill
                 }
-                
-                // Floating Translucent Glass Status HUD at Bottom
-                HStack(spacing: 0) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "text.alignleft")
-                            .fableFont(size: 11)
-                        Text("\(store.draftWordCount) words")
-                            .fableFont(size: 12, weight: .bold)
-                            .monospacedDigit()
-                    }
-                    .foregroundColor(FableTheme.brandPrimary)
-                    .frame(maxWidth: .infinity)
-                    
-                    Divider().frame(height: 18)
-                    
-                    HStack(spacing: 5) {
-                        Image(systemName: "clock")
-                            .fableFont(size: 11)
-                        Text("~\(max(1, store.draftWordCount / 150)) min read")
-                            .fableFont(size: 12, weight: .medium)
-                    }
-                    .foregroundColor(FableTheme.textMuted)
-                    .frame(maxWidth: .infinity)
-                    
-                    Divider().frame(height: 18)
-                    
-                    HStack(spacing: 5) {
-                        Circle()
-                            .fill(Color.green)
-                            .frame(width: 6, height: 6)
-                        Text("Saved locally")
-                            .fableFont(size: 11, weight: .medium)
-                    }
-                    .foregroundColor(FableTheme.textMuted)
-                    .frame(maxWidth: .infinity)
-                }
-                .padding(.vertical, 12)
-                .background(
-                    RoundedRectangle(cornerRadius: 24, style: .continuous)
-                        .fill(.ultraThinMaterial)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                                .stroke(Color.white.opacity(0.4), lineWidth: 0.8)
-                        )
-                        .shadow(color: Color.black.opacity(0.06), radius: 10, y: 4)
-                )
-                .padding(.horizontal, 20)
-                .padding(.bottom, 82) // Positioned cleanly above the floating translucent navigation pill
             }
             .sheet(isPresented: $isShowingPublishSheet) {
                 if let publishedStory {

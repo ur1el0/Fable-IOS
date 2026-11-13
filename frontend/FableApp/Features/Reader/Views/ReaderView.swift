@@ -178,22 +178,20 @@ public struct ReaderView: View {
             VStack(spacing: 0) {
                 // Top Navigation Bar (FIGMA.md Frame 2: 1:159)
                 if isChromeVisible {
-                    HStack(spacing: 12) {
+                    HStack(spacing: 10) {
                         Button(action: {
                             FableHaptics.light()
                             audioNarrator.stop()
                             dismiss()
                         }) {
                             Image(systemName: "chevron.left")
-                                .fableFont(size: 15, weight: .bold)
+                                .fableFont(size: 14, weight: .bold)
                                 .foregroundColor(store.readerTheme.textColor)
-                                .frame(width: 40, height: 40)
+                                .frame(width: 36, height: 36)
                                 .background(store.readerTheme.textColor.opacity(0.08))
                                 .clipShape(Circle())
                         }
                         .accessibilityLabel("Close reader")
-                        
-                        Spacer()
                         
                         // Chapter / Folio Tag (Interactive TOC Trigger)
                         Button(action: {
@@ -204,9 +202,10 @@ public struct ReaderView: View {
                                 HStack(spacing: 4) {
                                     Text(activeChapterTag)
                                         .fableFont(size: 10, weight: .bold)
-                                        .tracking(1.0)
+                                        .tracking(0.8)
                                         .foregroundColor(FableTheme.brandPrimary)
                                         .lineLimit(1)
+                                        .minimumScaleFactor(0.85)
                                     
                                     if !chapters.isEmpty {
                                         Image(systemName: "chevron.down")
@@ -219,28 +218,15 @@ public struct ReaderView: View {
                                     .fableFont(size: 13, weight: .medium, design: .serif)
                                     .foregroundColor(store.readerTheme.textColor.opacity(0.85))
                                     .lineLimit(1)
+                                    .truncationMode(.tail)
                             }
+                            .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.plain)
+                        .layoutPriority(1)
                         .accessibilityLabel("Chapters and table of contents")
                         
-                        Spacer()
-                        
-                        HStack(spacing: 8) {
-                            // Table of Contents Sheet Button
-                            Button(action: {
-                                FableHaptics.selection()
-                                isShowingChapterSheet = true
-                            }) {
-                                Image(systemName: "list.bullet.rectangle")
-                                    .fableFont(size: 14, weight: .semibold)
-                                    .foregroundColor(store.readerTheme.textColor)
-                                    .frame(width: 40, height: 40)
-                                    .background(store.readerTheme.textColor.opacity(0.08))
-                                    .clipShape(Circle())
-                            }
-                            .accessibilityLabel("Table of contents")
-                            
+                        HStack(spacing: 6) {
                             // Oral Folklore Audio Synthesizer Toggle (Plan 04)
                             Button(action: {
                                 FableHaptics.medium()
@@ -249,9 +235,9 @@ public struct ReaderView: View {
                                 }
                             }) {
                                 Image(systemName: audioNarrator.isPlaying ? "speaker.wave.3.fill" : "speaker.wave.2")
-                                    .fableFont(size: 14, weight: .semibold)
+                                    .fableFont(size: 13, weight: .semibold)
                                     .foregroundColor(audioNarrator.isPlaying ? FableTheme.brandPrimary : store.readerTheme.textColor)
-                                    .frame(width: 40, height: 40)
+                                    .frame(width: 36, height: 36)
                                     .background(audioNarrator.isPlaying ? FableTheme.brandPrimary.opacity(0.15) : store.readerTheme.textColor.opacity(0.08))
                                     .clipShape(Circle())
                             }
@@ -265,40 +251,44 @@ public struct ReaderView: View {
                                 }
                             }) {
                                 Image(systemName: currentStoryBookmarked ? "bookmark.fill" : "bookmark")
-                                    .fableFont(size: 14, weight: .semibold)
+                                    .fableFont(size: 13, weight: .semibold)
                                     .foregroundColor(currentStoryBookmarked ? FableTheme.brandPrimary : store.readerTheme.textColor)
-                                    .frame(width: 40, height: 40)
+                                    .frame(width: 36, height: 36)
                                     .background(currentStoryBookmarked ? FableTheme.brandPrimary.opacity(0.12) : store.readerTheme.textColor.opacity(0.08))
                                     .clipShape(Circle())
                             }
                             .accessibilityLabel(currentStoryBookmarked ? "Remove bookmark" : "Bookmark story")
                             
-                            // Typography Options
-                            Button(action: {
-                                FableHaptics.selection()
-                                store.isShowingDisplayOptions = true
-                            }) {
-                                Image(systemName: "textformat.size")
-                                    .fableFont(size: 14, weight: .semibold)
+                            // Compact Menu for TOC, Appearance & Share keeps center title wide enough to read
+                            Menu {
+                                Button {
+                                    FableHaptics.selection()
+                                    isShowingChapterSheet = true
+                                } label: {
+                                    Label("Table of Contents", systemImage: "list.bullet.rectangle")
+                                }
+
+                                Button {
+                                    FableHaptics.selection()
+                                    store.isShowingDisplayOptions = true
+                                } label: {
+                                    Label("Appearance Options", systemImage: "textformat.size")
+                                }
+
+                                ShareLink(
+                                    item: "\(story.title) by \(story.author)\n\n\(story.synopsis)\n\nRead on Fable."
+                                ) {
+                                    Label("Share Story", systemImage: "square.and.arrow.up")
+                                }
+                            } label: {
+                                Image(systemName: "ellipsis")
+                                    .fableFont(size: 13, weight: .semibold)
                                     .foregroundColor(store.readerTheme.textColor)
-                                    .frame(width: 40, height: 40)
+                                    .frame(width: 36, height: 36)
                                     .background(store.readerTheme.textColor.opacity(0.08))
                                     .clipShape(Circle())
                             }
-                            .accessibilityLabel("Reading appearance options")
-                            
-                            // Native Share Link
-                            ShareLink(
-                                item: "\(story.title) by \(story.author)\n\n\(story.synopsis)\n\nRead on Fable."
-                            ) {
-                                Image(systemName: "square.and.arrow.up")
-                                    .fableFont(size: 14, weight: .semibold)
-                                    .foregroundColor(store.readerTheme.textColor)
-                                    .frame(width: 40, height: 40)
-                                    .background(store.readerTheme.textColor.opacity(0.08))
-                                    .clipShape(Circle())
-                            }
-                            .accessibilityLabel("Share story")
+                            .accessibilityLabel("More reader options")
                         }
                     }
                     .padding(.horizontal, 16)
@@ -401,7 +391,7 @@ public struct ReaderView: View {
                                                 }
                                             }
 
-                                            Spacer().frame(height: 120)
+                                            Spacer().frame(height: 28)
                                         }
                                         .padding(.horizontal, 32)
                                     }
@@ -627,7 +617,7 @@ public struct ReaderView: View {
                                     .padding(.top, 16)
                                 }
                                 
-                                Spacer().frame(height: 130) // spacing for floating HUD
+                                Spacer().frame(height: 36)
                             }
                         }
                         .onChange(of: scrollRestoreTrigger) { _, _ in
@@ -668,9 +658,8 @@ public struct ReaderView: View {
                         }
                     }
                 }
-            }
             
-            // Floating Reading HUD Pill (FIGMA.md Frame 2 HUD + Pacing Engine)
+            // Docked Reading HUD Pill below viewport so chrome never overlaps reader body text
             if isChromeVisible {
                 VStack(spacing: 8) {
                     // Precision Page Scrubber Slider (Kindle / Tachiyomi style)
@@ -812,8 +801,10 @@ public struct ReaderView: View {
                     )
                     .padding(.horizontal, 24)
                 }
-                .padding(.bottom, 24)
+                .padding(.top, 8)
+                .padding(.bottom, 12)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
             }
         }
         .navigationBarBackButtonHidden(true)
