@@ -7,29 +7,118 @@ public final class PersistenceService {
     public static let shared = PersistenceService()
     
     public let container: ModelContainer
+    public private(set) var didRecoverStoreByReset: Bool = false
+    public private(set) var isUsingInMemoryFallback: Bool = false
+
     public var context: ModelContext {
         container.mainContext
     }
-    
-    public init() {
-        // Guarantee Application Support directory exists to prevent CoreData recovery warnings
-        if let appSupportURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
+
+    public static var defaultSchema: Schema {
+        Schema([
+            StoryEntity.self,
+            AnnotationEntity.self,
+            ReadingLogEntity.self,
+            ShelfItemEntity.self
+        ])
+    }
+
+    public struct ResilientContainerResult {
+        public let container: ModelContainer
+        public let didRecoverByReset: Bool
+        public let isInMemoryFallback: Bool
+    }
+
+    private static func removeSQLiteStoreArtifacts(at storeURL: URL) {
+        let fileManager = FileManager.default
+        let candidateURLs = [
+            storeURL,
+            URL(fileURLWithPath: storeURL.path + "-wal"),
+            URL(fileURLWithPath: storeURL.path + "-shm")
+        ]
+        for url in candidateURLs where fileManager.fileExists(atPath: url.path) {
+            try? fileManager.removeItem(at: url)
+        }
+    }
+
+    private static func defaultStoreURLs() -> [URL] {
+        guard let appSupportURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
+            return []
+        }
+        return [appSupportURL.appendingPathComponent("default.store")]
+    }
+
+    public static func makeResilientContainer(
+        schema: Schema? = nil,
+        storeURL: URL? = nil,
+        isStoredInMemoryOnly: Bool = false,
+        containerBuilder: ((Schema, ModelConfiguration) throws -> ModelContainer)? = nil
+    ) -> ResilientContainerResult {
+        let resolvedSchema = schema ?? Self.defaultSchema
+        let build: (Schema, ModelConfiguration) throws -> ModelContainer = containerBuilder ?? { schema, configuration in
+            try ModelContainer(for: schema, configurations: [configuration])
+        }
+
+        if let storeURL {
+            let parent = storeURL.deletingLastPathComponent()
+            if !FileManager.default.fileExists(atPath: parent.path) {
+                try? FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true, attributes: nil)
+            }
+        } else if let appSupportURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
             if !FileManager.default.fileExists(atPath: appSupportURL.path) {
                 try? FileManager.default.createDirectory(at: appSupportURL, withIntermediateDirectories: true, attributes: nil)
             }
         }
-        
-        do {
-            let schema = Schema([
-                StoryEntity.self,
-                AnnotationEntity.self,
-                ReadingLogEntity.self
-            ])
-            let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-            self.container = try ModelContainer(for: schema, configurations: [configuration])
-        } catch {
-            fatalError("Failed to initialize SwiftData ModelContainer: \(error)")
+
+        if isStoredInMemoryOnly {
+            let memoryConfig = ModelConfiguration(schema: resolvedSchema, isStoredInMemoryOnly: true)
+            if let memoryContainer = try? build(resolvedSchema, memoryConfig) {
+                return ResilientContainerResult(container: memoryContainer, didRecoverByReset: false, isInMemoryFallback: true)
+            }
         }
+
+        let persistentConfig: ModelConfiguration = {
+            if let storeURL {
+                return ModelConfiguration(schema: resolvedSchema, url: storeURL)
+            }
+            return ModelConfiguration(schema: resolvedSchema, isStoredInMemoryOnly: false)
+        }()
+
+        do {
+            let container = try build(resolvedSchema, persistentConfig)
+            return ResilientContainerResult(container: container, didRecoverByReset: false, isInMemoryFallback: false)
+        } catch {
+            print("Primary SwiftData ModelContainer load failed (\(error)). Attempting local store reset.")
+            let targets = storeURL.map { [$0] } ?? defaultStoreURLs()
+            for targetURL in targets {
+                removeSQLiteStoreArtifacts(at: targetURL)
+            }
+
+            do {
+                let recoveredContainer = try build(resolvedSchema, persistentConfig)
+                return ResilientContainerResult(container: recoveredContainer, didRecoverByReset: true, isInMemoryFallback: false)
+            } catch {
+                print("Recovered persistent SwiftData ModelContainer failed (\(error)). Falling back to in-memory store.")
+                let fallbackConfig = ModelConfiguration(schema: resolvedSchema, isStoredInMemoryOnly: true)
+                do {
+                    let memoryContainer = try build(resolvedSchema, fallbackConfig)
+                    return ResilientContainerResult(container: memoryContainer, didRecoverByReset: true, isInMemoryFallback: true)
+                } catch {
+                    preconditionFailure("Unable to initialize even an in-memory SwiftData ModelContainer: \(error)")
+                }
+            }
+        }
+    }
+
+    public init(storeURL: URL? = nil, isStoredInMemoryOnly: Bool = false) {
+        let result = Self.makeResilientContainer(
+            schema: Self.defaultSchema,
+            storeURL: storeURL,
+            isStoredInMemoryOnly: isStoredInMemoryOnly
+        )
+        self.container = result.container
+        self.didRecoverStoreByReset = result.didRecoverByReset
+        self.isUsingInMemoryFallback = result.isInMemoryFallback
     }
 
     public static let legacyDemoStoryIds: Set<UUID> = [
@@ -114,6 +203,7 @@ public final class PersistenceService {
                 existing.heroImageName = story.heroImageName
                 existing.coverImageUrl = story.coverImageUrl
                 if let providerId = story.providerId { existing.providerId = providerId }
+                if let ownerUserId = story.ownerUserId { existing.ownerUserId = ownerUserId }
                 if let providerDownloadCount = story.providerDownloadCount {
                     existing.providerDownloadCount = providerDownloadCount
                 }
@@ -144,6 +234,7 @@ public final class PersistenceService {
                     heroImageName: story.heroImageName,
                     coverImageUrl: story.coverImageUrl,
                     providerId: story.providerId,
+                    ownerUserId: story.ownerUserId,
                     providerDownloadCount: story.providerDownloadCount,
                     cachedChaptersData: encodedChapters(story.chapters),
                     lastReadChapterId: story.lastReadChapterId,
@@ -461,6 +552,206 @@ public final class PersistenceService {
             )
         } catch {
             return ReadingStatsSummary(storiesReadCount: 0, totalMinutesRead: 0, streakDays: 0)
+        }
+    }
+
+    // MARK: - SwiftData Shelf State (IOS-02)
+
+    public struct ShelfStateRecord: Codable, Equatable {
+        public let storyId: UUID
+        public let readingProgress: Double
+        public let isBookmarked: Bool
+        public let isCompleted: Bool
+        public let currentPage: Int
+        public let totalPages: Int
+        public let lastReadChapterId: String?
+        public let lastReadChapterNumber: Int?
+        public let updatedAtUtc: Date
+
+        public init(
+            storyId: UUID,
+            readingProgress: Double,
+            isBookmarked: Bool,
+            isCompleted: Bool,
+            currentPage: Int,
+            totalPages: Int,
+            lastReadChapterId: String?,
+            lastReadChapterNumber: Int?,
+            updatedAtUtc: Date
+        ) {
+            self.storyId = storyId
+            self.readingProgress = readingProgress
+            self.isBookmarked = isBookmarked
+            self.isCompleted = isCompleted
+            self.currentPage = currentPage
+            self.totalPages = totalPages
+            self.lastReadChapterId = lastReadChapterId
+            self.lastReadChapterNumber = lastReadChapterNumber
+            self.updatedAtUtc = updatedAtUtc
+        }
+    }
+
+    public func fetchShelfStates(ownerKey: String) -> [UUID: ShelfStateRecord] {
+        let descriptor = FetchDescriptor<ShelfItemEntity>(
+            predicate: #Predicate { $0.ownerKey == ownerKey }
+        )
+        do {
+            let entities = try context.fetch(descriptor)
+            var result: [UUID: ShelfStateRecord] = [:]
+            for entity in entities {
+                result[entity.storyId] = ShelfStateRecord(
+                    storyId: entity.storyId,
+                    readingProgress: entity.readingProgress,
+                    isBookmarked: entity.isBookmarked,
+                    isCompleted: entity.isCompleted,
+                    currentPage: entity.currentPage,
+                    totalPages: entity.totalPages,
+                    lastReadChapterId: entity.lastReadChapterId,
+                    lastReadChapterNumber: entity.lastReadChapterNumber,
+                    updatedAtUtc: entity.updatedAtUtc
+                )
+            }
+            return result
+        } catch {
+            print("Failed to fetch shelf states: \(error)")
+            return [:]
+        }
+    }
+
+    private func apply(_ record: ShelfStateRecord, to entity: ShelfItemEntity) {
+        entity.readingProgress = min(1.0, max(0.0, record.readingProgress))
+        entity.isBookmarked = record.isBookmarked
+        entity.isCompleted = record.isCompleted
+        entity.currentPage = max(1, record.currentPage)
+        entity.totalPages = max(1, record.totalPages)
+        entity.lastReadChapterId = record.lastReadChapterId
+        entity.lastReadChapterNumber = record.lastReadChapterNumber
+        entity.updatedAtUtc = record.updatedAtUtc
+    }
+
+    private func makeShelfEntity(ownerKey: String, storyId: UUID, record: ShelfStateRecord) -> ShelfItemEntity {
+        ShelfItemEntity(
+            ownerKey: ownerKey,
+            storyId: storyId,
+            readingProgress: record.readingProgress,
+            isBookmarked: record.isBookmarked,
+            isCompleted: record.isCompleted,
+            currentPage: record.currentPage,
+            totalPages: record.totalPages,
+            lastReadChapterId: record.lastReadChapterId,
+            lastReadChapterNumber: record.lastReadChapterNumber,
+            updatedAtUtc: record.updatedAtUtc
+        )
+    }
+
+    public func upsertShelfState(_ record: ShelfStateRecord, ownerKey: String) {
+        let compositeKey = "\(ownerKey)::\(record.storyId.uuidString.lowercased())"
+        var descriptor = FetchDescriptor<ShelfItemEntity>(
+            predicate: #Predicate { $0.compositeKey == compositeKey }
+        )
+        descriptor.fetchLimit = 1
+        do {
+            if let existing = try context.fetch(descriptor).first {
+                apply(record, to: existing)
+            } else {
+                context.insert(makeShelfEntity(ownerKey: ownerKey, storyId: record.storyId, record: record))
+            }
+            try context.save()
+        } catch {
+            print("Failed to upsert shelf state: \(error)")
+        }
+    }
+
+    public func replaceShelfStates(_ records: [UUID: ShelfStateRecord], ownerKey: String) {
+        let descriptor = FetchDescriptor<ShelfItemEntity>(
+            predicate: #Predicate { $0.ownerKey == ownerKey }
+        )
+        do {
+            let existing = try context.fetch(descriptor)
+            var existingByStoryId = Dictionary(uniqueKeysWithValues: existing.map { ($0.storyId, $0) })
+
+            for (storyId, record) in records {
+                if let entity = existingByStoryId.removeValue(forKey: storyId) {
+                    apply(record, to: entity)
+                } else {
+                    context.insert(makeShelfEntity(ownerKey: ownerKey, storyId: storyId, record: record))
+                }
+            }
+
+            for staleEntity in existingByStoryId.values {
+                context.delete(staleEntity)
+            }
+            try context.save()
+        } catch {
+            print("Failed to replace shelf states: \(error)")
+        }
+    }
+
+    @discardableResult
+    public func migrateLegacyShelfStatesIfNeeded(
+        ownerKey: String,
+        legacyStorageKey: String,
+        defaults: UserDefaults = .standard
+    ) -> [UUID: ShelfStateRecord] {
+        var currentStates = fetchShelfStates(ownerKey: ownerKey)
+        guard let legacyData = defaults.data(forKey: legacyStorageKey) else {
+            return currentStates
+        }
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        if let legacyMap = try? decoder.decode([String: ShelfStateRecord].self, from: legacyData) {
+            var didMerge = false
+            for (idString, record) in legacyMap {
+                guard let uuid = UUID(uuidString: idString) else { continue }
+                if let existing = currentStates[uuid] {
+                    if record.updatedAtUtc > existing.updatedAtUtc {
+                        currentStates[uuid] = record
+                        didMerge = true
+                    }
+                } else {
+                    currentStates[uuid] = record
+                    didMerge = true
+                }
+            }
+            if didMerge {
+                replaceShelfStates(currentStates, ownerKey: ownerKey)
+            }
+        }
+        defaults.removeObject(forKey: legacyStorageKey)
+        return currentStates
+    }
+
+    // MARK: - Account Deletion Cleanup (DOM-01)
+
+    public func deleteAccountData(ownerUserId: UUID) {
+        let ownerKey = ownerUserId.uuidString.lowercased()
+        do {
+            let storyEntities = try context.fetch(FetchDescriptor<StoryEntity>())
+            for entity in storyEntities where entity.ownerUserId == ownerUserId {
+                context.delete(entity)
+            }
+
+            let annotationEntities = try context.fetch(FetchDescriptor<AnnotationEntity>())
+            for entity in annotationEntities where entity.ownerUserId == ownerUserId {
+                context.delete(entity)
+            }
+
+            let logEntities = try context.fetch(FetchDescriptor<ReadingLogEntity>())
+            for entity in logEntities where entity.ownerUserId == ownerUserId {
+                context.delete(entity)
+            }
+
+            let shelfEntities = try context.fetch(
+                FetchDescriptor<ShelfItemEntity>(predicate: #Predicate { $0.ownerKey == ownerKey })
+            )
+            for entity in shelfEntities {
+                context.delete(entity)
+            }
+
+            try context.save()
+        } catch {
+            print("Failed to delete account persistence data: \(error)")
         }
     }
 }

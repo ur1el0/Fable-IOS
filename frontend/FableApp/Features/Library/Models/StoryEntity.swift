@@ -20,6 +20,7 @@ public final class StoryEntity {
     public var heroImageName: String?
     public var coverImageUrl: String?
     public var providerId: String?
+    public var ownerUserId: UUID?
     public var providerDownloadCount: Int?
     @Attribute(.externalStorage) public var cachedChaptersData: Data?
     public var lastReadChapterId: String?
@@ -50,6 +51,7 @@ public final class StoryEntity {
         heroImageName: String? = nil,
         coverImageUrl: String? = nil,
         providerId: String? = nil,
+        ownerUserId: UUID? = nil,
         providerDownloadCount: Int? = nil,
         cachedChaptersData: Data? = nil,
         lastReadChapterId: String? = nil,
@@ -76,6 +78,7 @@ public final class StoryEntity {
         self.heroImageName = heroImageName
         self.coverImageUrl = coverImageUrl
         self.providerId = providerId
+        self.ownerUserId = ownerUserId
         self.providerDownloadCount = providerDownloadCount
         self.cachedChaptersData = cachedChaptersData
         self.lastReadChapterId = lastReadChapterId
@@ -152,5 +155,45 @@ public final class ReadingLogEntity {
         self.secondsRead = secondsRead
         self.date = date
         self.isCompleted = isCompleted
+    }
+}
+
+@Model
+public final class ShelfItemEntity {
+    @Attribute(.unique) public var compositeKey: String
+    public var ownerKey: String
+    public var storyId: UUID
+    public var readingProgress: Double
+    public var isBookmarked: Bool
+    public var isCompleted: Bool
+    public var currentPage: Int
+    public var totalPages: Int
+    public var lastReadChapterId: String?
+    public var lastReadChapterNumber: Int?
+    public var updatedAtUtc: Date
+
+    public init(
+        ownerKey: String,
+        storyId: UUID,
+        readingProgress: Double = 0.0,
+        isBookmarked: Bool = false,
+        isCompleted: Bool = false,
+        currentPage: Int = 1,
+        totalPages: Int = 1,
+        lastReadChapterId: String? = nil,
+        lastReadChapterNumber: Int? = nil,
+        updatedAtUtc: Date = Date()
+    ) {
+        self.compositeKey = "\(ownerKey)::\(storyId.uuidString.lowercased())"
+        self.ownerKey = ownerKey
+        self.storyId = storyId
+        self.readingProgress = min(1.0, max(0.0, readingProgress))
+        self.isBookmarked = isBookmarked
+        self.isCompleted = isCompleted
+        self.currentPage = max(1, currentPage)
+        self.totalPages = max(1, totalPages)
+        self.lastReadChapterId = lastReadChapterId
+        self.lastReadChapterNumber = lastReadChapterNumber
+        self.updatedAtUtc = updatedAtUtc
     }
 }

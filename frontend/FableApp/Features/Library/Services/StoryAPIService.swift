@@ -32,6 +32,71 @@ public struct CreateStoryRequest: Codable {
         self.readTimeMinutes = readTimeMinutes
         self.contentFormat = contentFormat
     }
+
+    public static func estimatedReadTimeMinutes(for content: String) -> Int {
+        let wordCount = content.split { $0.isWhitespace || $0.isNewline }.count
+        return max(1, wordCount / 150)
+    }
+
+    public static func validateDraftFields(
+        title: String,
+        genre: String,
+        chapter: String,
+        synopsis: String,
+        content: String,
+        requireContent: Bool
+    ) -> String? {
+        guard !title.isEmpty, title.unicodeScalars.count <= maximumTitleLength else {
+            return "Enter a title with 1 to 120 characters."
+        }
+        guard !genre.isEmpty else {
+            return "Choose or enter a genre."
+        }
+        guard genre.unicodeScalars.count <= maximumGenreLength else {
+            return "Keep the genre to 50 characters or fewer."
+        }
+        guard chapter.unicodeScalars.count <= maximumChapterLength else {
+            return "Keep the chapter title to 120 characters or fewer."
+        }
+        guard !synopsis.isEmpty else {
+            return "Add a synopsis before publishing."
+        }
+        guard synopsis.unicodeScalars.count <= maximumSynopsisLength else {
+            return "Keep the synopsis to 2,000 characters or fewer."
+        }
+        if requireContent && content.isEmpty {
+            return "Add manuscript text before publishing."
+        }
+        guard content.unicodeScalars.count <= maximumContentLength else {
+            return "Keep the manuscript to 50,000 characters or fewer."
+        }
+        return nil
+    }
+}
+
+public struct UpdateStoryRequest: Codable {
+    public let title: String?
+    public let genre: String?
+    public let chapter: String?
+    public let synopsis: String?
+    public let content: String?
+    public let readTimeMinutes: Int?
+
+    public init(
+        title: String? = nil,
+        genre: String? = nil,
+        chapter: String? = nil,
+        synopsis: String? = nil,
+        content: String? = nil,
+        readTimeMinutes: Int? = nil
+    ) {
+        self.title = title
+        self.genre = genre
+        self.chapter = chapter
+        self.synopsis = synopsis
+        self.content = content
+        self.readTimeMinutes = readTimeMinutes
+    }
 }
 
 public struct ShelfSyncItem: Codable, Equatable {
@@ -200,6 +265,8 @@ public struct AuthTokenResponse: Codable {
 public protocol StoryAPIServiceProtocol: Sendable {
     func fetchStories(genre: String?, search: String?, since: Date?) async throws -> [Story]
     func createStory(_ request: CreateStoryRequest, token: String) async throws -> Story
+    func updateStory(id: UUID, _ request: UpdateStoryRequest, token: String) async throws -> Story
+    func deleteStory(id: UUID, token: String) async throws
     func fetchMyStories(token: String) async throws -> [Story]
     func syncShelf(deviceId: UUID, token: String, items: [ShelfSyncItem]) async throws -> [ShelfSyncItem]
     func fetchShelf(deviceId: UUID, token: String) async throws -> [ShelfSyncItem]
@@ -216,6 +283,7 @@ public protocol StoryAPIServiceProtocol: Sendable {
     func confirmPasswordReset(token: String, newPassword: String) async throws
     func fetchCurrentUser(token: String) async throws -> AuthUserDTO
     func updateProfile(_ request: ProfileUpdateRequest, token: String) async throws -> AuthUserDTO
+    func deleteAccount(token: String) async throws
     func recordReadingSession(_ request: ReadingSessionRequest, token: String) async throws
     func fetchReadingStats(token: String) async throws -> ReadingStatsDTO
     func logout(token: String) async throws
@@ -333,6 +401,35 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         return try decoder.decode(Story.self, from: data)
+    }
+
+    public func updateStory(id: UUID, _ request: UpdateStoryRequest, token: String) async throws -> Story {
+        let url = baseURL.appendingPathComponent("stories").appendingPathComponent(id.uuidString)
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "PATCH"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        urlRequest.httpBody = try encoder.encode(request)
+
+        let (data, response) = try await session.data(for: urlRequest)
+        try validateResponse(response, data: data)
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try decoder.decode(Story.self, from: data)
+    }
+
+    public func deleteStory(id: UUID, token: String) async throws {
+        let url = baseURL.appendingPathComponent("stories").appendingPathComponent(id.uuidString)
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "DELETE"
+        urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        let (data, response) = try await session.data(for: urlRequest)
+        try validateResponse(response, data: data)
     }
 
     public func fetchMyStories(token: String) async throws -> [Story] {
@@ -831,6 +928,16 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         return try decoder.decode(AuthUserDTO.self, from: data)
+    }
+
+    public func deleteAccount(token: String) async throws {
+        let url = baseURL.appendingPathComponent("auth").appendingPathComponent("me")
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "DELETE"
+        urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        let (data, response) = try await session.data(for: urlRequest)
+        try validateResponse(response, data: data)
     }
 
     public func fetchCurrentUser(token: String) async throws -> AuthUserDTO {

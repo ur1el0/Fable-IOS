@@ -282,6 +282,7 @@ public struct Story: Identifiable, Hashable, Codable {
     public var contentFormat: ContentFormat
     public var sourceProvider: SourceProvider
     public var providerId: String?
+    public var ownerUserId: UUID?
     public var lastReadChapterId: String?
     public var lastReadChapterNumber: Int?
 
@@ -332,7 +333,7 @@ public struct Story: Identifiable, Hashable, Codable {
         case id, title, author, genre, synopsis, content, readTimeMinutes, isBookmarked, isCompleted, createdAtUtc
         case coverImageName, heroImageName, coverImageUrl, totalPages, currentPage, progressPercent, rating, providerDownloadCount, savesCount, readsCount
         case isTaleOfTheDay, isRecentSubmission, isCuratorSpotlight, badgeText, totalChapters, chapters
-        case contentFormat, sourceProvider, providerId, lastReadChapterId, lastReadChapterNumber
+        case contentFormat, sourceProvider, providerId, ownerUserId, lastReadChapterId, lastReadChapterNumber
     }
 
     public init(from decoder: Decoder) throws {
@@ -367,6 +368,7 @@ public struct Story: Identifiable, Hashable, Codable {
         self.contentFormat = try container.decodeIfPresent(ContentFormat.self, forKey: .contentFormat) ?? .prose
         self.sourceProvider = try container.decodeIfPresent(SourceProvider.self, forKey: .sourceProvider) ?? .fableOriginal
         self.providerId = try container.decodeIfPresent(String.self, forKey: .providerId)
+        self.ownerUserId = try container.decodeIfPresent(UUID.self, forKey: .ownerUserId)
         self.lastReadChapterId = try container.decodeIfPresent(String.self, forKey: .lastReadChapterId)
         self.lastReadChapterNumber = try container.decodeIfPresent(Int.self, forKey: .lastReadChapterNumber)
     }
@@ -386,6 +388,7 @@ public struct Story: Identifiable, Hashable, Codable {
         contentFormat: ContentFormat = .prose,
         sourceProvider: SourceProvider = .fableOriginal,
         providerId: String? = nil,
+        ownerUserId: UUID? = nil,
         lastReadChapterId: String? = nil,
         lastReadChapterNumber: Int? = nil
     ) {
@@ -418,6 +421,7 @@ public struct Story: Identifiable, Hashable, Codable {
         self.contentFormat = contentFormat
         self.sourceProvider = sourceProvider
         self.providerId = providerId
+        self.ownerUserId = ownerUserId
         self.lastReadChapterId = lastReadChapterId
         self.lastReadChapterNumber = lastReadChapterNumber
     }
@@ -450,6 +454,7 @@ public struct Story: Identifiable, Hashable, Codable {
         contentFormat: ContentFormat = .prose,
         sourceProvider: SourceProvider = .fableOriginal,
         providerId: String? = nil,
+        ownerUserId: UUID? = nil,
         chapters: [Chapter]? = nil,
         lastReadChapterId: String? = nil,
         lastReadChapterNumber: Int? = nil
@@ -483,6 +488,7 @@ public struct Story: Identifiable, Hashable, Codable {
         self.contentFormat = contentFormat
         self.sourceProvider = sourceProvider
         self.providerId = providerId
+        self.ownerUserId = ownerUserId
         self.lastReadChapterId = lastReadChapterId
         self.lastReadChapterNumber = lastReadChapterNumber
     }
