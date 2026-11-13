@@ -357,7 +357,7 @@ def _search_gutenberg_catalog(
                 else 2 if search in title
                 else 3
             )
-            sort_key = (text_rank, lang_rank, entry.gutenberg_id)
+            sort_key = (lang_rank, text_rank, entry.gutenberg_id)
         else:
             is_short_story = "short stories" in subjects and "short" not in topic
             is_curated_novel = any(
