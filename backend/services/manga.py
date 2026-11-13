@@ -25,6 +25,9 @@ CACHE_MAX_ENTRIES = 128
 CACHE_MAX_BYTES = 16 * 1024 * 1024
 MANGA_MAX_PROVIDER_RESPONSE_BYTES = 2 * 1024 * 1024
 MANGA_MAX_CONCURRENT_UPSTREAM_REQUESTS = 5
+# Search spends one listing request plus up to two requests per title (feed + one
+# @at-home check). Keep the probe budget under MangaDex's 40-request window.
+MANGA_MAX_DIRECT_PROBES_PER_SEARCH = 19
 _UPSTREAM_SEMAPHORE = asyncio.Semaphore(MANGA_MAX_CONCURRENT_UPSTREAM_REQUESTS)
 
 
@@ -159,6 +162,38 @@ async def _fetch_json_with_fallback(url: str, params: Optional[list] = None) -> 
     raise HTTPException(status_code=502, detail="Manga upstream service unavailable")
 
 
+async def _get_manga_chapter_page_urls(chapter_id: str) -> list[str]:
+    cache_key = f"manga_chapter_pages:{chapter_id}"
+    cached = _get_from_cache(cache_key)
+    if cached is not None:
+        return cached
+
+    ah_data = await _fetch_json_with_fallback(
+        f"https://api.mangadex.org/at-home/server/{chapter_id}"
+    )
+    base_url = ah_data.get("baseUrl")
+    chapter_obj = ah_data.get("chapter") or {}
+    hash_value = chapter_obj.get("hash")
+    files = chapter_obj.get("dataSaver") or chapter_obj.get("data") or []
+    if (
+        not isinstance(base_url, str)
+        or not base_url.startswith("https://")
+        or not isinstance(hash_value, str)
+        or not hash_value
+        or not isinstance(files, list)
+    ):
+        page_urls = []
+    else:
+        page_urls = [
+            f"{base_url.rstrip('/')}/data-saver/{hash_value}/{file_name}"
+            for file_name in files
+            if isinstance(file_name, str) and file_name
+        ]
+
+    _set_in_cache(cache_key, page_urls)
+    return page_urls
+
+
 def _story_from_mangadex_item(item: dict) -> Optional[StoryDTO]:
     manga_id = item.get("id")
     attrs = item.get("attributes", {})
@@ -259,10 +294,19 @@ async def _probe_direct_chapters(manga_id: str) -> bool:
     try:
         data = await _fetch_json_with_fallback(url, params=params)
         feed_items = data.get("data", [])
-        has_direct = any(
-            not (item.get("attributes") or {}).get("externalUrl")
-            and int((item.get("attributes") or {}).get("pages", 1) or 0) > 0
-            for item in feed_items
+        candidate = next(
+            (
+                item
+                for item in feed_items
+                if item.get("id")
+                and not (item.get("attributes") or {}).get("externalUrl")
+                and int((item.get("attributes") or {}).get("pages", 0) or 0) > 0
+            ),
+            None,
+        )
+        has_direct = bool(
+            candidate
+            and await _get_manga_chapter_page_urls(candidate["id"])
         )
     except Exception:
         has_direct = False
@@ -306,18 +350,20 @@ async def search_manga(
         if dto:
             raw_results.append(dto)
 
-    # Probe direct panel availability concurrently and exclude titles without readable panels
+    # Verify actual panel URLs, not only feed metadata. One feed + one @at-home
+    # probe per title keeps this bounded by MangaDex's request limit.
+    probe_results_to_check = raw_results[:MANGA_MAX_DIRECT_PROBES_PER_SEARCH]
     probe_semaphore = asyncio.Semaphore(MANGA_MAX_CONCURRENT_UPSTREAM_REQUESTS)
 
     async def _bounded_probe(story: StoryDTO):
         async with probe_semaphore:
             return await _probe_direct_chapters(str(story.provider_id))
 
-    probe_tasks = [_bounded_probe(story) for story in raw_results]
+    probe_tasks = [_bounded_probe(story) for story in probe_results_to_check]
     probe_results = await asyncio.gather(*probe_tasks, return_exceptions=True)
 
     direct_list: list[StoryDTO] = []
-    for dto, has_direct in zip(raw_results, probe_results):
+    for dto, has_direct in zip(probe_results_to_check, probe_results):
         if has_direct is True:
             dto.badge_text = "DIRECT PANELS"
             direct_list.append(dto)
@@ -453,21 +499,7 @@ async def get_manga_chapters(manga_id: str, limit: int = 20) -> list[ChapterDTO]
 
         page_urls: list[str] = []
         try:
-            ah_url = f"https://api.mangadex.org/at-home/server/{ch_id}"
-            ah_data = await _fetch_json_with_fallback(ah_url)
-            base_url = ah_data.get("baseUrl")
-            chapter_obj = ah_data.get("chapter", {})
-            hash_val = chapter_obj.get("hash")
-            files = (
-                chapter_obj.get("dataSaver")
-                or chapter_obj.get("data")
-                or []
-            )
-            if base_url and hash_val and files:
-                page_urls = [
-                    f"{base_url}/data-saver/{hash_val}/{file_name}"
-                    for file_name in files
-                ]
+            page_urls = await _get_manga_chapter_page_urls(ch_id)
         except Exception:
             page_urls = []
 
