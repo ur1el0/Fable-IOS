@@ -146,6 +146,79 @@ def test_gutenberg_empty_search_is_a_successful_empty_http_response(monkeypatch)
     assert response.json() == []
 
 
+def _gutenberg_http_book(gutenberg_id, title, author="Austen, Jane"):
+    return {
+        "id": gutenberg_id,
+        "title": title,
+        "authors": [{"name": author}],
+        "subjects": ["Fiction"],
+        "summaries": [],
+        "download_count": 12345,
+        "formats": {
+            "text/plain; charset=utf-8": f"https://www.gutenberg.org/ebooks/{gutenberg_id}.txt.utf-8",
+            "image/jpeg": f"https://www.gutenberg.org/cache/epub/{gutenberg_id}/pg{gutenberg_id}.cover.medium.jpg",
+        },
+    }
+
+
+def test_gutenberg_recent_http_collection_marks_recent_titles_and_keeps_chapters_lazy(monkeypatch):
+    from services import gutenberg
+
+    async def recent_books(_client):
+        return [_gutenberg_http_book(79999, "Newly Added Novel")]
+
+    monkeypatch.setattr(gutenberg, "_load_gutenberg_recent_books", recent_books)
+    response = client.get("/api/v1/public/gutenberg?sort=recent")
+
+    assert response.status_code == 200
+    books = response.json()
+    assert len(books) == 1
+    assert books[0]["providerId"] == "79999"
+    assert books[0]["title"] == "Newly Added Novel"
+    assert books[0]["author"] == "Jane Austen"
+    assert books[0]["sourceProvider"] == "GUTENBERG"
+    assert books[0]["isRecentSubmission"] is True
+    assert books[0]["badgeText"] == "NEW ON GUTENBERG"
+    assert books[0]["totalChapters"] == 0
+    assert books[0]["content"] == ""
+
+
+def test_gutenberg_popular_http_collection_uses_gutendex_popularity_order(monkeypatch):
+    from services import gutenberg
+
+    async def popular_books(_client, params):
+        assert params == {"topic": "fiction", "sort": "popular"}
+        return [
+            _gutenberg_http_book(1342, "Pride and Prejudice"),
+            _gutenberg_http_book(11, "Alice's Adventures in Wonderland", "Carroll, Lewis"),
+        ]
+
+    monkeypatch.setattr(gutenberg, "_fetch_gutendex_books", popular_books)
+    response = client.get("/api/v1/public/gutenberg?topic=fiction&sort=popular")
+
+    assert response.status_code == 200
+    books = response.json()
+    assert [book["title"] for book in books] == [
+        "Pride and Prejudice",
+        "Alice's Adventures in Wonderland",
+    ]
+    assert [book["providerId"] for book in books] == ["1342", "11"]
+    assert all(book["sourceProvider"] == "GUTENBERG" for book in books)
+
+
+def test_gutenberg_recent_feed_accepts_only_official_ebook_links():
+    from services.gutenberg import _gutenberg_recent_ids_from_feed
+
+    feed = b"""<?xml version="1.0"?>
+    <rss><channel>
+      <item><title>Latest Book</title><link>https://www.gutenberg.org/ebooks/79999</link></item>
+      <item><title>External Link</title><link>https://example.org/ebooks/88888</link></item>
+      <item><title>Duplicate</title><link>https://www.gutenberg.org/ebooks/79999</link></item>
+    </channel></rss>"""
+
+    assert _gutenberg_recent_ids_from_feed(feed) == [79999]
+
+
 
 def test_gutenberg_chapters_http_endpoint_falls_back_and_returns_provider_text(monkeypatch):
     from contextlib import asynccontextmanager

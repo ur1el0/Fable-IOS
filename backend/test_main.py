@@ -386,6 +386,32 @@ def test_extract_chapters_handles_contents_unnumbered_chapters_and_nested_parts(
         "PART II. Neighboring Fields — Chapter II",
     ]
 
+
+def test_extract_chapters_from_text_recognizes_spelled_out_chapter_headings():
+    from main import extract_chapters_from_text
+
+    raw_sample = """
+*** START OF THE PROJECT GUTENBERG EBOOK TEST ***
+
+chapter the first
+The first part contains enough prose to distinguish a real chapter from a contents listing.
+It continues with another paragraph so the reader receives a substantial chapter body.
+
+CHAPTER TWO. THE JOURNEY
+The second part also contains enough prose to qualify as a chapter of this full-length work.
+Readers can follow the chapter sequence instead of seeing the entire novel as one section.
+
+*** END OF THE PROJECT GUTENBERG EBOOK TEST ***
+"""
+
+    chapters = extract_chapters_from_text(raw_sample)
+
+    assert len(chapters) == 2
+    assert [chapter["chapter_number"] for chapter in chapters] == [1, 2]
+    assert chapters[0]["title"].casefold() == "chapter the first"
+    assert chapters[1]["title"].casefold() == "chapter two. the journey"
+
+
 def test_get_genres_endpoint():
     created = client.post("/api/v1/stories", headers=auth_headers(), json={
         "title": "Genre Count Story",
