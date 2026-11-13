@@ -5,6 +5,7 @@ public struct ShelfView: View {
     
     @State private var selectedTab: String = "Saved"
     @State private var selectedStoryToRead: Story?
+    @State private var selectedQuoteTarget: Annotation?
     @State private var isShowingSettingsSheet: Bool = false
     @State private var isShowingProfileSheet: Bool = false
     
@@ -242,7 +243,8 @@ public struct ShelfView: View {
                                     TabView {
                                         ForEach(store.pinnedQuotes) { quote in
                                             Button(action: {
-                                                if let matchingStory = store.stories.first(where: { $0.id == quote.storyId }) {
+                                                if let matchingStory = store.stories.first(where: { $0.id == quote.storyId }) ?? PersistenceService.shared.fetchStory(id: quote.storyId) {
+                                                    selectedQuoteTarget = quote
                                                     selectedStoryToRead = matchingStory
                                                 }
                                             }) {
@@ -374,6 +376,7 @@ public struct ShelfView: View {
                                 } else {
                                     ForEach(Array(displayedStories.enumerated()), id: \.element.id) { index, story in
                                         Button(action: {
+                                            selectedQuoteTarget = nil
                                             selectedStoryToRead = story
                                         }) {
                                             HStack(spacing: 14) {
@@ -521,13 +524,15 @@ public struct ShelfView: View {
                     await store.syncWithCloudBackend()
                 }
             }
-            .fullScreenCover(item: $selectedStoryToRead) { story in
+            .fullScreenCover(item: $selectedStoryToRead, onDismiss: {
+                selectedQuoteTarget = nil
+            }) { story in
                 let currentStory = store.stories.first(where: { $0.id == story.id }) ?? story
                 if currentStory.contentFormat == .manga || currentStory.sourceProvider == .mangadex {
                     MangaReaderView(story: currentStory)
                         .environmentObject(store)
                 } else {
-                    ReaderView(story: currentStory)
+                    ReaderView(story: currentStory, initialTargetAnnotation: selectedQuoteTarget)
                         .environmentObject(store)
                 }
             }
