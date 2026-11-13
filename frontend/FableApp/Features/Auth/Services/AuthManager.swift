@@ -225,6 +225,7 @@ public final class AuthManager: ObservableObject {
 
     public func updateProfile(name: String, handle: String, bio: String, avatarName: String? = nil) async -> Bool {
         guard var session = currentSession else { return false }
+        let previousSession = session
         let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleanName.isEmpty else {
             authErrorMessage = "Display name cannot be blank."
@@ -256,11 +257,51 @@ public final class AuthManager: ObservableObject {
             }
             guard persistSession(updatedSession, accessToken: token) else { return false }
             UserDefaults.standard.removeObject(forKey: pendingKey)
+            authErrorMessage = nil
             return true
+        } catch let error as APIRequestError {
+            _ = persistSession(previousSession, accessToken: token)
+            UserDefaults.standard.removeObject(forKey: pendingKey)
+            authErrorMessage = error.message
+            return false
         } catch {
             authErrorMessage = "Profile saved locally and queued to sync when online."
             return true
         }
+    }
+
+    public func deleteAccount() async -> Bool {
+        guard let session = currentSession, !session.isGuest,
+              let token = keychain.readAccessToken() else {
+            authErrorMessage = "Sign in again to delete this account."
+            return false
+        }
+
+        do {
+            try await apiService.deleteAccount(token: token)
+            clearLocalSessionState(for: session.id)
+            return true
+        } catch let error as APIRequestError {
+            authErrorMessage = error.message
+            return false
+        } catch {
+            authErrorMessage = "Unable to delete account right now. Please try again."
+            return false
+        }
+    }
+
+    private func clearLocalSessionState(for userId: UUID?) {
+        if let userId {
+            UserDefaults.standard.removeObject(forKey: pendingProfileKeyPrefix + userId.uuidString)
+        }
+        keychain.deleteData(key: "userSession")
+        keychain.deleteAccessToken()
+        UserDefaults.standard.removeObject(forKey: sessionStorageKey)
+        self.currentSession = nil
+        self.isAuthenticated = false
+        self.isGuestMode = false
+        self.authErrorMessage = nil
+        AuthViewModel.shared.adoptSignedOutState()
     }
 
     public func syncPendingProfile() async {
@@ -284,16 +325,6 @@ public final class AuthManager: ObservableObject {
            let token = keychain.readAccessToken() {
             Task { try? await apiService.logout(token: token) }
         }
-        if let session = currentSession {
-            UserDefaults.standard.removeObject(forKey: pendingProfileKeyPrefix + session.id.uuidString)
-        }
-        keychain.deleteData(key: "userSession")
-        keychain.deleteAccessToken()
-        UserDefaults.standard.removeObject(forKey: sessionStorageKey)
-        self.currentSession = nil
-        self.isAuthenticated = false
-        self.isGuestMode = false
-        self.authErrorMessage = nil
-        AuthViewModel.shared.adoptSignedOutState()
+        clearLocalSessionState(for: currentSession?.id)
     }
 }

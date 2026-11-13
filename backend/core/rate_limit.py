@@ -1,18 +1,88 @@
 from __future__ import annotations
 
-import os
-import time
-import threading
-import math
 import hashlib
+import ipaddress
+import math
+import os
+import threading
+import time
 from collections import deque
-from typing import Tuple, Dict, Optional, Union
+from typing import Callable, Dict, Optional, Tuple, Union
 from core.database import get_db, lock_transaction_key
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.concurrency import run_in_threadpool
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 from core.settings import load_rate_limit_enabled
+
+
+def _load_trusted_proxy_networks() -> tuple[ipaddress._BaseNetwork, ...]:
+    raw_cidrs = os.environ.get("FABLE_TRUSTED_PROXY_CIDRS", "").strip()
+    if not raw_cidrs:
+        return ()
+    networks: list[ipaddress._BaseNetwork] = []
+    for raw_cidr in raw_cidrs.split(","):
+        candidate = raw_cidr.strip()
+        if not candidate:
+            continue
+        try:
+            networks.append(ipaddress.ip_network(candidate, strict=False))
+        except ValueError:
+            continue
+    return tuple(networks)
+
+
+def _parse_ip(raw_ip: Optional[str]) -> Optional[ipaddress._BaseAddress]:
+    if not raw_ip:
+        return None
+    candidate = raw_ip.strip()
+    if not candidate:
+        return None
+    # Strip optional port on IPv4 like "203.0.113.1:1234" or bracketed IPv6 "[::1]:1234"
+    if candidate.startswith("[") and "]" in candidate:
+        candidate = candidate[1:candidate.index("]")]
+    elif candidate.count(":") == 1 and "." in candidate:
+        candidate = candidate.split(":", 1)[0]
+    try:
+        return ipaddress.ip_address(candidate)
+    except ValueError:
+        return None
+
+
+def _is_trusted_proxy(raw_ip: Optional[str], networks: tuple[ipaddress._BaseNetwork, ...]) -> bool:
+    if not networks:
+        return False
+    parsed = _parse_ip(raw_ip)
+    if parsed is None:
+        return False
+    return any(parsed in network for network in networks)
+
+
+def extract_client_ip(request: Request) -> str:
+    """Resolve the client IP, honoring forwarded headers only from trusted proxy CIDRs."""
+    peer_host = request.client.host if request.client and request.client.host else ""
+    trusted_networks = _load_trusted_proxy_networks()
+
+    if trusted_networks and _is_trusted_proxy(peer_host, trusted_networks):
+        forwarded_for = request.headers.get("x-forwarded-for", "")
+        if forwarded_for:
+            hops = [part.strip() for part in forwarded_for.split(",") if part.strip()]
+            for hop in reversed(hops):
+                parsed = _parse_ip(hop)
+                if parsed is None:
+                    break
+                if not any(parsed in network for network in trusted_networks):
+                    return str(parsed)
+            if hops:
+                parsed_first = _parse_ip(hops[0])
+                if parsed_first is not None:
+                    return str(parsed_first)
+
+        real_ip = _parse_ip(request.headers.get("x-real-ip"))
+        if real_ip is not None:
+            return str(real_ip)
+
+    return peer_host or "127.0.0.1"
 
 
 class SlidingWindowRateLimiter:
@@ -110,6 +180,10 @@ class SharedTokenBucketRateLimiter:
         self._max_client_buckets = max_client_buckets
         self._last_capacity_cleanup = 0.0
         self._cleanup_lock = threading.Lock()
+        self._reset_hooks: list[Callable[[], None]] = []
+
+    def add_reset_hook(self, hook: Callable[[], None]) -> None:
+        self._reset_hooks.append(hook)
 
     def is_allowed(self, client_id: str, tier: str = "general") -> Tuple[bool, int]:
         limit, window = self.limits.get(tier, self.limits["general"])
@@ -196,6 +270,8 @@ class SharedTokenBucketRateLimiter:
             self._last_capacity_cleanup = 0.0
         finally:
             connection.close()
+        for hook in self._reset_hooks:
+            hook()
 
 
 # Shared singleton instance configured via environment variables
@@ -210,16 +286,37 @@ limiter = SharedTokenBucketRateLimiter(
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """
-    FastAPI / Starlette middleware enforcing sliding-window rate limiting.
+    FastAPI / Starlette middleware enforcing rate limiting.
+    Uses an in-memory sliding-window fast path for safe read-only requests (GET/HEAD/OPTIONS)
+    and the shared database token-bucket limiter for mutating requests.
     Rejects throttled requests with HTTP 429 and standard Retry-After header.
     """
+    READ_ONLY_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
+
     def __init__(
         self,
         app,
         rate_limiter: Optional[Union[SlidingWindowRateLimiter, SharedTokenBucketRateLimiter]] = None,
+        read_rate_limiter: Optional[SlidingWindowRateLimiter] = None,
     ):
         super().__init__(app)
         self.rate_limiter = rate_limiter or limiter
+        if read_rate_limiter is not None:
+            self.read_rate_limiter = read_rate_limiter
+        elif isinstance(self.rate_limiter, SlidingWindowRateLimiter):
+            self.read_rate_limiter = self.rate_limiter
+        else:
+            auth_limit, auth_window = self.rate_limiter.limits.get("auth", (10, 60))
+            general_limit, general_window = self.rate_limiter.limits.get("general", (60, 60))
+            self.read_rate_limiter = SlidingWindowRateLimiter(
+                auth_limit=auth_limit,
+                auth_window=auth_window,
+                general_limit=general_limit,
+                general_window=general_window,
+                max_client_buckets=getattr(self.rate_limiter, "_max_client_buckets", 10_000),
+            )
+            if isinstance(self.rate_limiter, SharedTokenBucketRateLimiter):
+                self.rate_limiter.add_reset_hook(self.read_rate_limiter.reset)
         self.exempt_paths = {
             "/api/v1/health",
             "/docs",
@@ -236,19 +333,23 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if path in self.exempt_paths:
             return await call_next(request)
 
-        # Uvicorn rewrites request.client only for peers trusted by FORWARDED_ALLOW_IPS.
-        # Never use X-Forwarded-For directly because clients can supply it themselves.
-        client_ip = request.client.host if request.client and request.client.host else "127.0.0.1"
+        client_ip = extract_client_ip(request)
 
         # Credential checks and durable ingestion writes use the stricter tier.
         sensitive_path = path.startswith(("/api/v1/auth", "/api/v1/stories/ingest"))
         tier = "auth" if sensitive_path else "general"
 
-        allowed, retry_after = await run_in_threadpool(
-            self.rate_limiter.is_allowed,
-            client_ip,
-            tier,
-        )
+        is_read_only = request.method.upper() in self.READ_ONLY_METHODS
+        if is_read_only:
+            if hasattr(self.rate_limiter, "limits"):
+                self.read_rate_limiter.limits = dict(self.rate_limiter.limits)
+            allowed, retry_after = self.read_rate_limiter.is_allowed(client_ip, tier)
+        else:
+            allowed, retry_after = await run_in_threadpool(
+                self.rate_limiter.is_allowed,
+                client_ip,
+                tier,
+            )
         if not allowed:
             return JSONResponse(
                 status_code=429,

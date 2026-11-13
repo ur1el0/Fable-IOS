@@ -13,16 +13,33 @@ from schemas.schemas import (
     GenreDTO,
     StoryDTO,
     UpdateFeedDTO,
+    UpdateStoryRequest,
     WriterDTO,
 )
 
 IDENTIFIER_NAMESPACE = UUID("b28f1a39-ff20-5d3c-9ff0-994df9324c22")
-STORY_SUMMARY_COLUMNS = """id, title, author, genre, chapter, synopsis, '' AS content,
-    read_time_minutes, is_bookmarked, is_completed, created_at_utc, updated_at_utc,
-    cover_image_name, hero_image_name, cover_image_url, total_pages, current_page,
-    progress_percent, rating, saves_count, reads_count, is_tale_of_the_day,
-    is_recent_submission, is_curator_spotlight, badge_text, total_chapters,
-    content_format, source_provider, provider_id, provider_download_count, owner_user_id"""
+STORY_SUMMARY_COLUMNS = """stories.id, stories.title, stories.author, stories.genre, stories.chapter, stories.synopsis, '' AS content,
+    stories.read_time_minutes, stories.is_bookmarked, stories.is_completed, stories.created_at_utc, stories.updated_at_utc,
+    stories.cover_image_name, stories.hero_image_name, stories.cover_image_url, stories.total_pages, stories.current_page,
+    stories.progress_percent, stories.rating, stories.saves_count, stories.reads_count, stories.is_tale_of_the_day,
+    stories.is_recent_submission, stories.is_curator_spotlight, stories.badge_text, stories.total_chapters,
+    stories.content_format, stories.source_provider, stories.provider_id, stories.provider_download_count, stories.owner_user_id"""
+STORY_SHELF_COUNTS_JOIN = """
+LEFT JOIN (
+    SELECT
+        story_id,
+        COUNT(DISTINCT CASE WHEN is_bookmarked = 1 THEN owner_user_id END) AS computed_saves_count,
+        COUNT(DISTINCT CASE WHEN reading_progress > 0 THEN owner_user_id END) AS computed_reads_count
+    FROM account_shelf_items
+    GROUP BY story_id
+) rc ON rc.story_id = stories.id
+"""
+
+
+def invalidate_top_authors_cache() -> None:
+    from services import gutenberg
+
+    gutenberg.invalidate_gutenberg_authors_cache()
 
 
 def _is_legacy_demo_image_url(value: str) -> bool:
@@ -82,9 +99,13 @@ def row_to_story_dto(
             for chapter in chapter_rows
         ]
 
+    keys = row.keys()
     saves_count = 0
     reads_count = 0
-    if conn:
+    if "computed_saves_count" in keys and "computed_reads_count" in keys:
+        saves_count = int(row["computed_saves_count"] or 0)
+        reads_count = int(row["computed_reads_count"] or 0)
+    elif conn:
         shelf_counts = conn.execute(
             """
             SELECT
@@ -98,12 +119,13 @@ def row_to_story_dto(
         saves_count = shelf_counts["saves_count"]
         reads_count = shelf_counts["reads_count"]
 
-    keys = row.keys()
     provider_id = row["provider_id"] if "provider_id" in keys else None
     source_provider = row["source_provider"] if "source_provider" in keys else "FABLE_ORIGINAL"
     cover_url = row["cover_image_url"] if "cover_image_url" in keys else None
     if not provider_id or source_provider not in {"GUTENBERG", "MANGADEX", "STANDARD_EBOOKS"}:
         cover_url = None
+    raw_owner_id = row["owner_user_id"] if "owner_user_id" in keys else None
+    owner_user_id = UUID(raw_owner_id) if raw_owner_id else None
     return StoryDTO(
         id=story_id,
         title=row["title"],
@@ -135,6 +157,7 @@ def row_to_story_dto(
         source_provider=source_provider or "FABLE_ORIGINAL",
         provider_id=provider_id,
         provider_download_count=row["provider_download_count"] if "provider_download_count" in keys else None,
+        owner_user_id=owner_user_id,
         chapters=chapters,
     )
 
@@ -148,19 +171,24 @@ def get_stories(
 ) -> list[StoryDTO]:
     conn = get_db()
     try:
-        query = f"SELECT {STORY_SUMMARY_COLUMNS} FROM stories WHERE 1=1"
+        query = (
+            f"SELECT {STORY_SUMMARY_COLUMNS}, "
+            "COALESCE(rc.computed_saves_count, 0) AS computed_saves_count, "
+            "COALESCE(rc.computed_reads_count, 0) AS computed_reads_count "
+            f"FROM stories {STORY_SHELF_COUNTS_JOIN} WHERE 1=1"
+        )
         params: list[object] = []
         if genre and genre.lower() != "all":
-            query += " AND LOWER(genre) = LOWER(?)"
+            query += " AND LOWER(stories.genre) = LOWER(?)"
             params.append(genre)
         if search:
-            query += " AND (LOWER(title) LIKE ? OR LOWER(synopsis) LIKE ? OR LOWER(author) LIKE ?)"
+            query += " AND (LOWER(stories.title) LIKE ? OR LOWER(stories.synopsis) LIKE ? OR LOWER(stories.author) LIKE ?)"
             term = f"%{search.lower()}%"
             params.extend([term, term, term])
         if since:
-            query += " AND updated_at_utc > ?"
+            query += " AND stories.updated_at_utc > ?"
             params.append(since.isoformat())
-        query += " ORDER BY is_tale_of_the_day DESC, created_at_utc DESC, id ASC LIMIT ? OFFSET ?"
+        query += " ORDER BY stories.is_tale_of_the_day DESC, stories.created_at_utc DESC, stories.id ASC LIMIT ? OFFSET ?"
         params.extend((limit, offset))
         rows = conn.execute(query, params).fetchall()
         return [row_to_story_dto(row, conn=conn) for row in rows]
@@ -172,7 +200,10 @@ def get_story_by_id(story_id: UUID) -> StoryDTO:
     conn = get_db()
     try:
         row = conn.execute(
-            "SELECT * FROM stories WHERE id = ?",
+            "SELECT stories.*, "
+            "COALESCE(rc.computed_saves_count, 0) AS computed_saves_count, "
+            "COALESCE(rc.computed_reads_count, 0) AS computed_reads_count "
+            f"FROM stories {STORY_SHELF_COUNTS_JOIN} WHERE stories.id = ?",
             (str(story_id),),
         ).fetchone()
         if not row:
@@ -297,6 +328,7 @@ def create_story(payload: CreateStoryRequest, author: str, owner_user_id: UUID) 
     finally:
         conn.close()
 
+    invalidate_top_authors_cache()
     return StoryDTO(
         id=UUID(story_id),
         title=payload.title,
@@ -314,17 +346,100 @@ def create_story(payload: CreateStoryRequest, author: str, owner_user_id: UUID) 
         total_chapters=1,
         content_format=content_format,
         source_provider=source_provider,
+        owner_user_id=owner_user_id,
         rating=None,
         saves_count="0",
         reads_count="0",
     )
 
 
+def update_story(story_id: UUID, payload: UpdateStoryRequest, owner_user_id: UUID) -> StoryDTO:
+    now_iso = datetime.now(timezone.utc).isoformat()
+    conn = get_db()
+    try:
+        row = conn.execute("SELECT * FROM stories WHERE id = ?", (str(story_id),)).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Story not found")
+        if row["owner_user_id"] != str(owner_user_id):
+            raise HTTPException(status_code=403, detail="You do not have permission to modify this story")
+
+        updates: dict[str, object] = {"updated_at_utc": now_iso}
+        if payload.title is not None:
+            updates["title"] = payload.title
+        if payload.genre is not None:
+            updates["genre"] = payload.genre
+        if payload.chapter is not None:
+            updates["chapter"] = payload.chapter
+        if payload.synopsis is not None:
+            updates["synopsis"] = payload.synopsis
+        if payload.content is not None:
+            updates["content"] = payload.content
+        if payload.read_time_minutes is not None:
+            updates["read_time_minutes"] = payload.read_time_minutes
+
+        assignments = ", ".join(f"{column} = ?" for column in updates)
+        params = list(updates.values()) + [str(story_id), str(owner_user_id)]
+        with conn:
+            conn.execute(
+                f"UPDATE stories SET {assignments} WHERE id = ? AND owner_user_id = ?",
+                params,
+            )
+            if payload.content is not None or payload.chapter is not None:
+                chapter_row = conn.execute(
+                    "SELECT id, title, content FROM chapters WHERE story_id = ? AND chapter_number = 1",
+                    (str(story_id),),
+                ).fetchone()
+                if chapter_row:
+                    next_title = payload.chapter if payload.chapter is not None else chapter_row["title"]
+                    next_content = payload.content if payload.content is not None else chapter_row["content"]
+                    words = len(next_content.split()) if next_content else 0
+                    conn.execute(
+                        "UPDATE chapters SET title = ?, content = ?, word_count = ? WHERE id = ?",
+                        (next_title, next_content, words, chapter_row["id"]),
+                    )
+    finally:
+        conn.close()
+
+    invalidate_top_authors_cache()
+    return get_story_by_id(story_id)
+
+
+def delete_story(story_id: UUID, owner_user_id: UUID) -> None:
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT id, owner_user_id FROM stories WHERE id = ?",
+            (str(story_id),),
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Story not found")
+        if row["owner_user_id"] != str(owner_user_id):
+            raise HTTPException(status_code=403, detail="You do not have permission to delete this story")
+
+        with conn:
+            conn.execute("DELETE FROM shelf_items WHERE story_id = ?", (str(story_id),))
+            conn.execute("DELETE FROM account_shelf_items WHERE story_id = ?", (str(story_id),))
+            conn.execute("DELETE FROM reading_sessions WHERE story_id = ?", (str(story_id),))
+            conn.execute("DELETE FROM chapters WHERE story_id = ?", (str(story_id),))
+            conn.execute(
+                "DELETE FROM stories WHERE id = ? AND owner_user_id = ?",
+                (str(story_id), str(owner_user_id)),
+            )
+    finally:
+        conn.close()
+
+    invalidate_top_authors_cache()
+
+
 def get_user_stories(owner_user_id: UUID) -> list[StoryDTO]:
     conn = get_db()
     try:
         rows = conn.execute(
-            f"SELECT {STORY_SUMMARY_COLUMNS} FROM stories WHERE owner_user_id = ? ORDER BY created_at_utc DESC",
+            f"SELECT {STORY_SUMMARY_COLUMNS}, "
+            "COALESCE(rc.computed_saves_count, 0) AS computed_saves_count, "
+            "COALESCE(rc.computed_reads_count, 0) AS computed_reads_count "
+            f"FROM stories {STORY_SHELF_COUNTS_JOIN} "
+            "WHERE stories.owner_user_id = ? ORDER BY stories.created_at_utc DESC",
             (str(owner_user_id),),
         ).fetchall()
         return [row_to_story_dto(row, conn=conn) for row in rows]
@@ -379,25 +494,31 @@ async def get_top_authors() -> list[WriterDTO]:
 def get_update_feed() -> UpdateFeedDTO:
     conn = get_db()
     try:
+        base_select = (
+            f"SELECT {STORY_SUMMARY_COLUMNS}, "
+            "COALESCE(rc.computed_saves_count, 0) AS computed_saves_count, "
+            "COALESCE(rc.computed_reads_count, 0) AS computed_reads_count "
+            f"FROM stories {STORY_SHELF_COUNTS_JOIN}"
+        )
         totd_row = conn.execute(
             f"""
-            SELECT {STORY_SUMMARY_COLUMNS} FROM stories
-            WHERE is_tale_of_the_day = 1
-            ORDER BY created_at_utc DESC LIMIT 1
+            {base_select}
+            WHERE stories.is_tale_of_the_day = 1
+            ORDER BY stories.created_at_utc DESC LIMIT 1
             """
         ).fetchone()
         curator_row = conn.execute(
             f"""
-            SELECT {STORY_SUMMARY_COLUMNS} FROM stories
-            WHERE is_curator_spotlight = 1
-            ORDER BY created_at_utc DESC LIMIT 1
+            {base_select}
+            WHERE stories.is_curator_spotlight = 1
+            ORDER BY stories.created_at_utc DESC LIMIT 1
             """
         ).fetchone()
         recent_rows = conn.execute(
             f"""
-            SELECT {STORY_SUMMARY_COLUMNS} FROM stories
-            WHERE is_recent_submission = 1
-            ORDER BY created_at_utc DESC LIMIT 10
+            {base_select}
+            WHERE stories.is_recent_submission = 1
+            ORDER BY stories.created_at_utc DESC LIMIT 10
             """
         ).fetchall()
         total_count = conn.execute(

@@ -184,6 +184,31 @@ public final class StoryStore: ObservableObject {
             self.lastReadChapterNumber = previous.lastReadChapterNumber
             self.updatedAtUtc = syncItem.updatedAtUtc
         }
+
+        init(record: PersistenceService.ShelfStateRecord) {
+            self.readingProgress = record.readingProgress
+            self.isBookmarked = record.isBookmarked
+            self.isCompleted = record.isCompleted
+            self.currentPage = record.currentPage
+            self.totalPages = record.totalPages
+            self.lastReadChapterId = record.lastReadChapterId
+            self.lastReadChapterNumber = record.lastReadChapterNumber
+            self.updatedAtUtc = record.updatedAtUtc
+        }
+
+        func record(storyId: UUID) -> PersistenceService.ShelfStateRecord {
+            PersistenceService.ShelfStateRecord(
+                storyId: storyId,
+                readingProgress: readingProgress,
+                isBookmarked: isBookmarked,
+                isCompleted: isCompleted,
+                currentPage: currentPage,
+                totalPages: totalPages,
+                lastReadChapterId: lastReadChapterId,
+                lastReadChapterNumber: lastReadChapterNumber,
+                updatedAtUtc: updatedAtUtc
+            )
+        }
     }
 
     private struct WriterDraft: Codable {
@@ -325,36 +350,15 @@ public final class StoryStore: ObservableObject {
         let synopsis = draftSynopsis.trimmingCharacters(in: .whitespacesAndNewlines)
         let manuscript = draftManuscript.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        guard !title.isEmpty, title.unicodeScalars.count <= CreateStoryRequest.maximumTitleLength else {
-            publishErrorMessage = "Enter a title with 1 to 120 characters."
-            return nil
-        }
-        guard !genre.isEmpty else {
-            publishErrorMessage = "Choose or enter a genre."
-            return nil
-        }
-        guard genre.unicodeScalars.count <= CreateStoryRequest.maximumGenreLength else {
-            publishErrorMessage = "Keep the genre to 50 characters or fewer."
-            return nil
-        }
-        guard chapter.unicodeScalars.count <= CreateStoryRequest.maximumChapterLength else {
-            publishErrorMessage = "Keep the chapter title to 120 characters or fewer."
-            return nil
-        }
-        guard !synopsis.isEmpty else {
-            publishErrorMessage = "Add a synopsis before publishing."
-            return nil
-        }
-        guard synopsis.unicodeScalars.count <= CreateStoryRequest.maximumSynopsisLength else {
-            publishErrorMessage = "Keep the synopsis to 2,000 characters or fewer."
-            return nil
-        }
-        guard !manuscript.isEmpty else {
-            publishErrorMessage = "Add manuscript text before publishing."
-            return nil
-        }
-        guard manuscript.unicodeScalars.count <= CreateStoryRequest.maximumContentLength else {
-            publishErrorMessage = "Keep the manuscript to 50,000 characters or fewer."
+        if let validationError = CreateStoryRequest.validateDraftFields(
+            title: title,
+            genre: genre,
+            chapter: chapter,
+            synopsis: synopsis,
+            content: manuscript,
+            requireContent: true
+        ) {
+            publishErrorMessage = validationError
             return nil
         }
         guard let session = AuthManager.shared.currentSession, !session.isGuest,
@@ -371,7 +375,7 @@ public final class StoryStore: ObservableObject {
             chapter: chapter,
             synopsis: synopsis,
             content: manuscript,
-            readTimeMinutes: max(1, draftWordCount / 150)
+            readTimeMinutes: CreateStoryRequest.estimatedReadTimeMinutes(for: manuscript)
         )
 
         do {
@@ -432,6 +436,61 @@ public final class StoryStore: ObservableObject {
         }
     }
 
+    func updatePublishedStory(id: UUID, request: UpdateStoryRequest) async -> Story? {
+        guard let session = AuthManager.shared.currentSession, !session.isGuest,
+              let token = KeychainStore.shared.readAccessToken() else {
+            publishErrorMessage = "Sign in to update your published story."
+            return nil
+        }
+
+        do {
+            var updatedStory = try await apiService.updateStory(id: id, request, token: token)
+            if let existingState = loadShelfStateCache()[updatedStory.id.uuidString] {
+                applyShelfState(existingState, to: &updatedStory)
+            }
+            if let idx = stories.firstIndex(where: { $0.id == updatedStory.id }) {
+                stories[idx] = updatedStory
+            }
+            if let idx = profileStories.firstIndex(where: { $0.id == updatedStory.id }) {
+                profileStories[idx] = updatedStory
+            }
+            PersistenceService.shared.saveStory(updatedStory)
+            persistProfileStoriesCache(profileStories, for: session.id)
+            publishErrorMessage = nil
+            return updatedStory
+        } catch let error as APIRequestError {
+            publishErrorMessage = error.message
+            return nil
+        } catch {
+            publishErrorMessage = "Could not update story. Check your connection and try again."
+            return nil
+        }
+    }
+
+    func deletePublishedStory(id: UUID) async -> Bool {
+        guard let session = AuthManager.shared.currentSession, !session.isGuest,
+              let token = KeychainStore.shared.readAccessToken() else {
+            publishErrorMessage = "Sign in to delete your published story."
+            return false
+        }
+
+        do {
+            try await apiService.deleteStory(id: id, token: token)
+            stories.removeAll { $0.id == id }
+            profileStories.removeAll { $0.id == id }
+            PersistenceService.shared.deleteStory(storyId: id)
+            persistProfileStoriesCache(profileStories, for: session.id)
+            publishErrorMessage = nil
+            return true
+        } catch let error as APIRequestError {
+            publishErrorMessage = error.message
+            return false
+        } catch {
+            publishErrorMessage = "Could not delete story. Check your connection and try again."
+            return false
+        }
+    }
+
     private func syncWithPersistence() {
         // Hydrate and reconcile from SQLite
         let persisted = PersistenceService.shared.fetchAllStories()
@@ -463,6 +522,7 @@ public final class StoryStore: ObservableObject {
                     stories[idx].heroImageName = nil
                     stories[idx].coverImageUrl = validCoverImageURL(entity.coverImageUrl)
                     stories[idx].providerId = entity.providerId
+                    stories[idx].ownerUserId = entity.ownerUserId
                     stories[idx].providerDownloadCount = entity.providerDownloadCount
                     stories[idx].contentFormat = ContentFormat(rawValue: entity.contentFormatRaw ?? "PROSE") ?? .prose
                     stories[idx].sourceProvider = SourceProvider(rawValue: entity.sourceProviderRaw ?? "FABLE_ORIGINAL") ?? .fableOriginal
@@ -514,6 +574,7 @@ public final class StoryStore: ObservableObject {
                         contentFormat: ContentFormat(rawValue: entity.contentFormatRaw ?? "PROSE") ?? .prose,
                         sourceProvider: provider,
                         providerId: entity.providerId,
+                        ownerUserId: entity.ownerUserId,
                         chapters: validInitial,
                         lastReadChapterId: entity.lastReadChapterId,
                         lastReadChapterNumber: entity.lastReadChapterNumber
@@ -665,9 +726,11 @@ public final class StoryStore: ObservableObject {
                         stories[index].coverImageName = nil
                         stories[index].heroImageName = nil
                     }
+                    if !remote.author.isEmpty { stories[index].author = remote.author }
                     stories[index].totalChapters = remote.totalChapters
                     stories[index].contentFormat = remote.contentFormat
                     stories[index].sourceProvider = remote.sourceProvider
+                    if let ownerUserId = remote.ownerUserId { stories[index].ownerUserId = ownerUserId }
                     if let badge = remote.badgeText { stories[index].badgeText = badge }
                     if let downloadCount = remote.providerDownloadCount { stories[index].providerDownloadCount = downloadCount }
                     if let providerId = remote.providerId { stories[index].providerId = providerId }
@@ -852,7 +915,7 @@ public final class StoryStore: ObservableObject {
 
     func stories(for writer: Writer) -> [Story] {
         stories
-            .filter { matchesAuthor(storyAuthor: $0.author, writerName: writer.name) }
+            .filter { $0.ownerUserId == nil && matchesAuthor(storyAuthor: $0.author, writerName: writer.name) }
             .sorted { ($0.providerDownloadCount ?? 0) > ($1.providerDownloadCount ?? 0) }
     }
 
@@ -1043,23 +1106,37 @@ public final class StoryStore: ObservableObject {
         "fable_shelf_state_\(activeShelfOwnerKey)"
     }
 
+    private var normalizedShelfOwnerKey: String {
+        activeShelfOwnerKey.lowercased()
+    }
+
     private func loadShelfStateCache() -> [String: LocalShelfState] {
-        guard let data = UserDefaults.standard.data(forKey: shelfStateStorageKey),
-              let states = try? JSONDecoder().decode([String: LocalShelfState].self, from: data) else {
-            return [:]
+        let records = PersistenceService.shared.migrateLegacyShelfStatesIfNeeded(
+            ownerKey: normalizedShelfOwnerKey,
+            legacyStorageKey: shelfStateStorageKey
+        )
+        var states: [String: LocalShelfState] = [:]
+        for (storyId, record) in records {
+            states[storyId.uuidString] = LocalShelfState(record: record)
         }
         return states
     }
 
     private func saveShelfStateCache(_ states: [String: LocalShelfState]) {
-        guard let data = try? JSONEncoder().encode(states) else { return }
-        UserDefaults.standard.set(data, forKey: shelfStateStorageKey)
+        var records: [UUID: PersistenceService.ShelfStateRecord] = [:]
+        for (storyID, state) in states {
+            guard let uuid = UUID(uuidString: storyID) else { continue }
+            records[uuid] = state.record(storyId: uuid)
+        }
+        PersistenceService.shared.replaceShelfStates(records, ownerKey: normalizedShelfOwnerKey)
     }
 
     private func persistShelfState(for story: Story, updatedAt: Date = Date()) {
-        var states = loadShelfStateCache()
-        states[story.id.uuidString] = LocalShelfState(story: story, updatedAtUtc: updatedAt)
-        saveShelfStateCache(states)
+        let state = LocalShelfState(story: story, updatedAtUtc: updatedAt)
+        PersistenceService.shared.upsertShelfState(
+            state.record(storyId: story.id),
+            ownerKey: normalizedShelfOwnerKey
+        )
     }
 
     private func applyShelfState(_ state: LocalShelfState, to story: inout Story) {
@@ -1085,8 +1162,8 @@ public final class StoryStore: ObservableObject {
     }
 
     private func restoreShelfStateForCurrentSession(migrateGuestState: Bool) {
-        if let data = UserDefaults.standard.data(forKey: shelfStateStorageKey),
-           let existing = try? JSONDecoder().decode([String: LocalShelfState].self, from: data) {
+        let existing = loadShelfStateCache()
+        if !existing.isEmpty {
             applyShelfStateCache(existing)
             return
         }
@@ -1100,18 +1177,19 @@ public final class StoryStore: ObservableObject {
             saveShelfStateCache(legacyStates)
         } else {
             applyShelfStateCache([:])
-            saveShelfStateCache([:])
         }
     }
 
     private func storeServerShelfState(_ item: ShelfSyncItem) {
-        var states = loadShelfStateCache()
+        let previous = loadShelfStateCache()[item.storyId.uuidString] ?? .empty
         let state = LocalShelfState(
             syncItem: item,
-            previous: states[item.storyId.uuidString] ?? .empty
+            previous: previous
         )
-        states[item.storyId.uuidString] = state
-        saveShelfStateCache(states)
+        PersistenceService.shared.upsertShelfState(
+            state.record(storyId: item.storyId),
+            ownerKey: normalizedShelfOwnerKey
+        )
         if let index = stories.firstIndex(where: { $0.id == item.storyId }) {
             applyShelfState(state, to: &stories[index])
             PersistenceService.shared.saveStory(stories[index])
@@ -1612,6 +1690,16 @@ public final class StoryStore: ObservableObject {
             }
             saveShelfStateCache(states)
         }
+        activeShelfOwnerKey = "signed_out"
+        clearVisibleShelfState()
+    }
+
+    func clearDeletedAccountLocalState(userID: UUID) {
+        UserDefaults.standard.removeObject(forKey: profileStoriesCacheKey(for: userID))
+        UserDefaults.standard.removeObject(forKey: "fable_shelf_state_\(userID.uuidString)")
+        clearWriterDraft(ownerID: userID)
+        PersistenceService.shared.deleteAccountData(ownerUserId: userID)
+        stories.removeAll { $0.ownerUserId == userID }
         activeShelfOwnerKey = "signed_out"
         clearVisibleShelfState()
     }

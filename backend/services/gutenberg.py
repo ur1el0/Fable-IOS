@@ -46,6 +46,8 @@ _GUTENBERG_CATALOG_LOCK = asyncio.Lock()
 _GUTENBERG_CATALOG_CACHE: Optional[Tuple[float, List["GutenbergCatalogEntry"]]] = None
 _GUTENBERG_CATALOG_STALE_CACHE: Optional[Tuple[float, List["GutenbergCatalogEntry"]]] = None
 _GUTENBERG_CATALOG_LAST_REFRESH_ATTEMPT = 0.0
+GUTENBERG_AUTHORS_CACHE_TTL_SECONDS = 3600.0
+_GUTENBERG_AUTHORS_CACHE: Optional[Tuple[float, List["GutenbergCatalogEntry"], List[WriterDTO]]] = None
 
 _RDF_NAMESPACES = {
     "dc": "http://purl.org/dc/terms/",
@@ -415,10 +417,22 @@ async def _fetch_gutenberg_book_metadata(client: httpx.AsyncClient, gutenberg_id
     return next((item for item in books if item.get("id") == gutenberg_id), None)
 
 
+def invalidate_gutenberg_authors_cache() -> None:
+    global _GUTENBERG_AUTHORS_CACHE
+    _GUTENBERG_AUTHORS_CACHE = None
+
+
 async def get_gutenberg_authors(limit: int = 6) -> list[WriterDTO]:
     """Return authors and book counts from the live Project Gutenberg catalog."""
+    global _GUTENBERG_AUTHORS_CACHE
     async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
         entries = await _load_gutenberg_catalog(client)
+
+    now = time.monotonic()
+    if _GUTENBERG_AUTHORS_CACHE is not None:
+        cached_at, cached_entries, cached_writers = _GUTENBERG_AUTHORS_CACHE
+        if entries is cached_entries and now - cached_at < GUTENBERG_AUTHORS_CACHE_TTL_SECONDS:
+            return cached_writers[:max(0, limit)]
 
     authors: dict[str, tuple[str, int]] = {}
     for entry in entries:
@@ -431,7 +445,7 @@ async def get_gutenberg_authors(limit: int = 6) -> list[WriterDTO]:
             authors[key] = (display_name, count + 1)
 
     ranked_authors = sorted(authors.values(), key=lambda author: (-author[1], author[0].casefold()))
-    return [
+    writers = [
         WriterDTO(
             id=uuid5(GUTENBERG_AUTHOR_NAMESPACE, name.casefold()),
             name=name,
@@ -440,8 +454,10 @@ async def get_gutenberg_authors(limit: int = 6) -> list[WriterDTO]:
             story_count=count,
             rating=None,
         )
-        for name, count in ranked_authors[:max(0, limit)]
+        for name, count in ranked_authors
     ]
+    _GUTENBERG_AUTHORS_CACHE = (now, entries, writers)
+    return writers[:max(0, limit)]
 
 
 def _cached_gutenberg_chapters(gutenberg_id: int) -> Optional[list[ChapterDTO]]:

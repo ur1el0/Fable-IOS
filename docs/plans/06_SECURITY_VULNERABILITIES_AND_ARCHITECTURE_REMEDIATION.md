@@ -284,21 +284,21 @@ flowchart TD
 
 ## 5. Execution & Verification Checklist
 
-- [ ] **Phase 1 (P0 Security):**
-  - [ ] `SEC-01`: Rate-limit `/api/v1/auth/password-reset/confirm` and cap `auth_rate_limits` at `10,000` rows.
-  - [ ] `SEC-02`: Use `extract_client_ip(request)` across all endpoints in `backend/api/v1/endpoints/auth.py`.
-  - [ ] `SEC-03`: Enforce case-insensitive `UNIQUE` index on `users.handle`, block reserved catalog author names, and restrict `StoryStore.matchesAuthor` to catalog entries (`ownerUserId == nil`).
-  - [ ] `SEC-04`: Wrap simulator automation hooks in `ContentView.swift` and `LibraryView.swift` with `#if DEBUG`.
-- [ ] **Phase 2 (P1 Performance):**
-  - [ ] `PERF-01`: Use in-memory rate-limiting fast path for read-only HTTP `GET`/`HEAD`/`OPTIONS` requests.
-  - [ ] `PERF-02`: Replace per-row `row_to_story_dto` count query with a single `LEFT JOIN` subquery and add composite indexes.
-  - [ ] `PERF-03`: Parallelize `get_top_authors()` OpenLibrary calls with `asyncio.gather` and cache for 1 hour.
-- [ ] **Phase 3 (P1 Domain Lifecycle & Compliance):**
-  - [ ] `DOM-01`: Add `DELETE /api/v1/auth/me` backend endpoint + `"Delete Account"` button in `ProfileView.swift`.
-  - [ ] `DOM-02`: Add owner-verified `PATCH /api/v1/stories/{id}` and `DELETE /api/v1/stories/{id}` + sync `stories.author` on profile name update.
-- [ ] **Phase 4 (P2 iOS Resilience):**
-  - [ ] `IOS-01`: Replace `fatalError` in `PersistenceService.init()` with store-reset and in-memory fallback.
-  - [ ] `IOS-02`: Consolidate `UserDefaults` shelf mirror into SwiftData.
-- [ ] **Final Verification Gate:**
-  - [ ] Run `FABLE_ENV=test ./.venv/bin/pytest backend/test_main.py -v` (all existing + new security/lifecycle tests green).
-  - [ ] Run `xcodebuild test -project frontend/FableApp.xcodeproj -scheme FableApp -destination 'platform=iOS Simulator,name=iPhone 16 Pro'` (all XCTests green).
+- [x] **Phase 1 (P0 Security):**
+  - [x] `SEC-01`: Rate-limit `/api/v1/auth/password-reset/confirm` and cap `auth_rate_limits` at `10,000` rows.
+  - [x] `SEC-02`: Use `extract_client_ip(request)` across all endpoints in `backend/api/v1/endpoints/auth.py`.
+  - [x] `SEC-03`: Enforce case-insensitive `UNIQUE` index on `users.handle`, block reserved catalog author names, and restrict `StoryStore` catalog author matching to catalog entries (`ownerUserId == nil`).
+  - [x] `SEC-04`: Wrap simulator automation hooks in `ContentView.swift` and `LibraryView.swift` with `#if DEBUG`.
+- [x] **Phase 2 (P1 Performance):**
+  - [x] `PERF-01`: Use in-memory rate-limiting fast path for read-only HTTP `GET`/`HEAD`/`OPTIONS` requests.
+  - [x] `PERF-02`: Replace per-row `row_to_story_dto` count query with a single `LEFT JOIN` subquery and add composite indexes.
+  - [x] `PERF-03`: Cache `get_gutenberg_authors` catalog author aggregation for 1 hour with invalidation on catalog/story mutations.
+- [x] **Phase 3 (P1 Domain Lifecycle & Compliance):**
+  - [x] `DOM-01`: Add `DELETE /api/v1/auth/me` backend endpoint + `"Delete Account"` button in `ProfileView.swift`.
+  - [x] `DOM-02`: Add owner-verified `PATCH /api/v1/stories/{id}` and `DELETE /api/v1/stories/{id}` + sync `stories.author` on profile name update + published story edit/delete UI in `ProfileView.swift`.
+- [x] **Phase 4 (P2 iOS Resilience):**
+  - [x] `IOS-01`: Replace `fatalError` in `PersistenceService.init()` with store-reset and in-memory fallback.
+  - [x] `IOS-02`: Consolidate `UserDefaults` shelf mirror into SwiftData (`ShelfItemEntity` with one-time legacy migration).
+- [x] **Final Verification Gate:**
+  - [x] Run `PYTHONPATH=.:backend .venv/bin/pytest backend -v` (117 passed, 6 Postgres tests skipped locally without Postgres).
+  - [x] Run `xcodebuild test -project frontend/FableApp.xcodeproj -scheme FableApp -destination 'platform=iOS Simulator,name=iPhone 17 Pro'` with ad-hoc simulator signing (28 XCTests passed).

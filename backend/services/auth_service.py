@@ -47,6 +47,50 @@ def _normalized_handle(value: str) -> str:
         return ""
     return handle if handle.startswith("@") else f"@{handle}"
 
+
+RESERVED_AUTHOR_NAMES = frozenset({
+    "aesop",
+    "jane austen",
+    "mary shelley",
+    "herman melville",
+    "bram stoker",
+    "lewis carroll",
+    "brothers grimm",
+    "arthur conan doyle",
+    "h. g. wells",
+    "h.g. wells",
+    "h g wells",
+    "hg wells",
+    "edgar allan poe",
+    "washington irving",
+    "franz kafka",
+    "oscar wilde",
+    "robert louis stevenson",
+    "homer",
+    "sun tzu",
+    "charles dickens",
+    "mark twain",
+    "william shakespeare",
+})
+
+
+def _normalized_identity_token(value: str) -> str:
+    cleaned = value.strip().lstrip("@").casefold()
+    return " ".join(cleaned.split())
+
+
+def _validate_public_identity(name: str, handle: str) -> None:
+    if _normalized_identity_token(name) in RESERVED_AUTHOR_NAMES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="That author name is reserved for catalog works.",
+        )
+    if handle and _normalized_identity_token(handle) in RESERVED_AUTHOR_NAMES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="That handle is reserved for catalog works.",
+        )
+
 def hash_password(password: str) -> str:
     """Hash passwords with a versioned PBKDF2-HMAC-SHA256 format."""
     salt = secrets.token_bytes(16)
@@ -130,6 +174,10 @@ def _issue_session(user_id: str) -> str:
 def register_user(req: RegisterRequest) -> AuthResponse:
     """Register a new user account with validated credentials and return authentication token."""
     normalized_email = req.email.strip().lower()
+    clean_name = req.name.strip()
+    normalized_handle = _normalized_handle(req.handle)
+    _validate_public_identity(clean_name, normalized_handle)
+
     conn = get_db()
     try:
         with conn:
@@ -139,6 +187,16 @@ def register_user(req: RegisterRequest) -> AuthResponse:
                     status_code=status.HTTP_409_CONFLICT,
                     detail="Email is already registered"
                 )
+            if normalized_handle:
+                existing_handle = conn.execute(
+                    "SELECT id FROM users WHERE LOWER(handle) = LOWER(?)",
+                    (normalized_handle,),
+                ).fetchone()
+                if existing_handle:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail="Handle is already taken"
+                    )
 
             user_id = str(uuid4())
             now = datetime.now(timezone.utc).isoformat()
@@ -146,7 +204,7 @@ def register_user(req: RegisterRequest) -> AuthResponse:
             conn.execute("""
                 INSERT INTO users (id, email, password_hash, name, handle, bio, avatar_image_name, created_at_utc, updated_at_utc)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (user_id, normalized_email, pwd_hash, req.name.strip(), _normalized_handle(req.handle), "", None, now, now))
+            """, (user_id, normalized_email, pwd_hash, clean_name, normalized_handle, "", None, now, now))
     finally:
         conn.close()
 
@@ -251,22 +309,74 @@ def revoke_session(token: str) -> None:
 
 def update_current_user(token: str, req: ProfileUpdateRequest) -> UserDTO:
     user_id = str(get_current_user(token).id)
+    clean_name = req.name.strip()
+    normalized_handle = _normalized_handle(req.handle)
+    _validate_public_identity(clean_name, normalized_handle)
 
     now = datetime.now(timezone.utc).isoformat()
     conn = get_db()
     try:
         with conn:
+            if normalized_handle:
+                existing_handle = conn.execute(
+                    "SELECT id FROM users WHERE LOWER(handle) = LOWER(?) AND id != ?",
+                    (normalized_handle, user_id),
+                ).fetchone()
+                if existing_handle:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail="Handle is already taken",
+                    )
+
             result = conn.execute(
                 """UPDATE users SET name = ?, handle = ?, bio = ?, updated_at_utc = ? WHERE id = ?""",
-                (req.name.strip(), _normalized_handle(req.handle), req.bio.strip(), now, user_id)
+                (clean_name, normalized_handle, req.bio.strip(), now, user_id)
             )
             if result.rowcount != 1:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+            conn.execute(
+                "UPDATE stories SET author = ?, updated_at_utc = ? WHERE owner_user_id = ?",
+                (clean_name, now, user_id),
+            )
             row = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
     finally:
         conn.close()
 
     return _to_user_dto(row)
+
+
+def delete_current_user(token: str) -> None:
+    user = get_current_user(token)
+    user_id = str(user.id)
+    conn = get_db()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        conn.execute("DELETE FROM user_sessions WHERE user_id = ?", (user_id,))
+        conn.execute("DELETE FROM password_reset_tokens WHERE user_id = ?", (user_id,))
+        conn.execute("DELETE FROM account_shelf_items WHERE owner_user_id = ?", (user_id,))
+        conn.execute("DELETE FROM reading_sessions WHERE owner_user_id = ?", (user_id,))
+        conn.execute(
+            "DELETE FROM shelf_items WHERE story_id IN (SELECT id FROM stories WHERE owner_user_id = ?)",
+            (user_id,),
+        )
+        conn.execute(
+            "DELETE FROM account_shelf_items WHERE story_id IN (SELECT id FROM stories WHERE owner_user_id = ?)",
+            (user_id,),
+        )
+        conn.execute(
+            "DELETE FROM reading_sessions WHERE story_id IN (SELECT id FROM stories WHERE owner_user_id = ?)",
+            (user_id,),
+        )
+        conn.execute("DELETE FROM chapters WHERE story_id IN (SELECT id FROM stories WHERE owner_user_id = ?)", (user_id,))
+        conn.execute("DELETE FROM stories WHERE owner_user_id = ?", (user_id,))
+        conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+        conn.commit()
+    except Exception:
+        if conn.in_transaction:
+            conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 
 def issue_password_reset_token(email: str) -> Optional[str]:

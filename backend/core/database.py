@@ -308,6 +308,8 @@ def init_db():
             """)
             conn.execute("CREATE INDEX IF NOT EXISTS idx_account_shelf_owner_device ON account_shelf_items (owner_user_id, device_id);")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_account_shelf_story ON account_shelf_items (story_id);")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_stories_owner_created ON stories (owner_user_id, created_at_utc DESC);")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_shelf_story_owner ON account_shelf_items (story_id, owner_user_id);")
             conn.execute("""
             CREATE TABLE IF NOT EXISTS reading_sessions (
                 owner_user_id TEXT NOT NULL,
@@ -337,6 +339,35 @@ def init_db():
             _add_column_if_missing(conn, "users", "handle", "TEXT NOT NULL DEFAULT ''")
             _add_column_if_missing(conn, "users", "bio", "TEXT NOT NULL DEFAULT ''")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);")
+            duplicate_handles = conn.execute(
+                """
+                SELECT LOWER(handle) AS lowered_handle
+                FROM users
+                WHERE handle <> ''
+                GROUP BY LOWER(handle)
+                HAVING COUNT(*) > 1
+                """
+            ).fetchall()
+            for duplicate in duplicate_handles:
+                rows = conn.execute(
+                    """
+                    SELECT id, handle
+                    FROM users
+                    WHERE LOWER(handle) = ?
+                    ORDER BY created_at_utc ASC, id ASC
+                    """,
+                    (duplicate["lowered_handle"],),
+                ).fetchall()
+                for row in rows[1:]:
+                    suffix = row["id"].replace("-", "")[:6]
+                    base = row["handle"][:33]
+                    conn.execute(
+                        "UPDATE users SET handle = ? WHERE id = ?",
+                        (f"{base}_{suffix}", row["id"]),
+                    )
+            conn.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_handle_lower ON users (LOWER(handle)) WHERE handle <> '';"
+            )
             conn.execute("""
             CREATE TABLE IF NOT EXISTS user_sessions (
                 token_hash TEXT PRIMARY KEY,

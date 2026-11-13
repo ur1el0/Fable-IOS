@@ -7,8 +7,14 @@ public struct ProfileView: View {
     
     @State private var selectedTab: String = "Published"
     @State private var selectedStoryToRead: Story?
+    @State private var storyToEdit: Story?
+    @State private var storyPendingDeletion: Story?
+    @State private var storyActionError: String?
     @State private var isShowingEditProfile: Bool = false
     @State private var isShowingSignOutAlert: Bool = false
+    @State private var isShowingDeleteAccountAlert: Bool = false
+    @State private var isDeletingAccount: Bool = false
+    @State private var deleteAccountError: String?
     @State private var isShowingAuthSheet: Bool = false
     
     @State private var userName: String = ""
@@ -238,49 +244,70 @@ public struct ProfileView: View {
                                 } else {
                                     VStack(spacing: 12) {
                                         ForEach(store.profileStories) { story in
-                                            Button(action: {
-                                                selectedStoryToRead = story
-                                            }) {
-                                                HStack(spacing: 14) {
-                                                    FableImageView(name: story.effectiveCoverImage, placeholderIcon: "book")
-                                                        .frame(width: 54, height: 68)
-                                                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                                                        .shadow(color: Color.black.opacity(0.06), radius: 3, y: 1)
-                                                    
-                                                    VStack(alignment: .leading, spacing: 4) {
-                                                        Text(story.title)
-                                                            .fableFont(size: 15, weight: .bold, design: .serif)
-                                                            .foregroundColor(FableTheme.textPrimary)
-                                                        
-                                                        Text("\(story.genre.rawValue) • \(story.readingTimeMinutes)m read")
-                                                            .fableFont(size: 12)
-                                                            .foregroundColor(FableTheme.textMuted)
-                                                        
-                                                        HStack(spacing: 8) {
-                                                            if let rating = story.rating {
-                                                                Text("★ \(rating, specifier: "%.1f")")
-                                                                    .fableFont(size: 11, weight: .semibold)
-                                                                    .foregroundColor(.orange)
-                                                            }
-                                                            Text("• \(story.readsCount) reads")
-                                                                .fableFont(size: 11)
+                                            HStack(spacing: 10) {
+                                                Button(action: {
+                                                    selectedStoryToRead = story
+                                                }) {
+                                                    HStack(spacing: 14) {
+                                                        FableImageView(name: story.effectiveCoverImage, placeholderIcon: "book")
+                                                            .frame(width: 54, height: 68)
+                                                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                                                            .shadow(color: Color.black.opacity(0.06), radius: 3, y: 1)
+
+                                                        VStack(alignment: .leading, spacing: 4) {
+                                                            Text(story.title)
+                                                                .fableFont(size: 15, weight: .bold, design: .serif)
+                                                                .foregroundColor(FableTheme.textPrimary)
+
+                                                            Text("\(story.genre.rawValue) • \(story.readingTimeMinutes)m read")
+                                                                .fableFont(size: 12)
                                                                 .foregroundColor(FableTheme.textMuted)
+
+                                                            HStack(spacing: 8) {
+                                                                if let rating = story.rating {
+                                                                    Text("★ \(rating, specifier: "%.1f")")
+                                                                        .fableFont(size: 11, weight: .semibold)
+                                                                        .foregroundColor(.orange)
+                                                                }
+                                                                Text("• \(story.readsCount) reads")
+                                                                    .fableFont(size: 11)
+                                                                    .foregroundColor(FableTheme.textMuted)
+                                                            }
                                                         }
+
+                                                        Spacer()
                                                     }
-                                                    
-                                                    Spacer()
-                                                    
-                                                    Image(systemName: "chevron.right")
-                                                        .fableFont(size: 12)
-                                                        .foregroundColor(FableTheme.textMuted)
                                                 }
-                                                .padding(14)
-                                                .background(FableTheme.cardBackground)
-                                                .clipShape(RoundedRectangle(cornerRadius: 14))
-                                                .shadow(color: Color.black.opacity(0.03), radius: 6, y: 2)
-                                                .padding(.horizontal, 20)
+                                                .buttonStyle(.plain)
+
+                                                Menu {
+                                                    Button {
+                                                        storyToEdit = story
+                                                    } label: {
+                                                        Label("Edit Story", systemImage: "pencil")
+                                                    }
+
+                                                    Button(role: .destructive) {
+                                                        storyPendingDeletion = story
+                                                    } label: {
+                                                        Label("Delete Story", systemImage: "trash")
+                                                    }
+                                                } label: {
+                                                    Image(systemName: "ellipsis.circle")
+                                                        .fableFont(size: 18, weight: .medium)
+                                                        .foregroundColor(FableTheme.textMuted)
+                                                        .frame(width: 44, height: 44)
+                                                        .contentShape(Rectangle())
+                                                }
+                                                .accessibilityLabel("Manage \(story.title)")
                                             }
-                                            .buttonStyle(.plain)
+                                            .padding(.leading, 14)
+                                            .padding(.trailing, 6)
+                                            .padding(.vertical, 14)
+                                            .background(FableTheme.cardBackground)
+                                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                                            .shadow(color: Color.black.opacity(0.03), radius: 6, y: 2)
+                                            .padding(.horizontal, 20)
                                         }
                                     }
                                 }
@@ -432,6 +459,30 @@ public struct ProfileView: View {
                                         .padding(.horizontal, 16)
                                         .padding(.vertical, 14)
                                     }
+
+                                    if !auth.isGuestMode && auth.isAuthenticated {
+                                        Divider().padding(.leading, 62)
+
+                                        Button(action: {
+                                            isShowingDeleteAccountAlert = true
+                                        }) {
+                                            HStack(spacing: 12) {
+                                                Image(systemName: "trash.fill")
+                                                    .foregroundColor(.red)
+                                                    .fableFont(size: 15)
+                                                    .frame(width: 32, height: 32)
+
+                                                Text(isDeletingAccount ? "Deleting Account…" : "Delete Account")
+                                                    .fableFont(size: 15, weight: .semibold)
+                                                    .foregroundColor(.red)
+
+                                                Spacer()
+                                            }
+                                            .padding(.horizontal, 16)
+                                            .padding(.vertical, 14)
+                                        }
+                                        .disabled(isDeletingAccount)
+                                    }
                                 }
                                 .background(FableTheme.cardBackground)
                                 .clipShape(RoundedRectangle(cornerRadius: 16))
@@ -449,6 +500,44 @@ public struct ProfileView: View {
                 ReaderView(story: story)
                     .environmentObject(store)
             }
+            .sheet(item: $storyToEdit) { story in
+                EditPublishedStorySheet(story: story)
+                    .environmentObject(store)
+            }
+            .alert(
+                "Delete Published Story?",
+                isPresented: Binding(
+                    get: { storyPendingDeletion != nil },
+                    set: { if !$0 { storyPendingDeletion = nil } }
+                ),
+                presenting: storyPendingDeletion
+            ) { story in
+                Button("Delete", role: .destructive) {
+                    storyPendingDeletion = nil
+                    Task {
+                        let deleted = await store.deletePublishedStory(id: story.id)
+                        if deleted {
+                            FableHaptics.success()
+                        } else {
+                            storyActionError = store.publishErrorMessage ?? "Could not delete story right now."
+                        }
+                    }
+                }
+                Button("Cancel", role: .cancel) { storyPendingDeletion = nil }
+            } message: { story in
+                Text("\"\(story.title)\" will be permanently removed from Fable.")
+            }
+            .alert(
+                "Story Update Failed",
+                isPresented: Binding(
+                    get: { storyActionError != nil },
+                    set: { if !$0 { storyActionError = nil } }
+                )
+            ) {
+                Button("OK", role: .cancel) { storyActionError = nil }
+            } message: {
+                Text(storyActionError ?? "Please check your connection and try again.")
+            }
             .sheet(isPresented: $isShowingEditProfile) {
                 EditProfileSheet(
                     currentName: userName,
@@ -460,6 +549,7 @@ public struct ProfileView: View {
                     self.userHandle = newHandle
                     self.userBio = newBio
                     self.userAvatar = newAvatar
+                    Task { await store.loadMyPublishedStories() }
                 }
             }
             .sheet(isPresented: $isShowingAuthSheet) {
@@ -478,6 +568,33 @@ public struct ProfileView: View {
                 Button("Cancel", role: .cancel) {}
             } message: {
                 Text(auth.isGuestMode ? "You will return to the welcome screen." : "Your local reading data and drafts will remain safely preserved.")
+            }
+            .alert("Delete Account?", isPresented: $isShowingDeleteAccountAlert) {
+                Button("Delete Permanently", role: .destructive) {
+                    guard let deletedUserID = auth.currentSession?.id else { return }
+                    isDeletingAccount = true
+                    Task {
+                        let deleted = await auth.deleteAccount()
+                        isDeletingAccount = false
+                        if deleted {
+                            store.clearDeletedAccountLocalState(userID: deletedUserID)
+                            dismiss()
+                        } else {
+                            deleteAccountError = auth.authErrorMessage ?? "Unable to delete your account right now."
+                        }
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This permanently deletes your Fable account, published stories, reading stats, and saved shelf data.")
+            }
+            .alert("Unable to Delete Account", isPresented: Binding(
+                get: { deleteAccountError != nil },
+                set: { if !$0 { deleteAccountError = nil } }
+            )) {
+                Button("OK", role: .cancel) { deleteAccountError = nil }
+            } message: {
+                Text(deleteAccountError ?? "Please check your connection and try again.")
             }
             .task(id: auth.currentSession?.id) {
                 await store.loadMyPublishedStories()
@@ -674,6 +791,177 @@ struct EditProfileSheet: View {
                 dismiss()
             } else {
                 errorMessage = auth.authErrorMessage ?? "Unable to update profile. Please check connection."
+            }
+        }
+    }
+}
+
+// MARK: - Edit Published Story Sheet
+private struct EditPublishedStorySheet: View {
+    @EnvironmentObject var store: StoryStore
+    @Environment(\.dismiss) var dismiss
+
+    let story: Story
+
+    @State private var draftTitle: String
+    @State private var draftGenre: String
+    @State private var draftChapter: String
+    @State private var draftSynopsis: String
+    @State private var draftContent: String
+    @State private var hadReadableContent: Bool
+    @State private var isLoadingContent: Bool = false
+    @State private var isSaving: Bool = false
+    @State private var errorMessage: String?
+
+    init(story: Story) {
+        self.story = story
+        let initialContent = story.content.isEmpty ? (story.chapters?.first?.content ?? "") : story.content
+        _draftTitle = State(initialValue: story.title)
+        _draftGenre = State(initialValue: story.genre.rawValue)
+        _draftChapter = State(initialValue: story.chapters?.first?.title ?? "")
+        _draftSynopsis = State(initialValue: story.synopsis)
+        _draftContent = State(initialValue: initialContent)
+        _hadReadableContent = State(initialValue: !initialContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+    }
+
+    private var availableGenres: [String] {
+        let storeGenres = store.genres.map(\.name).filter { !$0.isEmpty }
+        if !storeGenres.isEmpty { return storeGenres }
+        return ["Folklore", "Fables", "Fantasy", "Adventure", "Mystery", "Drama", "Poetry", "Classics"]
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Story Details") {
+                    TextField("Title", text: $draftTitle)
+                        .fableFont(size: 16, weight: .semibold, design: .serif)
+
+                    HStack {
+                        TextField("Genre", text: $draftGenre)
+                            .textInputAutocapitalization(.words)
+                        Menu {
+                            ForEach(availableGenres, id: \.self) { genre in
+                                Button(genre) {
+                                    draftGenre = genre
+                                }
+                            }
+                        } label: {
+                            Image(systemName: "chevron.down.circle")
+                                .foregroundColor(FableTheme.brandPrimary)
+                        }
+                        .accessibilityLabel("Choose genre")
+                    }
+
+                    TextField("Chapter title (optional)", text: $draftChapter)
+                }
+
+                Section("Synopsis") {
+                    TextField("Short synopsis for readers...", text: $draftSynopsis, axis: .vertical)
+                        .lineLimit(3...6)
+                }
+
+                Section("Manuscript") {
+                    if isLoadingContent {
+                        HStack(spacing: 10) {
+                            ProgressView()
+                            Text("Loading manuscript…")
+                                .fableFont(size: 13)
+                                .foregroundColor(FableTheme.textMuted)
+                        }
+                    } else {
+                        TextEditor(text: $draftContent)
+                            .frame(minHeight: 180)
+                            .fableFont(size: 15, design: .serif)
+                    }
+                }
+
+                if let errorMessage {
+                    Section {
+                        Text(errorMessage)
+                            .fableFont(size: 13)
+                            .foregroundColor(.red)
+                    }
+                }
+            }
+            .navigationTitle("Edit Published Story")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") { dismiss() }
+                        .foregroundColor(FableTheme.textMuted)
+                }
+
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(isSaving ? "Saving…" : "Save") {
+                        saveChanges()
+                    }
+                    .disabled(isSaving || isLoadingContent)
+                    .fableFont(size: 15, weight: .bold)
+                    .foregroundColor(FableTheme.brandPrimary)
+                }
+            }
+            .task {
+                guard draftContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+                isLoadingContent = true
+                defer { isLoadingContent = false }
+                if let chapters = try? await store.fetchChapters(for: story) {
+                    let loadedContent = chapters.map(\.content)
+                        .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+                        .joined(separator: "\n\n")
+                    if !loadedContent.isEmpty {
+                        draftContent = loadedContent
+                        hadReadableContent = true
+                    }
+                    if draftChapter.isEmpty, let firstChapterTitle = chapters.first?.title {
+                        draftChapter = firstChapterTitle
+                    }
+                }
+            }
+        }
+    }
+
+    private func saveChanges() {
+        let title = draftTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        let genre = draftGenre.trimmingCharacters(in: .whitespacesAndNewlines)
+        let chapter = draftChapter.trimmingCharacters(in: .whitespacesAndNewlines)
+        let synopsis = draftSynopsis.trimmingCharacters(in: .whitespacesAndNewlines)
+        let content = draftContent.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if let validationError = CreateStoryRequest.validateDraftFields(
+            title: title,
+            genre: genre,
+            chapter: chapter,
+            synopsis: synopsis,
+            content: content,
+            requireContent: hadReadableContent
+        ) {
+            errorMessage = validationError
+            return
+        }
+
+        let nextContent: String? = content.isEmpty ? nil : content
+        let nextReadTime: Int? = nextContent.map { CreateStoryRequest.estimatedReadTimeMinutes(for: $0) }
+
+        isSaving = true
+        errorMessage = nil
+        let request = UpdateStoryRequest(
+            title: title,
+            genre: genre,
+            chapter: chapter.isEmpty ? nil : chapter,
+            synopsis: synopsis,
+            content: nextContent,
+            readTimeMinutes: nextReadTime
+        )
+
+        Task {
+            let updated = await store.updatePublishedStory(id: story.id, request: request)
+            isSaving = false
+            if updated != nil {
+                FableHaptics.success()
+                dismiss()
+            } else {
+                errorMessage = store.publishErrorMessage ?? "Could not save changes. Please check your connection."
             }
         }
     }
