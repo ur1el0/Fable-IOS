@@ -56,6 +56,20 @@ public struct LibraryView: View {
             return validStories.filter { store.storyMatchesCategory($0, category: selectedFilter) }
         }
     }
+
+    private var visibleRecentGutenbergStories: [Story] {
+        store.recentGutenbergStories.filter { story in
+            !PersistenceService.legacyDemoStoryIds.contains(story.id)
+                && (selectedFilter == "All" || store.storyMatchesCategory(story, category: selectedFilter))
+        }
+    }
+
+    private var visiblePopularGutenbergStories: [Story] {
+        store.popularGutenbergStories.filter { story in
+            !PersistenceService.legacyDemoStoryIds.contains(story.id)
+                && (selectedFilter == "All" || store.storyMatchesCategory(story, category: selectedFilter))
+        }
+    }
     
     public init() {}
     
@@ -394,11 +408,29 @@ public struct LibraryView: View {
                             }
                             .padding(.top, 6)
                         }
+
+                        if !visibleRecentGutenbergStories.isEmpty {
+                            providerBookCollection(
+                                title: "New on Gutenberg",
+                                subtitle: "Recently added public-domain books",
+                                badge: "NEW",
+                                stories: visibleRecentGutenbergStories
+                            )
+                        }
+
+                        if !visiblePopularGutenbergStories.isEmpty {
+                            providerBookCollection(
+                                title: "Reader Favorites",
+                                subtitle: "Popular books from Project Gutenberg",
+                                badge: "POPULAR",
+                                stories: visiblePopularGutenbergStories
+                            )
+                        }
                         
-                        // Latest Releases Section
+                        // Complete library catalog
                         VStack(alignment: .leading, spacing: 12) {
                             HStack {
-                                Text("Latest Releases")
+                                Text("Browse Library")
                                     .fableFont(size: 18, weight: .bold, design: .default)
                                     .foregroundColor(FableTheme.textPrimary)
                                     
@@ -533,6 +565,75 @@ public struct LibraryView: View {
 #endif
             }
         }
+    }
+
+    private func providerBookCollection(
+        title: String,
+        subtitle: String,
+        badge: String,
+        stories: [Story]
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .fableFont(size: 18, weight: .bold)
+                    .foregroundColor(FableTheme.textPrimary)
+                Text(subtitle)
+                    .fableFont(size: 12)
+                    .foregroundColor(FableTheme.textMuted)
+            }
+            .padding(.horizontal, 20)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(alignment: .top, spacing: 12) {
+                    ForEach(stories) { story in
+                        Button {
+                            selectedStoryToRead = story
+                        } label: {
+                            VStack(alignment: .leading, spacing: 7) {
+                                ZStack(alignment: .topLeading) {
+                                    FableImageView(
+                                        name: story.effectiveCoverImage,
+                                        title: story.title,
+                                        placeholderIcon: "book.closed"
+                                    )
+                                    .frame(width: 132, height: 166)
+                                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+                                    Text(badge)
+                                        .fableFont(size: 8, weight: .heavy)
+                                        .tracking(0.4)
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 7)
+                                        .padding(.vertical, 4)
+                                        .background(FableTheme.brandPrimary)
+                                        .clipShape(Capsule())
+                                        .padding(7)
+                                }
+
+                                Text(story.title)
+                                    .fableFont(size: 13, weight: .semibold, design: .serif)
+                                    .foregroundColor(FableTheme.textPrimary)
+                                    .lineLimit(2)
+                                    .multilineTextAlignment(.leading)
+                                    .frame(maxWidth: .infinity, minHeight: 34, alignment: .topLeading)
+
+                                Text(story.author)
+                                    .fableFont(size: 11)
+                                    .foregroundColor(FableTheme.textMuted)
+                                    .lineLimit(1)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            .frame(width: 132, alignment: .leading)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 20)
+            }
+        }
+        .padding(.top, 4)
     }
 
     @ViewBuilder
