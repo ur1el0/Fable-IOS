@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
-from fastapi import APIRouter, Header, Query, status
+from fastapi import APIRouter, Header, Query, Response, status
 
 from schemas import (
     StoryDTO,
@@ -9,7 +9,8 @@ from schemas import (
     GenreDTO,
     WriterDTO,
     UpdateFeedDTO,
-    CreateStoryRequest
+    CreateStoryRequest,
+    UpdateStoryRequest,
 )
 from services import auth_service, story_service
 
@@ -59,3 +60,20 @@ def get_story_chapter_by_number(story_id: UUID, chapter_number: int):
 def create_story(payload: CreateStoryRequest, authorization: str = Header(None)):
     user = auth_service.get_current_user_from_header(authorization)
     return story_service.create_story(payload, author=user.name, owner_user_id=user.id)
+
+
+@router.patch("/stories/{story_id}", response_model=StoryDTO)
+def update_story(
+    story_id: UUID,
+    payload: UpdateStoryRequest,
+    authorization: str = Header(None),
+):
+    user = auth_service.get_current_user_from_header(authorization)
+    return story_service.update_story(story_id, payload, owner_user_id=user.id)
+
+
+@router.delete("/stories/{story_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_story(story_id: UUID, authorization: str = Header(None)):
+    user = auth_service.get_current_user_from_header(authorization)
+    story_service.delete_story(story_id, owner_user_id=user.id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

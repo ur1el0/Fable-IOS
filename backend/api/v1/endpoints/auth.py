@@ -1,4 +1,5 @@
-from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Request, Response, status
+from core.rate_limit import extract_client_ip
 from schemas import (
     RegisterRequest,
     LoginRequest,
@@ -23,13 +24,13 @@ router = APIRouter()
 
 @router.post("/auth/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
 def register(req: RegisterRequest, request: Request):
-    client_host = request.client.host if request.client else "unknown"
+    client_host = extract_client_ip(request)
     enforce_auth_rate_limit("register", client_host)
     return auth_service.register_user(req)
 
 @router.post("/auth/login", response_model=AuthResponse)
 def login(req: LoginRequest, request: Request):
-    client_host = request.client.host if request.client else "unknown"
+    client_host = extract_client_ip(request)
     enforce_auth_rate_limit("login", client_host, req.email)
     return auth_service.login_user(req)
 
@@ -48,7 +49,7 @@ def request_password_reset(
             detail="Password recovery is temporarily unavailable.",
         ) from error
 
-    client_host = request.client.host if request.client else "unknown"
+    client_host = extract_client_ip(request)
     enforce_auth_rate_limit("password_reset", client_host, payload.email)
     token = auth_service.issue_password_reset_token(payload.email)
     if token is not None:
@@ -64,8 +65,11 @@ def request_password_reset(
 
 
 @router.post("/auth/password-reset/confirm", status_code=status.HTTP_204_NO_CONTENT)
-def confirm_password_reset(payload: PasswordResetConfirmRequest):
+def confirm_password_reset(payload: PasswordResetConfirmRequest, request: Request):
+    client_host = extract_client_ip(request)
+    enforce_auth_rate_limit("password_reset_confirm", client_host, payload.token[:16])
     auth_service.reset_password_with_token(payload.token, payload.new_password)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 @router.get("/auth/me", response_model=UserDTO)
 def get_me(authorization: str = Header(None)):
@@ -82,8 +86,16 @@ def get_my_stories(authorization: str = Header(None)):
 @router.patch("/auth/me", response_model=UserDTO)
 def update_me(req: ProfileUpdateRequest, authorization: str = Header(None)):
     auth_service.get_current_user_from_header(authorization)
-    token = authorization.split(" ", 1)[1]
+    token = authorization.split(" ", 1)[1].strip()
     return auth_service.update_current_user(token, req)
+
+
+@router.delete("/auth/me", status_code=status.HTTP_204_NO_CONTENT)
+def delete_me(authorization: str = Header(None)):
+    auth_service.get_current_user_from_header(authorization)
+    token = authorization.split(" ", 1)[1].strip()
+    auth_service.delete_current_user(token)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/auth/me/reading-sessions", status_code=status.HTTP_204_NO_CONTENT)

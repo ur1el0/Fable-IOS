@@ -50,6 +50,7 @@ class StoryDTO(BaseModel):
     source_provider: str = Field(default="FABLE_ORIGINAL", serialization_alias="sourceProvider")
     provider_id: Optional[str] = Field(default=None, serialization_alias="providerId")
     provider_download_count: Optional[int] = Field(default=None, serialization_alias="providerDownloadCount")
+    owner_user_id: Optional[UUID] = Field(default=None, serialization_alias="ownerUserId")
     chapters: Optional[list[ChapterDTO]] = None
 
     model_config = {
@@ -100,6 +101,20 @@ class CreateStoryRequest(BaseModel):
     content: str = Field(..., max_length=50_000)
     read_time_minutes: int = Field(default=0, ge=0, alias="readTimeMinutes")
     content_format: Optional[str] = Field(default="PROSE", max_length=20, alias="contentFormat")
+
+    model_config = {
+        "populate_by_name": True,
+        "extra": "forbid",
+    }
+
+
+class UpdateStoryRequest(BaseModel):
+    title: Optional[str] = Field(default=None, min_length=1, max_length=120)
+    genre: Optional[str] = Field(default=None, min_length=1, max_length=50)
+    chapter: Optional[str] = Field(default=None, max_length=120)
+    synopsis: Optional[str] = Field(default=None, max_length=2_000)
+    content: Optional[str] = Field(default=None, max_length=50_000)
+    read_time_minutes: Optional[int] = Field(default=None, ge=0, alias="readTimeMinutes")
 
     model_config = {
         "populate_by_name": True,
