@@ -16,6 +16,7 @@ from collections import OrderedDict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import NamedTuple, Optional, Tuple, List
+from urllib.parse import urlparse
 from uuid import UUID, uuid5
 
 import httpx
@@ -33,6 +34,12 @@ PROVIDER_HEADERS = {"User-Agent": "FableReader/1.0 (public-domain-text-client)"}
 GUTENBERG_CATALOG_URL = "https://www.gutenberg.org/cache/epub/feeds/pg_catalog.csv.gz"
 GUTENBERG_CATALOG_TTL_SECONDS = 7 * 24 * 60 * 60
 GUTENBERG_CATALOG_REFRESH_RETRY_SECONDS = 60 * 60
+GUTENBERG_RECENT_FEED_URL = "https://www.gutenberg.org/cache/epub/feeds/today.rss"
+GUTENBERG_RECENT_FEED_TTL_SECONDS = 12 * 60 * 60
+GUTENBERG_RECENT_FEED_MAX_STALE_SECONDS = 48 * 60 * 60
+GUTENBERG_RECENT_FEED_MAX_BYTES = 1024 * 1024
+GUTENBERG_RECENT_FEED_MAX_ITEMS = 30
+GUTENBERG_RECENT_METADATA_TIMEOUT_SECONDS = 30.0
 GUTENBERG_CATALOG_MAX_COMPRESSED_BYTES = 12 * 1024 * 1024
 GUTENBERG_CATALOG_MAX_UNCOMPRESSED_BYTES = 40 * 1024 * 1024
 GUTENBERG_MAX_METADATA_BYTES = 2 * 1024 * 1024
@@ -69,9 +76,17 @@ def _get_metadata_semaphore() -> asyncio.Semaphore:
 
 def _get_catalog_lock() -> asyncio.Lock:
     return _loop_primitive("catalog_lock", asyncio.Lock)
+
+
+def _get_recent_feed_lock() -> asyncio.Lock:
+    return _loop_primitive("recent_feed_lock", asyncio.Lock)
+
+
 _GUTENBERG_CATALOG_CACHE: Optional[Tuple[float, List["GutenbergCatalogEntry"]]] = None
 _GUTENBERG_CATALOG_STALE_CACHE: Optional[Tuple[float, List["GutenbergCatalogEntry"]]] = None
 _GUTENBERG_CATALOG_LAST_REFRESH_ATTEMPT = 0.0
+_GUTENBERG_RECENT_FEED_CACHE: Optional[Tuple[float, List[dict]]] = None
+_GUTENBERG_RECENT_FEED_LAST_REFRESH_ATTEMPT = 0.0
 GUTENBERG_AUTHORS_CACHE_TTL_SECONDS = 3600.0
 _GUTENBERG_AUTHORS_CACHE: Optional[Tuple[float, List["GutenbergCatalogEntry"], List[WriterDTO]]] = None
 
@@ -421,6 +436,137 @@ async def _fetch_gutendex_books(client: httpx.AsyncClient, params: dict) -> Opti
         return [book for book in results if isinstance(book, dict)]
     except (httpx.HTTPError, ValueError):
         return None
+
+
+def _gutenberg_recent_ids_from_feed(payload: bytes) -> list[int]:
+    if len(payload) > GUTENBERG_RECENT_FEED_MAX_BYTES:
+        raise HTTPException(status_code=502, detail="Gutenberg recent-books feed exceeds the supported size")
+    try:
+        root = ET.fromstring(payload)
+    except ET.ParseError as error:
+        raise HTTPException(status_code=502, detail="Gutenberg recent-books feed is invalid") from error
+
+    def local_name(tag: str) -> str:
+        return tag.rsplit("}", 1)[-1].casefold()
+
+    def child_text(element: ET.Element, name: str) -> str:
+        return next(
+            (
+                (child.text or child.attrib.get("href") or "").strip()
+                for child in element
+                if local_name(child.tag) == name
+            ),
+            "",
+        )
+
+    ids: list[int] = []
+    for item in (element for element in root.iter() if local_name(element.tag) == "item"):
+        link = child_text(item, "link") or child_text(item, "guid")
+        parsed_link = urlparse(link)
+        if parsed_link.scheme != "https" or parsed_link.hostname not in {"www.gutenberg.org", "gutenberg.org"}:
+            continue
+        path_parts = [part for part in parsed_link.path.split("/") if part]
+        if len(path_parts) < 2 or path_parts[0] != "ebooks" or not path_parts[1].isdigit():
+            continue
+        gutenberg_id = int(path_parts[1])
+        if gutenberg_id > 0 and gutenberg_id not in ids:
+            ids.append(gutenberg_id)
+        if len(ids) >= GUTENBERG_RECENT_FEED_MAX_ITEMS:
+            break
+    if not ids:
+        raise HTTPException(status_code=502, detail="Gutenberg recent-books feed contains no valid book links")
+    return ids
+
+
+async def _download_gutenberg_recent_feed(client: httpx.AsyncClient) -> bytes:
+    try:
+        async with client.stream("GET", GUTENBERG_RECENT_FEED_URL, headers=PROVIDER_HEADERS, timeout=15.0) as response:
+            if response.status_code != 200:
+                raise HTTPException(status_code=502, detail="Gutenberg recent-books feed returned an error")
+            content_length = response.headers.get("content-length")
+            if content_length and content_length.isdigit() and int(content_length) > GUTENBERG_RECENT_FEED_MAX_BYTES:
+                raise HTTPException(status_code=502, detail="Gutenberg recent-books feed exceeds the supported size")
+            chunks = bytearray()
+            async for chunk in response.aiter_bytes():
+                if len(chunks) + len(chunk) > GUTENBERG_RECENT_FEED_MAX_BYTES:
+                    raise HTTPException(status_code=502, detail="Gutenberg recent-books feed exceeds the supported size")
+                chunks.extend(chunk)
+    except HTTPException:
+        raise
+    except httpx.HTTPError as error:
+        raise HTTPException(status_code=502, detail="Gutenberg recent-books feed is unavailable") from error
+    payload = bytes(chunks)
+    _gutenberg_recent_ids_from_feed(payload)
+    return payload
+
+
+def _matches_gutenberg_book(book: dict, params: dict) -> bool:
+    search = str(params.get("search") or "").strip().casefold()
+    topic = str(params.get("topic") or "").strip().casefold()
+    authors = book.get("authors") or []
+    author_names = " ".join(str(author.get("name") or "") for author in authors if isinstance(author, dict))
+    searchable = f"{book.get('title') or ''} {author_names}".casefold()
+    if search and search not in searchable:
+        return False
+    if topic:
+        subjects = " ".join(str(subject) for subject in book.get("subjects") or []).casefold()
+        if topic not in subjects:
+            return False
+    return True
+
+
+async def _load_gutenberg_recent_books(client: httpx.AsyncClient) -> list[dict]:
+    global _GUTENBERG_RECENT_FEED_CACHE, _GUTENBERG_RECENT_FEED_LAST_REFRESH_ATTEMPT
+
+    now = time.monotonic()
+    if _GUTENBERG_RECENT_FEED_CACHE and now - _GUTENBERG_RECENT_FEED_CACHE[0] < GUTENBERG_RECENT_FEED_TTL_SECONDS:
+        return _GUTENBERG_RECENT_FEED_CACHE[1]
+
+    async with _get_recent_feed_lock():
+        now = time.monotonic()
+        if _GUTENBERG_RECENT_FEED_CACHE and now - _GUTENBERG_RECENT_FEED_CACHE[0] < GUTENBERG_RECENT_FEED_TTL_SECONDS:
+            return _GUTENBERG_RECENT_FEED_CACHE[1]
+        if (
+            _GUTENBERG_RECENT_FEED_CACHE
+            and now - _GUTENBERG_RECENT_FEED_CACHE[0] < GUTENBERG_RECENT_FEED_MAX_STALE_SECONDS
+            and now - _GUTENBERG_RECENT_FEED_LAST_REFRESH_ATTEMPT < GUTENBERG_CATALOG_REFRESH_RETRY_SECONDS
+        ):
+            return _GUTENBERG_RECENT_FEED_CACHE[1]
+
+        _GUTENBERG_RECENT_FEED_LAST_REFRESH_ATTEMPT = now
+        try:
+            payload = await _download_gutenberg_recent_feed(client)
+            ids = _gutenberg_recent_ids_from_feed(payload)
+
+            async def fetch_book(gutenberg_id: int) -> Optional[dict]:
+                book = await _fetch_gutenberg_rdf_book(client, gutenberg_id)
+                if book is None or not _has_plain_text_format(book):
+                    return None
+                return book
+
+            try:
+                results = await asyncio.wait_for(
+                    asyncio.gather(*(fetch_book(gutenberg_id) for gutenberg_id in ids), return_exceptions=True),
+                    timeout=GUTENBERG_RECENT_METADATA_TIMEOUT_SECONDS,
+                )
+            except asyncio.TimeoutError as error:
+                raise HTTPException(status_code=502, detail="Gutenberg recent metadata service timed out") from error
+            books = [result for result in results if isinstance(result, dict)]
+            errors = [result for result in results if isinstance(result, HTTPException)]
+            if not books and errors:
+                raise errors[0]
+            if errors:
+                logger.warning("Recent Gutenberg discovery skipped %d unavailable metadata record(s)", len(errors))
+            _GUTENBERG_RECENT_FEED_CACHE = (time.monotonic(), books)
+            return books
+        except HTTPException:
+            if (
+                _GUTENBERG_RECENT_FEED_CACHE
+                and time.monotonic() - _GUTENBERG_RECENT_FEED_CACHE[0] < GUTENBERG_RECENT_FEED_MAX_STALE_SECONDS
+            ):
+                logger.warning("Gutenberg recent-books refresh failed; serving the cached feed metadata")
+                return _GUTENBERG_RECENT_FEED_CACHE[1]
+            raise
 
 
 async def _fetch_gutenberg_rdf_book(client: httpx.AsyncClient, gutenberg_id: int) -> Optional[dict]:
@@ -911,6 +1057,7 @@ async def get_gutenberg_story_by_id(gutenberg_id: int) -> StoryDTO:
 async def get_gutenberg_stories(
     topic: Optional[str] = None,
     search: Optional[str] = None,
+    sort: str = "catalog",
 ) -> list[StoryDTO]:
     params = {}
     if topic and topic.lower() != "all":
@@ -920,8 +1067,22 @@ async def get_gutenberg_stories(
 
     async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
         try:
-            raw_books = await _fetch_gutenberg_catalog_books(client, params)
+            if sort == "recent":
+                raw_books = [
+                    book for book in await _load_gutenberg_recent_books(client)
+                    if _matches_gutenberg_book(book, params)
+                ]
+            elif sort == "popular":
+                popular_params = {**params, "sort": "popular"}
+                raw_books = await _fetch_gutendex_books(client, popular_params)
+                if raw_books is None:
+                    raw_books = await _fetch_gutenberg_catalog_books(client, params)
+                    logger.warning("Gutendex popular catalog unavailable; used official Gutenberg metadata")
+            else:
+                raw_books = await _fetch_gutenberg_catalog_books(client, params)
         except HTTPException as official_error:
+            if sort == "recent":
+                raise
             # Keep the catalog available during a Gutenberg feed outage, but
             # always prefer its own CSV/RDF metadata when the official source works.
             raw_books = await _fetch_gutendex_books(client, params)
@@ -937,7 +1098,11 @@ async def get_gutenberg_stories(
         book_id = book.get("id")
         if not book_id or not _has_plain_text_format(book):
             return None
-        return _story_from_gutenberg_metadata(book)
+        story = _story_from_gutenberg_metadata(book)
+        if story is not None and sort == "recent":
+            story.is_recent_submission = True
+            story.badge_text = "NEW ON GUTENBERG"
+        return story
 
     # Full text is fetched on demand by /public/gutenberg/{id}/chapters.
     return [story for book in raw_books if (story := _map_book(book)) is not None]

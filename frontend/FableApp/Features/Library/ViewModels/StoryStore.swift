@@ -4,6 +4,8 @@ import Combine
 @MainActor
 public final class StoryStore: ObservableObject {
     @Published var stories: [Story] = []
+    @Published var recentGutenbergStories: [Story] = []
+    @Published var popularGutenbergStories: [Story] = []
     @Published var selectedCategory: String = "All"
     @Published var activeReaderStory: Story?
     @Published var isShowingDisplayOptions: Bool = false
@@ -871,7 +873,9 @@ public final class StoryStore: ObservableObject {
                         stories[index].heroImageName = nil
                     }
                     if !remote.author.isEmpty { stories[index].author = remote.author }
-                    stories[index].totalChapters = remote.totalChapters
+                    if remote.totalChapters > 0 {
+                        stories[index].totalChapters = max(stories[index].totalChapters, remote.totalChapters)
+                    }
                     stories[index].contentFormat = remote.contentFormat
                     stories[index].sourceProvider = remote.sourceProvider
                     if let ownerUserId = remote.ownerUserId { stories[index].ownerUserId = ownerUserId }
@@ -1182,7 +1186,14 @@ public final class StoryStore: ObservableObject {
                 stories[index].sourceProvider = book.sourceProvider
                 stories[index].providerId = book.providerId
                 stories[index].providerDownloadCount = book.providerDownloadCount
-                stories[index].totalChapters = max(stories[index].chapters?.count ?? 0, book.totalChapters)
+                stories[index].totalChapters = max(
+                    max(stories[index].totalChapters, stories[index].chapters?.count ?? 0),
+                    book.totalChapters
+                )
+                if book.isRecentSubmission {
+                    stories[index].isRecentSubmission = true
+                }
+                if let badge = book.badgeText { stories[index].badgeText = badge }
                 if stories[index].progressPercent == 0,
                    let savedState = loadShelfStateCache()[stories[index].id.uuidString],
                    !savedState.isEmpty {
@@ -1214,11 +1225,30 @@ public final class StoryStore: ObservableObject {
         }
     }
 
-    func fetchGutenbergPublicStories(topic: String? = nil, search: String? = nil) async {
+    func fetchGutenbergPublicStories(topic: String? = nil, search: String? = nil, sort: String? = nil) async {
         do {
-            let fetched = try await apiService.fetchGutenbergStories(topic: topic, search: search)
+            let fetched = try await apiService.fetchGutenbergStories(topic: topic, search: search, sort: sort)
+            if sort == "recent" {
+                recentGutenbergStories = fetched
+                let recentStoryIDs = Set(fetched.map(\.id))
+                for index in stories.indices where stories[index].sourceProvider == .gutenberg {
+                    let isRecent = recentStoryIDs.contains(stories[index].id)
+                    guard stories[index].isRecentSubmission != isRecent else { continue }
+                    stories[index].isRecentSubmission = isRecent
+                    if !isRecent && stories[index].badgeText == "NEW ON GUTENBERG" {
+                        stories[index].badgeText = nil
+                    }
+                    PersistenceService.shared.saveStory(stories[index])
+                }
+            } else if sort == "popular" {
+                popularGutenbergStories = fetched
+            }
             let isBrowseSnapshot = topic != nil && (search ?? "").isEmpty
-            mergePublicProseBooks(fetched, provider: .gutenberg, replaceUnengagedSnapshot: isBrowseSnapshot)
+            mergePublicProseBooks(
+                fetched,
+                provider: .gutenberg,
+                replaceUnengagedSnapshot: sort == nil && isBrowseSnapshot
+            )
         } catch {
             recordProviderCatalogResult(.gutenberg, succeeded: false)
         }
@@ -1283,8 +1313,9 @@ public final class StoryStore: ObservableObject {
         isRefreshingProviderCatalogs = true
         defer { isRefreshingProviderCatalogs = false }
         async let standardEbooksRefresh: () = fetchStandardEbooksPublicStories(topic: "fiction", search: nil)
-        async let gutenbergRefresh: () = fetchGutenbergPublicStories(topic: "fiction", search: nil)
-        _ = await (standardEbooksRefresh, gutenbergRefresh)
+        async let popularGutenbergRefresh: () = fetchGutenbergPublicStories(topic: "fiction", search: nil, sort: "popular")
+        async let recentGutenbergRefresh: () = fetchGutenbergPublicStories(topic: nil, search: nil, sort: "recent")
+        _ = await (standardEbooksRefresh, popularGutenbergRefresh, recentGutenbergRefresh)
         if Self.isMangaEnabled {
             await fetchMangaPublicStories(search: nil)
         }

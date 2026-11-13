@@ -271,6 +271,7 @@ public protocol StoryAPIServiceProtocol: Sendable {
     func syncShelf(deviceId: UUID, token: String, items: [ShelfSyncItem]) async throws -> [ShelfSyncItem]
     func fetchShelf(deviceId: UUID, token: String) async throws -> [ShelfSyncItem]
     func fetchGutenbergStories(topic: String?, search: String?) async throws -> [Story]
+    func fetchGutenbergStories(topic: String?, search: String?, sort: String?) async throws -> [Story]
     func fetchGutenbergStory(providerId: String) async throws -> Story
     func fetchStandardEbooksStories(topic: String?, search: String?) async throws -> [Story]
     func fetchMangaStories(search: String?) async throws -> [Story]
@@ -300,6 +301,10 @@ public extension StoryAPIServiceProtocol {
     }
 
     func fetchGutenbergStories(topic: String? = nil, search: String? = nil) async throws -> [Story] {
+        try await fetchGutenbergStories(topic: topic, search: search)
+    }
+
+    func fetchGutenbergStories(topic: String?, search: String?, sort: String?) async throws -> [Story] {
         try await fetchGutenbergStories(topic: topic, search: search)
     }
 
@@ -472,7 +477,7 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
         return result.reconciledItems
     }
 
-    private func fetchPublicCatalogStories(endpointComponent: String, topic: String? = nil, search: String? = nil) async throws -> [Story] {
+    private func fetchPublicCatalogStories(endpointComponent: String, topic: String? = nil, search: String? = nil, sort: String? = nil) async throws -> [Story] {
         var components = URLComponents(
             url: baseURL.appendingPathComponent("public").appendingPathComponent(endpointComponent),
             resolvingAgainstBaseURL: true
@@ -480,6 +485,7 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
         var queryItems: [URLQueryItem] = []
         if let topic, topic != "All" { queryItems.append(URLQueryItem(name: "topic", value: topic)) }
         if let search, !search.isEmpty { queryItems.append(URLQueryItem(name: "search", value: search)) }
+        if let sort, !sort.isEmpty { queryItems.append(URLQueryItem(name: "sort", value: sort)) }
         if !queryItems.isEmpty { components.queryItems = queryItems }
 
         guard let targetURL = components.url else { throw URLError(.badURL) }
@@ -494,7 +500,11 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
     }
 
     public func fetchGutenbergStories(topic: String? = nil, search: String? = nil) async throws -> [Story] {
-        try await fetchPublicCatalogStories(endpointComponent: "gutenberg", topic: topic, search: search)
+        try await fetchGutenbergStories(topic: topic, search: search, sort: nil)
+    }
+
+    public func fetchGutenbergStories(topic: String? = nil, search: String? = nil, sort: String?) async throws -> [Story] {
+        try await fetchPublicCatalogStories(endpointComponent: "gutenberg", topic: topic, search: search, sort: sort)
     }
 
     public func fetchStandardEbooksStories(topic: String? = nil, search: String? = nil) async throws -> [Story] {
