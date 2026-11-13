@@ -56,7 +56,7 @@ public final class StoryStore: ObservableObject {
     @Published private(set) var isRefreshingProviderCatalogs = false
     private let apiService: StoryAPIServiceProtocol = StoryAPIService()
 
-    static let currentExternalChapterParserVersion = 2
+    nonisolated static let currentExternalChapterParserVersion = 2
     private static let externalChapterParserVersionsDefaultsKey = "fable_external_chapter_parser_versions_v1"
 
     private func providerCatalogRefreshKey(_ provider: CatalogProvider) -> String {
