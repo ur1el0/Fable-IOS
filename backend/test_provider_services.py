@@ -273,3 +273,32 @@ def test_standard_ebooks_cleans_heading_punctuation_and_omits_duplicate_roman():
     assert chapters[0].title == "Part I — I"
     assert chapters[0].content == "Raskolnikov stepped into the summer street."
     assert chapters[1].title == "I: Harker's Journal: (Kept in shorthand.)"
+
+
+def test_normalize_gutenberg_genre_filters_compound_lcsh_tags():
+    from services import gutenberg
+
+    assert gutenberg._normalize_gutenberg_genre(["Adultery -- Fiction", "Domestic fiction"]) == "Domestic fiction"
+    assert gutenberg._normalize_gutenberg_genre(["Adultery -- Fiction", "Married women -- Fiction"]) == "Fiction"
+    assert gutenberg._normalize_gutenberg_genre(["Adultery -- Fiction", "Courtship -- Fiction"]) == "Romance"
+    assert gutenberg._normalize_gutenberg_genre(["Historical fiction"]) == "Historical fiction"
+
+
+@pytest.mark.anyio
+async def test_gutenberg_authors_exclude_collective_placeholders(monkeypatch):
+    from services import gutenberg
+
+    entries = [
+        gutenberg.GutenbergCatalogEntry(1, "Anthology", "Various", "Fiction", "", "en"),
+        gutenberg.GutenbergCatalogEntry(2, "Anonymous Poem", "Anonymous", "Poetry", "", "en"),
+        gutenberg.GutenbergCatalogEntry(3, "Unknown Work", "Unknown", "Classics", "", "en"),
+        gutenberg.GutenbergCatalogEntry(1342, "Pride and Prejudice", "Austen, Jane, 1775-1817", "Fiction", "", "en"),
+    ]
+
+    async def catalog_snapshot(_client):
+        return entries
+
+    monkeypatch.setattr(gutenberg, "_load_gutenberg_catalog", catalog_snapshot)
+    gutenberg.invalidate_gutenberg_authors_cache()
+    authors = await gutenberg.get_gutenberg_authors(limit=5)
+    assert [(author.name, author.story_count) for author in authors] == [("Jane Austen", 1)]
