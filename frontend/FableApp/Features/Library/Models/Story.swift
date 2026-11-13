@@ -571,6 +571,7 @@ public struct Annotation: Identifiable, Codable, Equatable, Hashable {
     public let storyId: UUID
     public var storyTitle: String
     public var storyAuthor: String
+    public var chapterNumber: Int?
     public let utf16StartOffset: Int
     public let utf16EndOffset: Int
     public let selectedText: String
@@ -584,6 +585,7 @@ public struct Annotation: Identifiable, Codable, Equatable, Hashable {
         storyId: UUID,
         storyTitle: String = "",
         storyAuthor: String = "",
+        chapterNumber: Int? = nil,
         utf16StartOffset: Int,
         utf16EndOffset: Int,
         selectedText: String,
@@ -596,6 +598,7 @@ public struct Annotation: Identifiable, Codable, Equatable, Hashable {
         self.storyId = storyId
         self.storyTitle = storyTitle
         self.storyAuthor = storyAuthor
+        self.chapterNumber = chapterNumber
         self.utf16StartOffset = utf16StartOffset
         self.utf16EndOffset = utf16EndOffset
         self.selectedText = selectedText

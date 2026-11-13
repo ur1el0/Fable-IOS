@@ -456,6 +456,7 @@ public final class StoryStore: ObservableObject {
             }
             PersistenceService.shared.saveStory(updatedStory)
             persistProfileStoriesCache(profileStories, for: session.id)
+            reloadPinnedQuotes()
             publishErrorMessage = nil
             return updatedStory
         } catch let error as APIRequestError {
@@ -478,8 +479,12 @@ public final class StoryStore: ObservableObject {
             try await apiService.deleteStory(id: id, token: token)
             stories.removeAll { $0.id == id }
             profileStories.removeAll { $0.id == id }
+            if activeStoryAnnotations.contains(where: { $0.storyId == id }) {
+                activeStoryAnnotations.removeAll { $0.storyId == id }
+            }
             PersistenceService.shared.deleteStory(storyId: id)
             persistProfileStoriesCache(profileStories, for: session.id)
+            reloadPinnedQuotes()
             publishErrorMessage = nil
             return true
         } catch let error as APIRequestError {
@@ -1631,6 +1636,7 @@ public final class StoryStore: ObservableObject {
     func addAnnotation(
         story: Story,
         text: String,
+        chapterNumber: Int? = nil,
         startOffset: Int,
         endOffset: Int,
         color: HighlightColor,
@@ -1641,6 +1647,7 @@ public final class StoryStore: ObservableObject {
             storyId: story.id,
             storyTitle: story.title,
             storyAuthor: story.author,
+            chapterNumber: chapterNumber,
             utf16StartOffset: startOffset,
             utf16EndOffset: endOffset,
             selectedText: text,
@@ -1651,11 +1658,34 @@ public final class StoryStore: ObservableObject {
         activeStoryAnnotations.append(annotation)
         PersistenceService.shared.saveAnnotation(
             annotation,
-            ownerUserId: AuthManager.shared.currentSession?.id
+            ownerUserId: AuthManager.shared.currentSession?.id,
+            storyFallback: story
         )
-        if pinToJournal {
-            reloadPinnedQuotes()
+        reloadPinnedQuotes()
+    }
+
+    func updateAnnotation(
+        _ annotation: Annotation,
+        story: Story,
+        color: HighlightColor,
+        note: String?,
+        pinToJournal: Bool
+    ) {
+        var updated = annotation
+        updated.color = color
+        updated.note = note
+        updated.isPinnedToJournal = pinToJournal
+        updated.storyTitle = story.title
+        updated.storyAuthor = story.author
+        if let idx = activeStoryAnnotations.firstIndex(where: { $0.id == annotation.id }) {
+            activeStoryAnnotations[idx] = updated
         }
+        PersistenceService.shared.saveAnnotation(
+            updated,
+            ownerUserId: AuthManager.shared.currentSession?.id,
+            storyFallback: story
+        )
+        reloadPinnedQuotes()
     }
 
     func deleteAnnotation(id: UUID, storyId: UUID) {

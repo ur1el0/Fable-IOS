@@ -93,6 +93,7 @@ public final class StoryEntity {
 @Model
 public final class AnnotationEntity {
     @Attribute(.unique) public var id: UUID
+    public var chapterNumber: Int?
     public var utf16StartOffset: Int
     public var utf16EndOffset: Int
     public var highlightedText: String
@@ -106,6 +107,7 @@ public final class AnnotationEntity {
     
     public init(
         id: UUID = UUID(),
+        chapterNumber: Int? = nil,
         utf16StartOffset: Int,
         utf16EndOffset: Int,
         highlightedText: String,
@@ -117,6 +119,7 @@ public final class AnnotationEntity {
         story: StoryEntity? = nil
     ) {
         self.id = id
+        self.chapterNumber = chapterNumber
         self.utf16StartOffset = utf16StartOffset
         self.utf16EndOffset = utf16EndOffset
         self.highlightedText = highlightedText
