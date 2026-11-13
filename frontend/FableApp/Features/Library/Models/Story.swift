@@ -483,7 +483,7 @@ public struct Story: Identifiable, Hashable, Codable {
         self.isRecentSubmission = isRecentSubmission
         self.isCuratorSpotlight = isCuratorSpotlight
         self.badgeText = badgeText
-        self.totalChapters = max(1, chapters?.count ?? 1)
+        self.totalChapters = max(0, chapters?.count ?? 0)
         self.chapters = chapters
         self.contentFormat = contentFormat
         self.sourceProvider = sourceProvider

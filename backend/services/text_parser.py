@@ -237,7 +237,7 @@ def extract_chapters_from_text(raw_text: str) -> list[dict]:
     extracted: list[dict] = []
 
     # 1. Explicit structural headings (CHAPTER I, _Chapter One_, STAVE I, PART I, BOOK II, etc.)
-    splits = re.split(_EXPLICIT_HEADING_PATTERN, clean_text)
+    splits = re.split(_EXPLICIT_HEADING_PATTERN, clean_text, flags=re.IGNORECASE)
     if len(splits) > 2:
         raw_parts: list[tuple[str, str]] = []
         for i in range(1, len(splits), 2):
