@@ -2612,3 +2612,330 @@ def test_security_headers_and_sqlite_foreign_keys_enforced():
         assert journal_mode.lower() == "wal"
     finally:
         conn.close()
+
+
+def test_password_reset_confirm_is_rate_limited_and_bounds_buckets(monkeypatch):
+    from core.database import get_db
+    from services import auth_rate_limit
+
+    monkeypatch.setattr(auth_rate_limit, "PASSWORD_RESET_CONFIRM_LIMIT_PER_IP", 2)
+    monkeypatch.setattr(auth_rate_limit, "PASSWORD_RESET_CONFIRM_LIMIT_PER_ACCOUNT_IP", 2)
+    monkeypatch.setattr(auth_rate_limit, "MAX_AUTH_RATE_LIMIT_BUCKETS", 3)
+
+    token_a = "A" * 43
+    token_b = "B" * 43
+    assert client.post(
+        "/api/v1/auth/password-reset/confirm",
+        json={"token": token_a, "newPassword": "ValidPassword123!"},
+    ).status_code == 400
+    assert client.post(
+        "/api/v1/auth/password-reset/confirm",
+        json={"token": token_b, "newPassword": "ValidPassword123!"},
+    ).status_code == 400
+    throttled = client.post(
+        "/api/v1/auth/password-reset/confirm",
+        json={"token": token_a, "newPassword": "ValidPassword123!"},
+    )
+    assert throttled.status_code == 429
+    assert int(throttled.headers["retry-after"]) >= 1
+
+    conn = get_db()
+    try:
+        count = conn.execute("SELECT COUNT(*) FROM auth_rate_limits").fetchone()[0]
+        assert count <= 3
+    finally:
+        conn.close()
+
+
+def test_trusted_proxy_cidrs_isolate_client_ips_for_auth_rate_limiting(monkeypatch):
+    from starlette.requests import Request
+    from core.rate_limit import extract_client_ip
+    from services import auth_rate_limit
+
+    def make_request(peer: str, xff=None) -> Request:
+        headers = []
+        if xff is not None:
+            headers.append((b"x-forwarded-for", xff.encode("latin-1")))
+        scope = {
+            "type": "http",
+            "method": "POST",
+            "path": "/api/v1/auth/register",
+            "headers": headers,
+            "client": (peer, 12345),
+        }
+        return Request(scope)
+
+    monkeypatch.delenv("FABLE_TRUSTED_PROXY_CIDRS", raising=False)
+    assert extract_client_ip(make_request("172.29.241.2", "198.51.100.10")) == "172.29.241.2"
+
+    monkeypatch.setenv("FABLE_TRUSTED_PROXY_CIDRS", "172.29.241.0/29")
+    assert extract_client_ip(make_request("172.29.241.2", "198.51.100.10, 172.29.241.2")) == "198.51.100.10"
+    assert extract_client_ip(make_request("192.0.2.55", "198.51.100.10")) == "192.0.2.55"
+
+    monkeypatch.setattr(auth_rate_limit, "REGISTER_LIMIT_PER_IP", 1)
+    auth_rate_limit.enforce_auth_rate_limit("register", "198.51.100.1")
+    auth_rate_limit.enforce_auth_rate_limit("register", "198.51.100.2")
+    with pytest.raises(Exception) as exc:
+        auth_rate_limit.enforce_auth_rate_limit("register", "198.51.100.1")
+    assert getattr(exc.value, "status_code", None) == 429
+
+
+def test_unique_handles_and_reserved_catalog_author_impersonation_blocked(tmp_path, monkeypatch):
+    import sqlite3
+    from core.database import init_db
+
+    first_headers = auth_headers("First Writer")
+    second_headers = auth_headers("Second Writer")
+
+    r1 = client.patch(
+        "/api/v1/auth/me",
+        headers=first_headers,
+        json={"name": "First Writer", "handle": "unique_scribe", "bio": ""},
+    )
+    assert r1.status_code == 200
+
+    dup_update = client.patch(
+        "/api/v1/auth/me",
+        headers=second_headers,
+        json={"name": "Second Writer", "handle": "UNIQUE_SCRIBE", "bio": ""},
+    )
+    assert dup_update.status_code == 409
+
+    dup_register = client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": f"{uuid4()}@example.test",
+            "password": "LongSecurePassword123!",
+            "name": "Third Writer",
+            "handle": "@unique_scribe",
+        },
+    )
+    assert dup_register.status_code == 409
+
+    reserved_name = client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": f"{uuid4()}@example.test",
+            "password": "LongSecurePassword123!",
+            "name": "Aesop",
+            "handle": "new_scribe_1",
+        },
+    )
+    assert reserved_name.status_code == 400
+
+    reserved_update = client.patch(
+        "/api/v1/auth/me",
+        headers=second_headers,
+        json={"name": "Second Writer", "handle": "jane austen", "bio": ""},
+    )
+    assert reserved_update.status_code == 400
+
+    legacy_db = tmp_path / "legacy-handles.sqlite3"
+    monkeypatch.setenv("FABLE_DB_PATH", str(legacy_db))
+    init_db()
+    with sqlite3.connect(legacy_db) as raw:
+        raw.execute("DROP INDEX idx_users_handle_lower")
+        raw.execute(
+            """INSERT INTO users (id, email, password_hash, name, handle, bio, created_at_utc, updated_at_utc)
+               VALUES ('u1', 'a@example.test', 'h', 'A', '@shared', '', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
+                      ('u2', 'b@example.test', 'h', 'B', '@SHARED', '', '2026-01-02T00:00:00Z', '2026-01-02T00:00:00Z')"""
+        )
+        raw.commit()
+    init_db()
+    with sqlite3.connect(legacy_db) as raw:
+        handles = [r[0] for r in raw.execute("SELECT handle FROM users ORDER BY id").fetchall()]
+        assert handles[0] == "@shared"
+        assert handles[1] != "@SHARED" and handles[1].startswith("@SHARED_")
+
+
+def test_read_only_requests_use_in_memory_rate_limiter_without_shared_db_writes(monkeypatch):
+    from core.rate_limit import limiter
+
+    limiter.reset()
+    monkeypatch.setenv("FABLE_RATE_LIMIT_ENABLED", "true")
+
+    db_calls = []
+    original_is_allowed = limiter.is_allowed
+
+    def tracked_is_allowed(client_id: str, tier: str = "general"):
+        db_calls.append((client_id, tier))
+        return original_is_allowed(client_id, tier)
+
+    monkeypatch.setattr(limiter, "is_allowed", tracked_is_allowed)
+
+    assert client.get("/api/v1/stories").status_code == 200
+    assert client.get("/api/v1/genres").status_code == 200
+    assert db_calls == []
+
+    client.post("/api/v1/auth/logout")
+    assert len(db_calls) == 1
+    limiter.reset()
+
+
+def test_story_listing_computes_shelf_counts_in_single_query():
+    writer_headers = auth_headers("Metric Author")
+    created = client.post(
+        "/api/v1/stories",
+        headers=writer_headers,
+        json={
+            "title": "Single Query Metrics",
+            "genre": "Folklore",
+            "synopsis": "Tests joined shelf counts.",
+            "content": "Story content.",
+        },
+    )
+    assert created.status_code == 201
+    story_id = created.json()["id"]
+    assert created.json()["ownerUserId"] is not None
+
+    reader_headers = auth_headers("Metric Reader")
+    sync = client.post(
+        "/api/v1/shelf/sync",
+        headers=reader_headers,
+        json={
+            "deviceId": str(uuid4()),
+            "items": [
+                {
+                    "storyId": story_id,
+                    "readingProgress": 0.5,
+                    "isBookmarked": True,
+                    "isCompleted": False,
+                    "updatedAtUtc": "2026-10-01T00:00:00Z",
+                }
+            ],
+        },
+    )
+    assert sync.status_code == 200
+
+    stories_res = client.get("/api/v1/stories")
+    assert stories_res.status_code == 200
+    matched = [s for s in stories_res.json() if s["id"] == story_id]
+    assert len(matched) == 1
+    assert matched[0]["savesCount"] == "1"
+    assert matched[0]["readsCount"] == "1"
+
+
+def test_gutenberg_authors_cache_reuses_snapshot_until_invalidated(monkeypatch):
+    import asyncio
+    from services import gutenberg, story_service
+
+    entries = [
+        gutenberg.GutenbergCatalogEntry(1342, "Pride and Prejudice", "Austen, Jane", "Fiction", "", "en"),
+    ]
+    load_calls = 0
+
+    async def fake_load(_client):
+        nonlocal load_calls
+        load_calls += 1
+        return entries
+
+    gutenberg.invalidate_gutenberg_authors_cache()
+    monkeypatch.setattr(gutenberg, "_load_gutenberg_catalog", fake_load)
+
+    first = asyncio.run(gutenberg.get_gutenberg_authors(limit=5))
+    second = asyncio.run(gutenberg.get_gutenberg_authors(limit=5))
+    assert first == second
+    assert load_calls == 2
+    assert gutenberg._GUTENBERG_AUTHORS_CACHE is not None
+
+    story_service.invalidate_top_authors_cache()
+    assert gutenberg._GUTENBERG_AUTHORS_CACHE is None
+
+
+def test_story_owner_update_delete_and_author_name_sync():
+    owner_headers = auth_headers("Initial Pen Name")
+    other_headers = auth_headers("Other User")
+
+    created = client.post(
+        "/api/v1/stories",
+        headers=owner_headers,
+        json={
+            "title": "Original Title",
+            "genre": "Folklore",
+            "chapter": "Chapter 1",
+            "synopsis": "Original synopsis",
+            "content": "Original body words here.",
+            "readTimeMinutes": 2,
+        },
+    )
+    assert created.status_code == 201
+    story_id = created.json()["id"]
+
+    assert client.patch(
+        f"/api/v1/stories/{story_id}",
+        headers=other_headers,
+        json={"title": "Hijacked"},
+    ).status_code == 403
+    assert client.delete(f"/api/v1/stories/{story_id}", headers=other_headers).status_code == 403
+
+    updated = client.patch(
+        f"/api/v1/stories/{story_id}",
+        headers=owner_headers,
+        json={"title": "Revised Title", "content": "Updated body text."},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["title"] == "Revised Title"
+    assert updated.json()["content"] == "Updated body text."
+    assert updated.json()["chapters"][0]["content"] == "Updated body text."
+
+    profile_res = client.patch(
+        "/api/v1/auth/me",
+        headers=owner_headers,
+        json={"name": "Updated Pen Name", "handle": "updated_pen", "bio": "Writer"},
+    )
+    assert profile_res.status_code == 200
+    story_after_rename = client.get(f"/api/v1/stories/{story_id}")
+    assert story_after_rename.status_code == 200
+    assert story_after_rename.json()["author"] == "Updated Pen Name"
+
+    assert client.delete(f"/api/v1/stories/{story_id}", headers=owner_headers).status_code == 204
+    assert client.get(f"/api/v1/stories/{story_id}").status_code == 404
+
+
+def test_account_deletion_cascades_user_stories_sessions_and_shelf():
+    email = f"{uuid4()}@example.test"
+    password = "StrongDeletePass123!"
+    reg = client.post(
+        "/api/v1/auth/register",
+        json={"email": email, "password": password, "name": "Doomed Writer", "handle": "doomed_writer"},
+    )
+    assert reg.status_code == 201
+    token = reg.json()["accessToken"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    story_res = client.post(
+        "/api/v1/stories",
+        headers=headers,
+        json={
+            "title": "Ephemeral Tale",
+            "genre": "Gothic",
+            "synopsis": "Deleted with account.",
+            "content": "Gone soon.",
+        },
+    )
+    assert story_res.status_code == 201
+    story_id = story_res.json()["id"]
+
+    shelf_res = client.post(
+        "/api/v1/shelf/sync",
+        headers=headers,
+        json={
+            "deviceId": str(uuid4()),
+            "items": [
+                {
+                    "storyId": story_id,
+                    "readingProgress": 1.0,
+                    "isBookmarked": True,
+                    "isCompleted": True,
+                    "updatedAtUtc": "2026-10-01T00:00:00Z",
+                }
+            ],
+        },
+    )
+    assert shelf_res.status_code == 200
+
+    delete_res = client.delete("/api/v1/auth/me", headers=headers)
+    assert delete_res.status_code == 204
+    assert client.get("/api/v1/auth/me", headers=headers).status_code == 401
+    assert client.get(f"/api/v1/stories/{story_id}").status_code == 404
+    assert client.post("/api/v1/auth/login", json={"email": email, "password": password}).status_code == 401
