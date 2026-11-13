@@ -78,7 +78,7 @@ When demonstrating the application to your professor or grading committee in the
 | **10. Sign-Out & Isolation** | Tap **"Profile"** ➔ **Settings** icon ➔ **"Sign Out"**. | Purges reactive session, resets root view state, and returns to authentication screen without data leakage. |
 
 > [!TIP]
-> **Pre-Captured Visual Archive:** All **29 full-screen iOS Simulator screenshots** covering every screen, filter pill, modal, and theme—plus a continuous walkthrough video (`fable_ios_full_walkthrough.mp4`)—are already archived and indexed in **[`docs/simulator_captures/README.md`](./simulator_captures/README.md)**.
+> **Pre-Captured Visual Archive:** Full-screen iOS Simulator screenshots covering the core screens, filter states, modals, and themes—plus a continuous walkthrough video (`fable_ios_full_walkthrough.mp4`)—are archived and indexed in **[`docs/simulator_captures/README.md`](./simulator_captures/README.md)**.
 
 ---
 

@@ -233,7 +233,7 @@ Fable-IOS/
 │   ├── AGENT_HANDOFF_CONTEXT.md            # Complete session handoff context for laptop agents
 │   ├── adr/                                # Architecture Decision Records (ADR 0001, 0002, 0003)
 │   ├── plans/                              # Feature & Security Remediation Plans (Plans 01 through 07)
-│   ├── simulator_captures/                 # 29 Retina UI screenshots + full walkthrough MP4 video
+│   ├── simulator_captures/                 # Retina UI screenshots + full walkthrough MP4 video
 │   ├── final_milestone/                    # Capstone specs & MASTER_PROGRESS_LOG.md
 │   ├── FINAL_MILESTONE_PROGRESS.md         # Comprehensive milestone progression audit
 │   ├── DATA_SOURCES_AND_API_STRATEGY.md    # Catalog seeding architecture & upstream manga gap analysis
