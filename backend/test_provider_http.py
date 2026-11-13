@@ -249,3 +249,86 @@ def test_gutenberg_chapters_http_endpoint_sanitizes_failure_after_all_sources_fa
     assert response.json()["detail"] == "Gutenberg text service is unavailable"
     assert "private primary transport detail" not in response.text
     assert "private fallback transport detail" not in response.text
+
+
+def test_standard_ebooks_http_endpoints_return_catalog_and_chapters(monkeypatch):
+    from contextlib import asynccontextmanager
+    import httpx
+    from services import standard_ebooks
+
+    monkeypatch.setattr(standard_ebooks, "_STANDARD_EBOOKS_CATALOG_CACHE", {})
+    monkeypatch.setattr(standard_ebooks, "_STANDARD_EBOOKS_DETAIL_CACHE", {})
+    monkeypatch.setattr(standard_ebooks, "_STANDARD_EBOOKS_CHAPTER_CACHE", {})
+
+    listing_xml = b"""<?xml version="1.0" encoding="utf-8"?>
+    <html xmlns="http://www.w3.org/1999/xhtml">
+      <body><main><ol>
+        <li typeof="schema:Book" about="/ebooks/mary-shelley/frankenstein">
+          <a href="/ebooks/mary-shelley/frankenstein" property="schema:name">Frankenstein</a>
+          <p property="schema:author"><span property="schema:name">Mary Shelley</span></p>
+          <img src="/images/covers/mary-shelley_frankenstein/hash/cover@2x.jpg" alt="Cover"/>
+        </li>
+      </ol></main></body>
+    </html>"""
+
+    detail_xml = b"""<?xml version="1.0" encoding="utf-8"?>
+    <html xmlns="http://www.w3.org/1999/xhtml">
+      <body>
+        <div property="schema:description"><p>Victor Frankenstein assembles a creature.</p></div>
+        <ul class="tags"><li><a href="/subjects/horror">Horror</a></li></ul>
+      </body>
+    </html>"""
+
+    single_page_xml = b"""<?xml version="1.0" encoding="utf-8"?>
+    <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+      <body><main>
+        <section id="letter-1" epub:type="bodymatter z3998:letter">
+          <h2>Letter I</h2>
+          <p>To Mrs. Saville, England. You will rejoice to hear that no disaster has accompanied me.</p>
+        </section>
+        <section id="chapter-1" epub:type="bodymatter chapter">
+          <h2>Chapter I</h2>
+          <p>I am by birth a Genevese, and my family is one of the most distinguished of that republic.</p>
+        </section>
+      </main></body>
+    </html>"""
+
+    async def mock_get(self, url, params=None, headers=None, **kwargs):
+        url_str = str(url)
+        if url_str.endswith("/subjects/fiction?sort=popularity&page=1&per-page=12"):
+            return httpx.Response(200, content=listing_xml)
+        if url_str.endswith("/ebooks/mary-shelley/frankenstein"):
+            return httpx.Response(200, content=detail_xml)
+        return httpx.Response(404, content=b"")
+
+    @asynccontextmanager
+    async def mock_stream(self, method, url, headers=None, **kwargs):
+        if str(url).endswith("/ebooks/mary-shelley/frankenstein/text/single-page"):
+            yield httpx.Response(200, content=single_page_xml)
+        else:
+            yield httpx.Response(404, content=b"")
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", mock_get)
+    monkeypatch.setattr(httpx.AsyncClient, "stream", mock_stream)
+
+    catalog_resp = client.get("/api/v1/public/standard-ebooks?topic=fiction")
+    assert catalog_resp.status_code == 200
+    stories = catalog_resp.json()
+    assert len(stories) == 1
+    assert stories[0]["sourceProvider"] == "STANDARD_EBOOKS"
+    assert stories[0]["providerId"] == "mary-shelley/frankenstein"
+    assert stories[0]["genre"] == "Horror"
+
+    chapters_resp = client.get(
+        "/api/v1/public/standard-ebooks/chapters",
+        params={"book_id": "mary-shelley/frankenstein"},
+    )
+    assert chapters_resp.status_code == 200
+    chapters = chapters_resp.json()
+    assert [c["title"] for c in chapters] == ["Letter I", "Chapter I"]
+
+    bad_resp = client.get(
+        "/api/v1/public/standard-ebooks/chapters",
+        params={"book_id": "../etc/passwd"},
+    )
+    assert bad_resp.status_code == 400
