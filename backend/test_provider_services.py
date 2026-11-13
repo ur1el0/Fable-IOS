@@ -71,6 +71,33 @@ async def test_gutenberg_author_search_matches_provider_display_names(monkeypatc
     )] == [1342]
 
 
+def test_gutenberg_search_prioritizes_english_editions_over_foreign_prefix_matches():
+    from services import gutenberg
+
+    entries = [
+        gutenberg.GutenbergCatalogEntry(
+            gutenberg_id=29728,
+            title="Sherlock Holmes: De Agra-Schat",
+            authors="Doyle, Arthur Conan, 1859-1930",
+            subjects="Detective and mystery stories",
+            bookshelves="",
+            language="nl",
+        ),
+        gutenberg.GutenbergCatalogEntry(
+            gutenberg_id=1661,
+            title="The Adventures of Sherlock Holmes",
+            authors="Doyle, Arthur Conan, 1859-1930",
+            subjects="Detective and mystery stories",
+            bookshelves="",
+            language="en",
+        ),
+    ]
+
+    assert [entry.gutenberg_id for entry in gutenberg._search_gutenberg_catalog(
+        entries, {"search": "Sherlock"}
+    )] == [1661, 29728]
+
+
 @pytest.mark.anyio
 async def test_gutenberg_authors_and_work_counts_come_from_catalog_entries(monkeypatch):
     from services import gutenberg
