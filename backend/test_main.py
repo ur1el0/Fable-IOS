@@ -1759,7 +1759,8 @@ def test_get_manga_public_stories(monkeypatch):
     _CACHE.clear()
 
     async def mock_get(self, url, params=None, headers=None):
-        if "api.mangadex.org/manga" in str(url):
+        url_str = str(url)
+        if url_str == "https://api.mangadex.org/manga":
             return httpx.Response(200, json={
                 "data": [{
                     "id": "manga-uuid-1234",
@@ -1772,6 +1773,15 @@ def test_get_manga_public_stories(monkeypatch):
                         {"type": "cover_art", "attributes": {"fileName": "cover123.jpg"}},
                     ]
                 }]
+            })
+        if "manga-uuid-1234/feed" in url_str:
+            return httpx.Response(200, json={
+                "data": [{"id": "manga-chapter-1234", "attributes": {"chapter": "1", "pages": 24}}]
+            })
+        if "at-home/server/manga-chapter-1234" in url_str:
+            return httpx.Response(200, json={
+                "baseUrl": "https://cdn.manga.test",
+                "chapter": {"hash": "readable", "dataSaver": ["p1.jpg"]},
             })
         return httpx.Response(404)
 
@@ -2673,12 +2683,34 @@ def test_manga_search_excludes_titles_without_direct_panels(monkeypatch):
                             {"type": "cover_art", "attributes": {"fileName": "c2.jpg"}},
                         ],
                     },
+                    {
+                        "id": "unavailable-manga-3",
+                        "attributes": {
+                            "title": {"en": "Unavailable Panels Manga"},
+                            "description": {"en": "Feed lists a chapter whose panel server is gone."},
+                        },
+                        "relationships": [
+                            {"type": "author", "attributes": {"name": "Artist Three"}},
+                            {"type": "cover_art", "attributes": {"fileName": "c3.jpg"}},
+                        ],
+                    },
                 ]
             })
         if "direct-manga-1/feed" in url_str:
             return httpx.Response(200, json={
                 "data": [{"id": "ch-1", "attributes": {"chapter": "1", "pages": 24, "externalUrl": None}}]
             })
+        if "unavailable-manga-3/feed" in url_str:
+            return httpx.Response(200, json={
+                "data": [{"id": "ch-404", "attributes": {"chapter": "1", "pages": 24, "externalUrl": None}}]
+            })
+        if "at-home/server/ch-1" in url_str:
+            return httpx.Response(200, json={
+                "baseUrl": "https://cdn.manga.test",
+                "chapter": {"hash": "readable", "dataSaver": ["p1.jpg"]},
+            })
+        if "at-home/server/ch-404" in url_str:
+            return httpx.Response(404, json={"detail": "Chapter not found"})
         if "external-only-manga-2/feed" in url_str:
             return httpx.Response(200, json={"data": []})
         return httpx.Response(404)
