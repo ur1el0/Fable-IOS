@@ -63,3 +63,17 @@ These remaining actions require GitHub or Render web authentication / owner acce
      - `https://<service-name>.onrender.com/api/v1/health` reports `healthy` and `database: connected`
      - `https://<service-name>.onrender.com/api/v1/public/standard-ebooks?topic=fiction` returns non-empty Standard Ebooks titles
      - Any iOS Release archive uses `FABLE_API_BASE_URL=https://<service-name>.onrender.com/api/v1`
+
+
+---
+
+## 5. Follow-Up Remediation Applied on `fix/final-ui-ci-and-docs`
+
+Building on `feat/plans-01-04-remediation`, the following remaining UI, backend catalog, release-CI, and documentation items were addressed:
+
+- **Gutenberg Taxonomy & Author Hygiene ([`backend/services/gutenberg.py`](../backend/services/gutenberg.py), [`backend/test_provider_services.py`](../backend/test_provider_services.py)):** Added `_normalize_gutenberg_genre` so noisy/compound LCSH tags (such as `"Adultery -- Fiction"`) normalize to canonical genres, and filtered collective placeholders (`various`, `anonymous`, `unknown`) from `get_gutenberg_authors`.
+- **Manga Readable-Panel Availability Probe ([`backend/services/manga.py`](../backend/services/manga.py), [`backend/test_main.py`](../backend/test_main.py)):** Ported `_get_manga_chapter_page_urls` and `MANGA_MAX_DIRECT_PROBES_PER_SEARCH = 19` verification from commit `a0fd067` onto PostgreSQL-compatible `manga.py`.
+- **iOS Discovery, Library Hero, Reader & Write Studio Polish (`StoryStore.swift`, `LibraryView.swift`, `ExploreView.swift`, `GenreDetailView.swift`, `ReaderView.swift`, `WriteView.swift`, `SettingsView.swift`, `PlanFeaturesRegressionTests.swift`):**
+  - Replaced substring genre matching in `GenreDetailView` with `StoryStore.storyMatchesCategory`, added `StoryStore.displayStoryCount`, `StoryStore.pluralizedCount`, and `StoryStore.isExcludedPlaceholderAuthor`, and bumped discovery cache version to `3` to clear stale cached discovery lists.
+  - Deduplicated the featured hero story from `Latest Releases` in `LibraryView`, updated portrait hero cover framing (aspect-fit jacket over blurred artwork backdrop), compacted `ReaderView` secondary navbar buttons into a `Menu` so chapter tags and titles fit without truncation, docked both the `ReaderView` reading HUD and `WriteView` status pill outside scroll/page content viewports, and changed `"artists"` to `"authors"` in `SettingsView`.
+- **Release Workflow Parity ([`.github/workflows/release-container.yml`](../.github/workflows/release-container.yml)) & Docs (`README.md`, `MASTER_PROGRESS_LOG.md`):** Synced the `https://127.1/api/v1` loopback URL guard and `xcodebuild test` code-signing flags with `ci.yml`, and corrected `README.md` project topology entries.

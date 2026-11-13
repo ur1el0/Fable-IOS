@@ -192,28 +192,33 @@ Fable is architected around **Feature-Driven Vertical Slices** combined with **M
 ```text
 Fable-IOS/
 ├── README.md                               # Repository guide & setup documentation (this file)
-├── Package.swift                           # Swift Package Manager manifest
+├── render.yaml                             # Render cloud deployment blueprint (FastAPI + Neon Postgres)
+├── docker-compose.yml                      # Local Docker Compose stack (read-only container hardening)
+├── docker-compose.production.yml           # Production Compose overrides with TLS / backup integration
 ├── scripts/
-│   └── sqlite_backup.py                    # Encrypted SQLite backup/restore utility
+│   ├── sqlite_backup.py                    # Encrypted SQLite backup/restore utility
+│   └── validate_ios_release_config.sh      # Release configuration URL & ATS security guard
 ├── backend/                                # Asynchronous Python 3.9+ / FastAPI Backend
 │   ├── main.py                             # Application entrypoint & middleware configuration
-│   ├── requirements.txt                    # Runtime dependencies (FastAPI, Uvicorn, Pydantic, HTTPX)
+│   ├── requirements.txt                    # Runtime dependencies (FastAPI, Uvicorn, Pydantic, HTTPX, psycopg)
 │   ├── requirements-test.txt               # Runtime plus pytest for local and CI verification
-│   ├── test_main.py                        # Pytest runner entrypoint (executes 100-test suite)
-│   ├── tests/
-│   │   └── test_api_v1.py                  # Comprehensive 100-case API, auth, backup, and catalog test suite
+│   ├── test_main.py                        # Core API, auth, backup, security & catalog pytest suite
+│   ├── test_postgres_database.py           # PostgreSQL schema & concurrency integration tests
+│   ├── test_provider_http.py               # Gutenberg & Standard Ebooks HTTP endpoint tests
+│   ├── test_provider_services.py           # Catalog parser, genre normalization & author filter tests
 │   ├── api/v1/
 │   │   ├── api.py                          # Unified API router mounting
-│   │   └── endpoints/                      # Route controllers (auth, stories, shelf, gutenberg, health)
+│   │   └── endpoints/                      # Route controllers (auth, stories, shelf, gutenberg, standard_ebooks, manga, health)
 │   ├── core/
 │   │   ├── config.py                       # Environment & security settings
-│   │   ├── database.py                     # SQLite connection, schema bootstrap & curated catalog upsert
+│   │   ├── database.py                     # SQLite / PostgreSQL connection & schema bootstrap
 │   │   ├── operator_auth.py                # Operator key guard for ingestion routes
 │   │   └── rate_limit.py                   # Sliding-window and SQLite token-bucket rate limiters
 │   ├── models/                             # Pydantic v2 DTOs with camelCase serialization aliases
-│   └── services/                           # Business logic (auth_service, story_service, shelf_service, gutenberg)
-├── frontend/                               # Native iOS Application (22 XCTests)
+│   └── services/                           # Business logic (auth_service, story_service, shelf_service, gutenberg, standard_ebooks, manga)
+├── frontend/                               # Native iOS Application (SwiftUI + XCTest Suite)
 │   ├── FableApp.xcodeproj/                 # Xcode 16 project file
+│   ├── FableAppTests/                      # Keychain, session, decoding & Plan regression XCTests
 │   └── FableApp/
 │       ├── App/                            # Lifecycle bootstrap (FableApp.swift, ContentView.swift)
 │       ├── Core/                           # Foundation tokens, FableTheme, FableImageView, KeychainStore
@@ -227,7 +232,7 @@ Fable-IOS/
 ├── docs/                                   # Architectural specifications & engineering documentation
 │   ├── AGENT_HANDOFF_CONTEXT.md            # Complete session handoff context for laptop agents
 │   ├── adr/                                # Architecture Decision Records (ADR 0001, 0002, 0003)
-│   ├── plans/                              # Feature & Security Remediation Plans (Plans 01 through 06)
+│   ├── plans/                              # Feature & Security Remediation Plans (Plans 01 through 07)
 │   ├── simulator_captures/                 # 29 Retina UI screenshots + full walkthrough MP4 video
 │   ├── final_milestone/                    # Capstone specs & MASTER_PROGRESS_LOG.md
 │   ├── FINAL_MILESTONE_PROGRESS.md         # Comprehensive milestone progression audit

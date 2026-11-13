@@ -761,3 +761,14 @@ This progress log tracks the transition of **Fable** from an editorial prototype
 - [x] Verified full backend test suite: **101/101 tests passed** in 27.25s (`PYTHONPATH=.:backend pytest backend/test_main.py -q`).
 - [x] Verified Docker Compose configuration security constraints and `validate_ios_release_config.sh` release guards.
 
+## Final UI, Catalog Taxonomy, Manga Probe & Release CI Remediation (`fix/final-ui-ci-and-docs`)
+
+- [x] **Gutenberg Genre Normalization & Author Filtering (`backend/services/gutenberg.py`, `backend/test_provider_services.py`):** Added `_normalize_gutenberg_genre` to collapse compound LCSH subjects (`"Adultery -- Fiction"`, etc.) into canonical categories and filtered collective placeholders (`various`, `anonymous`, `unknown`) from `get_gutenberg_authors`, with accompanying unit tests.
+- [x] **Manga Readable Panel Probe Parity (`backend/services/manga.py`, `backend/test_main.py`):** Integrated `_get_manga_chapter_page_urls` and `MANGA_MAX_DIRECT_PROBES_PER_SEARCH = 19` verification into search probing alongside PostgreSQL compatibility and updated unit test mocks.
+- [x] **iOS Discovery, Hero, Reader, Write & Settings Fixes:**
+  - Switched `GenreDetailView` from substring matching to exact `StoryStore.storyMatchesCategory`, added `StoryStore.displayStoryCount`, `StoryStore.pluralizedCount`, and `StoryStore.isExcludedPlaceholderAuthor`, and bumped `restoreDiscoveryCache` version to `3`.
+  - Excluded the featured hero story from `Latest Releases` in `LibraryView`, updated portrait cover framing (blurred backdrop + aspect-fit jacket), docked `ReaderView` HUD below the viewport and compacted secondary toolbar actions into a `Menu` to eliminate title/text truncation and overlap, docked `WriteView` word-count HUD below the editor `ScrollView`, and corrected `"artists"` to `"authors"` in `SettingsView`.
+  - Added regression assertions in `frontend/FableAppTests/PlanFeaturesRegressionTests.swift` covering hero deduplication, taxonomy matching, pluralization, and placeholder author filtering.
+- [x] **Release CI & Docs Sync:** Aligned `.github/workflows/release-container.yml` with `ci.yml` (`https://127.1/api/v1` loopback guard check and `CODE_SIGNING_ALLOWED=YES CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=-` on `xcodebuild test`), updated stale directory topology references in `README.md`, and updated `docs/MULTI_CHAPTER_CHANGES_AND_NEXT_STEPS.md`.
+- [ ] **Pending Mac Lab / GitHub Actions / Operator Verification:** Run `pytest` and `xcodebuild test` via GitHub Actions PR CI or on macOS (`pytest` and Xcode are unavailable in the Windows authoring workspace), re-enable suspended Render service (`https://fable-api.onrender.com/api/v1/health`), and refresh `docs/simulator_captures/` screenshots if desired after PR merge.
+
