@@ -62,6 +62,10 @@ jobs:
             echo "The Release URL guard accepted an HTTP loopback URL."
             exit 1
           fi
+          if CONFIGURATION=Release FABLE_API_BASE_URL=https://127.1/api/v1 scripts/validate_ios_release_config.sh; then
+            echo "The Release URL guard accepted an abbreviated loopback address."
+            exit 1
+          fi
           if CONFIGURATION=Release FABLE_API_BASE_URL= scripts/validate_ios_release_config.sh; then
             echo "The Release URL guard accepted a missing API URL."
             exit 1
@@ -74,7 +78,9 @@ jobs:
           -scheme FableApp
           -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5'
           -derivedDataPath build/DerivedData
-          CODE_SIGNING_ALLOWED=NO
+          CODE_SIGNING_ALLOWED=YES
+          CODE_SIGNING_REQUIRED=NO
+          CODE_SIGN_IDENTITY=-
           test
       - name: Verify Release build
         run: >-
