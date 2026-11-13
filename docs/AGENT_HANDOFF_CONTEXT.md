@@ -1,8 +1,8 @@
 # Fable iOS — Agent Handoff & Full Session Context
 
-**Last Updated:** 2026-11-11
-**Active Git Branch:** `fix/mac-reported-issues`
-**Primary Next Task:** Build and run the iOS Simulator app on a Mac; verify live Gutenberg covers and in-app chapter reading against the local API on port 8001.
+**Last Updated:** 2026-11-13
+**Active Git Branch:** `feat/security-and-architecture-remediation` *(Plan 06 complete; ready for PR review/merge into `main`)*
+**Primary Next Task:** Open and merge the PR for `feat/security-and-architecture-remediation` after final verification.
 
 ---
 
@@ -10,7 +10,7 @@
 
 If you are an AI coding agent picking up this repository on the developer's laptop, read these three files first:
 1. **`docs/AGENT_HANDOFF_CONTEXT.md`** *(this file — complete session history, architectural decisions, exact line numbers, and compiler/runtime gotchas)*
-2. **[`docs/plans/06_SECURITY_VULNERABILITIES_AND_ARCHITECTURE_REMEDIATION.md`](./plans/06_SECURITY_VULNERABILITIES_AND_ARCHITECTURE_REMEDIATION.md)** *(the 4-phase hardening specification to execute next)*
+2. **[`docs/plans/06_SECURITY_VULNERABILITIES_AND_ARCHITECTURE_REMEDIATION.md`](./plans/06_SECURITY_VULNERABILITIES_AND_ARCHITECTURE_REMEDIATION.md)** *(the 4-phase hardening specification — completed on `feat/security-and-architecture-remediation`)*
 3. **[`docs/DATA_SOURCES_AND_API_STRATEGY.md`](./DATA_SOURCES_AND_API_STRATEGY.md)** *(live provider data, on-demand chapter loading, and why Manga is disabled on iOS)*
 
 ---
@@ -39,9 +39,9 @@ If you are an AI coding agent picking up this repository on the developer's lapt
 
 ---
 
-## 4. Deep-Dive Technical Context for Executing Plan 06 (Hardening)
+## 4. Deep-Dive Technical Context for Executing Plan 06 (Hardening — Historical Audit Baseline)
 
-Below is the exact file-and-line evidence gathered during our audit so you can begin implementing **Plan 06** immediately without re-auditing the codebase.
+Below is the original file-and-line audit baseline gathered prior to executing **Plan 06** (now completed on `feat/security-and-architecture-remediation`; preserved below for historical context).
 
 ### Phase 1: Critical Security & Auth Hardening (P0)
 
@@ -172,11 +172,19 @@ Below is the exact file-and-line evidence gathered during our audit so you can b
 3. **Verification Commands:**
    - **Backend Pytest Suite:**
      ```bash
-     .venv/bin/pytest -q
+     PYTHONPATH=.:backend .venv/bin/pytest backend -v
      ```
-     *(Currently: `100 passed`)*
+     *(Latest run on `feat/security-and-architecture-remediation`: `117 passed, 6 skipped` locally without a PostgreSQL instance; `test_postgres_database.py` runs in CI `postgres-verification`.)*
+   - **iOS Release Config Validation:**
+     ```bash
+     CONFIGURATION=Release FABLE_API_BASE_URL=https://api.example.com/api/v1 scripts/validate_ios_release_config.sh
+     ```
    - **iOS Xcode Test Suite:**
      ```bash
-     xcodebuild test -project frontend/FableApp.xcodeproj -scheme FableApp -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
+     xcodebuild -project frontend/FableApp.xcodeproj -scheme FableApp -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -derivedDataPath build/DerivedData CODE_SIGNING_ALLOWED=YES CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=- test
      ```
-     *(Note: On your laptop, adjust `name=iPhone 17 Pro` to match whichever iPhone Simulator is installed, e.g. `iPhone 16 Pro` via `xcrun simctl list devices available`.)*
+     *(Latest run on `feat/security-and-architecture-remediation`: `28 passed, 0 failed`. Ad-hoc signing flags provide simulated Keychain entitlements for `KeychainSecurityTests`; adjust `name=iPhone 17 Pro` to match an installed Simulator via `xcrun simctl list devices available`.)*
+   - **iOS Release Simulator Build:**
+     ```bash
+     xcodebuild -project frontend/FableApp.xcodeproj -scheme FableApp -configuration Release -destination 'generic/platform=iOS Simulator' -derivedDataPath build/ReleaseDerivedData FABLE_API_BASE_URL=https://api.example.com/api/v1 CODE_SIGNING_ALLOWED=NO build
+     ```
