@@ -288,4 +288,120 @@ final class PlanFeaturesRegressionTests: XCTestCase {
         XCTAssertNil(MPNowPlayingInfoCenter.default().nowPlayingInfo)
         XCTAssertEqual(MPNowPlayingInfoCenter.default().playbackState, .stopped)
     }
+
+    @MainActor
+    func testUnreadableCachedStoryHydrationAndStaleCloudPruningHelpers() throws {
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let service = PersistenceService(storeURL: tempDir.appendingPathComponent("stale_cleanup.store"))
+
+        let deadStub = Story(
+            id: UUID(),
+            title: "Stale Server Summary",
+            author: "Unknown",
+            genre: Genre(rawValue: "Folklore"),
+            synopsis: "Summary without content",
+            content: "",
+            readTimeMinutes: 1,
+            sourceProvider: .fableOriginal
+        )
+        let annotatedStub = Story(
+            id: UUID(),
+            title: "Annotated Server Summary",
+            author: "Unknown",
+            genre: Genre(rawValue: "Folklore"),
+            synopsis: "Summary with annotation",
+            content: "",
+            readTimeMinutes: 1,
+            sourceProvider: .fableOriginal
+        )
+        let liveRemoteOriginal = Story(
+            id: UUID(),
+            title: "Active Backend Story",
+            author: "Author",
+            genre: Genre(rawValue: "Classics"),
+            synopsis: "Available remotely",
+            content: "",
+            readTimeMinutes: 3,
+            sourceProvider: .fableOriginal
+        )
+        let localInlineOriginal = Story(
+            id: UUID(),
+            title: "Local Readable Story",
+            author: "Author",
+            genre: Genre(rawValue: "Fiction"),
+            synopsis: "Has inline prose",
+            content: "Readable prose paragraph.",
+            readTimeMinutes: 2,
+            sourceProvider: .fableOriginal
+        )
+        let gutenbergStory = Story(
+            id: UUID(),
+            title: "Alice",
+            author: "Lewis Carroll",
+            genre: Genre(rawValue: "Classics"),
+            synopsis: "Public domain",
+            content: "",
+            readTimeMinutes: 10,
+            sourceProvider: .gutenberg,
+            providerId: "11"
+        )
+
+        XCTAssertFalse(
+            StoryStore.shouldHydratePersistedStory(
+                content: "",
+                cachedChapters: [],
+                format: .prose,
+                isBookmarked: false,
+                isCompleted: false,
+                readingProgress: 0,
+                lastReadChapterId: nil
+            )
+        )
+        XCTAssertTrue(
+            StoryStore.shouldHydratePersistedStory(
+                content: "Readable offline prose",
+                cachedChapters: [],
+                format: .prose,
+                isBookmarked: false,
+                isCompleted: false,
+                readingProgress: 0,
+                lastReadChapterId: nil
+            )
+        )
+
+        let staleIDs = StoryStore.staleUnavailableOriginalStoryIDs(
+            in: [deadStub, annotatedStub, liveRemoteOriginal, localInlineOriginal, gutenbergStory],
+            remoteStoryIDs: [liveRemoteOriginal.id],
+            profileStoryIDs: [],
+            cachedChaptersProvider: { _ in [] }
+        )
+        XCTAssertEqual(staleIDs, [deadStub.id, annotatedStub.id])
+
+        service.saveStory(deadStub)
+        service.saveStory(annotatedStub)
+        service.saveAnnotation(
+            Annotation(
+                storyId: annotatedStub.id,
+                storyTitle: annotatedStub.title,
+                storyAuthor: annotatedStub.author,
+                chapterNumber: 1,
+                utf16StartOffset: 0,
+                utf16EndOffset: 4,
+                selectedText: "Note",
+                isPinnedToJournal: true
+            ),
+            ownerUserId: nil
+        )
+
+        service.deleteStory(storyId: deadStub.id, onlyIfUnannotated: true)
+        service.deleteStory(storyId: annotatedStub.id, onlyIfUnannotated: true)
+
+        XCTAssertNil(service.fetchStory(id: deadStub.id))
+        XCTAssertNotNil(service.fetchStory(id: annotatedStub.id))
+        XCTAssertEqual(service.fetchAllPinnedAnnotations(ownerUserId: nil).count, 1)
+    }
 }
