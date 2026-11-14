@@ -343,7 +343,10 @@ def _collect_chapter_containers(root: ET.Element) -> list[tuple[Optional[str], E
     - Standard novels yield leaf <section> elements under <main>/<body>.
     """
     ns_map = {"x": XHTML_NS}
-    main_el = root.find(".//x:main", ns_map) or root.find(".//x:body", ns_map) or root
+    main_el = root.find(".//x:main", ns_map)
+    body_el = root.find(".//x:body", ns_map)
+    if main_el is None or len(main_el) == 0:
+        main_el = body_el if body_el is not None and len(body_el) > 0 else root
 
     items: list[tuple[Optional[str], ET.Element]] = []
     for child in main_el:
