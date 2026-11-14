@@ -71,6 +71,33 @@ async def test_gutenberg_author_search_matches_provider_display_names(monkeypatc
     )] == [1342]
 
 
+def test_gutenberg_search_prioritizes_english_editions_over_foreign_prefix_matches():
+    from services import gutenberg
+
+    entries = [
+        gutenberg.GutenbergCatalogEntry(
+            gutenberg_id=29728,
+            title="Sherlock Holmes: De Agra-Schat",
+            authors="Doyle, Arthur Conan, 1859-1930",
+            subjects="Detective and mystery stories",
+            bookshelves="",
+            language="nl",
+        ),
+        gutenberg.GutenbergCatalogEntry(
+            gutenberg_id=1661,
+            title="The Adventures of Sherlock Holmes",
+            authors="Doyle, Arthur Conan, 1859-1930",
+            subjects="Detective and mystery stories",
+            bookshelves="",
+            language="en",
+        ),
+    ]
+
+    assert [entry.gutenberg_id for entry in gutenberg._search_gutenberg_catalog(
+        entries, {"search": "Sherlock"}
+    )] == [1661, 29728]
+
+
 @pytest.mark.anyio
 async def test_gutenberg_authors_and_work_counts_come_from_catalog_entries(monkeypatch):
     from services import gutenberg
@@ -293,4 +320,33 @@ def test_standard_ebooks_cleans_heading_punctuation_and_omits_duplicate_roman():
     assert len(chapters) == 2
     assert chapters[0].title == "Part I — I"
     assert chapters[0].content == "Raskolnikov stepped into the summer street."
-    assert chapters[1].title == "I: Harker's Journal: (Kept in shorthand.)"
+    assert chapters[1].title == "I: Harker's Journal (Kept in shorthand.)"
+
+
+def test_normalize_gutenberg_genre_filters_compound_lcsh_tags():
+    from services import gutenberg
+
+    assert gutenberg._normalize_gutenberg_genre(["Adultery -- Fiction", "Domestic fiction"]) == "Domestic fiction"
+    assert gutenberg._normalize_gutenberg_genre(["Adultery -- Fiction", "Married women -- Fiction"]) == "Fiction"
+    assert gutenberg._normalize_gutenberg_genre(["Adultery -- Fiction", "Courtship -- Fiction"]) == "Romance"
+    assert gutenberg._normalize_gutenberg_genre(["Historical fiction"]) == "Historical fiction"
+
+
+@pytest.mark.anyio
+async def test_gutenberg_authors_exclude_collective_placeholders(monkeypatch):
+    from services import gutenberg
+
+    entries = [
+        gutenberg.GutenbergCatalogEntry(1, "Anthology", "Various", "Fiction", "", "en"),
+        gutenberg.GutenbergCatalogEntry(2, "Anonymous Poem", "Anonymous", "Poetry", "", "en"),
+        gutenberg.GutenbergCatalogEntry(3, "Unknown Work", "Unknown", "Classics", "", "en"),
+        gutenberg.GutenbergCatalogEntry(1342, "Pride and Prejudice", "Austen, Jane, 1775-1817", "Fiction", "", "en"),
+    ]
+
+    async def catalog_snapshot(_client):
+        return entries
+
+    monkeypatch.setattr(gutenberg, "_load_gutenberg_catalog", catalog_snapshot)
+    gutenberg.invalidate_gutenberg_authors_cache()
+    authors = await gutenberg.get_gutenberg_authors(limit=5)
+    assert [(author.name, author.story_count) for author in authors] == [("Jane Austen", 1)]
