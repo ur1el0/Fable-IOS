@@ -212,6 +212,27 @@ def test_standard_ebooks_xhtml_parsers_handle_chapters_parts_and_anthologies():
     assert "I had seen little of Holmes lately." in chapters[1].content
 
 
+def test_standard_ebooks_chapter_parser_falls_back_from_empty_main():
+    from services import standard_ebooks
+
+    xml_doc = b"""<?xml version="1.0" encoding="utf-8"?>
+    <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+      <body>
+        <main></main>
+        <section id="chapter-1" epub:type="bodymatter chapter">
+          <header><h2>Chapter I</h2></header>
+          <p>This chapter lives directly under body when the main element is empty.</p>
+        </section>
+      </body>
+    </html>"""
+
+    chapters = standard_ebooks.parse_single_page_chapters(xml_doc, "example/empty-main")
+
+    assert len(chapters) == 1
+    assert chapters[0].title == "Chapter I"
+    assert chapters[0].content == "This chapter lives directly under body when the main element is empty."
+
+
 def test_gutenberg_cleans_marc_title_and_deduplicates_editions():
     from services import gutenberg
 
