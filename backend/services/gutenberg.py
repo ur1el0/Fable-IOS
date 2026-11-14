@@ -300,6 +300,49 @@ def _clean_gutenberg_title(raw_title: str) -> str:
     return re.sub(r"\s+", " ", cleaned).strip()
 
 
+_EXCLUDED_CATALOG_AUTHORS = frozenset({"various", "anonymous", "unknown"})
+
+_GUTENBERG_GENRE_KEYWORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("Fables", ("fable",)),
+    ("Gothic", ("gothic",)),
+    ("Mystery", ("detective", "mystery", "murder")),
+    ("Horror", ("horror", "ghost", "vampire", "supernatural")),
+    ("Sci-Fi", ("science fiction",)),
+    ("Fantasy", ("fantasy", "fairy tale")),
+    ("Mythology", ("mythology",)),
+    ("Folklore", ("folklore", "folk tale")),
+    ("Adventure", ("adventure", "sea stor")),
+    ("Historical fiction", ("historical fiction",)),
+    ("Romance", ("love stor", "courtship", "romance")),
+    ("Drama", ("drama", "traged", "comed")),
+    ("Poetry", ("poetry", "poem")),
+    ("Philosophy", ("philosophy",)),
+    ("Biography", ("biography",)),
+    ("History", ("history",)),
+)
+
+
+def _normalize_gutenberg_genre(subjects: list[str], fallback: str = "Classics") -> str:
+    """Resolve raw Gutenberg LCSH subject arrays into a clean literary genre label."""
+    cleaned = [str(item).strip() for item in subjects if str(item).strip()]
+    if not cleaned:
+        return fallback
+
+    standalone = [tag for tag in cleaned if "--" not in tag]
+    specific_standalone = [tag for tag in standalone if tag.casefold() != "fiction"]
+    if specific_standalone:
+        return specific_standalone[0][:50]
+
+    combined = " ".join(cleaned).casefold()
+    for canonical, keywords in _GUTENBERG_GENRE_KEYWORDS:
+        if any(keyword in combined for keyword in keywords):
+            return canonical
+
+    if standalone or "fiction" in combined:
+        return "Fiction"
+    return fallback
+
+
 def _search_gutenberg_catalog(
     entries: list[GutenbergCatalogEntry],
     params: dict,
@@ -329,7 +372,7 @@ def _search_gutenberg_catalog(
                 else 2 if search in title
                 else 3
             )
-            sort_key = (text_rank, lang_rank, entry.gutenberg_id)
+            sort_key = (lang_rank, text_rank, entry.gutenberg_id)
         else:
             is_short_story = "short stories" in subjects and "short" not in topic
             is_curated_novel = any(
@@ -644,7 +687,7 @@ async def get_gutenberg_authors(limit: int = 6) -> list[WriterDTO]:
         for raw_author in entry.authors.split(";"):
             name = _display_catalog_author(raw_author)
             key = name.casefold()
-            if not name:
+            if not name or key in _EXCLUDED_CATALOG_AUTHORS:
                 continue
             display_name, count = authors.get(key, (name, 0))
             authors[key] = (display_name, count + 1)
@@ -877,7 +920,7 @@ async def ingest_gutenberg_book(
         author_name = f"{given_names} {family_name}"
 
     subjects = book.get("subjects", [])
-    selected_genre = genre or (subjects[0] if subjects else "")
+    selected_genre = genre or _normalize_gutenberg_genre(subjects)
     summaries = book.get("summaries", [])
     cover_url = book.get("formats", {}).get("image/jpeg")
     if not cover_url:
@@ -992,7 +1035,7 @@ def _story_from_gutenberg_metadata(
         author_name = f"{given_names} {family_name}"
 
     subjects = book.get("subjects", [])
-    genre = str(subjects[0]).strip() if subjects else ""
+    genre = _normalize_gutenberg_genre(subjects)
     summaries = book.get("summaries", [])
     synopsis = _resolve_authentic_synopsis(summaries, chapters)
     cover_url = book.get("formats", {}).get("image/jpeg")
