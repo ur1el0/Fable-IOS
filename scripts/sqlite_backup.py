@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import base64
 import binascii
+import contextlib
 from datetime import datetime, timezone
 import os
 import signal
@@ -145,8 +146,11 @@ def _temporary_database(directory: Path) -> Path:
 def verify_database(path: Path) -> None:
     if not path.is_file():
         raise FileNotFoundError(f"Database file does not exist: {path}")
-    with sqlite3.connect(f"{path.resolve().as_uri()}?mode=ro", uri=True) as connection:
-        result = connection.execute("PRAGMA integrity_check").fetchone()[0]
+    # sqlite3.Connection.__exit__ commits/rolls back transactions without closing the handle,
+    # which keeps temporary snapshots locked against cleanup on Windows.
+    with contextlib.closing(sqlite3.connect(f"{path.resolve().as_uri()}?mode=ro", uri=True)) as connection:
+        with connection:
+            result = connection.execute("PRAGMA integrity_check").fetchone()[0]
     if result != "ok":
         raise RuntimeError(f"SQLite integrity check failed for {path}: {result}")
 
@@ -164,9 +168,10 @@ def create_backup(source: Path, destination: Path, encryption_key: bytes | None 
     with tempfile.TemporaryDirectory(prefix=".fable-backup-", dir=destination.parent) as temp_directory:
         snapshot = _temporary_database(Path(temp_directory))
         try:
-            with sqlite3.connect(f"{source.as_uri()}?mode=ro", uri=True) as source_connection:
-                with sqlite3.connect(snapshot) as destination_connection:
-                    source_connection.backup(destination_connection)
+            with contextlib.closing(sqlite3.connect(f"{source.as_uri()}?mode=ro", uri=True)) as source_connection:
+                with contextlib.closing(sqlite3.connect(snapshot)) as destination_connection:
+                    with source_connection, destination_connection:
+                        source_connection.backup(destination_connection)
             verify_database(snapshot)
             _encrypt_backup_file(snapshot, destination, key)
             try:
