@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime, timezone
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Response, status
 from core.database import get_db
 from schemas import HealthResponse
 
@@ -12,6 +12,12 @@ router = APIRouter()
 def liveness_check():
     """Report process availability without waking or querying the database."""
     return {"status": "alive"}
+
+
+@router.head("/live", include_in_schema=False)
+def liveness_head_check():
+    """Allow HEAD-based uptime probes without querying the database."""
+    return Response(status_code=status.HTTP_200_OK)
 
 
 @router.get("/health", response_model=HealthResponse)
