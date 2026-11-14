@@ -318,6 +318,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             if isinstance(self.rate_limiter, SharedTokenBucketRateLimiter):
                 self.rate_limiter.add_reset_hook(self.read_rate_limiter.reset)
         self.exempt_paths = {
+            "/api/v1/live",
             "/api/v1/health",
             "/docs",
             "/redoc",

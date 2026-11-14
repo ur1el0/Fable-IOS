@@ -7,6 +7,13 @@ from schemas import HealthResponse
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+
+@router.get("/live")
+def liveness_check():
+    """Report process availability without waking or querying the database."""
+    return {"status": "alive"}
+
+
 @router.get("/health", response_model=HealthResponse)
 def health_check():
     conn = None
