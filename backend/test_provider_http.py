@@ -146,6 +146,79 @@ def test_gutenberg_empty_search_is_a_successful_empty_http_response(monkeypatch)
     assert response.json() == []
 
 
+def _gutenberg_http_book(gutenberg_id, title, author="Austen, Jane"):
+    return {
+        "id": gutenberg_id,
+        "title": title,
+        "authors": [{"name": author}],
+        "subjects": ["Fiction"],
+        "summaries": [],
+        "download_count": 12345,
+        "formats": {
+            "text/plain; charset=utf-8": f"https://www.gutenberg.org/ebooks/{gutenberg_id}.txt.utf-8",
+            "image/jpeg": f"https://www.gutenberg.org/cache/epub/{gutenberg_id}/pg{gutenberg_id}.cover.medium.jpg",
+        },
+    }
+
+
+def test_gutenberg_recent_http_collection_marks_recent_titles_and_keeps_chapters_lazy(monkeypatch):
+    from services import gutenberg
+
+    async def recent_books(_client):
+        return [_gutenberg_http_book(79999, "Newly Added Novel")]
+
+    monkeypatch.setattr(gutenberg, "_load_gutenberg_recent_books", recent_books)
+    response = client.get("/api/v1/public/gutenberg?sort=recent")
+
+    assert response.status_code == 200
+    books = response.json()
+    assert len(books) == 1
+    assert books[0]["providerId"] == "79999"
+    assert books[0]["title"] == "Newly Added Novel"
+    assert books[0]["author"] == "Jane Austen"
+    assert books[0]["sourceProvider"] == "GUTENBERG"
+    assert books[0]["isRecentSubmission"] is True
+    assert books[0]["badgeText"] == "NEW ON GUTENBERG"
+    assert books[0]["totalChapters"] == 0
+    assert books[0]["content"] == ""
+
+
+def test_gutenberg_popular_http_collection_uses_gutendex_popularity_order(monkeypatch):
+    from services import gutenberg
+
+    async def popular_books(_client, params):
+        assert params == {"topic": "fiction", "sort": "popular"}
+        return [
+            _gutenberg_http_book(1342, "Pride and Prejudice"),
+            _gutenberg_http_book(11, "Alice's Adventures in Wonderland", "Carroll, Lewis"),
+        ]
+
+    monkeypatch.setattr(gutenberg, "_fetch_gutendex_books", popular_books)
+    response = client.get("/api/v1/public/gutenberg?topic=fiction&sort=popular")
+
+    assert response.status_code == 200
+    books = response.json()
+    assert [book["title"] for book in books] == [
+        "Pride and Prejudice",
+        "Alice's Adventures in Wonderland",
+    ]
+    assert [book["providerId"] for book in books] == ["1342", "11"]
+    assert all(book["sourceProvider"] == "GUTENBERG" for book in books)
+
+
+def test_gutenberg_recent_feed_accepts_only_official_ebook_links():
+    from services.gutenberg import _gutenberg_recent_ids_from_feed
+
+    feed = b"""<?xml version="1.0"?>
+    <rss><channel>
+      <item><title>Latest Book</title><link>https://www.gutenberg.org/ebooks/79999</link></item>
+      <item><title>External Link</title><link>https://example.org/ebooks/88888</link></item>
+      <item><title>Duplicate</title><link>https://www.gutenberg.org/ebooks/79999</link></item>
+    </channel></rss>"""
+
+    assert _gutenberg_recent_ids_from_feed(feed) == [79999]
+
+
 
 def test_gutenberg_chapters_http_endpoint_falls_back_and_returns_provider_text(monkeypatch):
     from contextlib import asynccontextmanager
@@ -249,3 +322,86 @@ def test_gutenberg_chapters_http_endpoint_sanitizes_failure_after_all_sources_fa
     assert response.json()["detail"] == "Gutenberg text service is unavailable"
     assert "private primary transport detail" not in response.text
     assert "private fallback transport detail" not in response.text
+
+
+def test_standard_ebooks_http_endpoints_return_catalog_and_chapters(monkeypatch):
+    from contextlib import asynccontextmanager
+    import httpx
+    from services import standard_ebooks
+
+    monkeypatch.setattr(standard_ebooks, "_STANDARD_EBOOKS_CATALOG_CACHE", {})
+    monkeypatch.setattr(standard_ebooks, "_STANDARD_EBOOKS_DETAIL_CACHE", {})
+    monkeypatch.setattr(standard_ebooks, "_STANDARD_EBOOKS_CHAPTER_CACHE", {})
+
+    listing_xml = b"""<?xml version="1.0" encoding="utf-8"?>
+    <html xmlns="http://www.w3.org/1999/xhtml">
+      <body><main><ol>
+        <li typeof="schema:Book" about="/ebooks/mary-shelley/frankenstein">
+          <a href="/ebooks/mary-shelley/frankenstein" property="schema:name">Frankenstein</a>
+          <p property="schema:author"><span property="schema:name">Mary Shelley</span></p>
+          <img src="/images/covers/mary-shelley_frankenstein/hash/cover@2x.jpg" alt="Cover"/>
+        </li>
+      </ol></main></body>
+    </html>"""
+
+    detail_xml = b"""<?xml version="1.0" encoding="utf-8"?>
+    <html xmlns="http://www.w3.org/1999/xhtml">
+      <body>
+        <div property="schema:description"><p>Victor Frankenstein assembles a creature.</p></div>
+        <ul class="tags"><li><a href="/subjects/horror">Horror</a></li></ul>
+      </body>
+    </html>"""
+
+    single_page_xml = b"""<?xml version="1.0" encoding="utf-8"?>
+    <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+      <body><main>
+        <section id="letter-1" epub:type="bodymatter z3998:letter">
+          <h2>Letter I</h2>
+          <p>To Mrs. Saville, England. You will rejoice to hear that no disaster has accompanied me.</p>
+        </section>
+        <section id="chapter-1" epub:type="bodymatter chapter">
+          <h2>Chapter I</h2>
+          <p>I am by birth a Genevese, and my family is one of the most distinguished of that republic.</p>
+        </section>
+      </main></body>
+    </html>"""
+
+    async def mock_get(self, url, params=None, headers=None, **kwargs):
+        url_str = str(url)
+        if url_str.endswith("/subjects/fiction?sort=popularity&page=1&per-page=12"):
+            return httpx.Response(200, content=listing_xml)
+        if url_str.endswith("/ebooks/mary-shelley/frankenstein"):
+            return httpx.Response(200, content=detail_xml)
+        return httpx.Response(404, content=b"")
+
+    @asynccontextmanager
+    async def mock_stream(self, method, url, headers=None, **kwargs):
+        if str(url).endswith("/ebooks/mary-shelley/frankenstein/text/single-page"):
+            yield httpx.Response(200, content=single_page_xml)
+        else:
+            yield httpx.Response(404, content=b"")
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", mock_get)
+    monkeypatch.setattr(httpx.AsyncClient, "stream", mock_stream)
+
+    catalog_resp = client.get("/api/v1/public/standard-ebooks?topic=fiction")
+    assert catalog_resp.status_code == 200
+    stories = catalog_resp.json()
+    assert len(stories) == 1
+    assert stories[0]["sourceProvider"] == "STANDARD_EBOOKS"
+    assert stories[0]["providerId"] == "mary-shelley/frankenstein"
+    assert stories[0]["genre"] == "Horror"
+
+    chapters_resp = client.get(
+        "/api/v1/public/standard-ebooks/chapters",
+        params={"book_id": "mary-shelley/frankenstein"},
+    )
+    assert chapters_resp.status_code == 200
+    chapters = chapters_resp.json()
+    assert [c["title"] for c in chapters] == ["Letter I", "Chapter I"]
+
+    bad_resp = client.get(
+        "/api/v1/public/standard-ebooks/chapters",
+        params={"book_id": "../etc/passwd"},
+    )
+    assert bad_resp.status_code == 400

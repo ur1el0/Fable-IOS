@@ -30,6 +30,7 @@ All plans are formulated under **strict critical system design tenets**:
 | **[`04_ORAL_FOLKLORE_AUDIO_SYNTHESIZER.md`](./04_ORAL_FOLKLORE_AUDIO_SYNTHESIZER.md)** | Audio Narration & Accessibility | Native text-to-speech audio reader (`AVSpeechSynthesizer`) | Lock-screen `MPNowPlaying` metadata; sentence-level highlighting synchronization; zero audio clipping |
 | **[`05_FASTAPI_CLOUD_SYNC_PIPELINE.md`](./05_FASTAPI_CLOUD_SYNC_PIPELINE.md)** | Distributed Cloud Synchronization | Minimalist FastAPI backend & SQLite cloud sync | Contract-first OpenAPI pipeline; Last-Write-Wins (LWW) conflict resolution; zero enterprise bloat |
 | **[`06_SECURITY_VULNERABILITIES_AND_ARCHITECTURE_REMEDIATION.md`](./06_SECURITY_VULNERABILITIES_AND_ARCHITECTURE_REMEDIATION.md)** | Security & Architecture Hardening | Auth rate-limit hardening, N+1 query elimination, CRUD & account deletion lifecycle, SwiftData resilience | Zero proxy IP collapse; bounded rate-limit tables; App Store 5.1.1(v) compliance; non-fatal SwiftData recovery |
+| **[`07_MULTI_CHAPTER_CATALOG_AND_CACHE_REMEDIATION.md`](./07_MULTI_CHAPTER_CATALOG_AND_CACHE_REMEDIATION.md)** | Multi-Source Catalog & Cache Hygiene | Standard Ebooks XHTML provider, Gutenberg multi-format chapter parsing, MARC cleanup, self-healing SwiftData chapter/catalog cache | Zero stale 1-chapter fallback locks; deduplicated multi-chapter classic browsing; offline fallback preserved |
 
 ---
 
@@ -86,4 +87,5 @@ To ensure manageable, incremental progress aligned with our technical instructor
 8. **Phase 8: Enterprise Security, Automated Tests & ADR Baseline** — [COMPLETE] Implemented BCrypt/PBKDF2 auth, token keychain storage, 22-case pytest suite, and formal Architecture Decision Records.
 9. **Phase 9: App Health Diagnostics & Media Layout Invariants** — [COMPLETE] Enforced strict `.clipped()` anti-overlap geometry, built `AppHealthTests`, and wired interactive on-device `SystemDiagnosticsSheet`.
 10. **Phase 10: Security Vulnerabilities & Architectural Remediation (Plan 06)** — [COMPLETE] Remediated auth rate-limiting gaps, reverse-proxy IP collapse, author/handle impersonation, per-GET SQLite write locks, 1+N story read-count queries, catalog author caching, story CRUD & account deletion lifecycle, and SwiftData launch/shelf resilience.
+11. **Phase 11: Multi-Chapter Catalog, Parser Edge Cases & Client Cache Remediation (Plan 07)** — [COMPLETE] Integrated Standard Ebooks semantic XHTML catalog/reader support, expanded Project Gutenberg chapter splitting (centered headers, spelled-out chapters, staves, `Contents`-driven unnumbered titles, nested `PART` + Roman subchapters), cleaned MARC titles & duplicate editions, and added versioned iOS chapter cache invalidation + unengaged stale card pruning.
 

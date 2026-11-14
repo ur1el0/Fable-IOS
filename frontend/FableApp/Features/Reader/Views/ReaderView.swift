@@ -1,5 +1,74 @@
 import SwiftUI
 
+public enum ReaderPassageMatcher {
+    public static func paragraphs(from text: String) -> [String] {
+        text.replacingOccurrences(of: "\r\n", with: "\n")
+            .components(separatedBy: "\n\n")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
+
+    public static func chapterIndex(for annotation: Annotation, in chapters: [Chapter]) -> Int? {
+        guard !chapters.isEmpty else { return nil }
+        if let chapterNumber = annotation.chapterNumber,
+           let matchedIndex = chapters.firstIndex(where: { $0.chapterNumber == chapterNumber }) {
+            return matchedIndex
+        }
+        let target = annotation.selectedText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !target.isEmpty else { return nil }
+        return chapters.firstIndex { chapter in
+            let normalized = chapter.content.replacingOccurrences(of: "\r\n", with: "\n")
+            return normalized.contains(target)
+        }
+    }
+
+    public static func paragraphIndex(for annotation: Annotation, in paragraphs: [String]) -> Int? {
+        guard !paragraphs.isEmpty else { return nil }
+        let target = annotation.selectedText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !target.isEmpty,
+           let matchedIndex = paragraphs.firstIndex(where: { para in
+               para.contains(target) || target.contains(para)
+           }) {
+            return matchedIndex
+        }
+
+        if annotation.utf16StartOffset >= 0 {
+            var runningOffset = 0
+            for (index, para) in paragraphs.enumerated() {
+                let endOffset = runningOffset + para.utf16.count
+                if annotation.utf16StartOffset <= endOffset {
+                    return index
+                }
+                runningOffset = endOffset + 2 // "\n\n" separator
+            }
+        }
+        return nil
+    }
+
+    public static func pageNumber(for annotation: Annotation, in pages: [String]) -> Int? {
+        guard !pages.isEmpty else { return nil }
+        let target = annotation.selectedText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !target.isEmpty,
+           let matchedIndex = pages.firstIndex(where: { page in
+               page.contains(target) || target.contains(page)
+           }) {
+            return matchedIndex + 1
+        }
+
+        if annotation.utf16StartOffset >= 0 {
+            var runningOffset = 0
+            for (index, page) in pages.enumerated() {
+                let endOffset = runningOffset + page.utf16.count
+                if annotation.utf16StartOffset <= endOffset {
+                    return index + 1
+                }
+                runningOffset = endOffset + 2
+            }
+        }
+        return nil
+    }
+}
+
 public struct ReaderView: View {
     @EnvironmentObject var store: StoryStore
     @Environment(\.dismiss) var dismiss
@@ -21,8 +90,12 @@ public struct ReaderView: View {
     @State private var isChromeVisible: Bool = true
     @State private var isRestoringScrollPosition: Bool = true
     @State private var scrollRestoreTrigger: Int = 0
+    @State private var pendingTargetAnnotation: Annotation?
+    @State private var pendingScrollParagraphId: String? = nil
+    @State private var suppressNextPageTurnMetrics: Bool = false
     
     // Marginalia & Highlight Sheet State (Plan 02)
+    @State private var editingAnnotation: Annotation? = nil
     @State private var selectedTextToAnnotate: String? = nil
     @State private var selectedHighlightColor: HighlightColor = .terracotta
     @State private var annotationNote: String = ""
@@ -30,10 +103,11 @@ public struct ReaderView: View {
     @State private var isShowingAnnotationSheet: Bool = false
     @State private var sessionStartTime: Date = Date()
     
-    public init(story: Story) {
+    public init(story: Story, initialTargetAnnotation: Annotation? = nil) {
         self.story = story
         _currentPage = State(initialValue: max(1, story.currentPage))
         _totalPages = State(initialValue: max(1, story.totalPages))
+        _pendingTargetAnnotation = State(initialValue: initialTargetAnnotation)
     }
     
     private var activeChapter: Chapter? {
@@ -48,9 +122,7 @@ public struct ReaderView: View {
     }
     
     private var activeParagraphs: [String] {
-        activeChapterText.components(separatedBy: "\n\n")
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
+        ReaderPassageMatcher.paragraphs(from: activeChapterText)
     }
     
     private var activeChapterTag: String {
@@ -293,11 +365,22 @@ public struct ReaderView: View {
                 
                 // Content Viewport: Paginated Mode vs Continuous Scroll Mode (Plan 03)
                 if store.isPaginatedMode {
-                    GeometryReader { geo in
-                        ZStack {
-                            TabView(selection: $currentPage) {
-                                ForEach(1...max(1, totalPages), id: \.self) { pageNum in
-                                    ScrollView(showsIndicators: false) {
+                    ZStack {
+                        TabView(selection: $currentPage) {
+                            ForEach(1...max(1, totalPages), id: \.self) { pageNum in
+                                ScrollView(showsIndicators: false) {
+                                    ZStack(alignment: .topLeading) {
+                                        Color.clear
+                                            .contentShape(Rectangle())
+                                            .onTapGesture {
+                                                if store.hapticFeedback {
+                                                    HapticManager.selection()
+                                                }
+                                                withAnimation(.easeInOut(duration: 0.2)) {
+                                                    isChromeVisible.toggle()
+                                                }
+                                            }
+
                                         VStack(alignment: .leading, spacing: 20) {
                                             HStack {
                                                 Text("PAGE \(pageNum) OF \(totalPages)")
@@ -310,62 +393,49 @@ public struct ReaderView: View {
                                                     .foregroundColor(store.readerTheme.isDark ? Color.white.opacity(0.75) : FableTheme.textMuted)
                                             }
                                             .padding(.top, 14)
-                                            
+
                                             if pages.indices.contains(pageNum - 1) {
-                                                let pageText = pages[pageNum - 1]
-                                                let pageParas = pageText.components(separatedBy: "\n\n")
-                                                ForEach(pageParas, id: \.self) { para in
+                                                let pageParas = ReaderPassageMatcher.paragraphs(from: pages[pageNum - 1])
+                                                ForEach(Array(pageParas.enumerated()), id: \.offset) { _, para in
                                                     paragraphView(para)
                                                 }
                                             }
-                                            
+
                                             Spacer().frame(height: 120)
                                         }
-                                        .padding(.horizontal, 24)
+                                        .padding(.horizontal, 32)
                                     }
-                                    .tag(pageNum)
                                 }
+                                .tag(pageNum)
                             }
-                            .tabViewStyle(.page(indexDisplayMode: .never))
-                            .onChange(of: currentPage) { oldPage, newPage in
+                        }
+                        .tabViewStyle(.page(indexDisplayMode: .never))
+                        .onChange(of: currentPage) { oldPage, newPage in
+                            guard oldPage != newPage else { return }
+                            if suppressNextPageTurnMetrics {
+                                suppressNextPageTurnMetrics = false
+                            } else {
                                 let wordCount = pages.indices.contains(newPage - 1) ? PacingEngine.countWords(in: pages[newPage - 1]) : 180
                                 pacingEngine.recordPageTurn(wordsOnPage: wordCount)
-                                store.updateProgress(for: story.id, page: newPage, totalPages: totalPages)
                             }
-
-                            // Tachiyomi / Kindle 3-Zone Tap Navigation Overlay for Prose Books
-                            HStack(spacing: 0) {
-                                // Left 30%: Previous Page / Chapter
-                                Color.clear
-                                    .contentShape(Rectangle())
-                                    .onTapGesture {
-                                        turnPageBack()
-                                    }
-                                    .frame(width: geo.size.width * 0.30)
-
-                                // Center 40%: Toggle Immersive Chrome
-                                Color.clear
-                                    .contentShape(Rectangle())
-                                    .onTapGesture {
-                                        if store.hapticFeedback {
-                                            HapticManager.selection()
-                                        }
-                                        withAnimation(.easeInOut(duration: 0.2)) {
-                                            isChromeVisible.toggle()
-                                        }
-                                    }
-                                    .frame(width: geo.size.width * 0.40)
-
-                                // Right 30%: Next Page / Chapter
-                                Color.clear
-                                    .contentShape(Rectangle())
-                                    .onTapGesture {
-                                        turnPageForward()
-                                    }
-                                    .frame(width: geo.size.width * 0.30)
-                            }
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            persistCurrentProseProgress()
                         }
+                    }
+                    .overlay(alignment: .leading) {
+                        Color.clear
+                            .frame(width: 28)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                turnPageBack()
+                            }
+                    }
+                    .overlay(alignment: .trailing) {
+                        Color.clear
+                            .frame(width: 28)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                turnPageForward()
+                            }
                     }
                 } else {
                     // Scrollable Editorial Manuscript Body
@@ -561,25 +631,37 @@ public struct ReaderView: View {
                             }
                         }
                         .onChange(of: scrollRestoreTrigger) { _, _ in
-                            let totalParas = activeParagraphs.count
-                            if currentPage > 1 && totalParas > 1 {
-                                let targetIdx = min(
-                                    totalParas - 1,
-                                    max(0, Int(((Double(currentPage - 1) / Double(max(1, totalPages))) * Double(totalParas)).rounded()))
-                                )
+                            if let targetParaId = pendingScrollParagraphId {
+                                pendingScrollParagraphId = nil
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
                                     withAnimation(.easeInOut(duration: 0.2)) {
-                                        scrollProxy.scrollTo("para-\(targetIdx)", anchor: .top)
+                                        scrollProxy.scrollTo(targetParaId, anchor: .center)
                                     }
                                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                                         isRestoringScrollPosition = false
                                     }
                                 }
                             } else {
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                                    scrollProxy.scrollTo("para-top", anchor: .top)
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                                        isRestoringScrollPosition = false
+                                let totalParas = activeParagraphs.count
+                                if currentPage > 1 && totalParas > 1 {
+                                    let targetIdx = min(
+                                        totalParas - 1,
+                                        max(0, Int(((Double(currentPage - 1) / Double(max(1, totalPages))) * Double(totalParas)).rounded()))
+                                    )
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
+                                        withAnimation(.easeInOut(duration: 0.2)) {
+                                            scrollProxy.scrollTo("para-\(targetIdx)", anchor: .top)
+                                        }
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                                            isRestoringScrollPosition = false
+                                        }
+                                    }
+                                } else {
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                                        scrollProxy.scrollTo("para-top", anchor: .top)
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                                            isRestoringScrollPosition = false
+                                        }
                                     }
                                 }
                             }
@@ -605,13 +687,11 @@ public struct ReaderView: View {
                                     set: { newVal in
                                         let target = Int(newVal.rounded())
                                         if target != currentPage && target >= 1 && target <= totalPages {
+                                            suppressNextPageTurnMetrics = true
                                             currentPage = target
                                             if store.hapticFeedback {
                                                 HapticManager.selection()
                                             }
-                                            let wordCount = pages.indices.contains(currentPage - 1) ? PacingEngine.countWords(in: pages[currentPage - 1]) : 180
-                                            pacingEngine.recordPageTurn(wordsOnPage: wordCount)
-                                            persistCurrentProseProgress()
                                         }
                                     }
                                 ),
@@ -739,16 +819,22 @@ public struct ReaderView: View {
         .navigationBarBackButtonHidden(true)
         .onAppear {
             self.sessionStartTime = Date()
+            pacingEngine.startSession()
             let isUsable = story.chapters?.contains(where: \.hasReadableText) ?? false
             if let existing = story.chapters, !existing.isEmpty, isUsable {
                 self.chapters = existing
                 restoreSavedChapter()
                 loadCurrentChapterPages(preserveCurrentPage: true)
+                applyPendingAnnotationTargetIfReady()
                 persistCurrentProseProgress()
                 triggerScrollRestore()
             } else {
                 restoreSavedChapter()
                 loadCurrentChapterPages(preserveCurrentPage: true)
+                if story.sourceProvider == .fableOriginal && !activeParagraphs.isEmpty {
+                    applyPendingAnnotationTargetIfReady()
+                    triggerScrollRestore()
+                }
                 Task {
                     await loadChapters()
                 }
@@ -771,9 +857,11 @@ public struct ReaderView: View {
         .onChange(of: store.readerFontSize) { _, _ in
             loadCurrentChapterPages(preserveCurrentPage: true)
         }
-        .sheet(isPresented: $isShowingAnnotationSheet) {
+        .sheet(isPresented: $isShowingAnnotationSheet, onDismiss: {
+            resetAnnotationState()
+        }) {
             annotationSheetView
-                .presentationDetents([.fraction(0.48), .medium])
+                .presentationDetents([.medium, .large])
                 .background(Color.white)
         }
         .sheet(isPresented: $isShowingChapterSheet) {
@@ -784,13 +872,22 @@ public struct ReaderView: View {
             isShowingChapterSheet = newValue
         }
     }
+
+    private func matchingAnnotation(for para: String) -> Annotation? {
+        store.activeStoryAnnotations.first { annot in
+            if let annotChapter = annot.chapterNumber,
+               let currentChapterNum = activeChapter?.chapterNumber,
+               annotChapter != currentChapterNum {
+                return false
+            }
+            return para.contains(annot.selectedText) || annot.selectedText.contains(para)
+        }
+    }
     
     // View helper for rendered manuscript paragraph with marginalia highlighting & oral audio sync
     @ViewBuilder
     private func paragraphView(_ para: String) -> some View {
-        let matchingAnnotation = store.activeStoryAnnotations.first { annot in
-            para.contains(annot.selectedText) || annot.selectedText.contains(para)
-        }
+        let matchingAnnotation = matchingAnnotation(for: para)
         
         let isSpokenParagraph: Bool = {
             guard audioNarrator.isPlaying, audioNarrator.activeStoryId == story.id else { return false }
@@ -829,7 +926,17 @@ public struct ReaderView: View {
             .contentShape(Rectangle())
             .animation(.easeInOut(duration: 0.25), value: isSpokenParagraph)
             .onTapGesture {
+                self.editingAnnotation = matchingAnnotation
                 self.selectedTextToAnnotate = para
+                if let existing = matchingAnnotation {
+                    self.selectedHighlightColor = existing.color
+                    self.annotationNote = existing.note ?? ""
+                    self.isPinToJournal = existing.isPinnedToJournal
+                } else {
+                    self.selectedHighlightColor = .terracotta
+                    self.annotationNote = ""
+                    self.isPinToJournal = true
+                }
                 self.isShowingAnnotationSheet = true
             }
     }
@@ -844,7 +951,7 @@ public struct ReaderView: View {
                 .padding(.top, 12)
             
             HStack {
-                Text("Annotate Passage")
+                Text(editingAnnotation != nil ? "Edit Annotation" : "Annotate Passage")
                     .fableFont(size: 18, weight: .bold, design: .serif)
                     .foregroundColor(FableTheme.deepCharcoal)
                 
@@ -942,35 +1049,63 @@ public struct ReaderView: View {
             .tint(FableTheme.brandPrimary)
             .padding(.horizontal, 20)
             
-            // Save Action Button
-            Button(action: {
-                if let text = selectedTextToAnnotate {
-                    let fullText = activeChapterText
-                    let nsText = fullText as NSString
-                    let targetRange = nsText.range(of: text)
-                    let startOffset = targetRange.location != NSNotFound ? targetRange.location : 0
-                    let endOffset = targetRange.location != NSNotFound ? (targetRange.location + targetRange.length) : text.utf16.count
-                    
-                    store.addAnnotation(
-                        story: story,
-                        text: text,
-                        startOffset: startOffset,
-                        endOffset: endOffset,
-                        color: selectedHighlightColor,
-                        note: annotationNote.isEmpty ? nil : annotationNote,
-                        pinToJournal: isPinToJournal
-                    )
+            // Save / Update Action Button
+            VStack(spacing: 10) {
+                Button(action: {
+                    let cleanNote = annotationNote.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let finalNote = cleanNote.isEmpty ? nil : cleanNote
+                    if let existing = editingAnnotation {
+                        store.updateAnnotation(
+                            existing,
+                            story: story,
+                            color: selectedHighlightColor,
+                            note: finalNote,
+                            pinToJournal: isPinToJournal
+                        )
+                    } else if let text = selectedTextToAnnotate {
+                        let fullText = activeChapterText
+                        let nsText = fullText as NSString
+                        let targetRange = nsText.range(of: text)
+                        let startOffset = targetRange.location != NSNotFound ? targetRange.location : 0
+                        let endOffset = targetRange.location != NSNotFound ? (targetRange.location + targetRange.length) : text.utf16.count
+                        
+                        store.addAnnotation(
+                            story: story,
+                            text: text,
+                            chapterNumber: activeChapter?.chapterNumber,
+                            startOffset: startOffset,
+                            endOffset: endOffset,
+                            color: selectedHighlightColor,
+                            note: finalNote,
+                            pinToJournal: isPinToJournal
+                        )
+                    }
+                    isShowingAnnotationSheet = false
+                    resetAnnotationState()
+                }) {
+                    Text(editingAnnotation != nil ? "Update Annotation" : "Save Annotation")
+                        .fableFont(size: 15, weight: .semibold)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(FableTheme.brandPrimary)
+                        .foregroundColor(.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
-                isShowingAnnotationSheet = false
-                resetAnnotationState()
-            }) {
-                Text("Save Annotation")
-                    .fableFont(size: 15, weight: .semibold)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(FableTheme.brandPrimary)
-                    .foregroundColor(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                if let existing = editingAnnotation {
+                    Button(role: .destructive) {
+                        store.deleteAnnotation(id: existing.id, storyId: story.id)
+                        isShowingAnnotationSheet = false
+                        resetAnnotationState()
+                    } label: {
+                        Text("Delete Annotation")
+                            .fableFont(size: 14, weight: .semibold)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(Color.red.opacity(0.08))
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                    }
+                }
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 16)
@@ -979,10 +1114,18 @@ public struct ReaderView: View {
     
     // Helper to reset annotation state
     private func resetAnnotationState() {
+        editingAnnotation = nil
         selectedTextToAnnotate = nil
         annotationNote = ""
         selectedHighlightColor = .terracotta
         isPinToJournal = true
+    }
+
+    private func setCurrentPageProgrammatically(_ targetPage: Int) {
+        let clamped = min(max(1, targetPage), max(1, totalPages))
+        guard clamped != currentPage else { return }
+        suppressNextPageTurnMetrics = true
+        currentPage = clamped
     }
 
     private func turnPageBack() {
@@ -993,9 +1136,6 @@ public struct ReaderView: View {
             withAnimation(.easeInOut(duration: 0.2)) {
                 currentPage -= 1
             }
-            let wordCount = pages.indices.contains(currentPage - 1) ? PacingEngine.countWords(in: pages[currentPage - 1]) : 180
-            pacingEngine.recordPageTurn(wordsOnPage: wordCount)
-            persistCurrentProseProgress()
         } else if currentChapterIndex > 0 {
             if store.hapticFeedback {
                 HapticManager.notification(type: .success)
@@ -1012,9 +1152,6 @@ public struct ReaderView: View {
             withAnimation(.easeInOut(duration: 0.2)) {
                 currentPage += 1
             }
-            let wordCount = pages.indices.contains(currentPage - 1) ? PacingEngine.countWords(in: pages[currentPage - 1]) : 180
-            pacingEngine.recordPageTurn(wordsOnPage: wordCount)
-            persistCurrentProseProgress()
         } else if currentChapterIndex < chapters.count - 1 {
             if store.hapticFeedback {
                 HapticManager.notification(type: .success)
@@ -1038,10 +1175,36 @@ public struct ReaderView: View {
                 restoreSavedChapter()
                 loadCurrentChapterPages(preserveCurrentPage: true)
             }
+            applyPendingAnnotationTargetIfReady()
             persistCurrentProseProgress()
             triggerScrollRestore()
         } catch {
-            chapterLoadError = "Couldn't load chapters. Check your connection and try again."
+            if activeParagraphs.isEmpty {
+                chapterLoadError = "Couldn't load chapters. Check your connection and try again."
+            } else {
+                chapterLoadError = nil
+                loadCurrentChapterPages(preserveCurrentPage: true)
+                applyPendingAnnotationTargetIfReady()
+            }
+        }
+    }
+
+    private func applyPendingAnnotationTargetIfReady() {
+        guard let target = pendingTargetAnnotation else { return }
+        if !chapters.isEmpty,
+           let matchedChapterIdx = ReaderPassageMatcher.chapterIndex(for: target, in: chapters),
+           matchedChapterIdx != currentChapterIndex {
+            currentChapterIndex = matchedChapterIdx
+            loadCurrentChapterPages(preserveCurrentPage: false)
+        }
+        if let page = ReaderPassageMatcher.pageNumber(for: target, in: pages) {
+            setCurrentPageProgrammatically(page)
+        }
+        if let paraIdx = ReaderPassageMatcher.paragraphIndex(for: target, in: activeParagraphs) {
+            pendingScrollParagraphId = "para-\(paraIdx)"
+        }
+        if !chapters.isEmpty || !activeParagraphs.isEmpty {
+            pendingTargetAnnotation = nil
         }
     }
 
@@ -1051,11 +1214,11 @@ public struct ReaderView: View {
         self.pages = chunked
         self.totalPages = max(1, chunked.count)
         if preserveCurrentPage {
-            self.currentPage = min(max(1, self.currentPage), self.totalPages)
+            setCurrentPageProgrammatically(self.currentPage)
         } else if startAtLastPage {
-            self.currentPage = max(1, chunked.count)
+            setCurrentPageProgrammatically(chunked.count)
         } else {
-            self.currentPage = 1
+            setCurrentPageProgrammatically(1)
         }
         store.loadAnnotations(for: story.id)
     }
@@ -1071,6 +1234,7 @@ public struct ReaderView: View {
                 chapterNumber: chapter.chapterNumber
             )
             loadCurrentChapterPages(startAtLastPage: startAtLastPage)
+            pacingEngine.startSession()
             persistCurrentProseProgress()
             triggerScrollRestore()
             if audioNarrator.isPlaying {
@@ -1170,7 +1334,7 @@ public struct ReaderView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 36)
-                } else if let chapterLoadError {
+                } else if let chapterLoadError, activeParagraphs.isEmpty {
                     VStack(spacing: 12) {
                         Text(chapterLoadError)
                             .fableFont(size: 14, weight: .medium)

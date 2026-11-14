@@ -220,4 +220,121 @@ final class StorySummaryDecodingTests: XCTestCase {
         )
         XCTAssertEqual(CreateStoryRequest.estimatedReadTimeMinutes(for: "word " + String(repeating: "story ", count: 300)), 2)
     }
+
+    func testStandardEbooksStoryDecodingAndProviderStatus() throws {
+        let payload = Data(
+            """
+            {
+              "id": "6F090800-8D25-5F7E-9A56-B8D70F678C92",
+              "title": "Dracula",
+              "author": "Bram Stoker",
+              "genre": "Horror",
+              "chapter": "",
+              "synopsis": "Count Dracula travels to England.",
+              "content": "",
+              "readTimeMinutes": 700,
+              "isBookmarked": false,
+              "isCompleted": false,
+              "createdAtUtc": "2026-11-13T00:00:00Z",
+              "updatedAtUtc": "2026-11-13T00:00:00Z",
+              "coverImageUrl": "https://standardebooks.org/images/covers/bram-stoker_dracula/hash/cover@2x.jpg",
+              "totalPages": 0,
+              "currentPage": 1,
+              "progressPercent": 0,
+              "savesCount": "0",
+              "readsCount": "0",
+              "totalChapters": 0,
+              "contentFormat": "PROSE",
+              "sourceProvider": "STANDARD_EBOOKS",
+              "providerId": "bram-stoker/dracula"
+            }
+            """.utf8
+        )
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let story = try decoder.decode(Story.self, from: payload)
+
+        XCTAssertEqual(story.sourceProvider, .standardEbooks)
+        XCTAssertEqual(story.providerId, "bram-stoker/dracula")
+        XCTAssertEqual(story.genre.rawValue, "Horror")
+
+        var status = ProviderCatalogStatus()
+        status.record(.standardEbooks, succeeded: false)
+        XCTAssertTrue(status.warningMessage?.contains("Standard Ebooks") == true)
+        status.record(.standardEbooks, succeeded: true)
+        XCTAssertNil(status.warningMessage)
+    }
+
+    @MainActor
+    func testExternalChapterCacheInvalidationAndStaleCatalogPruningPolicy() {
+        let storyId = UUID()
+        let fallbackChapter = [
+            Chapter(
+                id: UUID(),
+                storyId: storyId,
+                chapterNumber: 1,
+                title: "Chapter I: The Complete Tale",
+                content: "A long novel concatenated into one fallback chapter.",
+                wordCount: 25_000
+            )
+        ]
+
+        XCTAssertTrue(
+            StoryStore.shouldInvalidateCachedChapters(
+                fallbackChapter,
+                sourceProvider: .gutenberg,
+                verifiedParserVersion: 0
+            )
+        )
+        XCTAssertFalse(
+            StoryStore.shouldInvalidateCachedChapters(
+                fallbackChapter,
+                sourceProvider: .gutenberg,
+                verifiedParserVersion: StoryStore.currentExternalChapterParserVersion
+            )
+        )
+        XCTAssertFalse(
+            StoryStore.shouldInvalidateCachedChapters(
+                fallbackChapter,
+                sourceProvider: .fableOriginal,
+                verifiedParserVersion: 0
+            )
+        )
+
+        let multiChapters = [
+            Chapter(id: UUID(), storyId: storyId, chapterNumber: 1, title: "Chapter I", content: "Part one.", wordCount: 500),
+            Chapter(id: UUID(), storyId: storyId, chapterNumber: 2, title: "Chapter II", content: "Part two.", wordCount: 500)
+        ]
+        XCTAssertFalse(
+            StoryStore.shouldInvalidateCachedChapters(
+                multiChapters,
+                sourceProvider: .gutenberg,
+                verifiedParserVersion: 0
+            )
+        )
+
+        let liveId = UUID()
+        let staleUnengagedId = UUID()
+        let staleBookmarkedId = UUID()
+        let staleAnnotatedId = UUID()
+        let seOtherProviderId = UUID()
+
+        let stories = [
+            Story(id: liveId, title: "Live Classic", author: "Lewis Carroll", genre: "Fiction", excerpt: "S", paragraphs: [], coverImageName: "", heroImageName: "", isSaved: false, sourceProvider: .gutenberg, providerId: "11"),
+            Story(id: staleUnengagedId, title: "Old Pulp", author: "Author", genre: "Fiction", excerpt: "S", paragraphs: [], coverImageName: "", heroImageName: "", isSaved: false, sourceProvider: .gutenberg, providerId: "79934"),
+            Story(id: staleBookmarkedId, title: "Saved Old", author: "Author", genre: "Fiction", excerpt: "S", paragraphs: [], coverImageName: "", heroImageName: "", isSaved: true, sourceProvider: .gutenberg, providerId: "79931"),
+            Story(id: staleAnnotatedId, title: "Noted Old", author: "Author", genre: "Fiction", excerpt: "S", paragraphs: [], coverImageName: "", heroImageName: "", isSaved: false, sourceProvider: .gutenberg, providerId: "79930"),
+            Story(id: seOtherProviderId, title: "SE Book", author: "Bram Stoker", genre: "Horror", excerpt: "S", paragraphs: [], coverImageName: "", heroImageName: "", isSaved: false, sourceProvider: .standardEbooks, providerId: "bram-stoker/dracula")
+        ]
+
+        let staleIDs = StoryStore.staleUnengagedExternalStoryIDs(
+            in: stories,
+            provider: .gutenberg,
+            liveStoryIDs: [liveId],
+            isAnnotatedProvider: { $0 == staleAnnotatedId }
+        )
+
+        XCTAssertEqual(staleIDs, [staleUnengagedId])
+    }
 }

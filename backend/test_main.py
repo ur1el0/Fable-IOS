@@ -281,6 +281,137 @@ The morning brought no relief. The fog clung tightly to the moors, concealing wh
     assert chapters[1]["chapter_number"] == 2
     assert "CHAPTER II" in chapters[1]["title"]
 
+
+def test_extract_chapters_handles_centered_italic_spelled_out_and_staves():
+    from main import extract_chapters_from_text
+
+    # 1. Centered headers and body text mentioning "Chapter" 3+ times must stay split.
+    centered = (
+        "                               CHAPTER I\n\n"
+        "First chapter text references Chapter 1, Chapter 2, and Chapter 3 inside the narrative "
+        "along with enough prose words to exceed the minimum length check cleanly.\n\n"
+        "                               CHAPTER II\n\n"
+        "Second chapter picks up the plot immediately with plenty of narrative detail here."
+    )
+    centered_chaps = extract_chapters_from_text(centered)
+    assert [c["title"] for c in centered_chaps] == ["CHAPTER I", "CHAPTER II"]
+
+    # 2. Italic spelled-out headers (_Chapter One_, _Chapter Two_) and TOC skipping.
+    spelled_out = (
+        "CONTENTS\n\n"
+        "Chapter One\nChapter Two\nChapter Three\n\n"
+        "_Chapter One_\n\n"
+        "The hero stood at the threshold of a distant crimson sea waiting for the tide.\n\n"
+        "_Chapter Two_\n\n"
+        "Across the moonlit citadel the ancient bells rang out across the courtyard."
+    )
+    spelled_chaps = extract_chapters_from_text(spelled_out)
+    assert [c["title"] for c in spelled_chaps] == ["Chapter One", "Chapter Two"]
+
+    # 3. Stave headings (A Christmas Carol style)
+    staves = (
+        "CONTENTS\n\n"
+        "Stave I: Marley's Ghost\n"
+        "Stave II: The First Spirit\n\n"
+        "STAVE I: MARLEY'S GHOST\n\n"
+        "Marley was dead to begin with, and there was no doubt whatever about that in London.\n\n"
+        "STAVE II: THE FIRST OF THE THREE SPIRITS\n\n"
+        "When Scrooge awoke it was so dark that he could scarcely distinguish the window."
+    )
+    stave_chaps = extract_chapters_from_text(staves)
+    assert [c["title"] for c in stave_chaps] == [
+        "STAVE I: MARLEY'S GHOST",
+        "STAVE II: THE FIRST OF THE THREE SPIRITS",
+    ]
+
+    # 4. Indented Roman numerals with subtitle on the following line (Time Machine style)
+    roman_indented = (
+        " I.\n"
+        " Introduction\n\n"
+        "The Time Traveller was expounding a recondite matter to all of us after dinner.\n\n"
+        " II.\n"
+        " The Machine\n\n"
+        "The thing the Time Traveller held in his hand was a glittering metallic framework."
+    )
+    roman_chaps = extract_chapters_from_text(roman_indented)
+    assert [c["title"] for c in roman_chaps] == ["I. Introduction", "II. The Machine"]
+
+
+def test_extract_chapters_handles_contents_unnumbered_chapters_and_nested_parts():
+    from main import extract_chapters_from_text
+
+    # 1. Contents-guided unnumbered chapters (Jekyll & Hyde style >= 3,000 words)
+    filler_prose = " ".join(["London fog crept silently down the narrow lane while candles flickered."] * 105)
+    unnumbered = (
+        "Contents\n\n"
+        " STORY OF THE DOOR\n"
+        " SEARCH FOR MR. HYDE\n"
+        " THE CAREW MURDER CASE\n\n\n\n"
+        "STORY OF THE DOOR\n\n"
+        f"{filler_prose}\n\n"
+        "SEARCH FOR MR. HYDE\n\n"
+        f"{filler_prose}\n\n"
+        "THE CAREW MURDER CASE\n\n"
+        f"{filler_prose}\n"
+    )
+    unnumbered_chaps = extract_chapters_from_text(unnumbered)
+    assert [c["title"] for c in unnumbered_chaps] == [
+        "Story Of The Door",
+        "Search For Mr. Hyde",
+        "The Carew Murder Case",
+    ]
+
+    # 2. Nested PART + Roman subchapters while filtering bare-Roman TOC blocks (O Pioneers! style)
+    nested_parts = (
+        "Contents\n\n"
+        " PART I. The Wild Land\n I\n II\n\n"
+        " PART II. Neighboring Fields\n I\n II\n\n"
+        "Dedication to old Nebraska pioneers.\n\n\n"
+        "PART I. The Wild Land\n\n"
+        "I\n\n"
+        "On the divide the wind swept across the brown prairies where Alexandra walked carefully.\n\n"
+        "II\n\n"
+        "After supper Emil ran along the pasture fence while the winter stars emerged overhead.\n\n"
+        "PART II. Neighboring Fields\n\n"
+        "I\n\n"
+        "Years later the lush cornfields bordered the white farmhouse along the timber claim.\n\n"
+        "II\n\n"
+        "Carl Linstrum returned at dusk and paused beside the mulberry hedge at the gate."
+    )
+    part_chaps = extract_chapters_from_text(nested_parts)
+    assert [c["title"] for c in part_chaps] == [
+        "PART I. The Wild Land — Chapter I",
+        "PART I. The Wild Land — Chapter II",
+        "PART II. Neighboring Fields — Chapter I",
+        "PART II. Neighboring Fields — Chapter II",
+    ]
+
+
+def test_extract_chapters_from_text_recognizes_spelled_out_chapter_headings():
+    from main import extract_chapters_from_text
+
+    raw_sample = """
+*** START OF THE PROJECT GUTENBERG EBOOK TEST ***
+
+chapter the first
+The first part contains enough prose to distinguish a real chapter from a contents listing.
+It continues with another paragraph so the reader receives a substantial chapter body.
+
+CHAPTER TWO. THE JOURNEY
+The second part also contains enough prose to qualify as a chapter of this full-length work.
+Readers can follow the chapter sequence instead of seeing the entire novel as one section.
+
+*** END OF THE PROJECT GUTENBERG EBOOK TEST ***
+"""
+
+    chapters = extract_chapters_from_text(raw_sample)
+
+    assert len(chapters) == 2
+    assert [chapter["chapter_number"] for chapter in chapters] == [1, 2]
+    assert chapters[0]["title"].casefold() == "chapter the first"
+    assert chapters[1]["title"].casefold() == "chapter two. the journey"
+
+
 def test_get_genres_endpoint():
     created = client.post("/api/v1/stories", headers=auth_headers(), json={
         "title": "Genre Count Story",

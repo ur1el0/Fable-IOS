@@ -57,7 +57,8 @@ This architecture mirrors consumer reading platforms like **Medium, Substack, an
 ```
 
 ### Key Characteristics
-1. **Live Public-Domain Catalog:** The app-facing catalog is fetched from Project Gutenberg through Gutendex/RDF metadata. Fable does not bundle or seed placeholder provider stories. Cover URLs come from Gutenberg metadata, and the reader fetches book text only when a user opens a title.
+1. **Live Public-Domain Catalog:** Fable keeps the catalog snapshot, popular-book, and recently added collections distinct. Popular titles use Gutendex's popularity ordering; new additions come from Project Gutenberg's daily RSS feed and are resolved against official RDF metadata, with entries lacking plain text filtered out. The app does not bundle placeholder provider stories. Cover URLs come from provider metadata, and chapter text is fetched when a reader opens a title.
+   - Gutenberg catalog cards use `totalChapters: 0` to mean “not loaded yet.” The reader loads and parses the full text on demand; chapter headings can use numeric, Roman, or spelled-out numbers.
 2. **User-Generated Content (UGC):** When a user crafts a story in `WriteView` and taps **Publish**, the app sends an HTTP `POST /api/v1/stories` request. The backend validates and persists the story, making it instantly discoverable for other users.
 3. **Data Integrity & Exact Formatting:** Because we define the database schema, all fields (chapter numbers, reading time, excerpt, full body text) match the iOS view models with 100% accuracy.
 

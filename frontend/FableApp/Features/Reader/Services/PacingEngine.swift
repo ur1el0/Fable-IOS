@@ -12,17 +12,16 @@ public final class PacingEngine: ObservableObject {
     
     public init() {}
     
-    public func startSession() {
-        lastPageTurnTimestamp = Date()
+    public func startSession(at now: Date = Date()) {
+        lastPageTurnTimestamp = now
     }
     
-    public func recordPageTurn(wordsOnPage: Int) {
+    public func recordPageTurn(wordsOnPage: Int, at now: Date = Date()) {
         guard let previousTime = lastPageTurnTimestamp else {
-            lastPageTurnTimestamp = Date()
+            lastPageTurnTimestamp = now
             return
         }
         
-        let now = Date()
         let elapsedSeconds = now.timeIntervalSince(previousTime)
         lastPageTurnTimestamp = now
         

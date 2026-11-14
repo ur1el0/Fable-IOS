@@ -247,7 +247,9 @@ private struct AuthorStoryRowView: View {
                             HStack(spacing: 3) {
                                 Image(systemName: "square.stack.fill")
                                     .fableFont(size: 10)
-                                Text("\(max(1, story.totalChapters)) Chapters")
+                                Text(story.totalChapters > 0
+                                     ? "\(story.totalChapters) \(story.totalChapters == 1 ? "Chapter" : "Chapters")"
+                                     : "Chapter count loads when opened")
                                     .fableFont(size: 11, weight: .medium)
                             }
                             .foregroundColor(FableTheme.textMuted)

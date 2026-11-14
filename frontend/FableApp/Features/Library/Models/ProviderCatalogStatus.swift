@@ -2,6 +2,7 @@ import Foundation
 
 enum CatalogProvider: String, CaseIterable, Hashable {
     case gutenberg = "Project Gutenberg"
+    case standardEbooks = "Standard Ebooks"
     case mangaDex = "MangaDex"
 }
 

@@ -349,6 +349,7 @@
 				ENABLE_PREVIEWS = YES;
 				FABLE_API_BASE_URL = "http://127.0.0.1:8001/api/v1";
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "FableApp-Info.plist";
 				INFOPLIST_KEY_FABLE_API_BASE_URL = "$(FABLE_API_BASE_URL)";
 				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsArbitraryLoads = NO;
 				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsLocalNetworking = YES;
@@ -384,6 +385,7 @@
 				ENABLE_PREVIEWS = YES;
 				FABLE_API_BASE_URL = "";
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "FableApp-Info.plist";
 				INFOPLIST_KEY_FABLE_API_BASE_URL = "$(FABLE_API_BASE_URL)";
 				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsArbitraryLoads = NO;
 				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsLocalNetworking = YES;

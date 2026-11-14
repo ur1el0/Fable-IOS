@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Literal, Optional
 from fastapi import APIRouter, Depends, Path, Query, status
 
 from core.operator_auth import require_ingestion_api_key
@@ -23,8 +23,12 @@ async def ingest_gutenberg_book(
 async def get_gutenberg_stories(
     topic: Optional[str] = Query(default=None, max_length=50, description="Topic or genre filter for Gutenberg"),
     search: Optional[str] = Query(default=None, max_length=200, description="Search term across title and author"),
+    sort: Literal["catalog", "popular", "recent"] = Query(
+        default="catalog",
+        description="Select the catalog snapshot, popular titles, or recent Gutenberg additions",
+    ),
 ):
-    return await gutenberg_service.get_gutenberg_stories(topic=topic, search=search)
+    return await gutenberg_service.get_gutenberg_stories(topic=topic, search=search, sort=sort)
 
 
 @router.get("/public/gutenberg/{gutenberg_id}", response_model=StoryDTO)

@@ -271,7 +271,9 @@ public protocol StoryAPIServiceProtocol: Sendable {
     func syncShelf(deviceId: UUID, token: String, items: [ShelfSyncItem]) async throws -> [ShelfSyncItem]
     func fetchShelf(deviceId: UUID, token: String) async throws -> [ShelfSyncItem]
     func fetchGutenbergStories(topic: String?, search: String?) async throws -> [Story]
+    func fetchGutenbergStories(topic: String?, search: String?, sort: String?) async throws -> [Story]
     func fetchGutenbergStory(providerId: String) async throws -> Story
+    func fetchStandardEbooksStories(topic: String?, search: String?) async throws -> [Story]
     func fetchMangaStories(search: String?) async throws -> [Story]
     func fetchChapters(for storyId: UUID, sourceProvider: String, providerId: String?) async throws -> [Chapter]
     func fetchGenres() async throws -> [GenreCategory]
@@ -300,6 +302,14 @@ public extension StoryAPIServiceProtocol {
 
     func fetchGutenbergStories(topic: String? = nil, search: String? = nil) async throws -> [Story] {
         try await fetchGutenbergStories(topic: topic, search: search)
+    }
+
+    func fetchGutenbergStories(topic: String?, search: String?, sort: String?) async throws -> [Story] {
+        try await fetchGutenbergStories(topic: topic, search: search)
+    }
+
+    func fetchStandardEbooksStories(topic: String? = nil, search: String? = nil) async throws -> [Story] {
+        try await fetchStandardEbooksStories(topic: topic, search: search)
     }
 
     func fetchMangaStories(search: String? = nil) async throws -> [Story] {
@@ -467,11 +477,15 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
         return result.reconciledItems
     }
 
-    public func fetchGutenbergStories(topic: String? = nil, search: String? = nil) async throws -> [Story] {
-        var components = URLComponents(url: baseURL.appendingPathComponent("public").appendingPathComponent("gutenberg"), resolvingAgainstBaseURL: true)!
+    private func fetchPublicCatalogStories(endpointComponent: String, topic: String? = nil, search: String? = nil, sort: String? = nil) async throws -> [Story] {
+        var components = URLComponents(
+            url: baseURL.appendingPathComponent("public").appendingPathComponent(endpointComponent),
+            resolvingAgainstBaseURL: true
+        )!
         var queryItems: [URLQueryItem] = []
         if let topic, topic != "All" { queryItems.append(URLQueryItem(name: "topic", value: topic)) }
         if let search, !search.isEmpty { queryItems.append(URLQueryItem(name: "search", value: search)) }
+        if let sort, !sort.isEmpty { queryItems.append(URLQueryItem(name: "sort", value: sort)) }
         if !queryItems.isEmpty { components.queryItems = queryItems }
 
         guard let targetURL = components.url else { throw URLError(.badURL) }
@@ -483,6 +497,18 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         return try decoder.decode([Story].self, from: data)
+    }
+
+    public func fetchGutenbergStories(topic: String? = nil, search: String? = nil) async throws -> [Story] {
+        try await fetchGutenbergStories(topic: topic, search: search, sort: nil)
+    }
+
+    public func fetchGutenbergStories(topic: String? = nil, search: String? = nil, sort: String?) async throws -> [Story] {
+        try await fetchPublicCatalogStories(endpointComponent: "gutenberg", topic: topic, search: search, sort: sort)
+    }
+
+    public func fetchStandardEbooksStories(topic: String? = nil, search: String? = nil) async throws -> [Story] {
+        try await fetchPublicCatalogStories(endpointComponent: "standard-ebooks", topic: topic, search: search)
     }
 
     public func fetchGutenbergStory(providerId: String) async throws -> Story {
@@ -518,6 +544,25 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
             decoder.dateDecodingStrategy = .iso8601
             return try decoder.decode([Chapter].self, from: data)
         } else if sourceProvider == "GUTENBERG" {
+            throw URLError(.badURL)
+        } else if sourceProvider == "STANDARD_EBOOKS", let providerId, !providerId.isEmpty {
+            var components = URLComponents(
+                url: baseURL
+                    .appendingPathComponent("public")
+                    .appendingPathComponent("standard-ebooks")
+                    .appendingPathComponent("chapters"),
+                resolvingAgainstBaseURL: true
+            )!
+            components.queryItems = [URLQueryItem(name: "book_id", value: providerId)]
+            guard let url = components.url else { throw URLError(.badURL) }
+            let (data, response) = try await session.data(for: Self.providerRequest(for: url))
+            guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+                throw URLError(.badServerResponse)
+            }
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            return try decoder.decode([Chapter].self, from: data)
+        } else if sourceProvider == "STANDARD_EBOOKS" {
             throw URLError(.badURL)
         } else if sourceProvider == "MANGADEX", let providerId, !providerId.isEmpty {
             return try await fetchMangaChapters(mangaId: providerId, storyId: storyId)
