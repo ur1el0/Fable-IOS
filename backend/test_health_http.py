@@ -23,3 +23,15 @@ def test_liveness_check_does_not_query_database(monkeypatch):
 
     assert response.status_code == 200
     assert response.json() == {"status": "alive"}
+
+
+def test_head_liveness_check_does_not_query_database(monkeypatch):
+    def fail_if_database_is_used():
+        pytest.fail("liveness check must not open a database connection")
+
+    monkeypatch.setattr(health, "get_db", fail_if_database_is_used)
+
+    response = client.head("/api/v1/live")
+
+    assert response.status_code == 200
+    assert response.content == b""
