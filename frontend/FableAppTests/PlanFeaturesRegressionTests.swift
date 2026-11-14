@@ -174,6 +174,7 @@ final class PlanFeaturesRegressionTests: XCTestCase {
         XCTAssertTrue(service.fetchAnnotations(for: storyId, ownerUserId: userA).isEmpty)
     }
 
+    @MainActor
     func testReaderPassageMatcherLocatesChapterParagraphAndPageForQuote() {
         let storyId = UUID()
         let chapter1 = Chapter(
