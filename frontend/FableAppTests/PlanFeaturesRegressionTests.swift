@@ -412,10 +412,10 @@ final class PlanFeaturesRegressionTests: XCTestCase {
             id: UUID(),
             title: "Pride and Prejudice",
             author: "Jane Austen",
-            genre: Genre(rawValue: "Fiction"),
-            synopsis: "Classic romance.",
-            content: "It is a truth universally acknowledged.",
-            readTimeMinutes: 12,
+            genre: "Fiction",
+            excerpt: "Classic romance.",
+            paragraphs: ["It is a truth universally acknowledged."],
+            readingTimeMinutes: 12,
             isTaleOfTheDay: true
         )
         let second = Story(
