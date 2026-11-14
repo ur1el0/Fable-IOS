@@ -6,7 +6,7 @@ services:
     region: singapore
     dockerfilePath: ./backend/Dockerfile
     dockerContext: .
-    healthCheckPath: /api/v1/health
+    healthCheckPath: /api/v1/live
     envVars:
       - key: FABLE_ENV
         value: production

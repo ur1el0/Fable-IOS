@@ -98,7 +98,7 @@ GitHub Actions runs backend tests, builds the Docker image, builds the iOS app, 
 
 ## Monitoring and incident response
 
-The image health check calls `/api/v1/health` every 30 seconds after a 20-second startup grace period. That endpoint reports API and database health; it does not confirm provider availability, SMTP delivery, backup freshness, or end-to-end iOS behavior. Check the deployed HTTPS health URL from outside the host and configure the hosting platform to alert on sustained health-check failures, repeated container restarts, and elevated 5xx responses. For OCI, use an HTTPS Health Checks monitor and a Monitoring alarm for the public API, plus the included host freshness timer for local encrypted backup age.
+The image and Render health checks call `/api/v1/live`; this verifies the API process without opening a database connection. `/api/v1/health` performs an on-demand database connectivity check. Neither endpoint verifies provider availability, SMTP delivery, backup freshness, or end-to-end iOS behavior. For a low-cost external monitor, point UptimeRobot to `/api/v1/live`; use `/api/v1/health` manually when diagnosing Neon connectivity. For OCI, use an HTTPS Health Checks monitor and a Monitoring alarm for the public API, plus the included host freshness timer for local encrypted backup age.
 
 Unexpected 500 responses include an `X-Request-ID` response header. Match that ID with the server log entry, which records the method, path, exception type, and stack frames without logging the exception message or request body. Include the request ID when reporting a server error; do not include passwords, bearer tokens, reset codes, or other credentials in support messages.
 

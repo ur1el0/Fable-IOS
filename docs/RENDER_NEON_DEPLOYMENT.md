@@ -1,6 +1,6 @@
 # Deploy Fable with Render and Neon
 
-This deployment keeps SQLite as the local default and uses Neon PostgreSQL when `FABLE_DATABASE_BACKEND=postgres` is set. `render.yaml` defines a free Render Docker web service, uses the Render-provided port, and checks `/api/v1/health`. Neon holds persistent application data; Render's free web service filesystem is temporary and is used only for a disposable Gutenberg catalog cache.
+This deployment keeps SQLite as the local default and uses Neon PostgreSQL when `FABLE_DATABASE_BACKEND=postgres` is set. `render.yaml` defines a free Render Docker web service, uses the Render-provided port, and checks `/api/v1/live`, which confirms the API process responds without querying Neon. Neon holds persistent application data; Render's free web service filesystem is temporary and is used only for a disposable Gutenberg catalog cache. `/api/v1/health` remains available for an on-demand database connectivity check.
 
 ## Free-tier limits
 
@@ -8,6 +8,7 @@ This deployment keeps SQLite as the local default and uses Neon PostgreSQL when 
 - Neon Free currently includes 100 compute hours and 1 GB of Postgres storage per project. Compute scales to zero after five idle minutes. If monthly limits are exhausted, Neon suspends compute until the next billing period.
 - Select **Free** plans in both dashboards. Do not add a payment method or upgrade a resource if a strict $0 ceiling is required. If a free quota is reached, expect service suspension rather than continued availability.
 - A new Neon project starts with an empty Fable schema. Existing local SQLite accounts, shelves, and authored stories are not copied automatically. The public catalog is fetched from its upstream providers.
+- UptimeRobot's Free plan checks every five minutes. A monitor of `/api/v1/live` keeps Render from idling while leaving Neon free to scale to zero. Keeping one Render service awake continuously uses about 720 instance-hours per 30-day month; Render's 750 free instance-hours are shared across the workspace, so other active free services can exhaust the remaining allowance. If no payment method is on file, exceeding the free instance-hour allowance suspends free services rather than charging for extra hours.
 
 ## Create the Neon database
 
@@ -24,6 +25,14 @@ This deployment keeps SQLite as the local default and uses Neon PostgreSQL when 
 5. Apply the Blueprint and wait for the first deploy to pass its health check. Render provides an HTTPS URL such as `https://fable-api.onrender.com`.
 6. Open `https://<service-name>.onrender.com/api/v1/health`. It should report `healthy` and `database: connected`.
 7. Configure the iOS Release setting `FABLE_API_BASE_URL` as `https://<service-name>.onrender.com/api/v1`.
+
+## Monitor Fable with UptimeRobot
+
+1. Use UptimeRobot's Free plan and add an **HTTP(s)** monitor named `Fable API`.
+2. Set its URL to `https://fable-api-cbo8.onrender.com/api/v1/live` and keep the free five-minute interval.
+3. Enable email notifications for your account contact and confirm the monitor reports **Up**.
+
+Use `/api/v1/live` for the frequent monitor. It checks that the API process can answer requests but deliberately does not connect to Neon. The `/api/v1/health` endpoint checks Neon; polling it every five minutes could keep Neon compute active and consume its free monthly compute allowance. Query it manually when you want to verify the database connection.
 
 Render connects the public service through its proxy. The Blueprint trusts forwarded client IP headers from that proxy so per-client rate limits use the real client address. Do not expose the container directly outside Render.
 
