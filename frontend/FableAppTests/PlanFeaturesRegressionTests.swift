@@ -405,4 +405,51 @@ final class PlanFeaturesRegressionTests: XCTestCase {
         XCTAssertNotNil(service.fetchStory(id: annotatedStub.id))
         XCTAssertEqual(service.fetchAllPinnedAnnotations(ownerUserId: nil).count, 1)
     }
+
+    @MainActor
+    func testLibraryFeaturedDeduplicationAndDiscoveryTaxonomyHelpers() {
+        let featured = Story(
+            id: UUID(),
+            title: "Pride and Prejudice",
+            author: "Jane Austen",
+            genre: Genre(rawValue: "Fiction"),
+            synopsis: "Classic romance.",
+            content: "It is a truth universally acknowledged.",
+            readTimeMinutes: 12,
+            isTaleOfTheDay: true
+        )
+        let second = Story(
+            id: UUID(),
+            title: "Dracula",
+            author: "Bram Stoker",
+            genre: Genre(rawValue: "Gothic"),
+            synopsis: "Vampire epistolary.",
+            content: "Left Munich at 8:35 PM.",
+            readTimeMinutes: 15
+        )
+        let compoundSubject = Story(
+            id: UUID(),
+            title: "Anna Karenina",
+            author: "Leo Tolstoy",
+            genre: Genre(rawValue: "Adultery -- Fiction"),
+            synopsis: "Russian realism.",
+            content: "Happy families are all alike.",
+            readTimeMinutes: 20
+        )
+
+        let remaining = LibraryView.latestStories(from: [featured, second], excluding: featured.id)
+        XCTAssertEqual(remaining.map(\.id), [second.id])
+        XCTAssertTrue(LibraryView.latestStories(from: [featured], excluding: featured.id).isEmpty)
+
+        let store = StoryStore()
+        XCTAssertTrue(store.storyMatchesCategory(featured, category: "Fiction"))
+        XCTAssertFalse(store.storyMatchesCategory(compoundSubject, category: "Fiction"))
+        XCTAssertEqual(StoryStore.pluralizedCount(1, singular: "Title"), "1 Title")
+        XCTAssertEqual(StoryStore.pluralizedCount(2, singular: "Title"), "2 Titles")
+        XCTAssertEqual(StoryStore.pluralizedCount(1, singular: "story", plural: "stories"), "1 story")
+        XCTAssertEqual(StoryStore.pluralizedCount(4, singular: "story", plural: "stories"), "4 stories")
+        XCTAssertTrue(StoryStore.isExcludedPlaceholderAuthor("Various"))
+        XCTAssertTrue(StoryStore.isExcludedPlaceholderAuthor(" anonymous "))
+        XCTAssertFalse(StoryStore.isExcludedPlaceholderAuthor("Jane Austen"))
+    }
 }
