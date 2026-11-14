@@ -262,10 +262,24 @@ def _extract_heading_title(container: ET.Element, fallback_number: int) -> str:
                 break
 
     if title_parts:
-        if len(title_parts) > 1:
-            normalized = [part.rstrip(".:;") or part for part in title_parts[:-1]] + [title_parts[-1]]
-            return ": ".join(normalized)[:160]
-        return title_parts[0][:160]
+        if len(title_parts) == 1:
+            return title_parts[0][:160]
+        formatted_parts = [title_parts[0].rstrip(".:;") or title_parts[0]]
+        for part in title_parts[1:]:
+            cleaned_part = part.strip()
+            if not cleaned_part:
+                continue
+            if cleaned_part.startswith(("(", "[", "{")):
+                formatted_parts[-1] = formatted_parts[-1].rstrip(".:;") or formatted_parts[-1]
+                formatted_parts.append(f" {cleaned_part}")
+            else:
+                if len(formatted_parts) > 1 and formatted_parts[-1].startswith(": "):
+                    previous = formatted_parts[-1][2:].rstrip(".:;") or formatted_parts[-1][2:]
+                    formatted_parts[-1] = f": {previous}"
+                else:
+                    formatted_parts[-1] = formatted_parts[-1].rstrip(".:;") or formatted_parts[-1]
+                formatted_parts.append(f": {cleaned_part}")
+        return "".join(formatted_parts)[:160]
     elem_id = (container.attrib.get("id") or "").replace("-", " ").strip().title()
     return elem_id or f"Chapter {fallback_number}"
 
