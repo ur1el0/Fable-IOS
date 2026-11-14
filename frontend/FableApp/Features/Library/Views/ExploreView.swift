@@ -339,7 +339,7 @@ public struct ExploreView: View {
                                                     .foregroundColor(.white)
                                                     .shadow(color: Color.black.opacity(0.4), radius: 2, y: 1)
                                                 
-                                                Text("\(genre.storyCount) stories")
+                                                Text(StoryStore.pluralizedCount(store.displayStoryCount(for: genre), singular: "story", plural: "stories"))
                                                     .fableFont(size: 11, weight: .semibold)
                                                     .foregroundColor(Color.white.opacity(0.9))
                                                     .padding(.horizontal, 7)
@@ -397,7 +397,7 @@ public struct ExploreView: View {
                                                         .foregroundColor(FableTheme.textPrimary)
                                                         .lineLimit(1)
                                                     
-                                                    Text("\(writer.storyCount) Stories")
+                                                    Text(StoryStore.pluralizedCount(writer.storyCount, singular: "Story", plural: "Stories"))
                                                         .fableFont(size: 11, weight: .medium)
                                                         .foregroundColor(FableTheme.textMuted)
                                                 }

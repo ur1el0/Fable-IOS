@@ -55,7 +55,7 @@ public struct AuthorDetailView: View {
                                     Text("•")
                                         .foregroundColor(FableTheme.textMuted)
 
-                                    Text("\(max(authorStories.count, writer.storyCount)) Works Available")
+                                    Text(StoryStore.pluralizedCount(max(authorStories.count, writer.storyCount), singular: "Work Available", plural: "Works Available"))
                                         .fableFont(size: 12, weight: .medium)
                                         .foregroundColor(FableTheme.textMuted)
                                 }
@@ -85,7 +85,7 @@ public struct AuthorDetailView: View {
                                 ProgressView()
                                     .scaleEffect(0.8)
                             } else {
-                                Text("\(authorStories.count) titles")
+                                Text(StoryStore.pluralizedCount(authorStories.count, singular: "title"))
                                     .fableFont(size: 12, weight: .semibold)
                                     .foregroundColor(FableTheme.textMuted)
                             }
@@ -110,7 +110,7 @@ public struct AuthorDetailView: View {
                                 Text("No titles currently cached for this author.")
                                     .fableFont(size: 14, weight: .semibold)
                                     .foregroundColor(FableTheme.textPrimary)
-                                Text(StoryStore.isMangaEnabled ? "Tap below to query Project Gutenberg and MangaDex." : "Tap below to query Project Gutenberg.")
+                                Text(StoryStore.isMangaEnabled ? "Tap below to query Project Gutenberg, Standard Ebooks, and MangaDex." : "Tap below to query Project Gutenberg and Standard Ebooks.")
                                     .fableFont(size: 12)
                                     .foregroundColor(FableTheme.textMuted)
                                     .multilineTextAlignment(.center)
@@ -202,7 +202,7 @@ private struct AuthorStoryRowView: View {
             HStack(spacing: 14) {
                 // Cover Art
                 FableImageView(
-                    name: story.coverImageUrl,
+                    name: story.effectiveCoverImage,
                     title: story.title,
                     placeholderIcon: placeholderIcon
                 )
@@ -248,7 +248,7 @@ private struct AuthorStoryRowView: View {
                                 Image(systemName: "square.stack.fill")
                                     .fableFont(size: 10)
                                 Text(story.totalChapters > 0
-                                     ? "\(story.totalChapters) \(story.totalChapters == 1 ? "Chapter" : "Chapters")"
+                                     ? StoryStore.pluralizedCount(story.totalChapters, singular: "Chapter")
                                      : "Chapter count loads when opened")
                                     .fableFont(size: 11, weight: .medium)
                             }

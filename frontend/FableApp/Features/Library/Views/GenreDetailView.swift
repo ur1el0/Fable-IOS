@@ -17,18 +17,8 @@ public struct GenreDetailView: View {
     }
     
     var genreStories: [Story] {
-        let target = genre.name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let matching = store.stories.filter { story in
-            if !StoryStore.isMangaEnabled {
-                if story.contentFormat == .manga
-                    || story.genre == .manga
-                    || story.sourceProvider == .mangadex
-                    || story.genre.rawValue.caseInsensitiveCompare("manga") == .orderedSame {
-                    return false
-                }
-            }
-            let g = story.genre.rawValue.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-            return g == target || g.contains(target) || target.contains(g)
+            store.storyMatchesCategory(story, category: genre.name)
         }
         let list = matching
         switch selectedSubcategory {
@@ -123,12 +113,13 @@ public struct GenreDetailView: View {
                                 .fableFont(size: 28, weight: .black)
                                 .foregroundColor(FableTheme.textPrimary)
                             
+                            let displayTitleCount = store.displayStoryCount(for: genre)
                             if let readersCount = Int(genre.readersCount), readersCount > 0 {
-                                Text("\(genre.storyCount) Titles  •  \(readersCount) Readers")
+                                Text("\(StoryStore.pluralizedCount(displayTitleCount, singular: "Title"))  •  \(StoryStore.pluralizedCount(readersCount, singular: "Reader"))")
                                     .fableFont(size: 12, weight: .medium)
                                     .foregroundColor(FableTheme.textMuted)
                             } else {
-                                Text("\(genre.storyCount) Titles")
+                                Text(StoryStore.pluralizedCount(displayTitleCount, singular: "Title"))
                                     .fableFont(size: 12, weight: .medium)
                                     .foregroundColor(FableTheme.textMuted)
                             }
