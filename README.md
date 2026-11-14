@@ -24,7 +24,7 @@
 |---|---|
 | **[`docs/AGENT_HANDOFF_CONTEXT.md`](docs/AGENT_HANDOFF_CONTEXT.md)** | Architecture notes, current implementation boundaries, and verification guidance |
 | **[`docs/plans/06_SECURITY_VULNERABILITIES_AND_ARCHITECTURE_REMEDIATION.md`](docs/plans/06_SECURITY_VULNERABILITIES_AND_ARCHITECTURE_REMEDIATION.md)** | **Plan 06:** 4-Phase Security & Architecture Hardening Plan (`SEC-01`–`SEC-04`, `PERF-01`–`PERF-03`, `DOM-01`–`DOM-02`, `IOS-01`–`IOS-02`) |
-| **[`docs/simulator_captures/README.md`](docs/simulator_captures/README.md)** | **29 Retina iOS Simulator Screenshots** across every screen/filter/modal + **Full Walkthrough Video (`fable_ios_full_walkthrough.mp4`)** |
+| **[`docs/simulator_captures/README.md`](docs/simulator_captures/README.md)** | **Retina iOS Simulator Screenshots**, **Full Walkthrough Video (`fable_ios_full_walkthrough.mp4`)**, and **Live Endpoint Verification Report** |
 | **[`docs/DATA_SOURCES_AND_API_STRATEGY.md`](docs/DATA_SOURCES_AND_API_STRATEGY.md)** | Live provider metadata, official covers, on-demand book chapters, and upstream source limits |
 | **[`docs/RENDER_NEON_DEPLOYMENT.md`](docs/RENDER_NEON_DEPLOYMENT.md)** | Free-tier Render + Neon deployment setup, limits, secrets, and operator steps |
 | **[`docs/adr/`](docs/adr/)** | Architecture Decision Records: [`ADR 0001`](docs/adr/0001-password-hash-versioning.md) (Password Hashing), [`ADR 0002`](docs/adr/0002-ios-open-source-literature-focus-and-manga-feature-flag.md) (Manga Feature Flag), [`ADR 0003`](docs/adr/0003-comprehensive-catalog-seeding-and-chapter-1-continuity.md) (Catalog Seeding), [`ADR 0004`](docs/adr/0004-render-neon-postgres-deployment.md) (Render + Neon) |
@@ -142,11 +142,15 @@ Fable is architected around **Feature-Driven Vertical Slices** combined with **M
    pip install -r backend/requirements-test.txt
    ```
 
-4. **Execute Backend Verification Tests (100 Automated Tests):**
+4. **Execute Backend Verification Tests:**
    ```bash
-   FABLE_ENV=test ./.venv/bin/pytest backend/test_main.py -v
+   PYTHONPATH=.:backend FABLE_ENV=test ./.venv/bin/pytest backend -v
    ```
-   *(All 100 tests must pass, verifying health checks, serialization contracts, Chapter 1 continuity, rate limits, auth hashing, and shelf sync logic).*
+   On Windows PowerShell:
+   ```powershell
+   venv\Scripts\python.exe -m pytest -o pythonpath=". backend" backend -v
+   ```
+   *(All SQLite unit/integration tests pass; PostgreSQL tests skip unless `TEST_DATABASE_URL` is configured, and opt-in live upstream provider checks run when `FABLE_RUN_LIVE_PROVIDER_TESTS=1` is set).*
 
 5. **Start the FastAPI Development Server:**
    ```bash
@@ -192,28 +196,35 @@ Fable is architected around **Feature-Driven Vertical Slices** combined with **M
 ```text
 Fable-IOS/
 ├── README.md                               # Repository guide & setup documentation (this file)
-├── Package.swift                           # Swift Package Manager manifest
+├── render.yaml                             # Render cloud deployment blueprint (FastAPI + Neon Postgres)
+├── docker-compose.yml                      # Local Docker Compose stack (read-only container hardening)
+├── docker-compose.production.yml           # Production Compose overrides with TLS / backup integration
 ├── scripts/
-│   └── sqlite_backup.py                    # Encrypted SQLite backup/restore utility
+│   ├── sqlite_backup.py                    # Encrypted SQLite backup/restore utility
+│   └── validate_ios_release_config.sh      # Release configuration URL & ATS security guard
 ├── backend/                                # Asynchronous Python 3.9+ / FastAPI Backend
 │   ├── main.py                             # Application entrypoint & middleware configuration
-│   ├── requirements.txt                    # Runtime dependencies (FastAPI, Uvicorn, Pydantic, HTTPX)
+│   ├── requirements.txt                    # Runtime dependencies (FastAPI, Uvicorn, Pydantic, HTTPX, psycopg)
 │   ├── requirements-test.txt               # Runtime plus pytest for local and CI verification
-│   ├── test_main.py                        # Pytest runner entrypoint (executes 100-test suite)
-│   ├── tests/
-│   │   └── test_api_v1.py                  # Comprehensive 100-case API, auth, backup, and catalog test suite
+│   ├── test_health_http.py                 # Database-independent liveness GET/HEAD tests
+│   ├── test_main.py                        # Core API, auth, backup, security & catalog pytest suite
+│   ├── test_postgres_database.py           # PostgreSQL schema & concurrency integration tests
+│   ├── test_provider_http.py               # Gutenberg & Standard Ebooks HTTP endpoint tests
+│   ├── test_provider_live.py               # Opt-in live upstream provider chapter regression tests
+│   ├── test_provider_services.py           # Catalog parser, genre normalization & author filter tests
 │   ├── api/v1/
 │   │   ├── api.py                          # Unified API router mounting
-│   │   └── endpoints/                      # Route controllers (auth, stories, shelf, gutenberg, health)
+│   │   └── endpoints/                      # Route controllers (auth, stories, shelf, gutenberg, standard_ebooks, manga, health)
 │   ├── core/
 │   │   ├── config.py                       # Environment & security settings
-│   │   ├── database.py                     # SQLite connection, schema bootstrap & curated catalog upsert
+│   │   ├── database.py                     # SQLite / PostgreSQL connection & schema bootstrap
 │   │   ├── operator_auth.py                # Operator key guard for ingestion routes
 │   │   └── rate_limit.py                   # Sliding-window and SQLite token-bucket rate limiters
 │   ├── models/                             # Pydantic v2 DTOs with camelCase serialization aliases
-│   └── services/                           # Business logic (auth_service, story_service, shelf_service, gutenberg)
-├── frontend/                               # Native iOS Application (22 XCTests)
+│   └── services/                           # Business logic (auth_service, story_service, shelf_service, gutenberg, standard_ebooks, manga)
+├── frontend/                               # Native iOS Application (SwiftUI + XCTest Suite)
 │   ├── FableApp.xcodeproj/                 # Xcode 16 project file
+│   ├── FableAppTests/                      # Keychain, session, decoding & Plan regression XCTests
 │   └── FableApp/
 │       ├── App/                            # Lifecycle bootstrap (FableApp.swift, ContentView.swift)
 │       ├── Core/                           # Foundation tokens, FableTheme, FableImageView, KeychainStore
@@ -225,10 +236,10 @@ Fable-IOS/
 │       │   └── Write/                      # WriteView, StoryComposer, StoryPublishedSheet, WriteTests
 │       └── Assets.xcassets/                # App icon and accent color
 ├── docs/                                   # Architectural specifications & engineering documentation
-│   ├── AGENT_HANDOFF_CONTEXT.md            # Complete session handoff context for laptop agents
-│   ├── adr/                                # Architecture Decision Records (ADR 0001, 0002, 0003)
-│   ├── plans/                              # Feature & Security Remediation Plans (Plans 01 through 06)
-│   ├── simulator_captures/                 # 29 Retina UI screenshots + full walkthrough MP4 video
+│   ├── AGENT_HANDOFF_CONTEXT.md            # Complete session handoff context for laptop/desktop agents
+│   ├── adr/                                # Architecture Decision Records (ADR 0001, 0002, 0003, 0004)
+│   ├── plans/                              # Feature & Security Remediation Plans (Plans 01 through 07)
+│   ├── simulator_captures/                 # Retina UI screenshots, endpoint report & full walkthrough MP4 video
 │   ├── final_milestone/                    # Capstone specs & MASTER_PROGRESS_LOG.md
 │   ├── FINAL_MILESTONE_PROGRESS.md         # Comprehensive milestone progression audit
 │   ├── DATA_SOURCES_AND_API_STRATEGY.md    # Catalog seeding architecture & upstream manga gap analysis

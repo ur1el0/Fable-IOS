@@ -1,8 +1,9 @@
 # Multi-Chapter Catalog & Cache Remediation — Summary of Changes and Next Steps
 
-**Branch:** `feat/plans-01-04-remediation` (`origin/feat/plans-01-04-remediation`)  
-**Remote Repository:** `https://github.com/ur1el0/Fable-IOS.git`  
-**Related Plan:** [`docs/plans/07_MULTI_CHAPTER_CATALOG_AND_CACHE_REMEDIATION.md`](./plans/07_MULTI_CHAPTER_CATALOG_AND_CACHE_REMEDIATION.md)
+- **Status:** Merged to `main` (PRs #41–#45); follow-up completion on `fix/catalog-validation-and-windows-finish`
+- **Live Hosted Backend:** `https://fable-api-cbo8.onrender.com` *(Render + Neon PostgreSQL, verified live)*
+- **Remote Repository:** `https://github.com/ur1el0/Fable-IOS.git`
+- **Related Plan:** [`docs/plans/07_MULTI_CHAPTER_CATALOG_AND_CACHE_REMEDIATION.md`](./plans/07_MULTI_CHAPTER_CATALOG_AND_CACHE_REMEDIATION.md)
 
 ---
 
@@ -43,23 +44,33 @@
 
 ---
 
-## 4. What to Do Next (Manual Dashboard Steps)
+## 4. Current Deployment Status & Remaining Non-Windows Items
 
-These remaining actions require GitHub or Render web authentication / owner access (`gh`, `render`, `brew`, and API tokens are not configured in this local environment):
+Previous dashboard and PR blockers from the Fedora session have now been resolved:
 
-1. **Open the GitHub Pull Request & trigger CI:**
-   - Open `https://github.com/ur1el0/Fable-IOS/pull/new/feat/plans-01-04-remediation` (targeting `main`).
-   - Opening the PR triggers all 4 jobs defined in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml):
-     - `backend-verification` (Python `3.9` and `3.11`)
-     - `postgres-verification` (`postgres:16`)
-     - `docker-build-verification`
-     - `ios-verification` (`iPhone 16` / `iOS 18.5`)
-2. **Merge the PR into `main`:**
-   - Once all CI checks pass cleanly, merge the PR into `main` (per [`AGENTS.md`](../AGENTS.md), do not push directly to `main` bypassing PR CI).
-3. **Resume / Redeploy the Render Backend & Verify Neon DB:**
-   - As checked at handoff time, `https://fable-api.onrender.com/api/v1/health` returns **HTTP `503`** (`Service Suspended` — *"This service has been suspended by its owner."*).
-   - Open the Render Dashboard and resume `fable-api` or re-apply [`render.yaml`](../render.yaml) following [`docs/RENDER_NEON_DEPLOYMENT.md`](./RENDER_NEON_DEPLOYMENT.md) with your Neon pooled `DATABASE_URL` and `FABLE_INGESTION_API_KEY`.
-   - After deployment passes health checks, verify:
-     - `https://<service-name>.onrender.com/api/v1/health` reports `healthy` and `database: connected`
-     - `https://<service-name>.onrender.com/api/v1/public/standard-ebooks?topic=fiction` returns non-empty Standard Ebooks titles
-     - Any iOS Release archive uses `FABLE_API_BASE_URL=https://<service-name>.onrender.com/api/v1`
+- **PRs #41–#45 Merged to `main`:** Security hardening (Plan 06, PR #41), simulator captures (PR #42), Standard Ebooks & fresh Gutenberg discovery (`feat/fresh-gutenberg-discovery`, PR #43), and Render/UptimeRobot `/api/v1/live` `GET`/`HEAD` liveness probes (PR #44 & PR #45) are all on `main`.
+- **Hosted Backend Verified Live (`https://fable-api-cbo8.onrender.com`):**
+  - `GET /api/v1/live` -> `200 OK` (`{"status":"alive"}`)
+  - `GET /api/v1/health` -> `200 OK` (`{"status":"healthy","database":"connected",...}`)
+  - `GET /api/v1/public/standard-ebooks?topic=fiction` -> `200 OK` (live catalog entries)
+  - `GET /api/v1/public/gutenberg?topic=fiction` -> `200 OK` (12 deduplicated classics)
+
+Remaining actions require macOS/Xcode or release signing credentials rather than Windows development:
+
+1. **GitHub Actions CI & macOS Verification:** Verify the `fix/catalog-validation-and-windows-finish` branch via `ci.yml` (`postgres:16`, Python `3.9` & `3.11`, Docker build, and `macos-15` `xcodebuild test` / Release build) or locally on macOS (`xcodebuild` is unavailable on Windows).
+2. **Release iOS Archive / TestFlight:** When building a Release archive on macOS, pass `FABLE_API_BASE_URL=https://fable-api-cbo8.onrender.com/api/v1`.
+3. **Optional Operator Credentials:** Configure SMTP credentials if testing live password-reset email delivery against Render.
+
+---
+
+## 5. Follow-Up Completion Applied on `fix/catalog-validation-and-windows-finish`
+
+Consolidated all unmerged Fedora branch work (`fix/catalog-validation-followup`, `origin/docs/simulator-captures-multi-chapter`, and `origin/fix/final-ui-ci-and-docs`) onto `main` alongside Windows verification fixes:
+
+- **Standard Ebooks Subtitle Hygiene (`SE-POLISH-01`, [`backend/services/standard_ebooks.py`](../backend/services/standard_ebooks.py)):** Normalized parenthetical/bracketed heading subtitles (e.g., `"I: Jonathan Harker’s Journal (Kept in shorthand.)"`) while preserving the `origin/main` empty-`<main>` fallback.
+- **Opt-In Live Upstream Chapter Regressions ([`backend/test_provider_live.py`](../backend/test_provider_live.py), [`backend/test_provider_services.py`](../backend/test_provider_services.py)):** Added `FABLE_RUN_LIVE_PROVIDER_TESTS=1` checks verifying Project Gutenberg (`GID=42` *Dr. Jekyll and Mr. Hyde*, `GID=24` *O Pioneers!*) and Standard Ebooks (*Dracula*, *Crime and Punishment*).
+- **Gutenberg Taxonomy, Author Hygiene & Search Priority ([`backend/services/gutenberg.py`](../backend/services/gutenberg.py), [`backend/test_provider_services.py`](../backend/test_provider_services.py)):** Added `_normalize_gutenberg_genre` for compound LCSH tags, excluded collective placeholder authors (`various`, `anonymous`, `unknown`) from `get_gutenberg_authors`, and prioritized English editions in `_search_gutenberg_catalog`.
+- **Manga Readable-Panel Availability Probe ([`backend/services/manga.py`](../backend/services/manga.py), [`backend/test_main.py`](../backend/test_main.py)):** Added `_get_manga_chapter_page_urls` and bounded `@at-home/server` verification (`MANGA_MAX_DIRECT_PROBES_PER_SEARCH = 19`) on search with updated mocks.
+- **Windows SQLite Backup Fix & Test Guard ([`scripts/sqlite_backup.py`](../scripts/sqlite_backup.py), [`backend/test_main.py`](../backend/test_main.py)):** Wrapped `sqlite3.connect` handles in `contextlib.closing(...)` so snapshot files unlock cleanly before temporary directory cleanup on Windows (`WinError 32`), and guarded the POSIX `0o600` `st_mode` check when `sys.platform == "win32"`.
+- **iOS Discovery, Hero, Reader, Write & Settings Polish ([`frontend/`](../frontend/FableApp)):** Unified category matching via `StoryStore.storyMatchesCategory`, filtered placeholder authors (cache version `3`), added `displayStoryCount`/`pluralizedCount`, deduplicated the featured hero from `Browse Library` while preserving `origin/main` `New on Gutenberg` / `Reader Favorites` shelves and unknown chapter count copy, compacted `ReaderView` navbar into a `Menu`, docked `ReaderView`/`WriteView` HUD pills outside scroll viewports, updated `"artists"` to `"authors"` in `SettingsView`, and added regression tests in [`PlanFeaturesRegressionTests.swift`](../frontend/FableAppTests/PlanFeaturesRegressionTests.swift).
+- **Release Workflow Parity, Captures & Docs ([`.github/workflows/release-container.yml`](../.github/workflows/release-container.yml), [`docs/simulator_captures/`](./simulator_captures/README.md)):** Synced the `https://127.1/api/v1` loopback guard and XCTest signing flags with `ci.yml`, imported refreshed captures + `30_api_openapi_docs.png` + `ENDPOINT_VERIFICATION.md` from `6334c8b`, and updated project docs.

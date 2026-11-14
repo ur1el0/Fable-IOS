@@ -1,8 +1,8 @@
 # Fable iOS — Agent Handoff & Full Session Context
 
-**Last Updated:** 2026-11-13
-**Active Git Branch:** `feat/security-and-architecture-remediation` *(Plan 06 complete; ready for PR review/merge into `main`)*
-**Primary Next Task:** Open and merge the PR for `feat/security-and-architecture-remediation` after final verification.
+**Last Updated:** 2026-11-14
+**Active Git Branch:** `fix/catalog-validation-and-windows-finish` *(Plans 06 & 07 merged on `main` via PRs #41–#45; live backend on `https://fable-api-cbo8.onrender.com`; remaining Fedora + Windows follow-up fixes consolidated)*
+**Primary Next Task:** Verify Xcode/macOS & Postgres CI on `fix/catalog-validation-and-windows-finish` (both unavailable in the local Windows workspace) and confirm deployed Standard Ebooks heading formatting once deployed.
 
 ---
 
@@ -170,12 +170,21 @@ Below is the original file-and-line audit baseline gathered prior to executing *
 2. **`ReaderTheme` Enum Cases:**
    - The dark themes in `ReaderTheme` (`frontend/FableApp/Core/Models/Models.swift`) are `.parchment`, `.sepia`, `.midnight`, and `.oled` (there is **no** `.night` case).
 3. **Verification Commands:**
-   - **Backend Pytest Suite:**
+   - **Backend Pytest Suite (macOS/Linux):**
      ```bash
      PYTHONPATH=.:backend .venv/bin/pytest backend -v
      ```
-     *(Latest run on `feat/security-and-architecture-remediation`: `117 passed, 6 skipped` locally without a PostgreSQL instance; `test_postgres_database.py` runs in CI `postgres-verification`.)*
-   - **iOS Release Config Validation:**
+   - **Backend Pytest Suite (Windows PowerShell):**
+     ```powershell
+     venv\Scripts\python.exe -m pytest -o pythonpath=". backend" backend -v
+     ```
+     *(Latest run on `fix/catalog-validation-and-windows-finish`: `134 passed, 10 skipped` — 6 PostgreSQL integration tests skip without `TEST_DATABASE_URL`, and 4 live provider regression tests skip unless `FABLE_RUN_LIVE_PROVIDER_TESTS=1`.)*
+   - **Opt-In Live Provider Regressions (Windows PowerShell):**
+     ```powershell
+     $env:FABLE_RUN_LIVE_PROVIDER_TESTS = '1'; venv\Scripts\python.exe -m pytest -o pythonpath=". backend" backend/test_provider_live.py -v
+     ```
+     *(Latest run against live Project Gutenberg & Standard Ebooks: `4 passed`.)*
+   - **iOS Release Config Validation (macOS/CI):**
      ```bash
      CONFIGURATION=Release FABLE_API_BASE_URL=https://api.example.com/api/v1 scripts/validate_ios_release_config.sh
      ```
