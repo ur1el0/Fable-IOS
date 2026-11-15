@@ -4,6 +4,7 @@ import Combine
 @MainActor
 public final class StoryStore: ObservableObject {
     @Published var stories: [Story] = []
+    @Published private(set) var continueReadingStory: Story?
     @Published var recentGutenbergStories: [Story] = []
     @Published var popularGutenbergStories: [Story] = []
     @Published var selectedCategory: String = "All"
@@ -106,6 +107,7 @@ public final class StoryStore: ObservableObject {
     private var isRestoringWriterDraft = false
     private var writerDraftOwnerKey = AuthManager.shared.currentSession?.id.uuidString ?? "guest"
     private var activeShelfOwnerKey = AuthManager.shared.currentSession?.id.uuidString ?? "signed_out"
+    private var shelfStateCache: [String: LocalShelfState]?
 
     private func recordProviderCatalogResult(_ provider: CatalogProvider, succeeded: Bool) {
         var status = providerCatalogStatus
@@ -846,7 +848,10 @@ public final class StoryStore: ObservableObject {
     // MARK: - Cloud Synchronization Pipeline (Plan 05)
     func syncWithCloudBackend() async {
         isCloudSyncActive = true
-        defer { isCloudSyncActive = false }
+        defer {
+            isCloudSyncActive = false
+            refreshContinueReadingStory()
+        }
 
         do {
             // 1. Fetch live remote stories from FastAPI
@@ -1213,6 +1218,7 @@ public final class StoryStore: ObservableObject {
                 }
             }
         }
+        refreshContinueReadingStory()
     }
 
     func fetchStandardEbooksPublicStories(topic: String? = nil, search: String? = nil) async {
@@ -1366,6 +1372,9 @@ public final class StoryStore: ObservableObject {
     }
 
     private func loadShelfStateCache() -> [String: LocalShelfState] {
+        if let shelfStateCache {
+            return shelfStateCache
+        }
         let records = PersistenceService.shared.migrateLegacyShelfStatesIfNeeded(
             ownerKey: normalizedShelfOwnerKey,
             legacyStorageKey: shelfStateStorageKey
@@ -1374,6 +1383,7 @@ public final class StoryStore: ObservableObject {
         for (storyId, record) in records {
             states[storyId.uuidString] = LocalShelfState(record: record)
         }
+        shelfStateCache = states
         return states
     }
 
@@ -1384,6 +1394,7 @@ public final class StoryStore: ObservableObject {
             records[uuid] = state.record(storyId: uuid)
         }
         PersistenceService.shared.replaceShelfStates(records, ownerKey: normalizedShelfOwnerKey)
+        shelfStateCache = states
     }
 
     private func persistShelfState(for story: Story, updatedAt: Date = Date()) {
@@ -1392,6 +1403,35 @@ public final class StoryStore: ObservableObject {
             state.record(storyId: story.id),
             ownerKey: normalizedShelfOwnerKey
         )
+        var states = loadShelfStateCache()
+        states[story.id.uuidString] = state
+        shelfStateCache = states
+        refreshContinueReadingStory(using: states)
+    }
+
+    private func refreshContinueReadingStory(using states: [String: LocalShelfState]? = nil) {
+        let shelfStates = states ?? loadShelfStateCache()
+        let candidates = stories.enumerated().filter { candidate in
+            let story = candidate.element
+            guard !PersistenceService.legacyDemoStoryIds.contains(story.id),
+                  story.progressPercent > 0,
+                  !story.isCompleted,
+                  story.contentFormat != .manga,
+                  story.genre != .manga,
+                  story.sourceProvider != .mangadex else {
+                return false
+            }
+            return shelfStates[story.id.uuidString]?.isCompleted != true
+        }
+
+        continueReadingStory = candidates.max { lhs, rhs in
+            let leftUpdatedAt = shelfStates[lhs.element.id.uuidString]?.updatedAtUtc ?? .distantPast
+            let rightUpdatedAt = shelfStates[rhs.element.id.uuidString]?.updatedAtUtc ?? .distantPast
+            if leftUpdatedAt == rightUpdatedAt {
+                return lhs.offset > rhs.offset
+            }
+            return leftUpdatedAt < rightUpdatedAt
+        }?.element
     }
 
     private func applyShelfState(_ state: LocalShelfState, to story: inout Story) {
@@ -1414,6 +1454,7 @@ public final class StoryStore: ObservableObject {
             let state = states[profileStories[index].id.uuidString] ?? .empty
             applyShelfState(state, to: &profileStories[index])
         }
+        refreshContinueReadingStory(using: states)
     }
 
     private func restoreShelfStateForCurrentSession(migrateGuestState: Bool) {
@@ -1422,7 +1463,10 @@ public final class StoryStore: ObservableObject {
             applyShelfStateCache(existing)
             return
         }
-        guard let session = AuthManager.shared.currentSession else { return }
+        guard let session = AuthManager.shared.currentSession else {
+            refreshContinueReadingStory(using: existing)
+            return
+        }
         if session.isGuest && migrateGuestState {
             var legacyStates: [String: LocalShelfState] = [:]
             for story in stories {
@@ -1430,6 +1474,7 @@ public final class StoryStore: ObservableObject {
                 if !state.isEmpty { legacyStates[story.id.uuidString] = state }
             }
             saveShelfStateCache(legacyStates)
+            refreshContinueReadingStory(using: legacyStates)
         } else {
             applyShelfStateCache([:])
         }
@@ -1445,6 +1490,9 @@ public final class StoryStore: ObservableObject {
             state.record(storyId: item.storyId),
             ownerKey: normalizedShelfOwnerKey
         )
+        var states = loadShelfStateCache()
+        states[item.storyId.uuidString] = state
+        shelfStateCache = states
         if let index = stories.firstIndex(where: { $0.id == item.storyId }) {
             applyShelfState(state, to: &stories[index])
             PersistenceService.shared.saveStory(stories[index])
@@ -1452,6 +1500,7 @@ public final class StoryStore: ObservableObject {
         if let index = profileStories.firstIndex(where: { $0.id == item.storyId }) {
             applyShelfState(state, to: &profileStories[index])
         }
+        refreshContinueReadingStory(using: states)
     }
 
     private func syncShelfToAccount(_ items: [ShelfSyncItem]) async -> [ShelfSyncItem]? {
@@ -1527,6 +1576,7 @@ public final class StoryStore: ObservableObject {
             saveShelfStateCache(states)
         }
         activeShelfOwnerKey = nextOwner
+        shelfStateCache = nil
         if AuthManager.shared.currentSession == nil {
             clearVisibleShelfState()
         } else {
@@ -1543,6 +1593,7 @@ public final class StoryStore: ObservableObject {
         for index in stories.indices { applyShelfState(.empty, to: &stories[index]) }
         for index in profileStories.indices { applyShelfState(.empty, to: &profileStories[index]) }
         profileStories = []
+        continueReadingStory = nil
         pinnedQuotes = []
         activeStoryAnnotations = []
         readingStats = PersistenceService.ReadingStatsSummary(storiesReadCount: 0, totalMinutesRead: 0, streakDays: 0)
@@ -1971,6 +2022,7 @@ public final class StoryStore: ObservableObject {
             saveShelfStateCache(states)
         }
         activeShelfOwnerKey = "signed_out"
+        shelfStateCache = nil
         clearVisibleShelfState()
     }
 
@@ -1981,6 +2033,7 @@ public final class StoryStore: ObservableObject {
         PersistenceService.shared.deleteAccountData(ownerUserId: userID)
         stories.removeAll { $0.ownerUserId == userID }
         activeShelfOwnerKey = "signed_out"
+        shelfStateCache = nil
         clearVisibleShelfState()
     }
 }
