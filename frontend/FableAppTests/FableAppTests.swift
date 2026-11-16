@@ -54,6 +54,7 @@ final class FableAppTests: XCTestCase {
     }
 
     func testMutedTextMeetsWCAGAAContrastOnLightSurfaces() {
+        let lightTraits = UITraitCollection(userInterfaceStyle: .light)
         let lightSurfaces: [(String, Color)] = [
             ("background", FableTheme.background),
             ("surface", FableTheme.surface),
@@ -62,13 +63,63 @@ final class FableAppTests: XCTestCase {
         ]
 
         for (name, surface) in lightSurfaces {
-            guard let ratio = contrastRatio(UIColor(FableTheme.textMuted), UIColor(surface)) else {
+            let fg = UIColor(FableTheme.textMuted).resolvedColor(with: lightTraits)
+            let bg = UIColor(surface).resolvedColor(with: lightTraits)
+            guard let ratio = contrastRatio(fg, bg) else {
                 XCTFail("Unable to resolve colors for \(name)")
                 continue
             }
 
-            XCTAssertGreaterThanOrEqual(ratio, 4.5, "Muted text must meet WCAG AA contrast on \(name)")
+            XCTAssertGreaterThanOrEqual(ratio, 4.5, "Muted text must meet WCAG AA contrast on light \(name)")
         }
+    }
+
+    func testMutedTextMeetsWCAGAAContrastOnDarkSurfaces() {
+        let darkTraits = UITraitCollection(userInterfaceStyle: .dark)
+        let darkSurfaces: [(String, Color)] = [
+            ("background", FableTheme.background),
+            ("surface", FableTheme.surface),
+            ("surface variant", FableTheme.surfaceVariant),
+            ("card background", FableTheme.cardBackground)
+        ]
+
+        for (name, surface) in darkSurfaces {
+            let fg = UIColor(FableTheme.textMuted).resolvedColor(with: darkTraits)
+            let bg = UIColor(surface).resolvedColor(with: darkTraits)
+            guard let ratio = contrastRatio(fg, bg) else {
+                XCTFail("Unable to resolve dark colors for \(name)")
+                continue
+            }
+
+            XCTAssertGreaterThanOrEqual(ratio, 4.5, "Muted text must meet WCAG AA contrast on dark \(name)")
+        }
+    }
+
+    @MainActor
+    func testAppAppearanceColorSchemeMappingAndPersistence() {
+        XCTAssertNil(AppAppearance.system.colorScheme)
+        XCTAssertEqual(AppAppearance.light.colorScheme, .light)
+        XCTAssertEqual(AppAppearance.dark.colorScheme, .dark)
+
+        let defaults = UserDefaults.standard
+        let original = defaults.string(forKey: AppAppearance.storageKey)
+        defer {
+            if let original {
+                defaults.set(original, forKey: AppAppearance.storageKey)
+            } else {
+                defaults.removeObject(forKey: AppAppearance.storageKey)
+            }
+        }
+
+        let store = StoryStore()
+        store.appAppearance = .dark
+        XCTAssertEqual(defaults.string(forKey: AppAppearance.storageKey), AppAppearance.dark.rawValue)
+
+        let reloaded = StoryStore()
+        XCTAssertEqual(reloaded.appAppearance, .dark)
+
+        reloaded.appAppearance = .system
+        XCTAssertEqual(defaults.string(forKey: AppAppearance.storageKey), AppAppearance.system.rawValue)
     }
 
     @MainActor
