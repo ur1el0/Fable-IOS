@@ -222,6 +222,82 @@ final class PlanFeaturesRegressionTests: XCTestCase {
     }
 
     @MainActor
+    func testReaderPassageMatcherBoundarySelectionAndOffsetResolution() {
+        let paragraph = "Alice was beginning to get very tired of sitting by her sister on the bank. Once or twice she had peeped into the book."
+        let words = ReaderPassageMatcher.words(from: paragraph)
+        XCTAssertEqual(words.first, "Alice")
+        XCTAssertEqual(words.last, "book.")
+        XCTAssertEqual(words.count, 24)
+
+        let sentences = ReaderPassageMatcher.sentences(from: paragraph)
+        XCTAssertEqual(sentences.count, 2)
+        XCTAssertEqual(sentences[0], "Alice was beginning to get very tired of sitting by her sister on the bank.")
+        XCTAssertEqual(sentences[1], "Once or twice she had peeped into the book.")
+
+        // Test phrase range matching within words
+        let phrase = "very tired of sitting by her sister"
+        let range = ReaderPassageMatcher.wordRange(for: phrase, in: words)
+        let extracted = ReaderPassageMatcher.substring(from: words, range: range)
+        XCTAssertEqual(extracted, phrase)
+
+        // Test offset resolution within full chapter text
+        let fullChapter = "Chapter I\n\nDown the Rabbit-Hole\n\n" + paragraph
+        let offsets = ReaderPassageMatcher.locateSubstringOffsets(in: fullChapter, substring: phrase, withinParagraph: paragraph)
+        let nsFull = fullChapter as NSString
+        let extractedFromOffsets = nsFull.substring(with: NSRange(location: offsets.start, length: offsets.end - offsets.start))
+        XCTAssertEqual(extractedFromOffsets, phrase)
+    }
+
+    @MainActor
+    func testStoryStoreUpdateAnnotationSupportsCustomRangeAndPersistenceSync() {
+        let store = StoryStore()
+        let storyId = UUID()
+        let story = Story(
+            id: storyId,
+            title: "Alice in Wonderland",
+            author: "Lewis Carroll",
+            genre: Genre(rawValue: "Classics"),
+            synopsis: "Classic fable",
+            content: "Alice was beginning to get very tired of sitting by her sister.",
+            readTimeMinutes: 2
+        )
+        store.stories.append(story)
+
+        let initial = Annotation(
+            storyId: storyId,
+            storyTitle: story.title,
+            storyAuthor: story.author,
+            chapterNumber: 1,
+            utf16StartOffset: 0,
+            utf16EndOffset: 63,
+            selectedText: "Alice was beginning to get very tired of sitting by her sister.",
+            color: .terracotta,
+            isPinnedToJournal: true
+        )
+        store.activeStoryAnnotations = [initial]
+
+        let trimmedPhrase = "very tired of sitting"
+        store.updateAnnotation(
+            initial,
+            story: story,
+            text: trimmedPhrase,
+            startOffset: 27,
+            endOffset: 48,
+            color: .sage,
+            note: "Key passage",
+            pinToJournal: false
+        )
+
+        let updated = store.activeStoryAnnotations.first(where: { $0.id == initial.id })
+        XCTAssertEqual(updated?.selectedText, trimmedPhrase)
+        XCTAssertEqual(updated?.utf16StartOffset, 27)
+        XCTAssertEqual(updated?.utf16EndOffset, 48)
+        XCTAssertEqual(updated?.color, .sage)
+        XCTAssertEqual(updated?.note, "Key passage")
+        XCTAssertFalse(updated?.isPinnedToJournal ?? true)
+    }
+
+    @MainActor
     func testPacingEngineRejectsSubThreeSecondPageTurnsCapsIdleTimeAndMonotonicallyEstimatesRemainingMinutes() {
         let engine = PacingEngine()
         let t0 = Date(timeIntervalSince1970: 1_000_000)
