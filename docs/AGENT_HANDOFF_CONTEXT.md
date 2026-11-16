@@ -1,8 +1,8 @@
 # Fable iOS — Agent Handoff & Full Session Context
 
-**Last Updated:** 2026-11-13
-**Active Git Branch:** `feat/security-and-architecture-remediation` *(Plan 06 complete; ready for PR review/merge into `main`)*
-**Primary Next Task:** Open and merge the PR for `feat/security-and-architecture-remediation` after final verification.
+**Last Updated:** 2026-11-16  
+**Active Git Branch:** `feat/federated-book-sources`  
+**Primary Current Focus:** Federated literature sources (Standard Ebooks + Project Gutenberg + Fable Originals), cross-provider edition disambiguation, and upstream failure isolation.
 
 ---
 
@@ -10,20 +10,26 @@
 
 If you are an AI coding agent picking up this repository on the developer's laptop, read these three files first:
 1. **`docs/AGENT_HANDOFF_CONTEXT.md`** *(this file — complete session history, architectural decisions, exact line numbers, and compiler/runtime gotchas)*
-2. **[`docs/plans/06_SECURITY_VULNERABILITIES_AND_ARCHITECTURE_REMEDIATION.md`](./plans/06_SECURITY_VULNERABILITIES_AND_ARCHITECTURE_REMEDIATION.md)** *(the 4-phase hardening specification — completed on `feat/security-and-architecture-remediation`)*
-3. **[`docs/DATA_SOURCES_AND_API_STRATEGY.md`](./DATA_SOURCES_AND_API_STRATEGY.md)** *(live provider data, on-demand chapter loading, and why Manga is disabled on iOS)*
+2. **[`docs/DATA_SOURCES_AND_API_STRATEGY.md`](./DATA_SOURCES_AND_API_STRATEGY.md)** *(live provider data, Standard Ebooks & Gutenberg endpoints, on-demand chapter loading, and why Manga is disabled on iOS)*
+3. **[`docs/plans/06_SECURITY_VULNERABILITIES_AND_ARCHITECTURE_REMEDIATION.md`](./plans/06_SECURITY_VULNERABILITIES_AND_ARCHITECTURE_REMEDIATION.md)** *(the completed 4-phase hardening specification)*
 
 ---
 
-## 2. Chronological Summary of Completed Work on `fix/python39-runtime-compatibility`
+## 2. Chronological Summary of Completed Engineering Milestones
 
-| Commit | Summary | Key Files Touched |
+| Commit / PR | Summary | Key Files Touched |
 |---|---|---|
-| `0c9dfc1` | **Unified Multi-Chapter Catalog Seeding & Chapter 1 Guarantee ("Option 3"):** Seeded 40+ books, classic fables, folklore, and literature directly into `data/curated_catalog.json` and SQLite (`backend/core/database.py`). Every catalog work is structured into multi-chapter `StoryChapterDTO` entries guaranteed to start at Chapter 1 (`chapterNumber == 1`). | `data/curated_catalog.json`, `backend/core/database.py`, `scripts/seed_comprehensive_catalog.py`, `backend/services/gutenberg.py`, `backend/tests/test_api_v1.py` |
-| `f0f9c2a` | **Documented Upstream Manga Chapter Gaps & Licensing Risks:** Recorded in `docs/DATA_SOURCES_AND_API_STRATEGY.md` (Section 6) why MangaDex community scanlations exhibit chapter gaps (e.g., *Mushoku Tensei* missing Ch. 79–108; officially licensed series like *One Piece* missing Ch. 1–1162) and copyright/App Store compliance risks. | `docs/DATA_SOURCES_AND_API_STRATEGY.md` |
-| `38fcee0` | **Feature-Flagged & Hid Manga on iOS (`StoryStore.isMangaEnabled = false`):** Pivoted the iOS app to focus 100% on open-source books, classic fables, folklore, and community manuscripts. Hid all manga filter pills, sections, genres, and stories across `LibraryView`, `ExploreView`, `GenreDetailView`, `AuthorDetailView`, `ShelfView`, and `WelcomeView`. Replaced manga author in `FEATURED_CATALOG_AUTHORS` with `"Lewis Carroll"` and `"Aesop"`. | `frontend/FableApp/Features/Library/ViewModels/StoryStore.swift`, `LibraryView.swift`, `ExploreView.swift`, `GenreDetailView.swift`, `AuthorDetailView.swift`, `ShelfView.swift`, `WelcomeView.swift`, `backend/services/story_service.py` |
-| `90b076e` | **Complete UI Screenshot & Walkthrough Video Archive:** Captured 29 PNG screenshots covering every screen, endpoint, filter pill, reader theme, and modal sheet—plus a continuous walkthrough screen recording (`fable_ios_full_walkthrough.mp4`)—indexed in `docs/simulator_captures/README.md`. | `docs/simulator_captures/*`, `frontend/FableApp/App/ContentView.swift` |
-| `c5d9631` | **Security Vulnerabilities & Architecture Remediation Plan (Plan 06):** Audited the full stack for non-manga security flaws and poor architectural planning, producing `docs/plans/06_SECURITY_VULNERABILITIES_AND_ARCHITECTURE_REMEDIATION.md`. | `docs/plans/06_SECURITY_VULNERABILITIES_AND_ARCHITECTURE_REMEDIATION.md`, `docs/plans/README.md` |
+| `49268c0` | **Documented Federated Standard Ebooks Endpoints & Edition Identity:** Updated API strategy docs for Standard Ebooks discovery, detail, and XHTML parsing endpoints. | `docs/DATA_SOURCES_AND_API_STRATEGY.md` |
+| `2d29bb1` | **Cross-Provider Edition Identity Tests:** Verified same-title works across Standard Ebooks and Gutenberg stay distinct in persistence, chapter cache, and reading progress. | `frontend/FableAppTests/StoryStoreTests.swift` |
+| `afee0d8` | **Surfaced Standard Ebooks Shelf & Preserved Edition Identity on iOS:** Added dedicated shelf, provider badges, and UUIDv5 edition isolation in SwiftUI client. | `frontend/FableApp/Features/Library/ViewModels/StoryStore.swift`, `LibraryView.swift`, `ShelfView.swift` |
+| `02cdc82` | **Backend Detail & Provider Failure Isolation Tests:** Pytest coverage for single-work detail lookups, upstream error propagation, and fault isolation. | `backend/tests/test_api_v1.py` |
+| `31dcb89` | **Standard Ebooks Work Detail Endpoint:** Added `GET /api/v1/public/standard-ebooks/story` and upstream error propagation. | `backend/api/v1/endpoints/public.py`, `backend/services/standard_ebooks.py` |
+| `PR #43` | **Fresh Gutenberg Discovery:** Live topic filtering, search query dispatch, and plain-text on-demand chapter parsing. | `backend/services/gutenberg.py`, `frontend/FableApp/Features/Library/ViewModels/StoryStore.swift` |
+| `0c9dfc1` | **Unified Multi-Chapter Catalog Seeding & Chapter 1 Guarantee:** Seeded 40+ books, classic fables, folklore, and literature directly into `data/curated_catalog.json` and SQLite. | `data/curated_catalog.json`, `backend/core/database.py`, `scripts/seed_comprehensive_catalog.py` |
+| `f0f9c2a` | **Documented Upstream Manga Chapter Gaps & Licensing Risks:** Recorded in `docs/DATA_SOURCES_AND_API_STRATEGY.md` (Section 6) why MangaDex community scanlations exhibit chapter gaps. | `docs/DATA_SOURCES_AND_API_STRATEGY.md` |
+| `38fcee0` | **Feature-Flagged & Hid Manga on iOS (`StoryStore.isMangaEnabled = false`):** Pivoted the iOS app to focus 100% on open-source books, classic fables, folklore, and community manuscripts. | `frontend/FableApp/Features/Library/ViewModels/StoryStore.swift`, `LibraryView.swift` |
+| `90b076e` | **Complete UI Screenshot & Walkthrough Video Archive:** Captured 29 PNG screenshots covering every screen, endpoint, filter pill, reader theme, and modal sheet. | `docs/simulator_captures/*` |
+| `c5d9631` | **Security Vulnerabilities & Architecture Remediation Plan (Plan 06):** Audited the full stack for non-manga security flaws and poor architectural planning. | `docs/plans/06_SECURITY_VULNERABILITIES_AND_ARCHITECTURE_REMEDIATION.md` |
 
 ---
 
