@@ -163,6 +163,16 @@ Fable is engineered as a high-reliability, typography-first e-reading and manusc
 
 ---
 
+### Pillar 6: Federated Multi-Source Literature & Fault-Isolation Engine
+* **Engineering Problem:** Relying on a single upstream public domain provider (e.g. only Project Gutenberg or only local seeds) creates single points of failure, restricts typography quality, and risks data collisions when multiple editions of the same classic work are imported.
+* **System Solution:** A contract-driven federated provider architecture:
+  1. **Federated Ingestion:** The shared FastAPI tier exposes dedicated endpoints for **Standard Ebooks** (`/api/v1/public/standard-ebooks`, `/story`, `/chapters`) and **Project Gutenberg** (`/api/v1/public/gutenberg`, `/chapters`).
+  2. **Edition Disambiguation:** Works sharing the same title (e.g. *Frankenstein* or *The Metamorphosis*) are assigned deterministic `UUIDv5` identifiers scoped by source namespace (`book:{slug}` or `gutenberg:{id}`). Both editions coexist peacefully across search feeds, offline caches, and personal shelf records.
+  3. **Fault Isolation:** `StoryStore` requests provider feeds asynchronously and independently. If one provider times out or fails upstream, healthy provider stories populate the catalog immediately while a non-intrusive warning badge indicates the partial outage.
+  4. **On-Demand Semantic XHTML Hydration:** Catalog browsing remains lightweight (<250 KB payload). Full multi-chapter text is fetched on demand and parsed from semantic XHTML or plain text only when the reader opens the story.
+
+---
+
 ## 4. Asset-Decoupled Blank Placeholder Design System
 
 To achieve **100% operational consistency across every Mac lab computer**, the visual design system replaces fragile bitmap dependencies with procedural typography cards:

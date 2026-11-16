@@ -212,7 +212,7 @@ public struct GenreDetailView: View {
 
                                                 VStack(alignment: .leading, spacing: 5) {
                                                     HStack(spacing: 4) {
-                                                        Text(story.contentFormat.displayName.uppercased())
+                                                        Text(story.contentFormat == .manga ? "MANGA" : story.sourceProvider.displayName.uppercased())
                                                             .fableFont(size: 8, weight: .bold)
                                                             .padding(.horizontal, 5)
                                                             .padding(.vertical, 2)

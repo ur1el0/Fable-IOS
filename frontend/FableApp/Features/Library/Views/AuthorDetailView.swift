@@ -44,7 +44,7 @@ public struct AuthorDetailView: View {
                                     .foregroundColor(FableTheme.textPrimary)
 
                                 HStack(spacing: 8) {
-                                    Text("Project Gutenberg")
+                                    Text("Public Domain Catalog")
                                         .fableFont(size: 11, weight: .bold)
                                         .foregroundColor(FableTheme.brandPrimary)
                                         .padding(.horizontal, 8)
@@ -110,7 +110,7 @@ public struct AuthorDetailView: View {
                                 Text("No titles currently cached for this author.")
                                     .fableFont(size: 14, weight: .semibold)
                                     .foregroundColor(FableTheme.textPrimary)
-                                Text(StoryStore.isMangaEnabled ? "Tap below to query Project Gutenberg and MangaDex." : "Tap below to query Project Gutenberg.")
+                                Text(StoryStore.isMangaEnabled ? "Tap below to query Project Gutenberg, Standard Ebooks, and MangaDex." : "Tap below to query Project Gutenberg and Standard Ebooks.")
                                     .fableFont(size: 12)
                                     .foregroundColor(FableTheme.textMuted)
                                     .multilineTextAlignment(.center)
@@ -190,7 +190,7 @@ private struct AuthorStoryRowView: View {
     let onSelect: () -> Void
 
     private var formatText: String {
-        story.contentFormat == .manga || story.sourceProvider == .mangadex ? "MANGA" : "PROSE"
+        story.contentFormat == .manga || story.sourceProvider == .mangadex ? "MANGA" : story.sourceProvider.displayName.uppercased()
     }
 
     private var placeholderIcon: String {

@@ -405,3 +405,126 @@ def test_standard_ebooks_http_endpoints_return_catalog_and_chapters(monkeypatch)
         params={"book_id": "../etc/passwd"},
     )
     assert bad_resp.status_code == 400
+
+
+def test_standard_ebooks_story_detail_http_endpoint_returns_metadata_and_handles_missing(monkeypatch):
+    from uuid import uuid5
+    import httpx
+    from services import standard_ebooks
+
+    monkeypatch.setattr(standard_ebooks, "_STANDARD_EBOOKS_CATALOG_CACHE", {})
+    monkeypatch.setattr(standard_ebooks, "_STANDARD_EBOOKS_DETAIL_CACHE", {})
+
+    book_xml = b"""<?xml version="1.0" encoding="utf-8"?>
+    <html xmlns="http://www.w3.org/1999/xhtml">
+      <body>
+        <article typeof="schema:Book">
+          <h1 property="schema:name">Dracula</h1>
+          <p property="schema:author"><span property="schema:name">Bram Stoker</span></p>
+          <img src="/images/covers/bram-stoker_dracula/hash/cover@2x.jpg" alt="Cover"/>
+          <section property="schema:description"><p>Jonathan Harker visits Count Dracula.</p></section>
+          <p>161,105 words (9 hours 46 minutes) with a reading ease of 77.57 (fairly easy).</p>
+          <ul class="tags">
+            <li><a href="/subjects/fiction">Fiction</a></li>
+            <li><a href="/subjects/horror">Horror</a></li>
+          </ul>
+        </article>
+      </body>
+    </html>"""
+
+    async def mock_get(self, url, params=None, headers=None, **kwargs):
+        url_str = str(url)
+        if url_str.endswith("/ebooks/bram-stoker/dracula"):
+            return httpx.Response(200, content=book_xml)
+        if url_str.endswith("/ebooks/missing-author/missing-book"):
+            return httpx.Response(404, content=b"")
+        return httpx.Response(503, content=b"")
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", mock_get)
+
+    detail_resp = client.get(
+        "/api/v1/public/standard-ebooks/story",
+        params={"book_id": "bram-stoker/dracula"},
+    )
+    assert detail_resp.status_code == 200
+    story = detail_resp.json()
+    assert story["id"] == str(uuid5(standard_ebooks.STANDARD_EBOOKS_NAMESPACE, "book:bram-stoker/dracula"))
+    assert story["title"] == "Dracula"
+    assert story["author"] == "Bram Stoker"
+    assert story["genre"] == "Horror"
+    assert story["sourceProvider"] == "STANDARD_EBOOKS"
+    assert story["providerId"] == "bram-stoker/dracula"
+    assert story["contentFormat"] == "PROSE"
+    assert story["coverImageUrl"] == "https://standardebooks.org/images/covers/bram-stoker_dracula/hash/cover@2x.jpg"
+    assert "Jonathan Harker" in story["synopsis"]
+    assert story["readTimeMinutes"] > 500
+
+    missing_resp = client.get(
+        "/api/v1/public/standard-ebooks/story",
+        params={"book_id": "missing-author/missing-book"},
+    )
+    assert missing_resp.status_code == 404
+
+    invalid_resp = client.get(
+        "/api/v1/public/standard-ebooks/story",
+        params={"book_id": "../bad"},
+    )
+    assert invalid_resp.status_code == 400
+
+
+def test_federated_prose_providers_preserve_distinct_edition_identities_and_isolate_partial_failures(monkeypatch):
+    import httpx
+    from services import gutenberg, standard_ebooks
+
+    monkeypatch.setattr(standard_ebooks, "_STANDARD_EBOOKS_CATALOG_CACHE", {})
+    monkeypatch.setattr(standard_ebooks, "_STANDARD_EBOOKS_DETAIL_CACHE", {})
+
+    async def gutenberg_search(_client, params):
+        assert params == {"search": "Dracula"}
+        return [_gutenberg_http_book(345, "Dracula", "Stoker, Bram")]
+
+    async def se_unavailable(self, url, params=None, headers=None, **kwargs):
+        return httpx.Response(503, content=b"upstream maintenance")
+
+    monkeypatch.setattr(gutenberg, "_fetch_gutenberg_catalog_books", gutenberg_search)
+    monkeypatch.setattr(httpx.AsyncClient, "get", se_unavailable)
+
+    gutenberg_resp = client.get("/api/v1/public/gutenberg", params={"search": "Dracula"})
+    se_failed_resp = client.get("/api/v1/public/standard-ebooks", params={"search": "Dracula"})
+
+    assert gutenberg_resp.status_code == 200
+    assert se_failed_resp.status_code == 502
+    assert se_failed_resp.json()["detail"] == "Standard Ebooks catalog service is unavailable"
+
+    gutenberg_dracula = gutenberg_resp.json()[0]
+    assert gutenberg_dracula["sourceProvider"] == "GUTENBERG"
+    assert gutenberg_dracula["providerId"] == "345"
+    assert gutenberg_dracula["id"] == "00000000-0000-0000-0000-000000000159"
+
+    # Now recover Standard Ebooks and verify same-title editions remain distinct.
+    listing_xml = b"""<?xml version="1.0" encoding="utf-8"?>
+    <html xmlns="http://www.w3.org/1999/xhtml">
+      <body><main><ol>
+        <li typeof="schema:Book" about="/ebooks/bram-stoker/dracula">
+          <a href="/ebooks/bram-stoker/dracula" property="schema:name">Dracula</a>
+          <p property="schema:author"><span property="schema:name">Bram Stoker</span></p>
+          <img src="/images/covers/bram-stoker_dracula/hash/cover@2x.jpg" alt="Cover"/>
+        </li>
+      </ol></main></body>
+    </html>"""
+
+    async def se_recovered(self, url, params=None, headers=None, **kwargs):
+        url_str = str(url)
+        if "/ebooks?query=Dracula" in url_str:
+            return httpx.Response(200, content=listing_xml)
+        return httpx.Response(200, content=b"<html xmlns='http://www.w3.org/1999/xhtml'><body></body></html>")
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", se_recovered)
+    se_ok_resp = client.get("/api/v1/public/standard-ebooks", params={"search": "Dracula"})
+    assert se_ok_resp.status_code == 200
+    se_dracula = se_ok_resp.json()[0]
+    assert se_dracula["sourceProvider"] == "STANDARD_EBOOKS"
+    assert se_dracula["providerId"] == "bram-stoker/dracula"
+    assert se_dracula["id"] != gutenberg_dracula["id"]
+    assert se_dracula["title"] == gutenberg_dracula["title"]
+    assert se_dracula["author"] == gutenberg_dracula["author"]

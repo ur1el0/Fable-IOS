@@ -457,8 +457,9 @@ async def get_standard_ebooks_stories(
             if normalized_search:
                 query = urlencode({"query": normalized_search, "page": 1, "per-page": 12})
                 response = await client.get(f"{STANDARD_EBOOKS_BASE_URL}/ebooks?{query}")
-                if response.status_code == 200:
-                    entries = parse_listing_xhtml(response.content)
+                if response.status_code != 200:
+                    raise HTTPException(status_code=502, detail="Standard Ebooks catalog service is unavailable")
+                entries = parse_listing_xhtml(response.content)
             elif normalized_topic:
                 slug_topic = quote(normalized_topic.replace(" ", "-"), safe="-")
                 response = await client.get(
@@ -466,11 +467,14 @@ async def get_standard_ebooks_stories(
                 )
                 if response.status_code == 200:
                     entries = parse_listing_xhtml(response.content)
+                elif response.status_code != 404:
+                    raise HTTPException(status_code=502, detail="Standard Ebooks catalog service is unavailable")
                 if not entries:
                     query = urlencode({"query": normalized_topic, "sort": "popularity", "page": 1, "per-page": 12})
                     fallback_resp = await client.get(f"{STANDARD_EBOOKS_BASE_URL}/ebooks?{query}")
-                    if fallback_resp.status_code == 200:
-                        entries = parse_listing_xhtml(fallback_resp.content)
+                    if fallback_resp.status_code != 200:
+                        raise HTTPException(status_code=502, detail="Standard Ebooks catalog service is unavailable")
+                    entries = parse_listing_xhtml(fallback_resp.content)
             else:
                 response = await client.get(f"{STANDARD_EBOOKS_BASE_URL}/ebooks?sort=popularity&page=1&per-page=12")
                 if response.status_code == 200:
@@ -528,6 +532,105 @@ async def get_standard_ebooks_stories(
 
     _STANDARD_EBOOKS_CATALOG_CACHE[cache_key] = (time.monotonic(), stories)
     return list(stories)
+
+
+def _humanize_slug_part(value: str) -> str:
+    return " ".join(part.capitalize() for part in value.split("-") if part)
+
+
+def _parse_book_page_story(xml_bytes: bytes, slug: str) -> StoryDTO:
+    try:
+        root = ET.fromstring(xml_bytes)
+    except ET.ParseError as exc:
+        raise HTTPException(status_code=502, detail="Invalid book metadata from Standard Ebooks") from exc
+
+    slug_parts = slug.split("/")
+    fallback_author = _humanize_slug_part(slug_parts[0]) if slug_parts else "Standard Ebooks"
+    fallback_title = _humanize_slug_part(slug_parts[1]) if len(slug_parts) > 1 else slug
+
+    title = ""
+    author_names: list[str] = []
+    cover_url: Optional[str] = None
+
+    for elem in root.iter():
+        prop = elem.attrib.get("property", "")
+        tag = _local_tag(elem.tag)
+        if not title and prop == "schema:name" and tag in ("h1", "span", "p", "a"):
+            candidate = _collapse_whitespace("".join(elem.itertext()))
+            if candidate:
+                title = candidate
+        if prop == "schema:author":
+            name_el = elem.find('.//*[@property="schema:name"]')
+            author_text = _collapse_whitespace(
+                "".join((name_el if name_el is not None else elem).itertext())
+            )
+            if author_text and author_text not in author_names:
+                author_names.append(author_text)
+        if cover_url is None and tag == "img":
+            src = (elem.attrib.get("src") or "").strip()
+            if "cover" in src:
+                if src.startswith("/"):
+                    cover_url = f"{STANDARD_EBOOKS_BASE_URL}{src}"
+                elif src.startswith("https://"):
+                    cover_url = src
+
+    resolved_title = (title or fallback_title)[:120]
+    resolved_author = (", ".join(author_names) if author_names else fallback_author)[:80]
+    synopsis, genre, read_minutes = parse_book_detail_xhtml(xml_bytes, fallback_title=resolved_title)
+    now = datetime.now(timezone.utc)
+    return StoryDTO(
+        id=uuid5(STANDARD_EBOOKS_NAMESPACE, f"book:{slug}"),
+        title=resolved_title,
+        author=resolved_author,
+        genre=genre,
+        chapter="",
+        synopsis=synopsis,
+        content="",
+        read_time_minutes=read_minutes,
+        is_bookmarked=False,
+        is_completed=False,
+        created_at_utc=now,
+        updated_at_utc=now,
+        cover_image_url=cover_url,
+        total_pages=0,
+        current_page=1,
+        progress_percent=0,
+        saves_count="0",
+        reads_count="0",
+        badge_text=None,
+        total_chapters=0,
+        content_format="PROSE",
+        source_provider="STANDARD_EBOOKS",
+        provider_id=slug,
+        provider_download_count=None,
+        chapters=None,
+    )
+
+
+async def get_standard_ebooks_story_by_id(book_id: str) -> StoryDTO:
+    """Fetches metadata for a single Standard Ebooks work by its slug path."""
+    slug = _normalize_slug(book_id)
+    now = time.monotonic()
+    for cached_at, cached_stories in _STANDARD_EBOOKS_CATALOG_CACHE.values():
+        if (now - cached_at) < STANDARD_EBOOKS_CATALOG_TTL_SECONDS:
+            for story in cached_stories:
+                if story.provider_id == slug:
+                    return story
+
+    url = f"{STANDARD_EBOOKS_BASE_URL}/ebooks/{slug}"
+    try:
+        async with _standard_ebooks_client() as client:
+            response = await client.get(url)
+    except httpx.HTTPError as exc:
+        logger.warning("Standard Ebooks detail fetch failed for %s: %s", slug, exc)
+        raise HTTPException(status_code=502, detail="Standard Ebooks catalog service is unavailable") from exc
+
+    if response.status_code == 404:
+        raise HTTPException(status_code=404, detail="Standard Ebooks title not found")
+    if response.status_code != 200:
+        raise HTTPException(status_code=502, detail="Standard Ebooks catalog service is unavailable")
+
+    return _parse_book_page_story(response.content, slug)
 
 
 async def get_standard_ebooks_chapters(book_id: str) -> list[ChapterDTO]:

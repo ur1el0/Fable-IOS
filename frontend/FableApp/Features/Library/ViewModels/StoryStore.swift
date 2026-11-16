@@ -7,6 +7,7 @@ public final class StoryStore: ObservableObject {
     @Published private(set) var continueReadingStory: Story?
     @Published var recentGutenbergStories: [Story] = []
     @Published var popularGutenbergStories: [Story] = []
+    @Published var standardEbooksStories: [Story] = []
     @Published var selectedCategory: String = "All"
     @Published var activeReaderStory: Story?
     @Published var isShowingDisplayOptions: Bool = false
@@ -644,7 +645,12 @@ public final class StoryStore: ObservableObject {
                 }
 
                 if let idx = stories.firstIndex(where: {
-                    $0.id == entity.id || (entity.providerId != nil && !entity.providerId!.isEmpty && $0.providerId == entity.providerId)
+                    $0.id == entity.id || (
+                        entity.providerId != nil
+                        && !entity.providerId!.isEmpty
+                        && $0.sourceProvider == provider
+                        && $0.providerId == entity.providerId
+                    )
                 }) {
                     stories[idx].isBookmarked = entity.isBookmarked
                     stories[idx].isCompleted = entity.isCompleted
@@ -966,16 +972,22 @@ public final class StoryStore: ObservableObject {
             return exactIndex
         }
 
+        if let remoteProviderId = remote.providerId, !remoteProviderId.isEmpty {
+            return stories.firstIndex(where: {
+                !matchedIds.contains($0.id)
+                    && $0.sourceProvider == remote.sourceProvider
+                    && $0.providerId == remoteProviderId
+            })
+        }
+
         let remoteTitle = normalizedCatalogValue(remote.title)
         let remoteAuthor = normalizedCatalogValue(remote.author)
-        let matchingCatalogStories = stories.indices.filter { index in
-            let story = stories[index]
-            return !matchedIds.contains(story.id)
-                && normalizedCatalogValue(story.title) == remoteTitle
-                && normalizedCatalogValue(story.author) == remoteAuthor
-        }
-        return matchingCatalogStories.first(where: { stories[$0].sourceProvider == remote.sourceProvider })
-            ?? matchingCatalogStories.first
+        return stories.firstIndex(where: {
+            !matchedIds.contains($0.id)
+                && $0.sourceProvider == remote.sourceProvider
+                && normalizedCatalogValue($0.title) == remoteTitle
+                && normalizedCatalogValue($0.author) == remoteAuthor
+        })
     }
 
     private func normalizedCatalogValue(_ value: String) -> String {
@@ -1225,6 +1237,9 @@ public final class StoryStore: ObservableObject {
         do {
             let fetched = try await apiService.fetchStandardEbooksStories(topic: topic, search: search)
             let isBrowseSnapshot = topic != nil && (search ?? "").isEmpty
+            if isBrowseSnapshot || (topic == nil && (search ?? "").isEmpty) {
+                standardEbooksStories = fetched
+            }
             mergePublicProseBooks(fetched, provider: .standardEbooks, replaceUnengagedSnapshot: isBrowseSnapshot)
         } catch {
             recordProviderCatalogResult(.standardEbooks, succeeded: false)

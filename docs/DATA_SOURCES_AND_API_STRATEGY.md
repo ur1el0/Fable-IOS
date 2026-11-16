@@ -86,6 +86,11 @@ If the goal is to access a vast, pre-existing library of real-world literature w
 - **Source:** Standard Ebooks Public Domain Catalog
 - **What It Provides:** Professionally formatted, typography-first public domain editions (e.g. *Frankenstein: The 1818 Text*, *The Metamorphosis*).
 - **Format:** Ingested as `ContentFormat.prose` with provenance `SourceProvider.standardEbooks`.
+- **Endpoints:**
+  - `GET /api/v1/public/standard-ebooks?topic={topic}&search={search}`: Returns catalog metadata and official cover URLs with deterministic `UUIDv5` story IDs derived from `book:{slug}`.
+  - `GET /api/v1/public/standard-ebooks/story?book_id={slug}`: Resolves metadata for a single Standard Ebooks work by slug path.
+  - `GET /api/v1/public/standard-ebooks/chapters?book_id={slug}`: Downloads and parses semantic XHTML chapters on demand from Standard Ebooks' single-page reading endpoint.
+- **Edition Identity:** Same-title works from Project Gutenberg (`GUTENBERG`) and Standard Ebooks (`STANDARD_EBOOKS`) retain distinct `id`, `sourceProvider`, and `providerId` values across discovery, local persistence, chapter caches, and shelf progress.
 
 ### D. MangaDex Graphic Manga API
 - **Base Endpoint:** `https://api.mangadex.org`
@@ -159,5 +164,5 @@ In the iOS client, fetching live data follows a clean three-layer separation of 
 
 1. Start the backend with `docker compose up -d --build`. Compose maps host port `8001` to container port `8000`; check `http://127.0.0.1:8001/api/v1/health`.
 2. The iOS Debug build uses `http://127.0.0.1:8001/api/v1` by default. Use an HTTPS API URL for Release builds.
-3. The catalog endpoint returns provider metadata and official cover URLs without downloading every book's text.
-4. `ReaderView` requests Gutenberg chapters from `/api/v1/public/gutenberg/{id}/chapters` when a user opens a book. The backend fetches and parses the official plain-text source, then caches chapters for subsequent reads.
+3. The catalog endpoints (`/api/v1/public/gutenberg` and `/api/v1/public/standard-ebooks`) return provider metadata and official cover URLs without downloading every book's text. Clients query each provider endpoint independently so partial provider outages surface a clear status warning without dropping results from healthy providers.
+4. `ReaderView` requests Gutenberg chapters from `/api/v1/public/gutenberg/{id}/chapters` or Standard Ebooks chapters from `/api/v1/public/standard-ebooks/chapters?book_id={slug}` when a user opens a book. The backend fetches and parses the official source text on demand, then caches chapters for subsequent reads.

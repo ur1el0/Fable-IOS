@@ -12,7 +12,12 @@ from .story_service import (
 )
 from .shelf_sync import sync_shelf, get_shelf
 from .gutenberg import ingest_gutenberg_book, get_gutenberg_stories
-from . import auth_service, reading_stats, manga
+from .standard_ebooks import (
+    get_standard_ebooks_stories,
+    get_standard_ebooks_story_by_id,
+    get_standard_ebooks_chapters,
+)
+from . import auth_service, reading_stats, manga, standard_ebooks
 
 __all__ = [
     "extract_chapters_from_text",
@@ -29,8 +34,12 @@ __all__ = [
     "get_shelf",
     "ingest_gutenberg_book",
     "get_gutenberg_stories",
+    "get_standard_ebooks_stories",
+    "get_standard_ebooks_story_by_id",
+    "get_standard_ebooks_chapters",
     "auth_service",
     "reading_stats",
-    "manga"
+    "manga",
+    "standard_ebooks",
 ]
 
