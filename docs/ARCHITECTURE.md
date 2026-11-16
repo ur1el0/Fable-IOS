@@ -72,13 +72,16 @@
 └────────────────────┼──────────────────────────────┼────────────────────┘
                      │                              │
                      ▼                              ▼
-┌──────────────────────────────────────┐  ┌──────────────────────────────┐
-│       LOCAL PERSISTENCE ENGINE       │  │     FASTAPI BACKEND TIER     │
-│  - SwiftData / SQLite ModelContainer │  │  - Python 3.11+ / FastAPI    │
-│  - KeychainStore (Auth tokens)       │  │  - Multi-tenant shelf sync   │
-│  - Pure Zero-Baseline Analytics      │  │  - 22 Pytest Automated Cases │
-│  - 100% Offline functional guarantee │  │  - Interactive Swagger /docs │
-└──────────────────────────────────────┘  └──────────────────────────────┘
+┌──────────────────────────────────────┐  ┌──────────────────────────────────────┐
+│       LOCAL PERSISTENCE ENGINE       │  │         FASTAPI BACKEND TIER         │
+│  - SwiftData / SQLite ModelContainer │  │  - Python 3.9+ / FastAPI Framework   │
+│  - KeychainStore (Auth tokens)       │  │  - Federated Prose Providers:        │
+│  - Pure Zero-Baseline Analytics      │  │    • Standard Ebooks (Semantic XHTML)│
+│  - 100% Offline functional guarantee │  │    • Project Gutenberg (Plain-Text)  │
+│  - Cross-provider edition isolation  │  │  - Multi-tenant shelf synchronization│
+│                                      │  │  - 100+ Automated Pytest Cases       │
+│                                      │  │  - Interactive Swagger OpenAPI /docs │
+└──────────────────────────────────────┘  └──────────────────────────────────────┘
 ```
 
 ---
@@ -89,15 +92,16 @@
 The Model layer represents pure business entities, value objects, and styling configurations. Models are completely isolated from SwiftUI view logic and controllers.
 - **Type Safety & Protocols:** Conforms to `Identifiable`, `Codable`, and `Equatable`.
 - **Key Entities:**
-  - `Story`: Core entity containing unique `id: UUID`, `title: String`, `author: String`, `genre: Genre`, `contentFormat: ContentFormat` (`.prose`, `.manga`), `sourceProvider: SourceProvider` (`.gutenberg`, `.standardEbooks`, `.mangadex`), `synopsis: String`, `content: String`, `chapters: [Chapter]`, `readTimeMinutes: Int`, `isBookmarked: Bool`, `isCompleted: Bool`, `readingProgress: Double`, and `coverImageUrl: String?`.
+  - `Story`: Core entity containing unique deterministic `id: UUID` (derived via UUIDv5 for federated provider works to ensure edition stability), `title: String`, `author: String`, `genre: Genre`, `contentFormat: ContentFormat` (`.prose`, `.manga`), `sourceProvider: SourceProvider` (`.fableOriginal`, `.gutenberg`, `.standardEbooks`, `.mangadex`), `providerId: String?`, `synopsis: String`, `content: String`, `chapters: [Chapter]`, `readTimeMinutes: Int`, `isBookmarked: Bool`, `isCompleted: Bool`, `readingProgress: Double`, and `coverImageUrl: String?`.
   - `Chapter`: Sequential reading unit with `id: String`, `title: String`, `chapterNumber: Int`, `content: String`, and `pageUrls: [String]` (sequential graphic panel URLs for manga).
   - `ContentFormat`: Explicit format discriminator (`.prose`, `.manga`).
-  - `SourceProvider`: Catalog source provenance (`.gutenberg`, `.standardEbooks`, `.mangadex`).
+  - `SourceProvider`: Catalog source provenance (`.fableOriginal`, `.gutenberg`, `.standardEbooks`, `.mangadex`).
   - `UserReadingStats`: Pure zero-baseline living analytics derived without artificial stat floors.
   - `ReaderTheme` & `ReaderFont`: Configurable appearance value objects for custom typography rendering.
+- **Cross-Provider Edition Disambiguation:** Works sharing the same literary title across different providers (e.g., Mary Shelley's *Frankenstein* on Standard Ebooks vs Project Gutenberg) maintain distinct `id`, `sourceProvider`, and `providerId` attributes. This ensures chapter caches, reading positions, and shelf states never collide.
 
 ### 3.2 Controller & Service Layer (`frontend/FableApp/Features/`)
-- **`StoryStore` & `StoryController`:** Coordinate state mutations, catalog search, format filtering, and bidirectional cloud synchronization with Last-Write-Wins (LWW) conflict resolution.
+- **`StoryStore` & `StoryController`:** Coordinate state mutations, catalog search, format filtering, independent multi-provider query dispatch (Gutenberg and Standard Ebooks), fault isolation, and bidirectional cloud synchronization with Last-Write-Wins (LWW) conflict resolution.
 - **`AudioNarratorController`:** `AVSpeechSynthesizer` state machine orchestrating text-to-speech audio, voice audition, and active chapter tracking.
 - **`AuthManager` & `KeychainStore`:** Manage multi-tenant session tokens, BCrypt registration/login requests, and encrypted keychain storage.
 - **`PacingEngine`:** Dynamic word tokenization and zoom-invariant reading speed calculation.
