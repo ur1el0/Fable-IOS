@@ -1,3 +1,4 @@
+import os
 from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Request, Response, status
 from core.rate_limit import extract_client_ip
 from schemas import (
@@ -41,27 +42,34 @@ def request_password_reset(
     request: Request,
     background_tasks: BackgroundTasks,
 ):
+    is_dev_env = os.environ.get("FABLE_ENV", "").strip().lower() == "development"
+    smtp_settings = None
     try:
         smtp_settings = load_smtp_settings()
     except EmailDeliveryConfigurationError as error:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Password recovery is temporarily unavailable.",
-        ) from error
+        if not is_dev_env:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Password recovery is temporarily unavailable.",
+            ) from error
 
     client_host = extract_client_ip(request)
     enforce_auth_rate_limit("password_reset", client_host, payload.email)
     token = auth_service.issue_password_reset_token(payload.email)
-    if token is not None:
-        background_tasks.add_task(
-            deliver_password_reset_email,
-            smtp_settings,
-            payload.email,
-            token,
-        )
-    return {
+    response_body = {
         "message": "If an account uses this address, recovery instructions will arrive shortly."
     }
+    if token is not None:
+        if smtp_settings is not None:
+            background_tasks.add_task(
+                deliver_password_reset_email,
+                smtp_settings,
+                payload.email,
+                token,
+            )
+        elif is_dev_env:
+            response_body["recoveryToken"] = token
+    return response_body
 
 
 @router.post("/auth/password-reset/confirm", status_code=status.HTTP_204_NO_CONTENT)
