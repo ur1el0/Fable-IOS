@@ -181,7 +181,7 @@ public struct ExploreView: View {
                                                             .lineLimit(1)
                                                         
                                                         HStack(spacing: 6) {
-                                                            Text(story.contentFormat.displayName.uppercased())
+                                                            Text(story.contentFormat == .manga ? "MANGA" : story.sourceProvider.displayName.uppercased())
                                                                 .fableFont(size: 8, weight: .heavy)
                                                                 .padding(.horizontal, 6)
                                                                 .padding(.vertical, 2)

@@ -70,6 +70,16 @@ public struct LibraryView: View {
                 && (selectedFilter == "All" || store.storyMatchesCategory(story, category: selectedFilter))
         }
     }
+
+    private var visibleStandardEbooksStories: [Story] {
+        let base = store.standardEbooksStories.isEmpty
+            ? store.stories.filter { $0.sourceProvider == .standardEbooks }
+            : store.standardEbooksStories
+        return base.filter { story in
+            !PersistenceService.legacyDemoStoryIds.contains(story.id)
+                && (selectedFilter == "All" || store.storyMatchesCategory(story, category: selectedFilter))
+        }
+    }
     
     public init() {}
     
@@ -424,6 +434,15 @@ public struct LibraryView: View {
                                 subtitle: "Popular books from Project Gutenberg",
                                 badge: "POPULAR",
                                 stories: visiblePopularGutenbergStories
+                            )
+                        }
+
+                        if !visibleStandardEbooksStories.isEmpty {
+                            providerBookCollection(
+                                title: "Standard Ebooks",
+                                subtitle: "Typography-first public-domain editions",
+                                badge: "STANDARD EBOOKS",
+                                stories: visibleStandardEbooksStories
                             )
                         }
                         
