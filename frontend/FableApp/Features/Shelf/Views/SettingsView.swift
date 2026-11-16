@@ -76,6 +76,49 @@ public struct SettingsView: View {
                             }
                             .buttonStyle(.plain)
                             
+                            // App Appearance Section (System / Light / Dark)
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text("APPEARANCE")
+                                    .fableFont(size: 11, weight: .bold)
+                                    .tracking(1.0)
+                                    .foregroundColor(FableTheme.textMuted)
+                                    .padding(.leading, 8)
+
+                                VStack(spacing: 12) {
+                                    HStack(spacing: 14) {
+                                        Image(systemName: store.appAppearance.iconName)
+                                            .fableFont(size: 16)
+                                            .foregroundColor(FableTheme.brandPrimary)
+                                            .frame(width: 32, height: 32)
+                                            .background(FableTheme.brandPrimary.opacity(0.12))
+                                            .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text("App Theme")
+                                                .fableFont(size: 15, weight: .medium)
+                                                .foregroundColor(FableTheme.textPrimary)
+                                            Text("Follow iOS system appearance or force Light / Dark")
+                                                .fableFont(size: 11)
+                                                .foregroundColor(FableTheme.textMuted)
+                                        }
+
+                                        Spacer()
+                                    }
+
+                                    Picker("App Theme", selection: $store.appAppearance) {
+                                        ForEach(AppAppearance.allCases) { appearance in
+                                            Text(appearance.displayName).tag(appearance)
+                                        }
+                                    }
+                                    .pickerStyle(.segmented)
+                                    .accessibilityLabel("App Theme")
+                                }
+                                .padding(16)
+                                .background(FableTheme.cardBackground)
+                                .clipShape(RoundedRectangle(cornerRadius: 16))
+                                .shadow(color: Color.black.opacity(0.03), radius: 6, y: 2)
+                            }
+
                             // Reading Preferences Section
                             VStack(alignment: .leading, spacing: 10) {
                                 Text("READING PREFERENCES")
@@ -133,7 +176,7 @@ public struct SettingsView: View {
                                             .background(FableTheme.surface)
                                             .clipShape(RoundedRectangle(cornerRadius: 8))
                                         
-                                        Text("Theme Mode")
+                                        Text("Reader Theme")
                                             .fableFont(size: 15, weight: .medium)
                                             .foregroundColor(FableTheme.textPrimary)
                                         

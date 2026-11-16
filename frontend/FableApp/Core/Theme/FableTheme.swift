@@ -42,24 +42,99 @@ public extension View {
     }
 }
 
+public enum AppAppearance: String, CaseIterable, Identifiable, Codable, Sendable {
+    case system = "System"
+    case light = "Light"
+    case dark = "Dark"
+
+    public static let storageKey = "fable_pref_app_appearance"
+
+    public var id: String { rawValue }
+
+    public var displayName: String { rawValue }
+
+    public var iconName: String {
+        switch self {
+        case .system: return "circle.lefthalf.filled"
+        case .light: return "sun.max.fill"
+        case .dark: return "moon.stars.fill"
+        }
+    }
+
+    public var colorScheme: ColorScheme? {
+        switch self {
+        case .system: return nil
+        case .light: return .light
+        case .dark: return .dark
+        }
+    }
+}
+
 public enum FableTheme {
-    // MARK: - Modern Format-Agnostic Design Tokens
+    private static func adaptive(
+        light: (CGFloat, CGFloat, CGFloat),
+        dark: (CGFloat, CGFloat, CGFloat)
+    ) -> Color {
+        #if canImport(UIKit)
+        return Color(uiColor: UIColor { traits in
+            let rgb = traits.userInterfaceStyle == .dark ? dark : light
+            return UIColor(red: rgb.0, green: rgb.1, blue: rgb.2, alpha: 1.0)
+        })
+        #else
+        return Color(red: light.0, green: light.1, blue: light.2)
+        #endif
+    }
+
+    // MARK: - Modern Format-Agnostic Design Tokens (Adaptive Light + Dark)
     // Electric Indigo accent for vibrant, media-neutral focus
-    public static let brandPrimary = Color(red: 0.23, green: 0.35, blue: 0.96) // #3B59F6 Modern Electric Indigo
-    public static let brandSecondary = Color(red: 0.12, green: 0.16, blue: 0.24) // #1E293B Slate Navy
-    public static let brandAccent = Color(red: 0.49, green: 0.55, blue: 0.98) // #7D8CFA Soft Indigo Tint
-    public static let background = Color(red: 0.968, green: 0.972, blue: 0.980) // #F7F8FA Clean neutral canvas
-    public static let surface = Color(red: 0.933, green: 0.941, blue: 0.957) // #EEF0F4 Neutral container surface
-    public static let surfaceVariant = Color(red: 0.910, green: 0.922, blue: 0.941) // #E8EBF0 Clean interactive pill background
-    public static let textPrimary = Color(red: 0.07, green: 0.09, blue: 0.13) // #111721 Sharp high-contrast text
-    public static let textSecondary = Color(red: 0.30, green: 0.35, blue: 0.43) // #4D596E Clean slate secondary
-    public static let textMuted = Color(red: 0.353, green: 0.392, blue: 0.455) // #5A6474 Muted text with WCAG AA contrast on light surfaces
-    public static let cardBackground = Color.white // #FFFFFF Clean surface
-    public static let divider = Color(red: 0.89, green: 0.91, blue: 0.93) // #E3E8ED Fine hairline divider
+    public static let brandPrimary = adaptive(
+        light: (0.23, 0.35, 0.96),   // #3B59F6 Modern Electric Indigo
+        dark: (0.36, 0.46, 1.00)     // #5C75FF High-contrast Indigo for dark surfaces
+    )
+    public static let brandSecondary = Color(red: 0.12, green: 0.16, blue: 0.24) // #1E293B Slate Navy (cover gradients)
+    public static let brandAccent = adaptive(
+        light: (0.49, 0.55, 0.98),   // #7D8CFA Soft Indigo Tint
+        dark: (0.56, 0.62, 1.00)     // #8F9EFF
+    )
+    public static let background = adaptive(
+        light: (0.968, 0.972, 0.980), // #F7F8FA Clean neutral canvas
+        dark: (0.043, 0.059, 0.090)   // #0B0F17 Deep editorial slate canvas
+    )
+    public static let surface = adaptive(
+        light: (0.933, 0.941, 0.957), // #EEF0F4 Neutral container surface
+        dark: (0.078, 0.106, 0.149)   // #141B26 Elevated dark container
+    )
+    public static let surfaceVariant = adaptive(
+        light: (0.910, 0.922, 0.941), // #E8EBF0 Clean interactive pill background
+        dark: (0.110, 0.145, 0.204)   // #1C2534 Dark pill & control surface
+    )
+    public static let textPrimary = adaptive(
+        light: (0.07, 0.09, 0.13),    // #111721 Sharp high-contrast text
+        dark: (0.945, 0.961, 0.976)   // #F1F5F9 Crisp light editorial text
+    )
+    public static let textSecondary = adaptive(
+        light: (0.30, 0.35, 0.43),    // #4D596E Clean slate secondary
+        dark: (0.714, 0.761, 0.831)   // #B6C2D4 Readable cool slate
+    )
+    public static let textMuted = adaptive(
+        light: (0.353, 0.392, 0.455), // #5A6474 Muted text with WCAG AA contrast on light surfaces
+        dark: (0.580, 0.639, 0.722)   // #94A3B8 Muted text with WCAG AA contrast on dark surfaces
+    )
+    public static let cardBackground = adaptive(
+        light: (1.0, 1.0, 1.0),       // #FFFFFF Clean surface
+        dark: (0.067, 0.094, 0.141)   // #111824 Elevated dark card
+    )
+    public static let divider = adaptive(
+        light: (0.89, 0.91, 0.93),    // #E3E8ED Fine hairline divider
+        dark: (0.141, 0.188, 0.267)   // #243044 Subtle dark hairline divider
+    )
 
     // MARK: - Prototype Aliases & Visual Palette
     public static let terracotta = brandPrimary
-    public static let terracottaDark = Color(red: 0.15, green: 0.25, blue: 0.85)
+    public static let terracottaDark = adaptive(
+        light: (0.15, 0.25, 0.85),
+        dark: (0.28, 0.38, 0.95)
+    )
     public static let warmCream = background
     public static let softPeach = surface
     public static let deepCharcoal = textPrimary

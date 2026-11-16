@@ -72,6 +72,7 @@ struct ContentView: View {
         .onChange(of: auth.currentSession?.id) { _, _ in
             store.sessionDidChange()
         }
+        .preferredColorScheme(store.appAppearance.colorScheme)
         .environmentObject(store)
     }
 
@@ -155,7 +156,7 @@ struct ContentView: View {
                     .fill(.ultraThinMaterial)
                     .overlay(
                         RoundedRectangle(cornerRadius: 32, style: .continuous)
-                            .stroke(Color.white.opacity(0.55), lineWidth: 0.8)
+                            .stroke(FableTheme.divider.opacity(0.75), lineWidth: 0.8)
                     )
                     .shadow(color: Color.black.opacity(0.08), radius: 16, x: 0, y: 6)
                     .shadow(color: Color.black.opacity(0.03), radius: 3, x: 0, y: 1)

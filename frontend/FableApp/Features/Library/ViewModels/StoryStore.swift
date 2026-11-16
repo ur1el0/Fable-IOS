@@ -24,7 +24,10 @@ public final class StoryStore: ObservableObject {
     @Published var tourShelfTab: String = "Saved"
     @Published var isShowingChapterIndexSheet: Bool = false
 
-    // Reader Preferences (Persisted across launches)
+    // App & Reader Preferences (Persisted across launches)
+    @Published var appAppearance: AppAppearance = .system {
+        didSet { UserDefaults.standard.set(appAppearance.rawValue, forKey: AppAppearance.storageKey) }
+    }
     @Published var readerFont: ReaderFont = .serif {
         didSet { UserDefaults.standard.set(readerFont.rawValue, forKey: "fable_pref_reader_font") }
     }
@@ -267,6 +270,10 @@ public final class StoryStore: ObservableObject {
     }
 
     private func loadReaderPreferences() {
+        if let appearanceRaw = UserDefaults.standard.string(forKey: AppAppearance.storageKey),
+           let appearance = AppAppearance(rawValue: appearanceRaw) {
+            self.appAppearance = appearance
+        }
         if let fontRaw = UserDefaults.standard.string(forKey: "fable_pref_reader_font"),
            let font = ReaderFont(rawValue: fontRaw) {
             self.readerFont = font

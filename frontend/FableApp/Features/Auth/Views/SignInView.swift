@@ -52,7 +52,7 @@ public struct SignInView: View {
                             .fableFont(size: 13, weight: .bold)
                             .foregroundColor(FableTheme.textPrimary)
                             .padding(8)
-                            .background(Color.white)
+                            .background(FableTheme.cardBackground)
                             .clipShape(Circle())
                             .shadow(color: Color.black.opacity(0.05), radius: 3, y: 1)
                     }

@@ -232,7 +232,7 @@ public struct LibraryView: View {
                                             .foregroundColor(FableTheme.brandPrimary)
                                             .padding(.horizontal, 10)
                                             .padding(.vertical, 5)
-                                            .background(Color.white.opacity(0.95))
+                                            .background(FableTheme.cardBackground.opacity(0.95))
                                             .clipShape(Capsule())
                                             .shadow(color: Color.black.opacity(0.06), radius: 3, y: 1)
                                         }
@@ -249,7 +249,7 @@ public struct LibraryView: View {
                                                 .fableFont(size: 13, weight: .semibold)
                                                 .foregroundColor(featuredStory.isBookmarked ? FableTheme.brandPrimary : FableTheme.textPrimary)
                                                 .padding(8)
-                                                .background(Color.white.opacity(0.95))
+                                                .background(FableTheme.cardBackground.opacity(0.95))
                                                 .clipShape(Circle())
                                                 .shadow(color: Color.black.opacity(0.08), radius: 3, y: 1)
                                         }

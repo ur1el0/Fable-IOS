@@ -74,7 +74,7 @@ public struct GenreDetailView: View {
                             .fableFont(size: 18, weight: .semibold)
                             .foregroundColor(FableTheme.textPrimary)
                             .frame(width: 40, height: 40)
-                            .background(Color.white)
+                            .background(FableTheme.cardBackground)
                             .clipShape(Circle())
                     }
                     .accessibilityLabel("Back")
@@ -93,7 +93,7 @@ public struct GenreDetailView: View {
                                 .fableFont(size: 15)
                                 .foregroundColor(isFollowing ? FableTheme.brandPrimary : FableTheme.textPrimary)
                                 .frame(width: 40, height: 40)
-                                .background(Color.white)
+                                .background(FableTheme.cardBackground)
                                 .clipShape(Circle())
                         }
                         .accessibilityLabel(isFollowing ? "Unfollow genre" : "Follow genre")
