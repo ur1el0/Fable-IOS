@@ -1932,16 +1932,36 @@ public final class StoryStore: ObservableObject {
     func updateAnnotation(
         _ annotation: Annotation,
         story: Story,
+        text: String? = nil,
+        startOffset: Int? = nil,
+        endOffset: Int? = nil,
         color: HighlightColor,
         note: String?,
         pinToJournal: Bool
     ) {
         var updated = annotation
-        updated.color = color
-        updated.note = note
-        updated.isPinnedToJournal = pinToJournal
-        updated.storyTitle = story.title
-        updated.storyAuthor = story.author
+        if let text = text {
+            updated = Annotation(
+                id: annotation.id,
+                storyId: annotation.storyId,
+                storyTitle: story.title,
+                storyAuthor: story.author,
+                chapterNumber: annotation.chapterNumber,
+                utf16StartOffset: startOffset ?? annotation.utf16StartOffset,
+                utf16EndOffset: endOffset ?? annotation.utf16EndOffset,
+                selectedText: text,
+                note: note,
+                color: color,
+                isPinnedToJournal: pinToJournal,
+                createdAt: annotation.createdAt
+            )
+        } else {
+            updated.color = color
+            updated.note = note
+            updated.isPinnedToJournal = pinToJournal
+            updated.storyTitle = story.title
+            updated.storyAuthor = story.author
+        }
         if let idx = activeStoryAnnotations.firstIndex(where: { $0.id == annotation.id }) {
             activeStoryAnnotations[idx] = updated
         }

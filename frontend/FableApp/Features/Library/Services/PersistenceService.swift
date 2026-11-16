@@ -507,6 +507,8 @@ public final class PersistenceService {
             if let existing = storyEntity.annotations.first(where: { $0.id == annotation.id }) {
                 guard existing.ownerUserId == ownerUserId else { return }
                 existing.chapterNumber = annotation.chapterNumber
+                existing.utf16StartOffset = annotation.utf16StartOffset
+                existing.utf16EndOffset = annotation.utf16EndOffset
                 existing.highlightedText = annotation.selectedText
                 existing.note = annotation.note
                 existing.styleRaw = annotation.color.rawValue
