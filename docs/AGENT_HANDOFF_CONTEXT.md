@@ -171,7 +171,12 @@ Below is the original file-and-line audit baseline gathered prior to executing *
 
 ## 5. Known Gotchas & Compiler Notes from This Session
 
-1. **Swift Closure Type Inference in `StoryStore.swift`:**
+1. **ISO-8601 Fractional Microseconds Decoding (`StoryAPIService.iso8601DateDecodingStrategy`):**
+   - FastAPI/Pydantic serializes UTC timestamps with fractional microseconds (e.g., `"2026-11-16T04:25:03.094537Z"`), whereas Swift's built-in `JSONDecoder.DateDecodingStrategy.iso8601` does not enable `.withFractionalSeconds` and throws `DecodingError.dataCorrupted`. Always use `StoryAPIService.iso8601DateDecodingStrategy` in `frontend/FableApp/Features/Library/Services/StoryAPIService.swift`, which supports both `.withFractionalSeconds` and standard `.withInternetDateTime`.
+2. **Physical iPhone `Info.plist` Keys (`FABLE_API_BASE_URL` & `NSAppTransportSecurity`) & Runtime Server URL Override:**
+   - Xcode's `GENERATE_INFOPLIST_FILE = YES` ignores custom `INFOPLIST_KEY_FABLE_API_BASE_URL` and nested `INFOPLIST_KEY_NSAppTransportSecurity_*` settings unless `<key>FABLE_API_BASE_URL</key><string>$(FABLE_API_BASE_URL)</string>` and `<key>NSAppTransportSecurity</key>` are explicitly declared in `frontend/FableApp-Info.plist`.
+   - `StoryAPIService.resolvedBaseURL()` dynamically checks `UserDefaults.standard.string(forKey: StoryAPIService.customBaseURLDefaultsKey)` (`"fable_custom_api_base_url"`) before falling back to `FABLE_API_BASE_URL`. Both `WelcomeView` and `SettingsView` expose an in-app **Backend Server URL** switcher (`StoryAPIService.setCustomBaseURL`) so a physical iPhone can switch between a Fedora/Mac LAN backend, an SSH tunnel, and Render Cloud without rebuilding in Xcode.
+3. **Swift Closure Type Inference in `StoryStore.swift`:**
    - Around line 880 in `StoryStore.swift` (`availableGenres`), keep `let candidates: [(name: String, matcher: (String) -> Bool)] = [...]` as a single typed array literal and filter inside the `for (name, matcher) in candidates` loop (`if !Self.isMangaEnabled && name == "Manga" { continue }`). Splitting it into `candidates.append(contentsOf: [...])` causes Swift compiler error `Cannot infer type of closure parameter '$0' without a type annotation`.
 2. **`ReaderTheme` Enum Cases:**
    - The dark themes in `ReaderTheme` (`frontend/FableApp/Core/Models/Models.swift`) are `.parchment`, `.sepia`, `.midnight`, and `.oled` (there is **no** `.night` case).

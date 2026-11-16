@@ -31,6 +31,7 @@
 | **[`docs/adr/`](docs/adr/)** | Architecture Decision Records: [`ADR 0001`](docs/adr/0001-password-hash-versioning.md) (Password Hashing), [`ADR 0002`](docs/adr/0002-ios-open-source-literature-focus-and-manga-feature-flag.md) (Manga Feature Flag), [`ADR 0003`](docs/adr/0003-comprehensive-catalog-seeding-and-chapter-1-continuity.md) (Catalog Seeding), [`ADR 0004`](docs/adr/0004-render-neon-postgres-deployment.md) (Render + Neon) |
 | **[`docs/final_milestone/MASTER_PROGRESS_LOG.md`](docs/final_milestone/MASTER_PROGRESS_LOG.md)** | Chronological engineering progress log across all phases and PRs |
 | **[`docs/MAC_LAB_RUNBOOK.md`](docs/MAC_LAB_RUNBOOK.md)** | Step-by-step computer lab setup, grading demo runbook, and troubleshooting |
+| **[`docs/WIRELESS_IPHONE_AND_LINUX_SETUP.md`](docs/WIRELESS_IPHONE_AND_LINUX_SETUP.md)** | One-command wireless backend launcher (`start_wireless_server.sh`), Fedora Linux setup, and in-app server switcher |
 
 ---
 
@@ -149,12 +150,12 @@ Fable is architected around **Feature-Driven Vertical Slices** combined with **M
    ```
    *(All 100 tests must pass, verifying health checks, serialization contracts, Chapter 1 continuity, rate limits, auth hashing, and shelf sync logic).*
 
-5. **Start the FastAPI Development Server:**
+5. **Start the FastAPI Development Server (Single-Command Wireless Mode for Mac & Fedora Linux):**
    ```bash
-   cd backend
-   FABLE_ENV=development ../.venv/bin/uvicorn main:app --reload --host 127.0.0.1 --port 8001
+   ./scripts/start_wireless_server.sh
    ```
-   * **API Base URL:** `http://127.0.0.1:8001/api/v1`
+   *(This one command starts Uvicorn on `0.0.0.0:8001` in `development` mode, prints your Home Wi-Fi / Hotspot URL `http://<LAN_IP>:8001/api/v1`, and opens a live HTTPS Cloudflare tunnel `https://<id>.trycloudflare.com/api/v1` for campus/mobile networks. Use `./scripts/start_wireless_server.sh --no-tunnel` for LAN/Simulator-only runs.)*
+   * **Local API Base URL:** `http://127.0.0.1:8001/api/v1`
    * **Interactive Swagger UI:** Open your browser and navigate to `http://127.0.0.1:8001/docs`
    * **Health Check:** `curl http://127.0.0.1:8001/api/v1/health`
 
@@ -173,9 +174,11 @@ Fable is architected around **Feature-Driven Vertical Slices** combined with **M
    * Select an iOS Simulator running **iOS 17.0+** (e.g., **iPhone 16 Pro** or **iPhone 15 Pro**).
 
 3. **Configure the API URL:**
-   * The `FABLE_API_BASE_URL` Xcode build setting is exposed through the generated Info.plist. It defaults to `http://127.0.0.1:8001/api/v1`, matching the Docker Compose host port.
-   * For a physical device, set it to the development machine's LAN address, such as `http://192.168.1.20:8001/api/v1`, and bind FastAPI to `0.0.0.0`. For release builds, use the deployed HTTPS API URL.
-   * ATS allows local networking for development and keeps arbitrary HTTP loads disabled.
+   * The `FABLE_API_BASE_URL` Xcode build setting is exposed through `frontend/FableApp-Info.plist`. It defaults to `http://127.0.0.1:8001/api/v1`, matching the local Uvicorn and Docker Compose host port.
+   * **In-App Backend Server URL Switcher (No Rebuild Needed):** Both `WelcomeView` (**"Server: … • Change"**) and `SettingsView` (**"Backend Server URL"**) let you change the active backend URL at runtime (`StoryAPIService.setCustomBaseURL`), automatically appending `/api/v1` if omitted, or switch with one tap to Render Cloud (`https://fable-api-cbo8.onrender.com/api/v1`).
+   * **Physical iPhone on Home Wi-Fi / Personal Hotspot (Mac or Fedora Linux):** Bind FastAPI to `0.0.0.0` (`uvicorn main:app --reload --host 0.0.0.0 --port 8001`) and enter your computer's LAN address (e.g., `http://192.168.1.20:8001/api/v1`) in the in-app **Backend Server URL** switcher.
+   * **Physical iPhone on Campus / Isolated Wi-Fi (Wireless Local Backend):** When campus Wi-Fi AP Client Isolation blocks peer-to-peer LAN traffic, expose your local FastAPI server over an instant SSH HTTPS tunnel (`ssh -T -R 80:127.0.0.1:8001 nokey@localhost.run`) and enter the generated `https://<id>.app.lhr.life/api/v1` URL in the in-app **Backend Server URL** switcher—or tap **Use Render Cloud**.
+   * ATS (`NSAppTransportSecurity` in `frontend/FableApp-Info.plist`) allows local networking for development while keeping arbitrary HTTP loads disabled. `StoryAPIService.iso8601DateDecodingStrategy` supports both fractional-microsecond ISO-8601 timestamps from FastAPI and standard ISO-8601 timestamps.
 
 4. **Build & Launch:**
    * Press `Cmd + R` (or click the **Play** button).
@@ -251,6 +254,8 @@ Fable-IOS/
 | **Simulator fails to connect to `127.0.0.1:8001`** | The API container is stopped or the app URL uses a different host port | Start it with `docker compose up -d --build` and verify `curl http://127.0.0.1:8001/api/v1/health`. Keep the Xcode Debug URL on port 8001. |
 | **Old cached build artifacts fail** | Previous user left stale build cache | Press `Shift + Cmd + K` (**Product** ➔ **Clean Build Folder**), then press `Cmd + B` to rebuild. |
 | **Offline Lab Network (No Internet)** | Campus Wi-Fi blocked or offline computer | Fable reads previously cached stories, chapters, images, and per-account shelf data. A first launch without network has no catalog to display. |
+| **Physical iPhone "Untrusted Developer" / "Internet connection required"** | Free Apple ID Personal Team certificate requires one-time verification with `ppq.apple.com` | On the iPhone, temporarily enable **Mobile Data** (if campus Wi-Fi blocks Apple verification), go to **Settings ➔ General ➔ VPN & Device Management**, tap your Developer App profile, and tap **Trust**. |
+| **Physical iPhone cannot reach Mac's local IP (`172.x.x.x:8001`) on campus Wi-Fi** | Campus Wi-Fi AP Client Isolation blocks peer-to-peer traffic between wireless clients | Run `ssh -T -R 80:127.0.0.1:8001 nokey@localhost.run` on the Mac and pass `FABLE_API_BASE_URL="https://<id>.app.lhr.life/api/v1"` (or use the deployed Render URL `https://fable-api-cbo8.onrender.com/api/v1`). |
 
 ---
 
