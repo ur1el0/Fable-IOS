@@ -294,7 +294,7 @@ public struct LibraryView: View {
                         }
 
                         // Continue Reading Section
-                        if let inProgressStory = store.stories.first(where: { !PersistenceService.legacyDemoStoryIds.contains($0.id) && $0.progressPercent > 0 && !$0.isCompleted }) {
+                        if let inProgressStory = store.continueReadingStory {
                             VStack(alignment: .leading, spacing: 12) {
                                 HStack {
                                     Text("Continue Reading")
@@ -330,7 +330,7 @@ public struct LibraryView: View {
                                                 HStack(spacing: 4) {
                                                     Image(systemName: inProgressStory.contentFormat == .manga ? "photo.on.rectangle.angled" : "book.closed.fill")
                                                         .fableFont(size: 8)
-                                                    Text(inProgressStory.contentFormat == .manga ? "MANGA" : "NOVEL")
+                                                    Text(inProgressStory.contentFormat == .manga ? "MANGA" : "BOOK")
                                                         .fableFont(size: 9, weight: .heavy)
                                                 }
                                                 .foregroundColor(FableTheme.brandPrimary)
