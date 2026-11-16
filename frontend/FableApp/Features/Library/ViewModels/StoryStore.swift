@@ -23,6 +23,7 @@ public final class StoryStore: ObservableObject {
     @Published var tourSelectedWriter: Writer?
     @Published var tourShelfTab: String = "Saved"
     @Published var isShowingChapterIndexSheet: Bool = false
+    @Published var downloadingStoryIds: Set<UUID> = []
 
     // App & Reader Preferences (Persisted across launches)
     @Published var appAppearance: AppAppearance = .system {
@@ -1059,6 +1060,21 @@ public final class StoryStore: ObservableObject {
             }
             throw error
         }
+    }
+
+    public func isStoryDownloaded(_ story: Story) -> Bool {
+        if let chapters = story.chapters, Self.hasUsableCachedChapters(chapters, format: story.contentFormat, allowExternalMangaSource: true) {
+            return true
+        }
+        let cached = PersistenceService.shared.cachedChapters(storyId: story.id)
+        return Self.hasUsableCachedChapters(cached, format: story.contentFormat, allowExternalMangaSource: true)
+    }
+
+    public func downloadBookForOffline(_ story: Story) async throws {
+        guard !downloadingStoryIds.contains(story.id) else { return }
+        downloadingStoryIds.insert(story.id)
+        defer { downloadingStoryIds.remove(story.id) }
+        _ = try await fetchChapters(for: story)
     }
 
 

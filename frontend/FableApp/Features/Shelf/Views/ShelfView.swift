@@ -391,7 +391,7 @@ public struct ShelfView: View {
                                                     )
                                                 
                                                 VStack(alignment: .leading, spacing: 4) {
-                                                    // Genre / Format Pill
+                                                    // Genre / Format Pill & Offline Badge
                                                     HStack(spacing: 6) {
                                                         Text(story.contentFormat == .manga ? "MANGA" : (story.sourceProvider == .standardEbooks ? "STANDARD EBOOKS" : story.genre.rawValue.uppercased()))
                                                             .fableFont(size: 8, weight: .heavy)
@@ -400,6 +400,20 @@ public struct ShelfView: View {
                                                             .padding(.vertical, 2)
                                                             .background(FableTheme.surface)
                                                             .clipShape(Capsule())
+
+                                                        if store.isStoryDownloaded(story) {
+                                                            HStack(spacing: 3) {
+                                                                Image(systemName: "arrow.down.circle.fill")
+                                                                    .fableFont(size: 8)
+                                                                Text("OFFLINE")
+                                                                    .fableFont(size: 8, weight: .heavy)
+                                                            }
+                                                            .foregroundColor(Color(red: 0.12, green: 0.62, blue: 0.32))
+                                                            .padding(.horizontal, 6)
+                                                            .padding(.vertical, 2)
+                                                            .background(Color(red: 0.12, green: 0.62, blue: 0.32).opacity(0.12))
+                                                            .clipShape(Capsule())
+                                                        }
                                                     }
                                                     
                                                     // Serif Title

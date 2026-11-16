@@ -145,6 +145,147 @@ public enum ReaderPassageMatcher {
         }
         return (0, substring.utf16.count)
     }
+
+    public static func generateSnippet(for query: String, in text: String, contextRadius: Int = 40) -> String {
+        let lowerText = text.lowercased()
+        let lowerQuery = query.lowercased()
+        guard let range = lowerText.range(of: lowerQuery) else {
+            return String(text.prefix(contextRadius * 2))
+        }
+
+        let start = text.index(range.lowerBound, offsetBy: -contextRadius, limitedBy: text.startIndex) ?? text.startIndex
+        let end = text.index(range.upperBound, offsetBy: contextRadius, limitedBy: text.endIndex) ?? text.endIndex
+
+        var snippet = String(text[start..<end]).replacingOccurrences(of: "\n", with: " ")
+        if start > text.startIndex {
+            snippet = "..." + snippet
+        }
+        if end < text.endIndex {
+            snippet = snippet + "..."
+        }
+        return snippet
+    }
+
+    public static func search(
+        query: String,
+        in chapters: [Chapter],
+        fallbackParagraphs: [String] = [],
+        fallbackTitle: String = "Folio"
+    ) -> [InBookSearchMatch] {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return [] }
+        let lowerQuery = trimmed.lowercased()
+        var matches: [InBookSearchMatch] = []
+
+        if !chapters.isEmpty {
+            for (chapIdx, chapter) in chapters.enumerated() {
+                let paras = paragraphs(from: chapter.content)
+                for (paraIdx, para) in paras.enumerated() {
+                    if para.localizedCaseInsensitiveContains(lowerQuery) {
+                        let snippet = generateSnippet(for: trimmed, in: para)
+                        matches.append(
+                            InBookSearchMatch(
+                                chapterIndex: chapIdx,
+                                chapterNumber: chapter.chapterNumber,
+                                chapterTitle: chapter.title.isEmpty ? "Chapter \(chapter.chapterNumber)" : chapter.title,
+                                paragraphIndex: paraIdx,
+                                pageNumber: max(1, paraIdx / 2 + 1),
+                                snippet: snippet,
+                                matchedText: trimmed,
+                                fullParagraphText: para
+                            )
+                        )
+                    }
+                }
+            }
+        } else {
+            for (paraIdx, para) in fallbackParagraphs.enumerated() {
+                if para.localizedCaseInsensitiveContains(lowerQuery) {
+                    let snippet = generateSnippet(for: trimmed, in: para)
+                    matches.append(
+                        InBookSearchMatch(
+                            chapterIndex: 0,
+                            chapterNumber: 1,
+                            chapterTitle: fallbackTitle,
+                            paragraphIndex: paraIdx,
+                            pageNumber: max(1, paraIdx / 2 + 1),
+                            snippet: snippet,
+                            matchedText: trimmed,
+                            fullParagraphText: para
+                        )
+                    )
+                }
+            }
+        }
+        return matches
+    }
+
+    public static func exportAnnotationsAsMarkdown(story: Story, annotations: [Annotation]) -> String {
+        let sorted = annotations.sorted {
+            if ($0.chapterNumber ?? 0) != ($1.chapterNumber ?? 0) {
+                return ($0.chapterNumber ?? 0) < ($1.chapterNumber ?? 0)
+            }
+            return $0.utf16StartOffset < $1.utf16EndOffset
+        }
+
+        var md = """
+        # Highlights & Marginalia: \(story.title)
+        **Author:** \(story.author)
+        **Total Highlights:** \(annotations.count)
+
+        ---
+
+        """
+
+        var currentChapter: Int? = nil
+        for annot in sorted {
+            let chap = annot.chapterNumber ?? 1
+            if chap != currentChapter {
+                currentChapter = chap
+                md += "\n## Chapter \(chap)\n\n"
+            }
+            md += "> “\(annot.selectedText.trimmingCharacters(in: .whitespacesAndNewlines))”\n"
+            md += ">\n"
+            md += "> — *\(annot.color.displayName) highlight*\n"
+            if let note = annot.note, !note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                md += "\n*Note: \(note)*\n"
+            }
+            md += "\n---\n\n"
+        }
+        return md
+    }
+}
+
+public struct InBookSearchMatch: Identifiable, Equatable {
+    public let id = UUID()
+    public let chapterIndex: Int
+    public let chapterNumber: Int
+    public let chapterTitle: String
+    public let paragraphIndex: Int
+    public let pageNumber: Int
+    public let snippet: String
+    public let matchedText: String
+    public let fullParagraphText: String
+
+    public init(
+        chapterIndex: Int,
+        chapterNumber: Int,
+        chapterTitle: String,
+        paragraphIndex: Int,
+        pageNumber: Int,
+        snippet: String,
+        matchedText: String,
+        fullParagraphText: String
+    ) {
+        self.chapterIndex = chapterIndex
+        self.chapterNumber = chapterNumber
+        self.chapterTitle = chapterTitle
+        self.paragraphIndex = paragraphIndex
+        self.pageNumber = pageNumber
+        self.snippet = snippet
+        self.matchedText = matchedText
+        self.fullParagraphText = fullParagraphText
+    }
 }
 
 public struct ReaderView: View {
@@ -184,6 +325,16 @@ public struct ReaderView: View {
     @State private var paragraphWordsForAnnotation: [String] = []
     @State private var annotationStartWordIndex: Int = 0
     @State private var annotationEndWordIndex: Int = 0
+
+    // In-Book Search State (Feature 1)
+    @State private var isSearchActive: Bool = false
+    @State private var inBookSearchText: String = ""
+    @State private var searchMatches: [InBookSearchMatch] = []
+    @State private var currentSearchMatchIndex: Int = 0
+
+    // Quote Card Sharing State (Feature 3)
+    @State private var isShowingQuoteCardShare: Bool = false
+    @State private var activeQuoteCardData: (text: String, note: String?, color: HighlightColor, chapter: Int?)? = nil
     
     public init(story: Story, initialTargetAnnotation: Annotation? = nil) {
         self.story = story
@@ -308,16 +459,57 @@ public struct ReaderView: View {
                         
                         Spacer()
                         
-                        HStack(spacing: 8) {
+                        HStack(spacing: 6) {
+                            // In-Book Text Search Toggle (Feature 1)
+                            Button(action: {
+                                FableHaptics.selection()
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    isSearchActive.toggle()
+                                }
+                            }) {
+                                Image(systemName: "magnifyingglass")
+                                    .fableFont(size: 13, weight: .semibold)
+                                    .foregroundColor(isSearchActive ? FableTheme.brandPrimary : store.readerTheme.textColor)
+                                    .frame(width: 36, height: 36)
+                                    .background(isSearchActive ? FableTheme.brandPrimary.opacity(0.12) : store.readerTheme.textColor.opacity(0.08))
+                                    .clipShape(Circle())
+                            }
+                            .accessibilityLabel("Search in book")
+
+                            // One-Tap Offline Download Button (Feature 2)
+                            Button(action: {
+                                FableHaptics.medium()
+                                Task {
+                                    try? await store.downloadBookForOffline(story)
+                                }
+                            }) {
+                                if store.downloadingStoryIds.contains(story.id) {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                        .frame(width: 36, height: 36)
+                                        .background(store.readerTheme.textColor.opacity(0.08))
+                                        .clipShape(Circle())
+                                } else {
+                                    let isDownloaded = store.isStoryDownloaded(story)
+                                    Image(systemName: isDownloaded ? "checkmark.circle.fill" : "arrow.down.circle")
+                                        .fableFont(size: 13, weight: .semibold)
+                                        .foregroundColor(isDownloaded ? Color(red: 0.12, green: 0.65, blue: 0.35) : store.readerTheme.textColor)
+                                        .frame(width: 36, height: 36)
+                                        .background(isDownloaded ? Color(red: 0.12, green: 0.65, blue: 0.35).opacity(0.12) : store.readerTheme.textColor.opacity(0.08))
+                                        .clipShape(Circle())
+                                }
+                            }
+                            .accessibilityLabel(store.isStoryDownloaded(story) ? "Book downloaded for offline" : "Download book for offline")
+
                             // Table of Contents Sheet Button
                             Button(action: {
                                 FableHaptics.selection()
                                 isShowingChapterSheet = true
                             }) {
                                 Image(systemName: "list.bullet.rectangle")
-                                    .fableFont(size: 14, weight: .semibold)
+                                    .fableFont(size: 13, weight: .semibold)
                                     .foregroundColor(store.readerTheme.textColor)
-                                    .frame(width: 40, height: 40)
+                                    .frame(width: 36, height: 36)
                                     .background(store.readerTheme.textColor.opacity(0.08))
                                     .clipShape(Circle())
                             }
@@ -331,9 +523,9 @@ public struct ReaderView: View {
                                 }
                             }) {
                                 Image(systemName: audioNarrator.isPlaying ? "speaker.wave.3.fill" : "speaker.wave.2")
-                                    .fableFont(size: 14, weight: .semibold)
+                                    .fableFont(size: 13, weight: .semibold)
                                     .foregroundColor(audioNarrator.isPlaying ? FableTheme.brandPrimary : store.readerTheme.textColor)
-                                    .frame(width: 40, height: 40)
+                                    .frame(width: 36, height: 36)
                                     .background(audioNarrator.isPlaying ? FableTheme.brandPrimary.opacity(0.15) : store.readerTheme.textColor.opacity(0.08))
                                     .clipShape(Circle())
                             }
@@ -347,9 +539,9 @@ public struct ReaderView: View {
                                 }
                             }) {
                                 Image(systemName: currentStoryBookmarked ? "bookmark.fill" : "bookmark")
-                                    .fableFont(size: 14, weight: .semibold)
+                                    .fableFont(size: 13, weight: .semibold)
                                     .foregroundColor(currentStoryBookmarked ? FableTheme.brandPrimary : store.readerTheme.textColor)
-                                    .frame(width: 40, height: 40)
+                                    .frame(width: 36, height: 36)
                                     .background(currentStoryBookmarked ? FableTheme.brandPrimary.opacity(0.12) : store.readerTheme.textColor.opacity(0.08))
                                     .clipShape(Circle())
                             }
@@ -361,31 +553,139 @@ public struct ReaderView: View {
                                 store.isShowingDisplayOptions = true
                             }) {
                                 Image(systemName: "textformat.size")
-                                    .fableFont(size: 14, weight: .semibold)
+                                    .fableFont(size: 13, weight: .semibold)
                                     .foregroundColor(store.readerTheme.textColor)
-                                    .frame(width: 40, height: 40)
+                                    .frame(width: 36, height: 36)
                                     .background(store.readerTheme.textColor.opacity(0.08))
                                     .clipShape(Circle())
                             }
                             .accessibilityLabel("Reading appearance options")
                             
-                            // Native Share Link
-                            ShareLink(
-                                item: "\(story.title) by \(story.author)\n\n\(story.synopsis)\n\nRead on Fable."
-                            ) {
+                            // Share & Export Menu (Feature 3)
+                            Menu {
+                                ShareLink("Share Book Details", item: "\(story.title) by \(story.author)\n\n\(story.synopsis)\n\nRead on Fable.")
+                                
+                                if !store.activeStoryAnnotations.isEmpty {
+                                    ShareLink(
+                                        "Export All Highlights (.md)",
+                                        item: ReaderPassageMatcher.exportAnnotationsAsMarkdown(story: story, annotations: store.activeStoryAnnotations)
+                                    )
+                                }
+                                
+                                Button {
+                                    let textToUse = selectedTextToAnnotate ?? activeParagraphs.first ?? story.title
+                                    activeQuoteCardData = (
+                                        text: textToUse,
+                                        note: nil,
+                                        color: selectedHighlightColor,
+                                        chapter: activeChapter?.chapterNumber
+                                    )
+                                    isShowingQuoteCardShare = true
+                                } label: {
+                                    Label("Create Quote Card", systemImage: "photo.artframe")
+                                }
+                            } label: {
                                 Image(systemName: "square.and.arrow.up")
-                                    .fableFont(size: 14, weight: .semibold)
+                                    .fableFont(size: 13, weight: .semibold)
                                     .foregroundColor(store.readerTheme.textColor)
-                                    .frame(width: 40, height: 40)
+                                    .frame(width: 36, height: 36)
                                     .background(store.readerTheme.textColor.opacity(0.08))
                                     .clipShape(Circle())
                             }
-                            .accessibilityLabel("Share story")
+                            .accessibilityLabel("Share and export options")
                         }
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
                     .transition(.move(edge: .top).combined(with: .opacity))
+
+                    // In-Book Search Bar Overlay (Feature 1)
+                    if isSearchActive {
+                        HStack(spacing: 8) {
+                            Image(systemName: "magnifyingglass")
+                                .fableFont(size: 13, weight: .bold)
+                                .foregroundColor(FableTheme.brandPrimary)
+
+                            TextField("Search in book...", text: $inBookSearchText)
+                                .fableFont(size: 14)
+                                .autocorrectionDisabled()
+                                .textInputAutocapitalization(.never)
+                                .submitLabel(.search)
+                                .onSubmit {
+                                    nextSearchMatch()
+                                }
+
+                            if !inBookSearchText.isEmpty {
+                                if searchMatches.isEmpty {
+                                    Text("0 matches")
+                                        .fableFont(size: 11, weight: .semibold)
+                                        .foregroundColor(FableTheme.textMuted)
+                                } else {
+                                    Text("\(currentSearchMatchIndex + 1)/\(searchMatches.count)")
+                                        .fableFont(size: 11, weight: .bold)
+                                        .monospacedDigit()
+                                        .foregroundColor(FableTheme.brandPrimary)
+
+                                    Button(action: {
+                                        previousSearchMatch()
+                                    }) {
+                                        Image(systemName: "chevron.up")
+                                            .fableFont(size: 11, weight: .bold)
+                                            .foregroundColor(store.readerTheme.textColor)
+                                            .frame(width: 26, height: 26)
+                                            .background(Color.gray.opacity(0.12))
+                                            .clipShape(Circle())
+                                    }
+
+                                    Button(action: {
+                                        nextSearchMatch()
+                                    }) {
+                                        Image(systemName: "chevron.down")
+                                            .fableFont(size: 11, weight: .bold)
+                                            .foregroundColor(store.readerTheme.textColor)
+                                            .frame(width: 26, height: 26)
+                                            .background(Color.gray.opacity(0.12))
+                                            .clipShape(Circle())
+                                    }
+                                }
+
+                                Button(action: {
+                                    inBookSearchText = ""
+                                    searchMatches = []
+                                    currentSearchMatchIndex = 0
+                                }) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .fableFont(size: 13)
+                                        .foregroundColor(FableTheme.textMuted)
+                                }
+                            }
+
+                            Button("Done") {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    isSearchActive = false
+                                    inBookSearchText = ""
+                                    searchMatches = []
+                                    currentSearchMatchIndex = 0
+                                }
+                            }
+                            .fableFont(size: 13, weight: .semibold)
+                            .foregroundColor(FableTheme.brandPrimary)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 7)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(store.readerTheme.isDark ? Color(red: 0.18, green: 0.20, blue: 0.25) : Color.white)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(store.readerTheme.isDark ? Color.white.opacity(0.12) : Color.black.opacity(0.08), lineWidth: 0.8)
+                                )
+                                .shadow(color: Color.black.opacity(0.08), radius: 6, y: 2)
+                        )
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 6)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                    }
                 }
                 
                 // Active Spoken Audio Narration Banner (Plan 04)
@@ -950,6 +1250,32 @@ public struct ReaderView: View {
             tableOfContentsSheetView
                 .presentationDetents([.medium, .large])
         }
+        .sheet(isPresented: $isShowingQuoteCardShare) {
+            if let cardData = activeQuoteCardData {
+                QuoteCardShareSheet(
+                    quoteText: cardData.text,
+                    storyTitle: story.title,
+                    storyAuthor: story.author,
+                    chapterNumber: cardData.chapter,
+                    note: cardData.note,
+                    highlightColor: cardData.color
+                )
+                .presentationDetents([.large])
+            }
+        }
+        .onChange(of: inBookSearchText) { _, newQuery in
+            let results = ReaderPassageMatcher.search(
+                query: newQuery,
+                in: chapters,
+                fallbackParagraphs: activeParagraphs,
+                fallbackTitle: story.title
+            )
+            searchMatches = results
+            currentSearchMatchIndex = 0
+            if !results.isEmpty {
+                navigateToSearchMatch(at: 0)
+            }
+        }
         .onChange(of: store.isShowingChapterIndexSheet) { _, newValue in
             isShowingChapterSheet = newValue
         }
@@ -968,8 +1294,27 @@ public struct ReaderView: View {
         }
     }
 
-    private func renderParagraphContent(_ para: String, annotations: [Annotation], isSpoken: Bool) -> AttributedString {
+    private func renderParagraphContent(
+        _ para: String,
+        annotations: [Annotation],
+        isSpoken: Bool,
+        searchQuery: String? = nil
+    ) -> AttributedString {
         var attributed = AttributedString(para)
+
+        // Highlight active search matches in bright gold
+        if let query = searchQuery?.trimmingCharacters(in: .whitespacesAndNewlines), !query.isEmpty {
+            var searchRange = attributed.startIndex..<attributed.endIndex
+            while let foundRange = attributed[searchRange].range(of: query, options: .caseInsensitive) {
+                attributed[foundRange].backgroundColor = Color.yellow.opacity(0.65)
+                attributed[foundRange].foregroundColor = Color.black
+                if foundRange.upperBound < attributed.endIndex {
+                    searchRange = foundRange.upperBound..<attributed.endIndex
+                } else {
+                    break
+                }
+            }
+        }
 
         for annot in annotations {
             let target = annot.selectedText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -986,7 +1331,7 @@ public struct ReaderView: View {
             }
         }
 
-        if isSpoken && annotations.isEmpty {
+        if isSpoken && annotations.isEmpty && (searchQuery == nil || searchQuery!.isEmpty) {
             attributed.backgroundColor = FableTheme.brandPrimary.opacity(0.12)
         }
 
@@ -1011,7 +1356,12 @@ public struct ReaderView: View {
             return false
         }()
         
-        let attributed = renderParagraphContent(para, annotations: matching, isSpoken: isSpokenParagraph)
+        let attributed = renderParagraphContent(
+            para,
+            annotations: matching,
+            isSpoken: isSpokenParagraph,
+            searchQuery: isSearchActive ? inBookSearchText : nil
+        )
         
         Text(attributed)
             .fableFont(
@@ -1301,6 +1651,53 @@ public struct ReaderView: View {
                 }
                 .tint(FableTheme.brandPrimary)
                 .padding(.horizontal, 20)
+
+                // Shareable Quote Card & Markdown Export (Feature 3)
+                VStack(spacing: 8) {
+                    Button(action: {
+                        let quote = selectedTextToAnnotate ?? activeParagraphForAnnotation
+                        activeQuoteCardData = (
+                            text: quote,
+                            note: annotationNote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : annotationNote,
+                            color: selectedHighlightColor,
+                            chapter: activeChapter?.chapterNumber
+                        )
+                        isShowingQuoteCardShare = true
+                    }) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "photo.artframe")
+                                .fableFont(size: 13, weight: .bold)
+                            Text("Share as Quote Card")
+                                .fableFont(size: 13, weight: .semibold)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(Color.gray.opacity(0.08))
+                        .foregroundColor(FableTheme.deepCharcoal)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                    }
+
+                    if !store.activeStoryAnnotations.isEmpty {
+                        let md = ReaderPassageMatcher.exportAnnotationsAsMarkdown(story: story, annotations: store.activeStoryAnnotations)
+                        ShareLink(
+                            item: md,
+                            preview: SharePreview("\(story.title) Highlights (.md)")
+                        ) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "doc.plaintext")
+                                    .fableFont(size: 13, weight: .bold)
+                                Text("Export All Highlights (.md)")
+                                    .fableFont(size: 13, weight: .semibold)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(Color.gray.opacity(0.08))
+                            .foregroundColor(FableTheme.brandPrimary)
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                        }
+                    }
+                }
+                .padding(.horizontal, 20)
                 
                 // Save / Update Action Button
                 VStack(spacing: 10) {
@@ -1455,6 +1852,50 @@ public struct ReaderView: View {
         guard clamped != currentPage else { return }
         suppressNextPageTurnMetrics = true
         currentPage = clamped
+    }
+
+    private func nextSearchMatch() {
+        guard !searchMatches.isEmpty else { return }
+        FableHaptics.selection()
+        let nextIdx = (currentSearchMatchIndex + 1) % searchMatches.count
+        navigateToSearchMatch(at: nextIdx)
+    }
+
+    private func previousSearchMatch() {
+        guard !searchMatches.isEmpty else { return }
+        FableHaptics.selection()
+        let prevIdx = (currentSearchMatchIndex - 1 + searchMatches.count) % searchMatches.count
+        navigateToSearchMatch(at: prevIdx)
+    }
+
+    private func navigateToSearchMatch(at index: Int) {
+        guard searchMatches.indices.contains(index) else { return }
+        currentSearchMatchIndex = index
+        let match = searchMatches[index]
+
+        if !chapters.isEmpty && match.chapterIndex != currentChapterIndex {
+            selectChapter(at: match.chapterIndex)
+        }
+
+        if store.isPaginatedMode {
+            if let targetPage = ReaderPassageMatcher.pageNumber(
+                for: Annotation(
+                    storyId: story.id,
+                    storyTitle: story.title,
+                    storyAuthor: story.author,
+                    chapterNumber: match.chapterNumber,
+                    utf16StartOffset: 0,
+                    utf16EndOffset: match.matchedText.utf16.count,
+                    selectedText: match.matchedText
+                ),
+                in: pages
+            ) {
+                setCurrentPageProgrammatically(targetPage)
+            }
+        } else {
+            pendingScrollParagraphId = "para-\(match.paragraphIndex)"
+            triggerScrollRestore()
+        }
     }
 
     private func turnPageBack() {
