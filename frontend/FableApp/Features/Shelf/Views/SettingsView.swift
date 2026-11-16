@@ -11,6 +11,9 @@ public struct SettingsView: View {
     @State private var navigateToProfile: Bool = false
     @State private var isShowingSignOutAlert: Bool = false
     @State private var isShowingDiagnostics: Bool = false
+    @State private var isShowingServerConfig: Bool = false
+    @State private var customServerInput: String = StoryAPIService.resolvedBaseURL().absoluteString
+    @State private var currentServerURLString: String = StoryAPIService.resolvedBaseURL().absoluteString
     
     public init() {}
 
@@ -300,10 +303,68 @@ public struct SettingsView: View {
                                         .padding(.horizontal, 16)
                                         .padding(.vertical, 12)
                                     }
+
+                                    Divider().padding(.leading, 16)
+
+                                    Button(action: {
+                                        customServerInput = StoryAPIService.resolvedBaseURL().absoluteString
+                                        isShowingServerConfig = true
+                                    }) {
+                                        HStack(spacing: 12) {
+                                            Image(systemName: "server.rack")
+                                                .fableFont(size: 16)
+                                                .foregroundColor(FableTheme.brandPrimary)
+                                                .frame(width: 32, height: 32)
+                                                .background(FableTheme.brandPrimary.opacity(0.12))
+                                                .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text("Backend Server URL")
+                                                    .fableFont(size: 15, weight: .medium)
+                                                    .foregroundColor(FableTheme.textPrimary)
+
+                                                Text(currentServerURLString)
+                                                    .fableFont(size: 11, design: .monospaced)
+                                                    .foregroundColor(FableTheme.textMuted)
+                                                    .lineLimit(1)
+                                            }
+
+                                            Spacer()
+
+                                            Image(systemName: "pencil")
+                                                .fableFont(size: 13, weight: .semibold)
+                                                .foregroundColor(FableTheme.brandPrimary)
+                                        }
+                                        .padding(.horizontal, 16)
+                                        .padding(.vertical, 12)
+                                    }
                                 }
                                 .background(FableTheme.cardBackground)
                                 .clipShape(RoundedRectangle(cornerRadius: 16))
                                 .shadow(color: Color.black.opacity(0.03), radius: 6, y: 2)
+                            }
+                            .alert("Backend Server URL", isPresented: $isShowingServerConfig) {
+                                TextField("http://192.168.1.50:8001/api/v1", text: $customServerInput)
+                                    .textInputAutocapitalization(.never)
+                                    .autocorrectionDisabled()
+                                Button("Save & Sync") {
+                                    let updated = StoryAPIService.setCustomBaseURL(customServerInput)
+                                    currentServerURLString = updated.absoluteString
+                                    Task { await store.syncWithCloudBackend() }
+                                }
+                                Button("Use Render Cloud") {
+                                    let updated = StoryAPIService.setCustomBaseURL(StoryAPIService.cloudRenderBaseURLString)
+                                    currentServerURLString = updated.absoluteString
+                                    Task { await store.syncWithCloudBackend() }
+                                }
+                                Button("Reset to Bundle Default") {
+                                    let updated = StoryAPIService.setCustomBaseURL(nil)
+                                    currentServerURLString = updated.absoluteString
+                                    Task { await store.syncWithCloudBackend() }
+                                }
+                                Button("Cancel", role: .cancel) {}
+                            } message: {
+                                Text("Enter your Fedora/Mac LAN URL (e.g. http://192.168.1.50:8001/api/v1), an HTTPS tunnel URL, or choose Render Cloud.")
                             }
                             
                             // Account & Session Section

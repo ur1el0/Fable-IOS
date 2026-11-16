@@ -6,6 +6,9 @@ public struct WelcomeView: View {
 
     @State private var isShowingSignIn: Bool = false
     @State private var isShowingSignUp: Bool = false
+    @State private var isShowingServerConfig: Bool = false
+    @State private var customServerInput: String = StoryAPIService.resolvedBaseURL().absoluteString
+    @State private var activeServerLabel: String = StoryAPIService.resolvedBaseURL().host ?? "localhost"
 
     public init() {}
 
@@ -132,10 +135,51 @@ public struct WelcomeView: View {
                             .foregroundColor(FableTheme.textMuted)
                             .padding(.vertical, 8)
                     }
+
+                    Button(action: {
+                        customServerInput = StoryAPIService.resolvedBaseURL().absoluteString
+                        isShowingServerConfig = true
+                    }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "server.rack")
+                                .fableFont(size: 11, weight: .semibold)
+                            Text("Server: \(activeServerLabel)")
+                                .fableFont(size: 11, weight: .medium)
+                                .lineLimit(1)
+                            Text("• Change")
+                                .fableFont(size: 11, weight: .bold)
+                                .foregroundColor(FableTheme.brandPrimary)
+                        }
+                        .foregroundColor(FableTheme.textMuted)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(FableTheme.surface)
+                        .clipShape(Capsule())
+                    }
                 }
                 .padding(.horizontal, 28)
-                .padding(.bottom, 36)
+                .padding(.bottom, 28)
             }
+        }
+        .alert("Backend Server URL", isPresented: $isShowingServerConfig) {
+            TextField("http://192.168.1.50:8001/api/v1", text: $customServerInput)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+            Button("Save Custom URL") {
+                let updated = StoryAPIService.setCustomBaseURL(customServerInput)
+                activeServerLabel = updated.host ?? updated.absoluteString
+            }
+            Button("Use Render Cloud") {
+                let updated = StoryAPIService.setCustomBaseURL(StoryAPIService.cloudRenderBaseURLString)
+                activeServerLabel = updated.host ?? updated.absoluteString
+            }
+            Button("Reset to Bundle Default") {
+                let updated = StoryAPIService.setCustomBaseURL(nil)
+                activeServerLabel = updated.host ?? updated.absoluteString
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Enter your Fedora/Mac LAN URL (e.g. http://192.168.1.50:8001/api/v1), an HTTPS tunnel URL, or choose Render Cloud.")
         }
         .sheet(isPresented: $isShowingSignIn) {
             SignInView(authVM: authVM, onNavigateToRegister: {
