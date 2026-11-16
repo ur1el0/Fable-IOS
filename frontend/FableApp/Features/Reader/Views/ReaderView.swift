@@ -1,4 +1,5 @@
 import SwiftUI
+import Foundation
 
 public enum ReaderPassageMatcher {
     public static func paragraphs(from text: String) -> [String] {
@@ -67,6 +68,224 @@ public enum ReaderPassageMatcher {
         }
         return nil
     }
+
+    public static func words(from text: String) -> [String] {
+        text.components(separatedBy: .whitespacesAndNewlines)
+            .filter { !$0.isEmpty }
+    }
+
+    public static func sentences(from text: String) -> [String] {
+        var results: [String] = []
+        text.enumerateSubstrings(in: text.startIndex..<text.endIndex, options: [.bySentences, .localized]) { substring, _, _, _ in
+            if let sub = substring?.trimmingCharacters(in: .whitespacesAndNewlines), !sub.isEmpty {
+                results.append(sub)
+            }
+        }
+        return results.isEmpty ? [text] : results
+    }
+
+    public static func wordRange(for target: String, in words: [String]) -> ClosedRange<Int> {
+        guard !words.isEmpty else { return 0...0 }
+        let targetWords = ReaderPassageMatcher.words(from: target)
+        guard !targetWords.isEmpty else { return 0...(words.count - 1) }
+
+        let punctuation = CharacterSet.punctuationCharacters
+        let normalizedTarget = targetWords.map { $0.lowercased().trimmingCharacters(in: punctuation) }
+        let normalizedWords = words.map { $0.lowercased().trimmingCharacters(in: punctuation) }
+
+        let targetCount = targetWords.count
+        let wordsCount = words.count
+
+        if targetCount <= wordsCount {
+            for i in 0...(wordsCount - targetCount) {
+                var matches = true
+                for j in 0..<targetCount {
+                    let w1 = normalizedWords[i + j]
+                    let w2 = normalizedTarget[j]
+                    if w1 != w2 && !w1.contains(w2) && !w2.contains(w1) {
+                        matches = false
+                        break
+                    }
+                }
+                if matches {
+                    return i...(i + targetCount - 1)
+                }
+            }
+        }
+        return 0...(wordsCount - 1)
+    }
+
+    public static func substring(from words: [String], range: ClosedRange<Int>) -> String {
+        guard !words.isEmpty else { return "" }
+        let safeLower = max(0, min(range.lowerBound, words.count - 1))
+        let safeUpper = max(safeLower, min(range.upperBound, words.count - 1))
+        return words[safeLower...safeUpper].joined(separator: " ")
+    }
+
+    public static func locateSubstringOffsets(
+        in fullText: String,
+        substring: String,
+        withinParagraph paragraph: String? = nil
+    ) -> (start: Int, end: Int) {
+        let nsFull = fullText as NSString
+        if let para = paragraph, !para.isEmpty {
+            let paraRange = nsFull.range(of: para)
+            if paraRange.location != NSNotFound {
+                let nsPara = para as NSString
+                let subRange = nsPara.range(of: substring)
+                if subRange.location != NSNotFound {
+                    let exactStart = paraRange.location + subRange.location
+                    return (exactStart, exactStart + subRange.length)
+                }
+            }
+        }
+        let range = nsFull.range(of: substring)
+        if range.location != NSNotFound {
+            return (range.location, range.location + range.length)
+        }
+        return (0, substring.utf16.count)
+    }
+
+    public static func generateSnippet(for query: String, in text: String, contextRadius: Int = 40) -> String {
+        let lowerText = text.lowercased()
+        let lowerQuery = query.lowercased()
+        guard let range = lowerText.range(of: lowerQuery) else {
+            return String(text.prefix(contextRadius * 2))
+        }
+
+        let start = text.index(range.lowerBound, offsetBy: -contextRadius, limitedBy: text.startIndex) ?? text.startIndex
+        let end = text.index(range.upperBound, offsetBy: contextRadius, limitedBy: text.endIndex) ?? text.endIndex
+
+        var snippet = String(text[start..<end]).replacingOccurrences(of: "\n", with: " ")
+        if start > text.startIndex {
+            snippet = "..." + snippet
+        }
+        if end < text.endIndex {
+            snippet = snippet + "..."
+        }
+        return snippet
+    }
+
+    public static func search(
+        query: String,
+        in chapters: [Chapter],
+        fallbackParagraphs: [String] = [],
+        fallbackTitle: String = "Folio"
+    ) -> [InBookSearchMatch] {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return [] }
+        let lowerQuery = trimmed.lowercased()
+        var matches: [InBookSearchMatch] = []
+
+        if !chapters.isEmpty {
+            for (chapIdx, chapter) in chapters.enumerated() {
+                let paras = paragraphs(from: chapter.content)
+                for (paraIdx, para) in paras.enumerated() {
+                    if para.localizedCaseInsensitiveContains(lowerQuery) {
+                        let snippet = generateSnippet(for: trimmed, in: para)
+                        matches.append(
+                            InBookSearchMatch(
+                                chapterIndex: chapIdx,
+                                chapterNumber: chapter.chapterNumber,
+                                chapterTitle: chapter.title.isEmpty ? "Chapter \(chapter.chapterNumber)" : chapter.title,
+                                paragraphIndex: paraIdx,
+                                pageNumber: max(1, paraIdx / 2 + 1),
+                                snippet: snippet,
+                                matchedText: trimmed,
+                                fullParagraphText: para
+                            )
+                        )
+                    }
+                }
+            }
+        } else {
+            for (paraIdx, para) in fallbackParagraphs.enumerated() {
+                if para.localizedCaseInsensitiveContains(lowerQuery) {
+                    let snippet = generateSnippet(for: trimmed, in: para)
+                    matches.append(
+                        InBookSearchMatch(
+                            chapterIndex: 0,
+                            chapterNumber: 1,
+                            chapterTitle: fallbackTitle,
+                            paragraphIndex: paraIdx,
+                            pageNumber: max(1, paraIdx / 2 + 1),
+                            snippet: snippet,
+                            matchedText: trimmed,
+                            fullParagraphText: para
+                        )
+                    )
+                }
+            }
+        }
+        return matches
+    }
+
+    public static func exportAnnotationsAsMarkdown(story: Story, annotations: [Annotation]) -> String {
+        let sorted = annotations.sorted {
+            if ($0.chapterNumber ?? 0) != ($1.chapterNumber ?? 0) {
+                return ($0.chapterNumber ?? 0) < ($1.chapterNumber ?? 0)
+            }
+            return $0.utf16StartOffset < $1.utf16EndOffset
+        }
+
+        var md = """
+        # Highlights & Marginalia: \(story.title)
+        **Author:** \(story.author)
+        **Total Highlights:** \(annotations.count)
+
+        ---
+
+        """
+
+        var currentChapter: Int? = nil
+        for annot in sorted {
+            let chap = annot.chapterNumber ?? 1
+            if chap != currentChapter {
+                currentChapter = chap
+                md += "\n## Chapter \(chap)\n\n"
+            }
+            md += "> “\(annot.selectedText.trimmingCharacters(in: .whitespacesAndNewlines))”\n"
+            md += ">\n"
+            md += "> — *\(annot.color.displayName) highlight*\n"
+            if let note = annot.note, !note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                md += "\n*Note: \(note)*\n"
+            }
+            md += "\n---\n\n"
+        }
+        return md
+    }
+}
+
+public struct InBookSearchMatch: Identifiable, Equatable {
+    public let id = UUID()
+    public let chapterIndex: Int
+    public let chapterNumber: Int
+    public let chapterTitle: String
+    public let paragraphIndex: Int
+    public let pageNumber: Int
+    public let snippet: String
+    public let matchedText: String
+    public let fullParagraphText: String
+
+    public init(
+        chapterIndex: Int,
+        chapterNumber: Int,
+        chapterTitle: String,
+        paragraphIndex: Int,
+        pageNumber: Int,
+        snippet: String,
+        matchedText: String,
+        fullParagraphText: String
+    ) {
+        self.chapterIndex = chapterIndex
+        self.chapterNumber = chapterNumber
+        self.chapterTitle = chapterTitle
+        self.paragraphIndex = paragraphIndex
+        self.pageNumber = pageNumber
+        self.snippet = snippet
+        self.matchedText = matchedText
+        self.fullParagraphText = fullParagraphText
+    }
 }
 
 public struct ReaderView: View {
@@ -102,6 +321,20 @@ public struct ReaderView: View {
     @State private var isPinToJournal: Bool = true
     @State private var isShowingAnnotationSheet: Bool = false
     @State private var sessionStartTime: Date = Date()
+    @State private var activeParagraphForAnnotation: String = ""
+    @State private var paragraphWordsForAnnotation: [String] = []
+    @State private var annotationStartWordIndex: Int = 0
+    @State private var annotationEndWordIndex: Int = 0
+
+    // In-Book Search State (Feature 1)
+    @State private var isSearchActive: Bool = false
+    @State private var inBookSearchText: String = ""
+    @State private var searchMatches: [InBookSearchMatch] = []
+    @State private var currentSearchMatchIndex: Int = 0
+
+    // Quote Card Sharing State (Feature 3)
+    @State private var isShowingQuoteCardShare: Bool = false
+    @State private var activeQuoteCardData: (text: String, note: String?, color: HighlightColor, chapter: Int?)? = nil
     
     public init(story: Story, initialTargetAnnotation: Annotation? = nil) {
         self.story = story
@@ -226,16 +459,57 @@ public struct ReaderView: View {
                         
                         Spacer()
                         
-                        HStack(spacing: 8) {
+                        HStack(spacing: 6) {
+                            // In-Book Text Search Toggle (Feature 1)
+                            Button(action: {
+                                FableHaptics.selection()
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    isSearchActive.toggle()
+                                }
+                            }) {
+                                Image(systemName: "magnifyingglass")
+                                    .fableFont(size: 13, weight: .semibold)
+                                    .foregroundColor(isSearchActive ? FableTheme.brandPrimary : store.readerTheme.textColor)
+                                    .frame(width: 36, height: 36)
+                                    .background(isSearchActive ? FableTheme.brandPrimary.opacity(0.12) : store.readerTheme.textColor.opacity(0.08))
+                                    .clipShape(Circle())
+                            }
+                            .accessibilityLabel("Search in book")
+
+                            // One-Tap Offline Download Button (Feature 2)
+                            Button(action: {
+                                FableHaptics.medium()
+                                Task {
+                                    try? await store.downloadBookForOffline(story)
+                                }
+                            }) {
+                                if store.downloadingStoryIds.contains(story.id) {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                        .frame(width: 36, height: 36)
+                                        .background(store.readerTheme.textColor.opacity(0.08))
+                                        .clipShape(Circle())
+                                } else {
+                                    let isDownloaded = store.isStoryDownloaded(story)
+                                    Image(systemName: isDownloaded ? "checkmark.circle.fill" : "arrow.down.circle")
+                                        .fableFont(size: 13, weight: .semibold)
+                                        .foregroundColor(isDownloaded ? Color(red: 0.12, green: 0.65, blue: 0.35) : store.readerTheme.textColor)
+                                        .frame(width: 36, height: 36)
+                                        .background(isDownloaded ? Color(red: 0.12, green: 0.65, blue: 0.35).opacity(0.12) : store.readerTheme.textColor.opacity(0.08))
+                                        .clipShape(Circle())
+                                }
+                            }
+                            .accessibilityLabel(store.isStoryDownloaded(story) ? "Book downloaded for offline" : "Download book for offline")
+
                             // Table of Contents Sheet Button
                             Button(action: {
                                 FableHaptics.selection()
                                 isShowingChapterSheet = true
                             }) {
                                 Image(systemName: "list.bullet.rectangle")
-                                    .fableFont(size: 14, weight: .semibold)
+                                    .fableFont(size: 13, weight: .semibold)
                                     .foregroundColor(store.readerTheme.textColor)
-                                    .frame(width: 40, height: 40)
+                                    .frame(width: 36, height: 36)
                                     .background(store.readerTheme.textColor.opacity(0.08))
                                     .clipShape(Circle())
                             }
@@ -249,9 +523,9 @@ public struct ReaderView: View {
                                 }
                             }) {
                                 Image(systemName: audioNarrator.isPlaying ? "speaker.wave.3.fill" : "speaker.wave.2")
-                                    .fableFont(size: 14, weight: .semibold)
+                                    .fableFont(size: 13, weight: .semibold)
                                     .foregroundColor(audioNarrator.isPlaying ? FableTheme.brandPrimary : store.readerTheme.textColor)
-                                    .frame(width: 40, height: 40)
+                                    .frame(width: 36, height: 36)
                                     .background(audioNarrator.isPlaying ? FableTheme.brandPrimary.opacity(0.15) : store.readerTheme.textColor.opacity(0.08))
                                     .clipShape(Circle())
                             }
@@ -265,9 +539,9 @@ public struct ReaderView: View {
                                 }
                             }) {
                                 Image(systemName: currentStoryBookmarked ? "bookmark.fill" : "bookmark")
-                                    .fableFont(size: 14, weight: .semibold)
+                                    .fableFont(size: 13, weight: .semibold)
                                     .foregroundColor(currentStoryBookmarked ? FableTheme.brandPrimary : store.readerTheme.textColor)
-                                    .frame(width: 40, height: 40)
+                                    .frame(width: 36, height: 36)
                                     .background(currentStoryBookmarked ? FableTheme.brandPrimary.opacity(0.12) : store.readerTheme.textColor.opacity(0.08))
                                     .clipShape(Circle())
                             }
@@ -279,31 +553,139 @@ public struct ReaderView: View {
                                 store.isShowingDisplayOptions = true
                             }) {
                                 Image(systemName: "textformat.size")
-                                    .fableFont(size: 14, weight: .semibold)
+                                    .fableFont(size: 13, weight: .semibold)
                                     .foregroundColor(store.readerTheme.textColor)
-                                    .frame(width: 40, height: 40)
+                                    .frame(width: 36, height: 36)
                                     .background(store.readerTheme.textColor.opacity(0.08))
                                     .clipShape(Circle())
                             }
                             .accessibilityLabel("Reading appearance options")
                             
-                            // Native Share Link
-                            ShareLink(
-                                item: "\(story.title) by \(story.author)\n\n\(story.synopsis)\n\nRead on Fable."
-                            ) {
+                            // Share & Export Menu (Feature 3)
+                            Menu {
+                                ShareLink("Share Book Details", item: "\(story.title) by \(story.author)\n\n\(story.synopsis)\n\nRead on Fable.")
+                                
+                                if !store.activeStoryAnnotations.isEmpty {
+                                    ShareLink(
+                                        "Export All Highlights (.md)",
+                                        item: ReaderPassageMatcher.exportAnnotationsAsMarkdown(story: story, annotations: store.activeStoryAnnotations)
+                                    )
+                                }
+                                
+                                Button {
+                                    let textToUse = selectedTextToAnnotate ?? activeParagraphs.first ?? story.title
+                                    activeQuoteCardData = (
+                                        text: textToUse,
+                                        note: nil,
+                                        color: selectedHighlightColor,
+                                        chapter: activeChapter?.chapterNumber
+                                    )
+                                    isShowingQuoteCardShare = true
+                                } label: {
+                                    Label("Create Quote Card", systemImage: "photo.artframe")
+                                }
+                            } label: {
                                 Image(systemName: "square.and.arrow.up")
-                                    .fableFont(size: 14, weight: .semibold)
+                                    .fableFont(size: 13, weight: .semibold)
                                     .foregroundColor(store.readerTheme.textColor)
-                                    .frame(width: 40, height: 40)
+                                    .frame(width: 36, height: 36)
                                     .background(store.readerTheme.textColor.opacity(0.08))
                                     .clipShape(Circle())
                             }
-                            .accessibilityLabel("Share story")
+                            .accessibilityLabel("Share and export options")
                         }
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
                     .transition(.move(edge: .top).combined(with: .opacity))
+
+                    // In-Book Search Bar Overlay (Feature 1)
+                    if isSearchActive {
+                        HStack(spacing: 8) {
+                            Image(systemName: "magnifyingglass")
+                                .fableFont(size: 13, weight: .bold)
+                                .foregroundColor(FableTheme.brandPrimary)
+
+                            TextField("Search in book...", text: $inBookSearchText)
+                                .fableFont(size: 14)
+                                .autocorrectionDisabled()
+                                .textInputAutocapitalization(.never)
+                                .submitLabel(.search)
+                                .onSubmit {
+                                    nextSearchMatch()
+                                }
+
+                            if !inBookSearchText.isEmpty {
+                                if searchMatches.isEmpty {
+                                    Text("0 matches")
+                                        .fableFont(size: 11, weight: .semibold)
+                                        .foregroundColor(FableTheme.textMuted)
+                                } else {
+                                    Text("\(currentSearchMatchIndex + 1)/\(searchMatches.count)")
+                                        .fableFont(size: 11, weight: .bold)
+                                        .monospacedDigit()
+                                        .foregroundColor(FableTheme.brandPrimary)
+
+                                    Button(action: {
+                                        previousSearchMatch()
+                                    }) {
+                                        Image(systemName: "chevron.up")
+                                            .fableFont(size: 11, weight: .bold)
+                                            .foregroundColor(store.readerTheme.textColor)
+                                            .frame(width: 26, height: 26)
+                                            .background(Color.gray.opacity(0.12))
+                                            .clipShape(Circle())
+                                    }
+
+                                    Button(action: {
+                                        nextSearchMatch()
+                                    }) {
+                                        Image(systemName: "chevron.down")
+                                            .fableFont(size: 11, weight: .bold)
+                                            .foregroundColor(store.readerTheme.textColor)
+                                            .frame(width: 26, height: 26)
+                                            .background(Color.gray.opacity(0.12))
+                                            .clipShape(Circle())
+                                    }
+                                }
+
+                                Button(action: {
+                                    inBookSearchText = ""
+                                    searchMatches = []
+                                    currentSearchMatchIndex = 0
+                                }) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .fableFont(size: 13)
+                                        .foregroundColor(FableTheme.textMuted)
+                                }
+                            }
+
+                            Button("Done") {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    isSearchActive = false
+                                    inBookSearchText = ""
+                                    searchMatches = []
+                                    currentSearchMatchIndex = 0
+                                }
+                            }
+                            .fableFont(size: 13, weight: .semibold)
+                            .foregroundColor(FableTheme.brandPrimary)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 7)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(store.readerTheme.isDark ? Color(red: 0.18, green: 0.20, blue: 0.25) : Color.white)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(store.readerTheme.isDark ? Color.white.opacity(0.12) : Color.black.opacity(0.08), lineWidth: 0.8)
+                                )
+                                .shadow(color: Color.black.opacity(0.08), radius: 6, y: 2)
+                        )
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 6)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                    }
                 }
                 
                 // Active Spoken Audio Narration Banner (Plan 04)
@@ -388,7 +770,7 @@ public struct ReaderView: View {
                                                     .tracking(1.2)
                                                     .foregroundColor(FableTheme.brandPrimary)
                                                 Spacer()
-                                                Text("Tap paragraph to annotate")
+                                                Text("Long press passage to annotate")
                                                     .fableFont(size: 11)
                                                     .foregroundColor(store.readerTheme.isDark ? Color.white.opacity(0.75) : FableTheme.textMuted)
                                             }
@@ -868,26 +1250,98 @@ public struct ReaderView: View {
             tableOfContentsSheetView
                 .presentationDetents([.medium, .large])
         }
+        .sheet(isPresented: $isShowingQuoteCardShare) {
+            if let cardData = activeQuoteCardData {
+                QuoteCardShareSheet(
+                    quoteText: cardData.text,
+                    storyTitle: story.title,
+                    storyAuthor: story.author,
+                    chapterNumber: cardData.chapter,
+                    note: cardData.note,
+                    highlightColor: cardData.color
+                )
+                .presentationDetents([.large])
+            }
+        }
+        .onChange(of: inBookSearchText) { _, newQuery in
+            let results = ReaderPassageMatcher.search(
+                query: newQuery,
+                in: chapters,
+                fallbackParagraphs: activeParagraphs,
+                fallbackTitle: story.title
+            )
+            searchMatches = results
+            currentSearchMatchIndex = 0
+            if !results.isEmpty {
+                navigateToSearchMatch(at: 0)
+            }
+        }
         .onChange(of: store.isShowingChapterIndexSheet) { _, newValue in
             isShowingChapterSheet = newValue
         }
     }
 
-    private func matchingAnnotation(for para: String) -> Annotation? {
-        store.activeStoryAnnotations.first { annot in
+    private func matchingAnnotations(for para: String) -> [Annotation] {
+        store.activeStoryAnnotations.filter { annot in
             if let annotChapter = annot.chapterNumber,
                let currentChapterNum = activeChapter?.chapterNumber,
                annotChapter != currentChapterNum {
                 return false
             }
-            return para.contains(annot.selectedText) || annot.selectedText.contains(para)
+            let trimmed = annot.selectedText.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { return false }
+            return para.contains(trimmed) || trimmed.contains(para)
         }
+    }
+
+    private func renderParagraphContent(
+        _ para: String,
+        annotations: [Annotation],
+        isSpoken: Bool,
+        searchQuery: String? = nil
+    ) -> AttributedString {
+        var attributed = AttributedString(para)
+
+        // Highlight active search matches in bright gold
+        if let query = searchQuery?.trimmingCharacters(in: .whitespacesAndNewlines), !query.isEmpty {
+            var searchRange = attributed.startIndex..<attributed.endIndex
+            while let foundRange = attributed[searchRange].range(of: query, options: .caseInsensitive) {
+                attributed[foundRange].backgroundColor = Color.yellow.opacity(0.65)
+                attributed[foundRange].foregroundColor = Color.black
+                if foundRange.upperBound < attributed.endIndex {
+                    searchRange = foundRange.upperBound..<attributed.endIndex
+                } else {
+                    break
+                }
+            }
+        }
+
+        for annot in annotations {
+            let target = annot.selectedText.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !target.isEmpty else { continue }
+
+            var searchRange = attributed.startIndex..<attributed.endIndex
+            while let foundRange = attributed[searchRange].range(of: target) {
+                attributed[foundRange].backgroundColor = annot.color.displayColor
+                if foundRange.upperBound < attributed.endIndex {
+                    searchRange = foundRange.upperBound..<attributed.endIndex
+                } else {
+                    break
+                }
+            }
+        }
+
+        if isSpoken && annotations.isEmpty && (searchQuery == nil || searchQuery!.isEmpty) {
+            attributed.backgroundColor = FableTheme.brandPrimary.opacity(0.12)
+        }
+
+        return attributed
     }
     
     // View helper for rendered manuscript paragraph with marginalia highlighting & oral audio sync
     @ViewBuilder
     private func paragraphView(_ para: String) -> some View {
-        let matchingAnnotation = matchingAnnotation(for: para)
+        let matching = matchingAnnotations(for: para)
         
         let isSpokenParagraph: Bool = {
             guard audioNarrator.isPlaying, audioNarrator.activeStoryId == story.id else { return false }
@@ -902,7 +1356,14 @@ public struct ReaderView: View {
             return false
         }()
         
-        Text(para)
+        let attributed = renderParagraphContent(
+            para,
+            annotations: matching,
+            isSpoken: isSpokenParagraph,
+            searchQuery: isSearchActive ? inBookSearchText : nil
+        )
+        
+        Text(attributed)
             .fableFont(
                 size: 17,
                 scale: CGFloat(store.readerFontSize / 100.0),
@@ -911,12 +1372,8 @@ public struct ReaderView: View {
             )
             .lineSpacing(store.readerLineSpacing.points)
             .foregroundColor(store.readerTheme.textColor)
-            .padding(matchingAnnotation != nil || isSpokenParagraph ? 6 : 0)
-            .background(
-                matchingAnnotation != nil
-                    ? matchingAnnotation!.color.displayColor
-                    : (isSpokenParagraph ? FableTheme.brandPrimary.opacity(0.12) : Color.clear)
-            )
+            .padding(.vertical, matching.isEmpty && !isSpokenParagraph ? 0 : 4)
+            .padding(.horizontal, matching.isEmpty && !isSpokenParagraph ? 0 : 4)
             .overlay(
                 RoundedRectangle(cornerRadius: 6)
                     .stroke(isSpokenParagraph ? FableTheme.brandPrimary.opacity(0.4) : Color.clear, lineWidth: 1)
@@ -926,190 +1383,455 @@ public struct ReaderView: View {
             .contentShape(Rectangle())
             .animation(.easeInOut(duration: 0.25), value: isSpokenParagraph)
             .onTapGesture {
-                self.editingAnnotation = matchingAnnotation
-                self.selectedTextToAnnotate = para
-                if let existing = matchingAnnotation {
-                    self.selectedHighlightColor = existing.color
-                    self.annotationNote = existing.note ?? ""
-                    self.isPinToJournal = existing.isPinnedToJournal
+                if let existing = matching.first {
+                    FableHaptics.selection()
+                    openAnnotationSheet(for: para, existing: existing)
                 } else {
-                    self.selectedHighlightColor = .terracotta
-                    self.annotationNote = ""
-                    self.isPinToJournal = true
+                    if store.hapticFeedback {
+                        HapticManager.selection()
+                    }
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isChromeVisible.toggle()
+                    }
                 }
-                self.isShowingAnnotationSheet = true
+            }
+            .onLongPressGesture(minimumDuration: 0.35) {
+                FableHaptics.medium()
+                openAnnotationSheet(for: para, existing: matching.first)
             }
     }
     
     // Marginalia & Passage Annotation Modal (Plan 02)
     private var annotationSheetView: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            Capsule()
-                .fill(Color.gray.opacity(0.3))
-                .frame(width: 36, height: 5)
-                .frame(maxWidth: .infinity)
-                .padding(.top, 12)
-            
-            HStack {
-                Text(editingAnnotation != nil ? "Edit Annotation" : "Annotate Passage")
-                    .fableFont(size: 18, weight: .bold, design: .serif)
-                    .foregroundColor(FableTheme.deepCharcoal)
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 18) {
+                Capsule()
+                    .fill(Color.gray.opacity(0.3))
+                    .frame(width: 36, height: 5)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 12)
                 
-                Spacer()
-                
-                Button(action: {
-                    isShowingAnnotationSheet = false
-                    resetAnnotationState()
-                }) {
-                    Image(systemName: "xmark")
-                        .fableFont(size: 13, weight: .bold)
-                        .foregroundColor(FableTheme.subtleSlate)
-                        .padding(6)
-                        .background(Color.gray.opacity(0.12))
-                        .clipShape(Circle())
+                HStack {
+                    Text(editingAnnotation != nil ? "Edit Annotation" : "Annotate Passage")
+                        .fableFont(size: 18, weight: .bold, design: .serif)
+                        .foregroundColor(FableTheme.deepCharcoal)
+                    
+                    Spacer()
+                    
+                    Button(action: {
+                        isShowingAnnotationSheet = false
+                        resetAnnotationState()
+                    }) {
+                        Image(systemName: "xmark")
+                            .fableFont(size: 13, weight: .bold)
+                            .foregroundColor(FableTheme.subtleSlate)
+                            .padding(6)
+                            .background(Color.gray.opacity(0.12))
+                            .clipShape(Circle())
+                    }
                 }
-            }
-            .padding(.horizontal, 20)
-            
-            if let excerpt = selectedTextToAnnotate {
-                Text("“\(excerpt.prefix(120))...”")
-                    .fableFont(size: 13, weight: .regular, design: .serif)
-                    .italic()
-                    .foregroundColor(FableTheme.textSecondary)
-                    .lineLimit(2)
-                    .padding(12)
-                    .background(FableTheme.surface)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .padding(.horizontal, 20)
-            }
-            
-            // Highlight color picker
-            VStack(alignment: .leading, spacing: 8) {
-                Text("HIGHLIGHT COLOR")
-                    .fableFont(size: 10, weight: .bold)
-                    .tracking(1.0)
-                    .foregroundColor(FableTheme.subtleSlate)
-                    .padding(.horizontal, 20)
+                .padding(.horizontal, 20)
                 
-                HStack(spacing: 12) {
-                    ForEach(HighlightColor.allCases) { colorToken in
-                        Button(action: {
-                            selectedHighlightColor = colorToken
-                        }) {
+                // Live Quote Excerpt Preview with Selected Highlight Color
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("SELECTED PASSAGE")
+                        .fableFont(size: 10, weight: .bold)
+                        .tracking(1.0)
+                        .foregroundColor(FableTheme.subtleSlate)
+                        .padding(.horizontal, 20)
+                    
+                    Text("“\(selectedTextToAnnotate ?? "")”")
+                        .fableFont(size: 14, weight: .medium, design: .serif)
+                        .italic()
+                        .foregroundColor(FableTheme.deepCharcoal)
+                        .padding(14)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(selectedHighlightColor.displayColor)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(selectedHighlightColor.displayColor.opacity(0.8), lineWidth: 1)
+                        )
+                        .padding(.horizontal, 20)
+                }
+                
+                // Passage Boundary Range Controls (Start & End Word Selectors)
+                if paragraphWordsForAnnotation.count > 1 {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Text("CHOOSE WHERE TO START & END")
+                                .fableFont(size: 10, weight: .bold)
+                                .tracking(1.0)
+                                .foregroundColor(FableTheme.subtleSlate)
+                            
+                            Spacer()
+                            
+                            Text("\(currentSelectedWordCount) of \(paragraphWordsForAnnotation.count) words")
+                                .fableFont(size: 11, weight: .semibold)
+                                .foregroundColor(FableTheme.brandPrimary)
+                        }
+                        .padding(.horizontal, 20)
+                        
+                        // Quick Presets Row
+                        HStack(spacing: 8) {
+                            Button("Full Paragraph") {
+                                updateSelectedPassageRange(start: 0, end: paragraphWordsForAnnotation.count - 1)
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.mini)
+                            .tint(FableTheme.brandPrimary)
+                            
+                            let sentences = ReaderPassageMatcher.sentences(from: activeParagraphForAnnotation)
+                            if sentences.count > 1 {
+                                Menu {
+                                    ForEach(Array(sentences.enumerated()), id: \.offset) { sIdx, sent in
+                                        Button("Sentence \(sIdx + 1): \(sent.prefix(30))...") {
+                                            selectSentence(at: sIdx, in: sentences)
+                                        }
+                                    }
+                                } label: {
+                                    Label("By Sentence", systemImage: "text.quote")
+                                        .font(.caption2)
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.mini)
+                                .tint(FableTheme.brandPrimary)
+                            }
+                            
+                            Spacer()
+                        }
+                        .padding(.horizontal, 20)
+                        
+                        // Start Word Control
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Text("Start:")
+                                    .fableFont(size: 12, weight: .medium)
+                                    .foregroundColor(FableTheme.textSecondary)
+                                Text("\"\(startWordPreview)\"")
+                                    .fableFont(size: 12, weight: .bold)
+                                    .foregroundColor(FableTheme.brandPrimary)
+                                    .lineLimit(1)
+                                Spacer()
+                                Text("Word \(annotationStartWordIndex + 1)")
+                                    .fableFont(size: 11)
+                                    .foregroundColor(FableTheme.textMuted)
+                                Stepper("", value: Binding(
+                                    get: { annotationStartWordIndex },
+                                    set: { newStart in
+                                        let clamped = min(max(0, newStart), annotationEndWordIndex)
+                                        updateSelectedPassageRange(start: clamped, end: annotationEndWordIndex)
+                                    }
+                                ), in: 0...annotationEndWordIndex)
+                                .labelsHidden()
+                            }
+                            
+                            Slider(
+                                value: Binding(
+                                    get: { Double(annotationStartWordIndex) },
+                                    set: { newStart in
+                                        let clamped = min(max(0, Int(newStart)), annotationEndWordIndex)
+                                        updateSelectedPassageRange(start: clamped, end: annotationEndWordIndex)
+                                    }
+                                ),
+                                in: 0...Double(max(0, paragraphWordsForAnnotation.count - 1)),
+                                step: 1
+                            )
+                            .tint(FableTheme.brandPrimary)
+                        }
+                        .padding(.horizontal, 20)
+                        
+                        // End Word Control
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Text("End:")
+                                    .fableFont(size: 12, weight: .medium)
+                                    .foregroundColor(FableTheme.textSecondary)
+                                Text("\"\(endWordPreview)\"")
+                                    .fableFont(size: 12, weight: .bold)
+                                    .foregroundColor(FableTheme.brandPrimary)
+                                    .lineLimit(1)
+                                Spacer()
+                                Text("Word \(annotationEndWordIndex + 1)")
+                                    .fableFont(size: 11)
+                                    .foregroundColor(FableTheme.textMuted)
+                                Stepper("", value: Binding(
+                                    get: { annotationEndWordIndex },
+                                    set: { newEnd in
+                                        let clamped = max(min(paragraphWordsForAnnotation.count - 1, newEnd), annotationStartWordIndex)
+                                        updateSelectedPassageRange(start: annotationStartWordIndex, end: clamped)
+                                    }
+                                ), in: annotationStartWordIndex...max(annotationStartWordIndex, paragraphWordsForAnnotation.count - 1))
+                                .labelsHidden()
+                            }
+                            
+                            Slider(
+                                value: Binding(
+                                    get: { Double(annotationEndWordIndex) },
+                                    set: { newEnd in
+                                        let clamped = max(min(paragraphWordsForAnnotation.count - 1, Int(newEnd)), annotationStartWordIndex)
+                                        updateSelectedPassageRange(start: annotationStartWordIndex, end: clamped)
+                                    }
+                                ),
+                                in: 0...Double(max(0, paragraphWordsForAnnotation.count - 1)),
+                                step: 1
+                            )
+                            .tint(FableTheme.brandPrimary)
+                        }
+                        .padding(.horizontal, 20)
+                    }
+                    .padding(.vertical, 8)
+                    .background(Color.gray.opacity(0.04))
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .padding(.horizontal, 20)
+                }
+                
+                // Highlight color picker
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("HIGHLIGHT COLOR")
+                        .fableFont(size: 10, weight: .bold)
+                        .tracking(1.0)
+                        .foregroundColor(FableTheme.subtleSlate)
+                        .padding(.horizontal, 20)
+                    
+                    HStack(spacing: 12) {
+                        ForEach(HighlightColor.allCases) { colorToken in
+                            Button(action: {
+                                selectedHighlightColor = colorToken
+                            }) {
+                                HStack(spacing: 8) {
+                                    Circle()
+                                        .fill(colorToken.displayColor.opacity(1.0))
+                                        .frame(width: 16, height: 16)
+                                    Text(colorToken.displayName)
+                                        .fableFont(size: 13, weight: .medium)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 8)
+                                .background(selectedHighlightColor == colorToken ? FableTheme.softPeach : Color.gray.opacity(0.08))
+                                .foregroundColor(selectedHighlightColor == colorToken ? FableTheme.terracotta : FableTheme.deepCharcoal)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(selectedHighlightColor == colorToken ? FableTheme.terracotta : Color.clear, lineWidth: 1)
+                                )
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                }
+                
+                // Optional note field
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("NOTE (OPTIONAL)")
+                        .fableFont(size: 10, weight: .bold)
+                        .tracking(1.0)
+                        .foregroundColor(FableTheme.subtleSlate)
+                        .padding(.horizontal, 20)
+                    
+                    TextField("Add your thoughts...", text: $annotationNote, axis: .vertical)
+                        .fableFont(size: 14)
+                        .lineLimit(2...4)
+                        .padding(12)
+                        .background(Color.gray.opacity(0.06))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .padding(.horizontal, 20)
+                }
+                
+                // Pin to Shelf Reading Journal Quote Deck Toggle
+                Toggle(isOn: $isPinToJournal) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Pin to Shelf Journal Deck")
+                            .fableFont(size: 14, weight: .semibold)
+                            .foregroundColor(FableTheme.textPrimary)
+                        Text("Promotes excerpt as a quote card on your shelf")
+                            .fableFont(size: 11)
+                            .foregroundColor(FableTheme.textMuted)
+                    }
+                }
+                .tint(FableTheme.brandPrimary)
+                .padding(.horizontal, 20)
+
+                // Shareable Quote Card & Markdown Export (Feature 3)
+                VStack(spacing: 8) {
+                    Button(action: {
+                        let quote = selectedTextToAnnotate ?? activeParagraphForAnnotation
+                        activeQuoteCardData = (
+                            text: quote,
+                            note: annotationNote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : annotationNote,
+                            color: selectedHighlightColor,
+                            chapter: activeChapter?.chapterNumber
+                        )
+                        isShowingQuoteCardShare = true
+                    }) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "photo.artframe")
+                                .fableFont(size: 13, weight: .bold)
+                            Text("Share as Quote Card")
+                                .fableFont(size: 13, weight: .semibold)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(Color.gray.opacity(0.08))
+                        .foregroundColor(FableTheme.deepCharcoal)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                    }
+
+                    if !store.activeStoryAnnotations.isEmpty {
+                        let md = ReaderPassageMatcher.exportAnnotationsAsMarkdown(story: story, annotations: store.activeStoryAnnotations)
+                        ShareLink(
+                            item: md,
+                            preview: SharePreview("\(story.title) Highlights (.md)")
+                        ) {
                             HStack(spacing: 8) {
-                                Circle()
-                                    .fill(colorToken.displayColor.opacity(1.0))
-                                    .frame(width: 16, height: 16)
-                                Text(colorToken.displayName)
-                                    .fableFont(size: 13, weight: .medium)
+                                Image(systemName: "doc.plaintext")
+                                    .fableFont(size: 13, weight: .bold)
+                                Text("Export All Highlights (.md)")
+                                    .fableFont(size: 13, weight: .semibold)
                             }
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, 8)
-                            .background(selectedHighlightColor == colorToken ? FableTheme.softPeach : Color.gray.opacity(0.08))
-                            .foregroundColor(selectedHighlightColor == colorToken ? FableTheme.terracotta : FableTheme.deepCharcoal)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(selectedHighlightColor == colorToken ? FableTheme.terracotta : Color.clear, lineWidth: 1)
-                            )
+                            .padding(.vertical, 10)
+                            .background(Color.gray.opacity(0.08))
+                            .foregroundColor(FableTheme.brandPrimary)
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
                         }
                     }
                 }
                 .padding(.horizontal, 20)
-            }
-            
-            // Optional note field
-            VStack(alignment: .leading, spacing: 6) {
-                Text("NOTE (OPTIONAL)")
-                    .fableFont(size: 10, weight: .bold)
-                    .tracking(1.0)
-                    .foregroundColor(FableTheme.subtleSlate)
-                    .padding(.horizontal, 20)
                 
-                TextField("Add your thoughts...", text: $annotationNote, axis: .vertical)
-                    .fableFont(size: 14)
-                    .lineLimit(2...4)
-                    .padding(12)
-                    .background(Color.gray.opacity(0.06))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .padding(.horizontal, 20)
-            }
-            
-            // Pin to Shelf Reading Journal Quote Deck Toggle
-            Toggle(isOn: $isPinToJournal) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Pin to Shelf Journal Deck")
-                        .fableFont(size: 14, weight: .semibold)
-                        .foregroundColor(FableTheme.textPrimary)
-                    Text("Promotes excerpt as a quote card on your shelf")
-                        .fableFont(size: 11)
-                        .foregroundColor(FableTheme.textMuted)
-                }
-            }
-            .tint(FableTheme.brandPrimary)
-            .padding(.horizontal, 20)
-            
-            // Save / Update Action Button
-            VStack(spacing: 10) {
-                Button(action: {
-                    let cleanNote = annotationNote.trimmingCharacters(in: .whitespacesAndNewlines)
-                    let finalNote = cleanNote.isEmpty ? nil : cleanNote
-                    if let existing = editingAnnotation {
-                        store.updateAnnotation(
-                            existing,
-                            story: story,
-                            color: selectedHighlightColor,
-                            note: finalNote,
-                            pinToJournal: isPinToJournal
-                        )
-                    } else if let text = selectedTextToAnnotate {
-                        let fullText = activeChapterText
-                        let nsText = fullText as NSString
-                        let targetRange = nsText.range(of: text)
-                        let startOffset = targetRange.location != NSNotFound ? targetRange.location : 0
-                        let endOffset = targetRange.location != NSNotFound ? (targetRange.location + targetRange.length) : text.utf16.count
-                        
-                        store.addAnnotation(
-                            story: story,
-                            text: text,
-                            chapterNumber: activeChapter?.chapterNumber,
-                            startOffset: startOffset,
-                            endOffset: endOffset,
-                            color: selectedHighlightColor,
-                            note: finalNote,
-                            pinToJournal: isPinToJournal
-                        )
-                    }
-                    isShowingAnnotationSheet = false
-                    resetAnnotationState()
-                }) {
-                    Text(editingAnnotation != nil ? "Update Annotation" : "Save Annotation")
-                        .fableFont(size: 15, weight: .semibold)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                        .background(FableTheme.brandPrimary)
-                        .foregroundColor(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                }
-
-                if let existing = editingAnnotation {
-                    Button(role: .destructive) {
-                        store.deleteAnnotation(id: existing.id, storyId: story.id)
-                        isShowingAnnotationSheet = false
-                        resetAnnotationState()
-                    } label: {
-                        Text("Delete Annotation")
-                            .fableFont(size: 14, weight: .semibold)
+                // Save / Update Action Button
+                VStack(spacing: 10) {
+                    Button(action: {
+                        saveOrUpdateAnnotation()
+                    }) {
+                        Text(editingAnnotation != nil ? "Update Annotation" : "Save Annotation")
+                            .fableFont(size: 15, weight: .semibold)
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, 10)
-                            .background(Color.red.opacity(0.08))
-                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                            .padding(.vertical, 12)
+                            .background(FableTheme.brandPrimary)
+                            .foregroundColor(.white)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
+
+                    if let existing = editingAnnotation {
+                        Button(role: .destructive) {
+                            store.deleteAnnotation(id: existing.id, storyId: story.id)
+                            isShowingAnnotationSheet = false
+                            resetAnnotationState()
+                        } label: {
+                            Text("Delete Annotation")
+                                .fableFont(size: 14, weight: .semibold)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 10)
+                                .background(Color.red.opacity(0.08))
+                                .clipShape(RoundedRectangle(cornerRadius: 10))
+                        }
                     }
                 }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 24)
             }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 16)
         }
+    }
+
+    private var currentSelectedWordCount: Int {
+        guard !paragraphWordsForAnnotation.isEmpty else { return 0 }
+        return max(1, annotationEndWordIndex - annotationStartWordIndex + 1)
+    }
+
+    private var startWordPreview: String {
+        guard paragraphWordsForAnnotation.indices.contains(annotationStartWordIndex) else { return "" }
+        return paragraphWordsForAnnotation[annotationStartWordIndex]
+    }
+
+    private var endWordPreview: String {
+        guard paragraphWordsForAnnotation.indices.contains(annotationEndWordIndex) else { return "" }
+        return paragraphWordsForAnnotation[annotationEndWordIndex]
+    }
+
+    private func openAnnotationSheet(for para: String, existing: Annotation?) {
+        self.activeParagraphForAnnotation = para
+        let words = ReaderPassageMatcher.words(from: para)
+        self.paragraphWordsForAnnotation = words
+        self.editingAnnotation = existing
+        
+        if let existing = existing {
+            self.selectedHighlightColor = existing.color
+            self.annotationNote = existing.note ?? ""
+            self.isPinToJournal = existing.isPinnedToJournal
+            self.selectedTextToAnnotate = existing.selectedText
+            
+            let range = ReaderPassageMatcher.wordRange(for: existing.selectedText, in: words)
+            self.annotationStartWordIndex = range.lowerBound
+            self.annotationEndWordIndex = range.upperBound
+        } else {
+            self.selectedHighlightColor = .terracotta
+            self.annotationNote = ""
+            self.isPinToJournal = true
+            self.annotationStartWordIndex = 0
+            self.annotationEndWordIndex = max(0, words.count - 1)
+            self.selectedTextToAnnotate = words.isEmpty ? para : words.joined(separator: " ")
+        }
+        self.isShowingAnnotationSheet = true
+    }
+
+    private func updateSelectedPassageRange(start: Int, end: Int) {
+        guard !paragraphWordsForAnnotation.isEmpty else { return }
+        let clampedStart = max(0, min(start, paragraphWordsForAnnotation.count - 1))
+        let clampedEnd = max(clampedStart, min(end, paragraphWordsForAnnotation.count - 1))
+        annotationStartWordIndex = clampedStart
+        annotationEndWordIndex = clampedEnd
+        selectedTextToAnnotate = ReaderPassageMatcher.substring(
+            from: paragraphWordsForAnnotation,
+            range: clampedStart...clampedEnd
+        )
+    }
+
+    private func selectSentence(at index: Int, in sentences: [String]) {
+        guard sentences.indices.contains(index) else { return }
+        let sentence = sentences[index]
+        let range = ReaderPassageMatcher.wordRange(for: sentence, in: paragraphWordsForAnnotation)
+        updateSelectedPassageRange(start: range.lowerBound, end: range.upperBound)
+    }
+
+    private func saveOrUpdateAnnotation() {
+        let cleanNote = annotationNote.trimmingCharacters(in: .whitespacesAndNewlines)
+        let finalNote = cleanNote.isEmpty ? nil : cleanNote
+        let text = (selectedTextToAnnotate ?? activeParagraphForAnnotation).trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+
+        let fullText = activeChapterText
+        let offsets = ReaderPassageMatcher.locateSubstringOffsets(
+            in: fullText,
+            substring: text,
+            withinParagraph: activeParagraphForAnnotation
+        )
+
+        if let existing = editingAnnotation {
+            store.updateAnnotation(
+                existing,
+                story: story,
+                text: text,
+                startOffset: offsets.start,
+                endOffset: offsets.end,
+                color: selectedHighlightColor,
+                note: finalNote,
+                pinToJournal: isPinToJournal
+            )
+        } else {
+            store.addAnnotation(
+                story: story,
+                text: text,
+                chapterNumber: activeChapter?.chapterNumber,
+                startOffset: offsets.start,
+                endOffset: offsets.end,
+                color: selectedHighlightColor,
+                note: finalNote,
+                pinToJournal: isPinToJournal
+            )
+        }
+        isShowingAnnotationSheet = false
+        resetAnnotationState()
     }
     
     // Helper to reset annotation state
@@ -1119,6 +1841,10 @@ public struct ReaderView: View {
         annotationNote = ""
         selectedHighlightColor = .terracotta
         isPinToJournal = true
+        activeParagraphForAnnotation = ""
+        paragraphWordsForAnnotation = []
+        annotationStartWordIndex = 0
+        annotationEndWordIndex = 0
     }
 
     private func setCurrentPageProgrammatically(_ targetPage: Int) {
@@ -1126,6 +1852,50 @@ public struct ReaderView: View {
         guard clamped != currentPage else { return }
         suppressNextPageTurnMetrics = true
         currentPage = clamped
+    }
+
+    private func nextSearchMatch() {
+        guard !searchMatches.isEmpty else { return }
+        FableHaptics.selection()
+        let nextIdx = (currentSearchMatchIndex + 1) % searchMatches.count
+        navigateToSearchMatch(at: nextIdx)
+    }
+
+    private func previousSearchMatch() {
+        guard !searchMatches.isEmpty else { return }
+        FableHaptics.selection()
+        let prevIdx = (currentSearchMatchIndex - 1 + searchMatches.count) % searchMatches.count
+        navigateToSearchMatch(at: prevIdx)
+    }
+
+    private func navigateToSearchMatch(at index: Int) {
+        guard searchMatches.indices.contains(index) else { return }
+        currentSearchMatchIndex = index
+        let match = searchMatches[index]
+
+        if !chapters.isEmpty && match.chapterIndex != currentChapterIndex {
+            selectChapter(at: match.chapterIndex)
+        }
+
+        if store.isPaginatedMode {
+            if let targetPage = ReaderPassageMatcher.pageNumber(
+                for: Annotation(
+                    storyId: story.id,
+                    storyTitle: story.title,
+                    storyAuthor: story.author,
+                    chapterNumber: match.chapterNumber,
+                    utf16StartOffset: 0,
+                    utf16EndOffset: match.matchedText.utf16.count,
+                    selectedText: match.matchedText
+                ),
+                in: pages
+            ) {
+                setCurrentPageProgrammatically(targetPage)
+            }
+        } else {
+            pendingScrollParagraphId = "para-\(match.paragraphIndex)"
+            triggerScrollRestore()
+        }
     }
 
     private func turnPageBack() {

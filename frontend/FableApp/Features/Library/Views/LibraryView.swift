@@ -232,7 +232,7 @@ public struct LibraryView: View {
                                             .foregroundColor(FableTheme.brandPrimary)
                                             .padding(.horizontal, 10)
                                             .padding(.vertical, 5)
-                                            .background(Color.white.opacity(0.95))
+                                            .background(FableTheme.cardBackground.opacity(0.95))
                                             .clipShape(Capsule())
                                             .shadow(color: Color.black.opacity(0.06), radius: 3, y: 1)
                                         }
@@ -249,7 +249,7 @@ public struct LibraryView: View {
                                                 .fableFont(size: 13, weight: .semibold)
                                                 .foregroundColor(featuredStory.isBookmarked ? FableTheme.brandPrimary : FableTheme.textPrimary)
                                                 .padding(8)
-                                                .background(Color.white.opacity(0.95))
+                                                .background(FableTheme.cardBackground.opacity(0.95))
                                                 .clipShape(Circle())
                                                 .shadow(color: Color.black.opacity(0.08), radius: 3, y: 1)
                                         }
@@ -501,21 +501,43 @@ public struct LibraryView: View {
                                         }
                                         .buttonStyle(.plain)
 
-                                        Button {
-                                            FableHaptics.light()
-                                            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                                                store.toggleBookmark(for: story)
+                                        HStack(spacing: 2) {
+                                            if store.downloadingStoryIds.contains(story.id) {
+                                                ProgressView()
+                                                    .controlSize(.small)
+                                                    .frame(width: 34, height: 34)
+                                            } else if !store.isStoryDownloaded(story) {
+                                                Button {
+                                                    FableHaptics.medium()
+                                                    Task {
+                                                        try? await store.downloadBookForOffline(story)
+                                                    }
+                                                } label: {
+                                                    Image(systemName: "arrow.down.circle")
+                                                        .fableFont(size: 14, weight: .semibold)
+                                                        .foregroundColor(FableTheme.textMuted)
+                                                        .frame(width: 34, height: 34)
+                                                        .contentShape(Rectangle())
+                                                }
+                                                .accessibilityLabel("Download book for offline")
                                             }
-                                        } label: {
-                                            Image(systemName: story.isBookmarked ? "bookmark.fill" : "bookmark")
-                                                .fableFont(size: 14, weight: .semibold)
-                                                .foregroundColor(story.isBookmarked ? FableTheme.brandPrimary : FableTheme.textMuted)
-                                                .frame(width: 40, height: 40)
-                                                .background(story.isBookmarked ? FableTheme.brandPrimary.opacity(0.1) : Color.clear)
-                                                .clipShape(Circle())
-                                                .contentShape(Rectangle())
+
+                                            Button {
+                                                FableHaptics.light()
+                                                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                                                    store.toggleBookmark(for: story)
+                                                }
+                                            } label: {
+                                                Image(systemName: story.isBookmarked ? "bookmark.fill" : "bookmark")
+                                                    .fableFont(size: 14, weight: .semibold)
+                                                    .foregroundColor(story.isBookmarked ? FableTheme.brandPrimary : FableTheme.textMuted)
+                                                    .frame(width: 36, height: 36)
+                                                    .background(story.isBookmarked ? FableTheme.brandPrimary.opacity(0.1) : Color.clear)
+                                                    .clipShape(Circle())
+                                                    .contentShape(Rectangle())
+                                            }
+                                            .accessibilityLabel(story.isBookmarked ? "Remove bookmark" : "Bookmark story")
                                         }
-                                        .accessibilityLabel(story.isBookmarked ? "Remove bookmark" : "Bookmark story")
                                     }
                                     .padding(14)
                                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -657,38 +679,53 @@ public struct LibraryView: View {
 
     @ViewBuilder
     private func storyBadge(for story: Story) -> some View {
-        if story.contentFormat == .manga {
-            if story.badgeText == "DIRECT PANELS" {
-                HStack(spacing: 4) {
-                    Image(systemName: "checkmark.seal.fill")
-                        .fableFont(size: 8)
-                    Text("DIRECT PANELS")
-                        .fableFont(size: 9, weight: .heavy)
-                        .tracking(0.5)
+        HStack(spacing: 6) {
+            if story.contentFormat == .manga {
+                if story.badgeText == "DIRECT PANELS" {
+                    HStack(spacing: 4) {
+                        Image(systemName: "checkmark.seal.fill")
+                            .fableFont(size: 8)
+                        Text("DIRECT PANELS")
+                            .fableFont(size: 9, weight: .heavy)
+                            .tracking(0.5)
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(Color(red: 0.12, green: 0.58, blue: 0.32))
+                    .clipShape(Capsule())
+                } else if story.badgeText == "OFFICIAL LINK" {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.up.right")
+                            .fableFont(size: 8, weight: .bold)
+                        Text("OFFICIAL LINK")
+                            .fableFont(size: 9, weight: .heavy)
+                            .tracking(0.5)
+                    }
+                    .foregroundColor(Color.orange)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(Color.orange.opacity(0.15))
+                    .clipShape(Capsule())
+                } else {
+                    HStack(spacing: 4) {
+                        Image(systemName: "photo.on.rectangle.angled")
+                            .fableFont(size: 8)
+                        Text("MANGA")
+                            .fableFont(size: 9, weight: .heavy)
+                            .tracking(0.5)
+                    }
+                    .foregroundColor(FableTheme.brandPrimary)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(FableTheme.surface)
+                    .clipShape(Capsule())
                 }
-                .foregroundColor(.white)
-                .padding(.horizontal, 7)
-                .padding(.vertical, 3)
-                .background(Color(red: 0.12, green: 0.58, blue: 0.32))
-                .clipShape(Capsule())
-            } else if story.badgeText == "OFFICIAL LINK" {
-                HStack(spacing: 4) {
-                    Image(systemName: "arrow.up.right")
-                        .fableFont(size: 8, weight: .bold)
-                    Text("OFFICIAL LINK")
-                        .fableFont(size: 9, weight: .heavy)
-                        .tracking(0.5)
-                }
-                .foregroundColor(Color.orange)
-                .padding(.horizontal, 7)
-                .padding(.vertical, 3)
-                .background(Color.orange.opacity(0.15))
-                .clipShape(Capsule())
             } else {
                 HStack(spacing: 4) {
-                    Image(systemName: "photo.on.rectangle.angled")
+                    Image(systemName: "book.closed.fill")
                         .fableFont(size: 8)
-                    Text("MANGA")
+                    Text(story.sourceProvider == .standardEbooks ? "STANDARD EBOOKS" : story.genre.rawValue.uppercased())
                         .fableFont(size: 9, weight: .heavy)
                         .tracking(0.5)
                 }
@@ -698,19 +735,21 @@ public struct LibraryView: View {
                 .background(FableTheme.surface)
                 .clipShape(Capsule())
             }
-        } else {
-            HStack(spacing: 4) {
-                Image(systemName: "book.closed.fill")
-                    .fableFont(size: 8)
-                Text(story.sourceProvider == .standardEbooks ? "STANDARD EBOOKS" : story.genre.rawValue.uppercased())
-                    .fableFont(size: 9, weight: .heavy)
-                    .tracking(0.5)
+
+            if store.isStoryDownloaded(story) {
+                HStack(spacing: 3) {
+                    Image(systemName: "arrow.down.circle.fill")
+                        .fableFont(size: 8)
+                    Text("OFFLINE")
+                        .fableFont(size: 8.5, weight: .heavy)
+                        .tracking(0.5)
+                }
+                .foregroundColor(Color(red: 0.12, green: 0.62, blue: 0.32))
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2.5)
+                .background(Color(red: 0.12, green: 0.62, blue: 0.32).opacity(0.12))
+                .clipShape(Capsule())
             }
-            .foregroundColor(FableTheme.brandPrimary)
-            .padding(.horizontal, 7)
-            .padding(.vertical, 3)
-            .background(FableTheme.surface)
-            .clipShape(Capsule())
         }
     }
 }

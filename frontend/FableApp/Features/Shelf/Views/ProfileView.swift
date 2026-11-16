@@ -208,7 +208,7 @@ public struct ProfileView: View {
                                             .fableFont(size: 14, weight: selectedTab == tab ? .semibold : .medium)
                                             .frame(maxWidth: .infinity)
                                             .padding(.vertical, 10)
-                                            .background(selectedTab == tab ? Color.white : Color.clear)
+                                            .background(selectedTab == tab ? FableTheme.cardBackground : Color.clear)
                                             .foregroundColor(selectedTab == tab ? FableTheme.textPrimary : FableTheme.textMuted)
                                             .clipShape(RoundedRectangle(cornerRadius: 10))
                                             .shadow(color: selectedTab == tab ? Color.black.opacity(0.06) : Color.clear, radius: 4, y: 1)

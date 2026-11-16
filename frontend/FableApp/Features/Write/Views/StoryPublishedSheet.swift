@@ -135,6 +135,6 @@ struct StoryPublishedSheet: View {
         }
         .presentationDetents([.fraction(0.65)])
         .presentationDragIndicator(.hidden)
-        .background(Color.white)
+        .background(FableTheme.cardBackground)
     }
 }

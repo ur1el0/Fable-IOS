@@ -24,8 +24,12 @@ public final class StoryStore: ObservableObject {
     @Published var tourSelectedWriter: Writer?
     @Published var tourShelfTab: String = "Saved"
     @Published var isShowingChapterIndexSheet: Bool = false
+    @Published var downloadingStoryIds: Set<UUID> = []
 
-    // Reader Preferences (Persisted across launches)
+    // App & Reader Preferences (Persisted across launches)
+    @Published var appAppearance: AppAppearance = .system {
+        didSet { UserDefaults.standard.set(appAppearance.rawValue, forKey: AppAppearance.storageKey) }
+    }
     @Published var readerFont: ReaderFont = .serif {
         didSet { UserDefaults.standard.set(readerFont.rawValue, forKey: "fable_pref_reader_font") }
     }
@@ -269,6 +273,10 @@ public final class StoryStore: ObservableObject {
     }
 
     private func loadReaderPreferences() {
+        if let appearanceRaw = UserDefaults.standard.string(forKey: AppAppearance.storageKey),
+           let appearance = AppAppearance(rawValue: appearanceRaw) {
+            self.appAppearance = appearance
+        }
         if let fontRaw = UserDefaults.standard.string(forKey: "fable_pref_reader_font"),
            let font = ReaderFont(rawValue: fontRaw) {
             self.readerFont = font
@@ -1057,6 +1065,21 @@ public final class StoryStore: ObservableObject {
             }
             throw error
         }
+    }
+
+    public func isStoryDownloaded(_ story: Story) -> Bool {
+        if let chapters = story.chapters, Self.hasUsableCachedChapters(chapters, format: story.contentFormat, allowExternalMangaSource: true) {
+            return true
+        }
+        let cached = PersistenceService.shared.cachedChapters(storyId: story.id)
+        return Self.hasUsableCachedChapters(cached, format: story.contentFormat, allowExternalMangaSource: true)
+    }
+
+    public func downloadBookForOffline(_ story: Story) async throws {
+        guard !downloadingStoryIds.contains(story.id) else { return }
+        downloadingStoryIds.insert(story.id)
+        defer { downloadingStoryIds.remove(story.id) }
+        _ = try await fetchChapters(for: story)
     }
 
 
@@ -1983,16 +2006,36 @@ public final class StoryStore: ObservableObject {
     func updateAnnotation(
         _ annotation: Annotation,
         story: Story,
+        text: String? = nil,
+        startOffset: Int? = nil,
+        endOffset: Int? = nil,
         color: HighlightColor,
         note: String?,
         pinToJournal: Bool
     ) {
         var updated = annotation
-        updated.color = color
-        updated.note = note
-        updated.isPinnedToJournal = pinToJournal
-        updated.storyTitle = story.title
-        updated.storyAuthor = story.author
+        if let text = text {
+            updated = Annotation(
+                id: annotation.id,
+                storyId: annotation.storyId,
+                storyTitle: story.title,
+                storyAuthor: story.author,
+                chapterNumber: annotation.chapterNumber,
+                utf16StartOffset: startOffset ?? annotation.utf16StartOffset,
+                utf16EndOffset: endOffset ?? annotation.utf16EndOffset,
+                selectedText: text,
+                note: note,
+                color: color,
+                isPinnedToJournal: pinToJournal,
+                createdAt: annotation.createdAt
+            )
+        } else {
+            updated.color = color
+            updated.note = note
+            updated.isPinnedToJournal = pinToJournal
+            updated.storyTitle = story.title
+            updated.storyAuthor = story.author
+        }
         if let idx = activeStoryAnnotations.firstIndex(where: { $0.id == annotation.id }) {
             activeStoryAnnotations[idx] = updated
         }

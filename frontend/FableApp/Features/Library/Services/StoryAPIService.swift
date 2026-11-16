@@ -318,24 +318,101 @@ public extension StoryAPIServiceProtocol {
 }
 
 public final class StoryAPIService: StoryAPIServiceProtocol {
-    private let baseURL: URL
+    public nonisolated static let customBaseURLDefaultsKey = "fable_custom_api_base_url"
+    public nonisolated static let cloudRenderBaseURLString = "https://fable-api-cbo8.onrender.com/api/v1"
+    public nonisolated(unsafe) static var lastDevelopmentRecoveryToken: String?
+
+    private let explicitBaseURL: URL?
     private let session: URLSession
 
+    public nonisolated var baseURL: URL {
+        Self.resolvedBaseURL(explicitBaseURL: explicitBaseURL)
+    }
+
     nonisolated public init(baseURL: URL? = nil) {
+        self.explicitBaseURL = baseURL
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 20.0
+        self.session = URLSession(configuration: config)
+    }
+
+    public nonisolated static func resolvedBaseURL(
+        explicitBaseURL: URL? = nil,
+        defaults: UserDefaults = .standard
+    ) -> URL {
+        if let explicitBaseURL {
+            return explicitBaseURL
+        }
+        if let custom = defaults.string(forKey: customBaseURLDefaultsKey)?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+           !custom.isEmpty {
+            if custom.contains(".app.lhr.life") || custom.contains("fd6e:") {
+                defaults.removeObject(forKey: customBaseURLDefaultsKey)
+            } else if let customURL = URL(string: normalizeBaseURLString(custom)) {
+                return customURL
+            }
+        }
         let infoBaseURL = Bundle.main.object(forInfoDictionaryKey: "FABLE_API_BASE_URL") as? String
         let configuredBaseURL = ProcessInfo.processInfo.environment["FABLE_API_BASE_URL"] ?? infoBaseURL
-        self.baseURL = baseURL
-            ?? configuredBaseURL.flatMap { URL(string: $0) }
+        return configuredBaseURL.flatMap { URL(string: $0) }
             ?? URL(string: "http://127.0.0.1:8001/api/v1")!
-        let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 5.0
-        self.session = URLSession(configuration: config)
+    }
+
+    public nonisolated static func normalizeBaseURLString(_ rawValue: String) -> String {
+        var trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        while trimmed.hasSuffix("/") {
+            trimmed.removeLast()
+        }
+        guard !trimmed.isEmpty, let url = URL(string: trimmed), url.scheme != nil, url.host != nil else {
+            return trimmed
+        }
+        if url.path.isEmpty || url.path == "/" {
+            return trimmed + "/api/v1"
+        }
+        return trimmed
+    }
+
+    @discardableResult
+    public nonisolated static func setCustomBaseURL(
+        _ rawValue: String?,
+        defaults: UserDefaults = .standard
+    ) -> URL {
+        guard let rawValue else {
+            defaults.removeObject(forKey: customBaseURLDefaultsKey)
+            return resolvedBaseURL(defaults: defaults)
+        }
+        let normalized = normalizeBaseURLString(rawValue)
+        if normalized.isEmpty {
+            defaults.removeObject(forKey: customBaseURLDefaultsKey)
+        } else if let url = URL(string: normalized), url.scheme != nil, url.host != nil {
+            defaults.set(normalized, forKey: customBaseURLDefaultsKey)
+        }
+        return resolvedBaseURL(defaults: defaults)
     }
 
     static func providerRequest(for url: URL) -> URLRequest {
         var request = URLRequest(url: url)
         request.timeoutInterval = 20.0
         return request
+    }
+
+    nonisolated static let iso8601DateDecodingStrategy: JSONDecoder.DateDecodingStrategy = .custom { decoder in
+        let container = try decoder.singleValueContainer()
+        let string = try container.decode(String.self)
+        let fractional = ISO8601DateFormatter()
+        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = fractional.date(from: string) {
+            return date
+        }
+        let standard = ISO8601DateFormatter()
+        standard.formatOptions = [.withInternetDateTime]
+        if let date = standard.date(from: string) {
+            return date
+        }
+        throw DecodingError.dataCorruptedError(
+            in: container,
+            debugDescription: "Expected ISO8601 date string, got \(string)"
+        )
     }
 
     private func validateResponse(_ response: URLResponse, data: Data) throws {
@@ -349,7 +426,7 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
 
     public func fetchStories(genre: String? = nil, search: String? = nil, since: Date? = nil) async throws -> [Story] {
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = Self.iso8601DateDecodingStrategy
         let pageSize = 50
         var offset = 0
         var stories: [Story] = []
@@ -409,7 +486,7 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
         try validateResponse(response, data: data)
 
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = Self.iso8601DateDecodingStrategy
         return try decoder.decode(Story.self, from: data)
     }
 
@@ -428,7 +505,7 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
         try validateResponse(response, data: data)
 
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = Self.iso8601DateDecodingStrategy
         return try decoder.decode(Story.self, from: data)
     }
 
@@ -450,7 +527,7 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
         let (data, response) = try await session.data(for: request)
         try validateResponse(response, data: data)
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = Self.iso8601DateDecodingStrategy
         return try decoder.decode([Story].self, from: data)
     }
 
@@ -472,7 +549,7 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
         }
 
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = Self.iso8601DateDecodingStrategy
         let result = try decoder.decode(ShelfSyncResponse.self, from: data)
         return result.reconciledItems
     }
@@ -495,7 +572,7 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
         }
 
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = Self.iso8601DateDecodingStrategy
         return try decoder.decode([Story].self, from: data)
     }
 
@@ -522,7 +599,7 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
             throw URLError(.badServerResponse)
         }
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = Self.iso8601DateDecodingStrategy
         return try decoder.decode(Story.self, from: data)
     }
 
@@ -541,7 +618,7 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
                 throw URLError(.badServerResponse)
             }
             let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
+            decoder.dateDecodingStrategy = Self.iso8601DateDecodingStrategy
             return try decoder.decode([Chapter].self, from: data)
         } else if sourceProvider == "GUTENBERG" {
             throw URLError(.badURL)
@@ -560,7 +637,7 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
                 throw URLError(.badServerResponse)
             }
             let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
+            decoder.dateDecodingStrategy = Self.iso8601DateDecodingStrategy
             return try decoder.decode([Chapter].self, from: data)
         } else if sourceProvider == "STANDARD_EBOOKS" {
             throw URLError(.badURL)
@@ -574,7 +651,7 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
             if let (data, response) = try? await session.data(from: url),
                let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) {
                 let decoder = JSONDecoder()
-                decoder.dateDecodingStrategy = .iso8601
+                decoder.dateDecodingStrategy = Self.iso8601DateDecodingStrategy
                 if let chapters = try? decoder.decode([Chapter].self, from: data), !chapters.isEmpty {
                     return chapters
                 }
@@ -599,7 +676,7 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
             if let (data, response) = try? await session.data(for: req),
                let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) {
                 let decoder = JSONDecoder()
-                decoder.dateDecodingStrategy = .iso8601
+                decoder.dateDecodingStrategy = Self.iso8601DateDecodingStrategy
                 if let stories = try? decoder.decode([Story].self, from: data), !stories.isEmpty {
                     return stories
                 }
@@ -696,7 +773,7 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
         if let (data, response) = try? await session.data(for: backendReq),
            let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) {
             let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
+            decoder.dateDecodingStrategy = Self.iso8601DateDecodingStrategy
             if let chapters = try? decoder.decode([Chapter].self, from: data), !chapters.isEmpty {
                 return chapters
             }
@@ -819,7 +896,7 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
             throw URLError(.badServerResponse)
         }
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = Self.iso8601DateDecodingStrategy
         return try decoder.decode([GenreCategory].self, from: data)
     }
 
@@ -830,7 +907,7 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
             throw URLError(.badServerResponse)
         }
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = Self.iso8601DateDecodingStrategy
         return try decoder.decode([Writer].self, from: data)
     }
 
@@ -841,7 +918,7 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
             throw URLError(.badServerResponse)
         }
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = Self.iso8601DateDecodingStrategy
         return try decoder.decode(UpdateFeed.self, from: data)
     }
 
@@ -858,7 +935,7 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
         }
 
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = Self.iso8601DateDecodingStrategy
         return try decoder.decode([ShelfSyncItem].self, from: data)
     }
 
@@ -880,7 +957,7 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
         try validateResponse(response, data: data)
 
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = Self.iso8601DateDecodingStrategy
         return try decoder.decode(AuthTokenResponse.self, from: data)
     }
 
@@ -900,19 +977,49 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
         try validateResponse(response, data: data)
 
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = Self.iso8601DateDecodingStrategy
         return try decoder.decode(AuthTokenResponse.self, from: data)
     }
 
     public func requestPasswordReset(email: String) async throws {
-        let url = baseURL.appendingPathComponent("auth").appendingPathComponent("password-reset").appendingPathComponent("request")
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try JSONSerialization.data(withJSONObject: ["email": email])
+        Self.lastDevelopmentRecoveryToken = nil
+        let bodyData = try JSONSerialization.data(withJSONObject: ["email": email])
+        var candidateRoots: [URL] = [baseURL]
+        if explicitBaseURL == nil {
+            for fallbackString in [
+                Bundle.main.object(forInfoDictionaryKey: "FABLE_API_BASE_URL") as? String,
+                Self.cloudRenderBaseURLString
+            ].compactMap({ $0 }) {
+                if let fallbackURL = URL(string: fallbackString),
+                   !candidateRoots.contains(where: { $0.absoluteString == fallbackURL.absoluteString }) {
+                    candidateRoots.append(fallbackURL)
+                }
+            }
+        }
 
-        let (data, response) = try await session.data(for: request)
-        try validateResponse(response, data: data)
+        var lastError: Error?
+        for root in candidateRoots {
+            let url = root.appendingPathComponent("auth").appendingPathComponent("password-reset").appendingPathComponent("request")
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = bodyData
+            request.timeoutInterval = 8.0
+
+            do {
+                let (data, response) = try await session.data(for: request)
+                try validateResponse(response, data: data)
+                if let payload = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+                   let recoveryToken = payload["recoveryToken"] as? String,
+                   !recoveryToken.isEmpty {
+                    Self.lastDevelopmentRecoveryToken = recoveryToken
+                }
+                return
+            } catch {
+                lastError = error
+            }
+        }
+        throw lastError ?? APIRequestError(message: "The server could not complete the request.")
     }
 
     public func confirmPasswordReset(token: String, newPassword: String) async throws {
@@ -971,7 +1078,7 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
         let (data, response) = try await session.data(for: urlRequest)
         try validateResponse(response, data: data)
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = Self.iso8601DateDecodingStrategy
         return try decoder.decode(AuthUserDTO.self, from: data)
     }
 
@@ -995,7 +1102,7 @@ public final class StoryAPIService: StoryAPIServiceProtocol {
         try validateResponse(response, data: data)
 
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = Self.iso8601DateDecodingStrategy
         return try decoder.decode(AuthUserDTO.self, from: data)
     }
 }

@@ -58,6 +58,57 @@ Before running, clear any potential cache conflicts from previous students:
 - Press `Cmd + R` (**Product ➔ Run**).
 - The Simulator will launch and display the Library. The catalog loads live Gutenberg metadata and official covers; full text is fetched from the chapter endpoint when a book is opened. Without network access, expect a previously cached library or an empty state.
 
+### Step 5b: Running on a Physical iPhone (USB & Wireless Local Backend)
+1. **Connect iPhone via Lightning / USB-C** and verify Xcode/CoreDevice sees it:
+   ```bash
+   xcrun devicectl list devices
+   ```
+2. **Choose how your iPhone will reach the Backend API:**
+   - **Option A — Home Wi-Fi or iPhone Personal Hotspot (Direct LAN):**
+     Start FastAPI bound to `0.0.0.0`:
+     ```bash
+     cd backend
+     FABLE_ENV=development ../.venv/bin/uvicorn main:app --reload --host 0.0.0.0 --port 8001
+     ```
+     Use your Mac's Wi-Fi IP (`http://<mac-lan-ip>:8001/api/v1`) as `FABLE_API_BASE_URL`.
+   - **Option B — Campus Lab Wi-Fi with AP Client Isolation (Wireless Tunnel to Local Backend):**
+     Campus Wi-Fi routers (`172.22.x.x`) isolate wireless clients from connecting directly to each other's local IP. To use your Mac's local FastAPI server wirelessly from your iPhone, start a free SSH HTTPS tunnel in a second terminal:
+     ```bash
+     ssh -T -o ServerAliveInterval=30 -R 80:127.0.0.1:8001 nokey@localhost.run
+     ```
+     Copy the printed `https://<id>.app.lhr.life` address and set `FABLE_API_BASE_URL="https://<id>.app.lhr.life/api/v1"`.
+   - **Option C — Deployed Cloud Backend (Render + Neon):**
+     Set `FABLE_API_BASE_URL="https://fable-api-cbo8.onrender.com/api/v1"`.
+3. **Build, Sign & Install to the iPhone:**
+   ```bash
+   xcodebuild -project frontend/FableApp.xcodeproj -scheme FableApp \
+     -destination 'id=<DEVICE_UDID>' \
+     DEVELOPMENT_TEAM=<YOUR_TEAM_ID> \
+     FABLE_API_BASE_URL="https://<id>.app.lhr.life/api/v1" \
+     -allowProvisioningUpdates build
+
+   xcrun devicectl device install app --device <DEVICE_IDENTIFIER> \
+     ~/Library/Developer/Xcode/DerivedData/FableApp-*/Build/Products/Debug-iphoneos/FableApp.app
+   ```
+   *(If macOS prompts for the Keychain password during `codesign`, enter the current Mac login password and click **Always Allow**).*
+4. **Trust the Developer Certificate on Your iPhone (One-Time for Personal Teams):**
+   - On your iPhone, open **Settings ➔ General ➔ VPN & Device Management**, tap your **Developer App** profile, and tap **Trust**.
+   - If campus Wi-Fi blocks Apple's certificate verification server (`ppq.apple.com`) and shows *"An internet connection is required"*, temporarily switch your iPhone to **Mobile Data** for 5 seconds, tap **Trust**, and then re-enable Wi-Fi.
+5. **Unplug & Use Wirelessly (Including from a Fedora Linux Laptop):**
+   - Once installed, you can change the backend server URL at any time **directly inside the iPhone app** without Xcode:
+     - On the **Welcome Screen** (before signing in), tap **"Server: … • Change"** at the bottom.
+     - Or inside the app, open **Shelf ➔ Settings ➔ Backend Server URL**.
+   - **Using Your Fedora Linux Laptop (or Mac) as the Wireless Backend in One Command:**
+     1. Run the unified launcher script from the repository root:
+        ```bash
+        ./scripts/start_wireless_server.sh
+        ```
+        *(Creates `.venv` if missing, starts FastAPI on `0.0.0.0:8001` with `FABLE_ENV=development`, and prints both your **Home Wi-Fi / Hotspot URL** `http://<lan-ip>:8001/api/v1` and a **Public HTTPS Tunnel URL** `https://<id>.trycloudflare.com/api/v1`.)*
+     2. On Fedora, if using Home Wi-Fi / Hotspot directly, open port `8001` once: `sudo firewall-cmd --add-port=8001/tcp`.
+     3. On your iPhone, tap **Server: … • Change** (or **Settings ➔ Backend Server URL**), paste either URL, and tap **Save**.
+   - **Re-signing / Refreshing the iOS App from Fedora Linux (7-Day Personal Team Expiry):**
+     - Free Apple ID ("Personal Team") provisioning profiles expire after 7 days. Without a physical Mac, build the `.ipa` on GitHub Actions (`macos-latest` runner) and sideload/refresh it on Fedora using **SideStore** or **`altserver-linux`** (`sudo dnf install usbmuxd libimobiledevice`).
+
 ---
 
 ## 3. Final Capstone Grading & Demonstration Runbook ("The Hero Path")

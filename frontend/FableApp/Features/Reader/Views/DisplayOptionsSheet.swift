@@ -7,6 +7,7 @@ struct DisplayOptionsSheet: View {
     @Environment(\.dismiss) var dismiss
     @ObservedObject private var narrator = AudioNarratorController.shared
     @State private var isShowingVoiceSheet: Bool = false
+    @State private var screenBrightness: Double = Double(UIScreen.main.brightness)
     
     var body: some View {
         VStack(spacing: 0) {
@@ -26,6 +27,7 @@ struct DisplayOptionsSheet: View {
                     livePreviewCard
                     typographySection
                     textSizeSection
+                    brightnessSection
                     backgroundSection
                     lineSpacingSection
                     readingLayoutSection
@@ -196,6 +198,48 @@ struct DisplayOptionsSheet: View {
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }
         .padding(.horizontal, 20)
+    }
+
+    @ViewBuilder
+    private var brightnessSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("SCREEN BRIGHTNESS")
+                    .fableFont(size: 11, weight: .bold)
+                    .tracking(1.0)
+                    .foregroundColor(FableTheme.subtleSlate)
+                
+                Spacer()
+                
+                Text("\(Int(screenBrightness * 100))%")
+                    .fableFont(size: 12, weight: .medium)
+                    .foregroundColor(FableTheme.terracotta)
+            }
+            
+            HStack(spacing: 12) {
+                Image(systemName: "sun.min")
+                    .fableFont(size: 14)
+                    .foregroundColor(FableTheme.subtleSlate)
+                
+                Slider(value: $screenBrightness, in: 0.05...1.0)
+                    .tint(FableTheme.brandPrimary)
+                    .onChange(of: screenBrightness) { _, newValue in
+                        UIScreen.main.brightness = CGFloat(newValue)
+                    }
+                
+                Image(systemName: "sun.max.fill")
+                    .fableFont(size: 16)
+                    .foregroundColor(FableTheme.subtleSlate)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(Color.gray.opacity(0.06))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+        .padding(.horizontal, 20)
+        .onAppear {
+            screenBrightness = Double(UIScreen.main.brightness)
+        }
     }
 
     @ViewBuilder

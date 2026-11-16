@@ -48,7 +48,12 @@ final class PasswordRecoveryViewModel: ObservableObject {
         defer { isLoading = false }
 
         do {
+            StoryAPIService.lastDevelopmentRecoveryToken = nil
             try await requestReset(normalizedEmail)
+            if let devToken = StoryAPIService.lastDevelopmentRecoveryToken, !devToken.isEmpty {
+                token = devToken
+                StoryAPIService.lastDevelopmentRecoveryToken = nil
+            }
             stage = .confirm
             statusMessage = "If an account uses this address, recovery instructions will arrive shortly."
         } catch {

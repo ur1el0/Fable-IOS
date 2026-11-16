@@ -35,6 +35,7 @@ struct ManuscriptEditor: UIViewRepresentable {
     }
 
     func updateUIView(_ textView: UITextView, context: Context) {
+        textView.textColor = UIColor(FableTheme.textPrimary)
         if textView.text != text {
             textView.text = text
         }
