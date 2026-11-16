@@ -481,4 +481,135 @@ final class PlanFeaturesRegressionTests: XCTestCase {
         XCTAssertNotNil(service.fetchStory(id: annotatedStub.id))
         XCTAssertEqual(service.fetchAllPinnedAnnotations(ownerUserId: nil).count, 1)
     }
+
+    @MainActor
+    func testReaderInBookSearchAndSnippetGeneration() {
+        let chapter1 = Chapter(
+            storyId: UUID(),
+            chapterNumber: 1,
+            title: "Down the Rabbit-Hole",
+            content: "Alice was beginning to get very tired of sitting by her sister on the bank.\n\nSuddenly a white rabbit with pink eyes ran close by her.",
+            wordCount: 26
+        )
+        let chapter2 = Chapter(
+            storyId: UUID(),
+            chapterNumber: 2,
+            title: "The Pool of Tears",
+            content: "Curiouser and curiouser cried Alice!\n\nShe looked down at her feet and wondered if she would ever see the white rabbit again.",
+            wordCount: 22
+        )
+
+        // Case-insensitive search across chapters
+        let matches = ReaderPassageMatcher.search(query: "white rabbit", in: [chapter1, chapter2])
+        XCTAssertEqual(matches.count, 2)
+        XCTAssertEqual(matches[0].chapterNumber, 1)
+        XCTAssertEqual(matches[0].chapterIndex, 0)
+        XCTAssertEqual(matches[0].paragraphIndex, 1)
+        XCTAssertTrue(matches[0].snippet.lowercased().contains("white rabbit"))
+
+        XCTAssertEqual(matches[1].chapterNumber, 2)
+        XCTAssertEqual(matches[1].chapterIndex, 1)
+        XCTAssertEqual(matches[1].paragraphIndex, 1)
+
+        // Snippet generation test
+        let snippet = ReaderPassageMatcher.generateSnippet(for: "rabbit", in: chapter1.content, contextRadius: 15)
+        XCTAssertTrue(snippet.contains("rabbit"))
+
+        // Empty and missing queries
+        XCTAssertTrue(ReaderPassageMatcher.search(query: "", in: [chapter1]).isEmpty)
+        XCTAssertTrue(ReaderPassageMatcher.search(query: "   ", in: [chapter1]).isEmpty)
+        XCTAssertTrue(ReaderPassageMatcher.search(query: "cheshire cat", in: [chapter1]).isEmpty)
+
+        // Single manuscript fallback search
+        let fallbackParas = ["It was the best of times, it was the worst of times.", "It was the age of wisdom."]
+        let fallbackMatches = ReaderPassageMatcher.search(query: "wisdom", in: [], fallbackParagraphs: fallbackParas, fallbackTitle: "Tale")
+        XCTAssertEqual(fallbackMatches.count, 1)
+        XCTAssertEqual(fallbackMatches[0].paragraphIndex, 1)
+        XCTAssertEqual(fallbackMatches[0].chapterTitle, "Tale")
+    }
+
+    @MainActor
+    func testReaderExportAnnotationsAsMarkdown() {
+        let story = Story(
+            id: UUID(),
+            title: "Pride and Prejudice",
+            author: "Jane Austen",
+            genre: Genre(rawValue: "Romance"),
+            synopsis: "Classic",
+            content: "It is a truth universally acknowledged.",
+            readTimeMinutes: 5
+        )
+
+        let annot1 = Annotation(
+            storyId: story.id,
+            storyTitle: story.title,
+            storyAuthor: story.author,
+            chapterNumber: 1,
+            utf16StartOffset: 0,
+            utf16EndOffset: 39,
+            selectedText: "It is a truth universally acknowledged",
+            note: "Memorable opening line",
+            color: .terracotta,
+            isPinnedToJournal: true
+        )
+        let annot2 = Annotation(
+            storyId: story.id,
+            storyTitle: story.title,
+            storyAuthor: story.author,
+            chapterNumber: 2,
+            utf16StartOffset: 0,
+            utf16EndOffset: 20,
+            selectedText: "Mr. Bennet was so odd a mixture",
+            note: nil,
+            color: .sage,
+            isPinnedToJournal: false
+        )
+
+        let md = ReaderPassageMatcher.exportAnnotationsAsMarkdown(story: story, annotations: [annot1, annot2])
+        XCTAssertTrue(md.contains("# Highlights & Marginalia: Pride and Prejudice"))
+        XCTAssertTrue(md.contains("**Author:** Jane Austen"))
+        XCTAssertTrue(md.contains("## Chapter 1"))
+        XCTAssertTrue(md.contains("> “It is a truth universally acknowledged”"))
+        XCTAssertTrue(md.contains("Terracotta"))
+        XCTAssertTrue(md.contains("*Note: Memorable opening line*"))
+        XCTAssertTrue(md.contains("## Chapter 2"))
+        XCTAssertTrue(md.contains("> “Mr. Bennet was so odd a mixture”"))
+    }
+
+    @MainActor
+    func testStoryStoreOfflineDownloadAndStatus() async throws {
+        let store = StoryStore()
+        let storyId = UUID()
+        var unCachedStory = Story(
+            id: storyId,
+            title: "Offline Test",
+            author: "Author",
+            genre: Genre(rawValue: "Classics"),
+            synopsis: "Test",
+            content: "",
+            readTimeMinutes: 1
+        )
+        unCachedStory.chapters = []
+        XCTAssertFalse(store.isStoryDownloaded(unCachedStory))
+
+        var downloadedStory = Story(
+            id: UUID(),
+            title: "Downloaded Test",
+            author: "Author",
+            genre: Genre(rawValue: "Classics"),
+            synopsis: "Test",
+            content: "Full readable chapter one text.",
+            readTimeMinutes: 1
+        )
+        downloadedStory.chapters = [
+            Chapter(
+                storyId: downloadedStory.id,
+                chapterNumber: 1,
+                title: "Ch 1",
+                content: "Full readable chapter one text.",
+                wordCount: 5
+            )
+        ]
+        XCTAssertTrue(store.isStoryDownloaded(downloadedStory))
+    }
 }
