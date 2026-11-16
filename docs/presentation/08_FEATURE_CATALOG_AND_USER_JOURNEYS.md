@@ -1,27 +1,29 @@
 # Fable iOS: Feature Catalog & User Journey Architecture
 
-**Document Version:** 1.0.0  
-**Target Milestone:** Midterm Presentation & Technical Defense  
+**Document Version:** 1.1.0  
+**Target Milestone:** Capstone Final Defense & Federated Multi-Provider Architecture  
 **Author:** Roosc Zaño (`@zanoroosc`)  
 
 ---
 
 ## 1. Complete Functional Feature Catalog
 
-Fable delivers a comprehensive literary ecosystem spanning discovery, deep reading, community writing, and personal scholarship:
+Fable delivers a comprehensive literary ecosystem spanning federated discovery, deep reading, community writing, and personal scholarship:
 
 ```
-┌────────────────────────────────────────────────────────────────────────┐
-│                        FABLE FEATURE ECOSYSTEM                         │
-├───────────────────┬────────────────────┬───────────────────────────────┤
-│    DISCOVERY      │    DEEP READING    │    WRITING & SCHOLARSHIP      │
-├───────────────────┼────────────────────┼───────────────────────────────┤
-│ • Tale of the Day │ • Dynamic Paging   │ • Story Composer (WriteView)  │
-│ • Curator's Pick  │ • 3 Ambient Themes │ • Real-Time Word Counter      │
-│ • Writer Carousel │ • Oral Audio Sync  │ • Personal Shelf Hub          │
-│ • Genre Filtering │ • Marginalia Notes │ • Excerpted Quote Journal     │
-│ • Full-Text Search│ • Typography HUD   │ • Live Reading Analytics      │
-└───────────────────┴────────────────────┴───────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────────────────────┐
+│                              FABLE FEATURE ECOSYSTEM                              │
+├───────────────────────┬────────────────────┬──────────────────────────────────────┤
+│      DISCOVERY        │    DEEP READING    │        WRITING & SCHOLARSHIP         │
+├───────────────────────┼────────────────────┼──────────────────────────────────────┤
+│ • Federated Providers │ • Dynamic Paging   │ • Story Composer (WriteView)         │
+│   (Standard Ebooks &  │ • 3 Ambient Themes │ • Real-Time Word Counter             │
+│    Project Gutenberg) │ • Oral Audio Sync  │ • Personal Shelf Hub                 │
+│ • Cross-Provider ID   │ • Marginalia Notes │ • Excerpted Quote Journal            │
+│ • Provider Fault Iso  │ • Typography HUD   │ • Live Reading Analytics             │
+│ • Tale of the Day     │ • TOC & Chapter    │ • Multi-Device Shelf Sync            │
+│ • Full-Text Search    │   Hydration        │ • Community Author Profiles          │
+└───────────────────────┴────────────────────┴──────────────────────────────────────┘
 ```
 
 ---
@@ -29,14 +31,20 @@ Fable delivers a comprehensive literary ecosystem spanning discovery, deep readi
 ## 2. Feature Deep Dive by Subsystem
 
 ### 2.1 Discovery & Editorial Curation (`ExploreView.swift` & `LibraryView.swift`)
+- **Federated Multi-Provider Catalog:** Seamlessly unifies multiple literature repositories:
+  - *Standard Ebooks (`STANDARD_EBOOKS`):* Typography-first public domain masterpieces with semantic XHTML chapters and rich SVG/JPEG cover art.
+  - *Project Gutenberg (`GUTENBERG`):* Massive historical open-access library parsed on demand from plain-text source archives.
+  - *Fable Originals (`FABLE_ORIGINAL`):* Curated editorial folklore and user-authored community manuscripts.
+- **Cross-Provider Edition Disambiguation:** Works sharing identical titles across providers (e.g. Mary Shelley's *Frankenstein* or Franz Kafka's *The Metamorphosis*) retain independent deterministic UUIDv5 identifiers, provider badges, distinct chapter counts, and separate shelf progress.
 - **Tale of the Day:** A prominent daily featured story card complete with procedural art, author badge, reading duration, and direct "Read Now" action.
 - **Curator's Spotlight:** Highlights critical masterpieces or obscure regional folklore hand-picked for the reader.
 - **Trending Writers Carousel:** Horizontal scroll showcasing historical scribes and modern community writers with calculated ratings and story counts.
 - **Genre Categorization:** Dedicated genre hubs (Folklore, Mythology, Gothic, Classic Fiction, Classic Mystery) with reader metrics and rich descriptions.
-- **Full-Text Live Search:** Real-time query matching filtering simultaneously across story titles, author names, and synopses with zero lag.
+- **Full-Text Live Search:** Real-time query matching filtering simultaneously across story titles, author names, and synopses with independent provider query dispatch and zero lag.
 
 ### 2.2 The Ambient Reader Experience (`ReaderView.swift`)
 - **Physical Book Pagination:** Rather than an endless vertical web-scroll, manuscripts are algorithmically divided into numbered physical book pages (`PacingEngine.swift`).
+- **On-Demand Chapter Hydration:** Catalog metadata remains lightweight; full multi-chapter content is fetched on demand from `/api/v1/public/gutenberg/{id}/chapters` or `/api/v1/public/standard-ebooks/chapters?book_id={slug}` and cached locally for offline continuity.
 - **3 Meditative Themes:**
   - *Parchment (Default):* Warm sepia and cream tones inspired by antique paper.
   - *Noir:* Pure OLED black background with muted ivory text to prevent eye strain in dark rooms.
@@ -55,6 +63,10 @@ Fable delivers a comprehensive literary ecosystem spanning discovery, deep readi
 - **Saved Bookmarks & Completed Archive:** Dedicated tabs separating in-progress readings from finished literature.
 - **Excerpted Quote Journal:** Interactive card deck displaying user highlights annotated during reading, complete with story attribution.
 - **Reader Analytics:** Live SwiftData-backed tracking of reading streaks (consecutive days), total minutes read, and words consumed.
+
+### 2.5 Architectural Resilience & Fault Isolation
+- **Independent Provider Ingestion:** `StoryStore` dispatches catalog queries to Project Gutenberg and Standard Ebooks independently. If an upstream provider fails or times out, the client displays an informative inline badge without crashing or hiding results from healthy providers.
+- **Offline Determinism:** Previously hydrated stories and chapters remain 100% accessible in local storage even when completely disconnected from the network.
 
 ---
 
@@ -109,11 +121,11 @@ flowchart TD
 ### 3.4 Journey 4: Writing & Publishing a Community Story
 ```mermaid
 flowchart TD
-    A[Navigate to Write Tab] --> B[Enter Title, Genre, Synopsis, Content]
-    B --> C[PacingEngine updates live word count & read time]
+    A[Navigate to Write Tab] --> B["Enter Title, Genre, Synopsis, Content"]
+    B --> C["PacingEngine updates live word count & read time"]
     C --> D{Is Title & Content non-empty?}
     D -- No --> E[Publish Button Disabled]
-    D -- Yes --> F[Tap 'Publish Story']
+    D -- Yes --> F["Tap 'Publish Story'"]
     F --> G[StoryStore creates new Story model]
     G --> H[Saved to SwiftData & Appended to Library]
     H --> I[Success Sheet: Story published to Shelf]
@@ -121,6 +133,23 @@ flowchart TD
 
 ---
 
+### 3.5 Journey 5: Federated Source Discovery, Edition Selection, and Fault-Tolerant Hydration
+```mermaid
+flowchart TD
+    A["Search Query: 'Frankenstein'"] --> B["Dispatch Async Queries"]
+    B --> C["GET /api/v1/public/gutenberg?search=Frankenstein"]
+    B --> D["GET /api/v1/public/standard-ebooks?search=Frankenstein"]
+    C --> E["Results: Gutenberg 1831 Edition (Plain-Text Source)"]
+    D --> F["Results: Standard Ebooks 1818 Edition (Semantic XHTML Source)"]
+    E & F --> G["Unified Search Feed with Distinct Provider Badges"]
+    G --> H["User Selects Standard Ebooks Edition"]
+    H --> I["GET /api/v1/public/standard-ebooks/chapters?book_id=mary-shelley_frankenstein"]
+    I --> J["Backend Parses XHTML Sections & Returns Chapters"]
+    J --> K["ReaderView Opens at Chapter 1 • Local Cache Populated"]
+```
+
+---
+
 ## 4. Defense Talking Point: "What Makes Fable's User Experience Unique?"
 
-> *"Fable is not simply an e-reader; it is an ambient reading sanctuary. Where commercial reading apps bombard the user with paywalls, social feeds, and ads, Fable strips away digital distractions. By integrating real-time physical page turning, an on-device oral speech synthesizer that breathes life into traditional folklore, and an academic marginalia quote deck, Fable elevates reading into a focused, reflective, and scholarship-grade experience."*
+> *"Fable is not simply an e-reader; it is an ambient reading sanctuary. Where commercial reading apps bombard the user with paywalls, social feeds, and ads, Fable strips away digital distractions. By integrating real-time physical page turning, an on-device oral speech synthesizer that breathes life into traditional folklore, an academic marginalia quote deck, and a federated public-domain literature catalog uniting Project Gutenberg and Standard Ebooks, Fable elevates reading into a focused, reflective, and scholarship-grade experience."*
