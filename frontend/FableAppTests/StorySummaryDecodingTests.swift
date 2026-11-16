@@ -337,4 +337,44 @@ final class StorySummaryDecodingTests: XCTestCase {
 
         XCTAssertEqual(staleIDs, [staleUnengagedId])
     }
+
+    @MainActor
+    func testSameTitleEditionsAcrossProvidersStayDistinctInPersistence() {
+        let service = PersistenceService(isStoredInMemoryOnly: true)
+        let gutenbergId = UUID(uuidString: "00000000-0000-0000-0000-000000000159")!
+        let standardEbooksId = UUID(uuidString: "4E39AB55-D25A-52A0-AD55-832F2FC8DA8E")!
+
+        let gutenbergEdition = Story(
+            id: gutenbergId,
+            title: "Dracula",
+            author: "Bram Stoker",
+            genre: "Gothic",
+            excerpt: "Gutenberg plain text edition.",
+            readingTimeMinutes: 650,
+            sourceProvider: .gutenberg,
+            providerId: "345"
+        )
+        let standardEbooksEdition = Story(
+            id: standardEbooksId,
+            title: "Dracula",
+            author: "Bram Stoker",
+            genre: "Horror",
+            excerpt: "Standard Ebooks typography edition.",
+            readingTimeMinutes: 700,
+            sourceProvider: .standardEbooks,
+            providerId: "bram-stoker/dracula"
+        )
+
+        service.saveStory(gutenbergEdition)
+        service.saveStory(standardEbooksEdition)
+
+        let restoredGutenberg = service.fetchStory(id: gutenbergId)
+        let restoredStandardEbooks = service.fetchStory(id: standardEbooksId)
+
+        XCTAssertEqual(restoredGutenberg?.sourceProvider, .gutenberg)
+        XCTAssertEqual(restoredGutenberg?.providerId, "345")
+        XCTAssertEqual(restoredStandardEbooks?.sourceProvider, .standardEbooks)
+        XCTAssertEqual(restoredStandardEbooks?.providerId, "bram-stoker/dracula")
+        XCTAssertNotEqual(restoredGutenberg?.id, restoredStandardEbooks?.id)
+    }
 }
