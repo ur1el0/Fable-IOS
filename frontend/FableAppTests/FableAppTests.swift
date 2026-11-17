@@ -103,12 +103,19 @@ final class FableAppTests: XCTestCase {
 
         let defaults = UserDefaults.standard
         let original = defaults.string(forKey: AppAppearance.storageKey)
+        let originalReaderTheme = defaults.string(forKey: "fable_pref_reader_theme")
         defer {
             if let original {
                 defaults.set(original, forKey: AppAppearance.storageKey)
             } else {
                 defaults.removeObject(forKey: AppAppearance.storageKey)
             }
+            if let originalReaderTheme {
+                defaults.set(originalReaderTheme, forKey: "fable_pref_reader_theme")
+            } else {
+                defaults.removeObject(forKey: "fable_pref_reader_theme")
+            }
+            AppAppearance.system.applyToWindows()
         }
 
         let store = StoryStore()
@@ -120,6 +127,138 @@ final class FableAppTests: XCTestCase {
 
         reloaded.appAppearance = .system
         XCTAssertEqual(defaults.string(forKey: AppAppearance.storageKey), AppAppearance.system.rawValue)
+    }
+
+    @MainActor
+    func testAppAppearanceUIUserInterfaceStyleAndWindowSync() {
+        XCTAssertEqual(AppAppearance.system.userInterfaceStyle, .unspecified)
+        XCTAssertEqual(AppAppearance.light.userInterfaceStyle, .light)
+        XCTAssertEqual(AppAppearance.dark.userInterfaceStyle, .dark)
+
+        defer { AppAppearance.system.applyToWindows() }
+
+        let connectedWindows = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows)
+
+        for appearance in AppAppearance.allCases {
+            appearance.applyToWindows()
+            for window in connectedWindows {
+                XCTAssertEqual(window.overrideUserInterfaceStyle, appearance.userInterfaceStyle)
+                if let root = window.rootViewController {
+                    XCTAssertEqual(root.overrideUserInterfaceStyle, appearance.userInterfaceStyle)
+                }
+            }
+        }
+    }
+
+    @MainActor
+    func testAppAppearanceSyncsReaderThemeAndPreservesManualChoiceOnLoad() {
+        let defaults = UserDefaults.standard
+        let originalAppearance = defaults.string(forKey: AppAppearance.storageKey)
+        let originalReaderTheme = defaults.string(forKey: "fable_pref_reader_theme")
+        defer {
+            if let originalAppearance {
+                defaults.set(originalAppearance, forKey: AppAppearance.storageKey)
+            } else {
+                defaults.removeObject(forKey: AppAppearance.storageKey)
+            }
+            if let originalReaderTheme {
+                defaults.set(originalReaderTheme, forKey: "fable_pref_reader_theme")
+            } else {
+                defaults.removeObject(forKey: "fable_pref_reader_theme")
+            }
+            AppAppearance.system.applyToWindows()
+        }
+
+        defaults.removeObject(forKey: AppAppearance.storageKey)
+        defaults.removeObject(forKey: "fable_pref_reader_theme")
+
+        let store = StoryStore()
+        store.appAppearance = .dark
+        XCTAssertTrue(store.readerTheme.isDark)
+        XCTAssertEqual(store.readerTheme, .midnight)
+
+        store.readerTheme = .oled
+        XCTAssertEqual(store.readerTheme, .oled)
+
+        store.appAppearance = .light
+        XCTAssertFalse(store.readerTheme.isDark)
+        XCTAssertEqual(store.readerTheme, .sepia)
+
+        // Manual ReaderTheme override stays intact across reloads
+        store.appAppearance = .dark
+        store.readerTheme = .paper
+        let reloaded = StoryStore()
+        XCTAssertEqual(reloaded.appAppearance, .dark)
+        XCTAssertEqual(reloaded.readerTheme, .paper)
+    }
+
+    @MainActor
+    func testReaderFontDesignsSpacingAndScaleToggles() {
+        let defaults = UserDefaults.standard
+        let originalFont = defaults.string(forKey: "fable_pref_reader_font")
+        let originalSize = defaults.object(forKey: "fable_pref_reader_font_size")
+        let originalSpacing = defaults.string(forKey: "fable_pref_reader_line_spacing")
+        defer {
+            if let originalFont {
+                defaults.set(originalFont, forKey: "fable_pref_reader_font")
+            } else {
+                defaults.removeObject(forKey: "fable_pref_reader_font")
+            }
+            if let originalSize {
+                defaults.set(originalSize, forKey: "fable_pref_reader_font_size")
+            } else {
+                defaults.removeObject(forKey: "fable_pref_reader_font_size")
+            }
+            if let originalSpacing {
+                defaults.set(originalSpacing, forKey: "fable_pref_reader_line_spacing")
+            } else {
+                defaults.removeObject(forKey: "fable_pref_reader_line_spacing")
+            }
+        }
+
+        XCTAssertEqual(ReaderFont.serif.design, .serif)
+        XCTAssertEqual(ReaderFont.sans.design, .default)
+        XCTAssertEqual(ReaderFont.rounded.design, .rounded)
+        XCTAssertEqual(ReaderFont.mono.design, .monospaced)
+
+        XCTAssertLessThan(ReaderLineSpacing.compact.points, ReaderLineSpacing.normal.points)
+        XCTAssertLessThan(ReaderLineSpacing.normal.points, ReaderLineSpacing.spacious.points)
+
+        let store = StoryStore()
+        store.readerFont = .mono
+        store.readerFontSize = 135.0
+        store.readerLineSpacing = .spacious
+
+        let reloaded = StoryStore()
+        XCTAssertEqual(reloaded.readerFont, .mono)
+        XCTAssertEqual(reloaded.readerFontSize, 135.0)
+        XCTAssertEqual(reloaded.readerLineSpacing, .spacious)
+
+        let compactWidth = renderedReaderTextSize(scale: 0.8, dynamicTypeSize: .large).width
+        let standardWidth = renderedReaderTextSize(scale: 1.0, dynamicTypeSize: .large).width
+        let enlargedWidth = renderedReaderTextSize(scale: 1.5, dynamicTypeSize: .large).width
+        XCTAssertLessThan(compactWidth, standardWidth)
+        XCTAssertLessThan(standardWidth, enlargedWidth)
+
+        let serifNarrowWidth = renderedSampleWidth(text: "iiiiiiiiii", design: .serif, respectReaderFont: false)
+        let monoWideWidth = renderedSampleWidth(text: "iiiiiiiiii", design: .monospaced, respectReaderFont: false)
+        XCTAssertGreaterThan(monoWideWidth, serifNarrowWidth)
+
+        let readerFontAppliedWidth = renderedSampleWidth(text: "iiiiiiiiii", design: .serif, respectReaderFont: true)
+        XCTAssertGreaterThan(readerFontAppliedWidth, serifNarrowWidth)
+    }
+
+    @MainActor
+    private func renderedSampleWidth(text: String, design: Font.Design, respectReaderFont: Bool) -> CGFloat {
+        let view = Text(text)
+            .fableFont(size: 17, design: design, relativeTo: .body, respectReaderFont: respectReaderFont)
+            .fixedSize()
+            .environment(\.dynamicTypeSize, .large)
+        return UIHostingController(rootView: view)
+            .sizeThatFits(in: CGSize(width: 2000, height: 2000))
+            .width
     }
 
     @MainActor
