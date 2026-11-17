@@ -6,6 +6,16 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXContainerItemProxy section */
+		A10000060000000000000006 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 83D429183059253E000C5567 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 83D4291F3059253E000C5567;
+			remoteInfo = FableApp;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		83D429203059253E000C5567 /* FableApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FableApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A10000010000000000000001 /* FableAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FableAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -61,24 +71,6 @@
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
-
-/* Begin PBXContainerItemProxy section */
-		A10000060000000000000006 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 83D429183059253E000C5567 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 83D4291F3059253E000C5567;
-			remoteInfo = FableApp;
-		};
-/* End PBXContainerItemProxy section */
-
-/* Begin PBXTargetDependency section */
-		A10000070000000000000007 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 83D4291F3059253E000C5567 /* FableApp */;
-			targetProxy = A10000060000000000000006 /* PBXContainerItemProxy */;
-		};
-/* End PBXTargetDependency section */
 
 /* Begin PBXNativeTarget section */
 		83D4291F3059253E000C5567 /* FableApp */ = {
@@ -183,23 +175,6 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
-/* Begin PBXSourcesBuildPhase section */
-		83D4291C3059253E000C5567 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		A10000030000000000000003 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXSourcesBuildPhase section */
-
 /* Begin PBXShellScriptBuildPhase section */
 		A100000C000000000000000C /* Validate Release API URL */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -218,6 +193,31 @@
 			shellScript = "if [ \"$CONFIGURATION\" = \"Release\" ]; then\n  CONFIGURATION=\"$CONFIGURATION\" FABLE_API_BASE_URL=\"$FABLE_API_BASE_URL\" \"$SCRIPT_INPUT_FILE_0\"\nfi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		83D4291C3059253E000C5567 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A10000030000000000000003 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		A10000070000000000000007 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 83D4291F3059253E000C5567 /* FableApp */;
+			targetProxy = A10000060000000000000006 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		83D429293059253F000C5567 /* Debug */ = {
@@ -346,6 +346,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 9VQCMTR4F8;
 				ENABLE_PREVIEWS = YES;
 				FABLE_API_BASE_URL = "http://127.0.0.1:8001/api/v1";
 				GENERATE_INFOPLIST_FILE = YES;
@@ -363,7 +364,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = mseuf.edu.ph.FableApp;
+				PRODUCT_BUNDLE_IDENTIFIER = com.roosc.FableApp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -382,8 +383,9 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 9VQCMTR4F8;
 				ENABLE_PREVIEWS = YES;
-				FABLE_API_BASE_URL = "";
+				FABLE_API_BASE_URL = "https://fable-api-cbo8.onrender.com/api/v1";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "FableApp-Info.plist";
 				INFOPLIST_KEY_FABLE_API_BASE_URL = "$(FABLE_API_BASE_URL)";
@@ -399,7 +401,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = mseuf.edu.ph.FableApp;
+				PRODUCT_BUNDLE_IDENTIFIER = com.roosc.FableApp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
