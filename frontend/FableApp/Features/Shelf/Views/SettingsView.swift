@@ -128,43 +128,182 @@ public struct SettingsView: View {
                                     .padding(.leading, 8)
                                 
                                 VStack(spacing: 0) {
-                                    // Default Reader Font Picker Menu
-                                    HStack(spacing: 14) {
-                                        Image(systemName: "character.textbox")
-                                            .fableFont(size: 16)
-                                            .foregroundColor(FableTheme.textPrimary)
-                                            .frame(width: 32, height: 32)
-                                            .background(FableTheme.surface)
-                                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                                        
-                                        Text("Reader Font")
-                                            .fableFont(size: 15, weight: .medium)
-                                            .foregroundColor(FableTheme.textPrimary)
-                                        
-                                        Spacer()
-                                        
-                                        Menu {
-                                            ForEach(ReaderFont.allCases) { font in
-                                                Button(action: {
-                                                    store.readerFont = font
-                                                }) {
-                                                    Text(font.displayName)
+                                    // Reader Font Picker + Segmented Toggle
+                                    VStack(alignment: .leading, spacing: 12) {
+                                        HStack(spacing: 14) {
+                                            Image(systemName: "character.textbox")
+                                                .fableFont(size: 16)
+                                                .foregroundColor(FableTheme.textPrimary)
+                                                .frame(width: 32, height: 32)
+                                                .background(FableTheme.surface)
+                                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                                            
+                                            Text("Reader Font")
+                                                .fableFont(size: 15, weight: .medium)
+                                                .foregroundColor(FableTheme.textPrimary)
+                                            
+                                            Spacer()
+                                            
+                                            Menu {
+                                                ForEach(ReaderFont.allCases) { font in
+                                                    Button(action: {
+                                                        store.readerFont = font
+                                                    }) {
+                                                        Text(font.displayName)
+                                                    }
+                                                }
+                                            } label: {
+                                                HStack(spacing: 4) {
+                                                    Text(store.readerFont.displayName)
+                                                        .fableFont(size: 14, design: store.readerFont.design)
+                                                        .foregroundColor(FableTheme.textMuted)
+                                                    Image(systemName: "chevron.up.chevron.down")
+                                                        .fableFont(size: 11)
+                                                        .foregroundColor(FableTheme.textMuted.opacity(0.6))
                                                 }
                                             }
-                                        } label: {
-                                            HStack(spacing: 4) {
-                                                Text(store.readerFont.displayName)
-                                                    .fableFont(size: 14)
-                                                    .foregroundColor(FableTheme.textMuted)
-                                                Image(systemName: "chevron.up.chevron.down")
-                                                    .fableFont(size: 11)
-                                                    .foregroundColor(Color.gray.opacity(0.4))
+                                        }
+
+                                        HStack(spacing: 4) {
+                                            ForEach(ReaderFont.allCases) { font in
+                                                Button(action: {
+                                                    FableHaptics.selection()
+                                                    store.readerFont = font
+                                                }) {
+                                                    Text(font.rawValue)
+                                                        .fableFont(
+                                                            size: 13,
+                                                            weight: store.readerFont == font ? .semibold : .regular,
+                                                            design: font.design,
+                                                            respectReaderFont: false
+                                                        )
+                                                        .frame(maxWidth: .infinity)
+                                                        .padding(.vertical, 8)
+                                                        .background(store.readerFont == font ? FableTheme.cardBackground : Color.clear)
+                                                        .foregroundColor(store.readerFont == font ? FableTheme.textPrimary : FableTheme.textMuted)
+                                                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                                                        .shadow(color: store.readerFont == font ? Color.black.opacity(0.08) : Color.clear, radius: 3, y: 1)
+                                                }
+                                                .buttonStyle(.plain)
                                             }
                                         }
+                                        .padding(4)
+                                        .background(FableTheme.surfaceVariant)
+                                        .clipShape(RoundedRectangle(cornerRadius: 10))
                                     }
                                     .padding(.horizontal, 16)
                                     .padding(.vertical, 14)
                                     
+                                    Divider().padding(.leading, 62)
+
+                                    // Text Size Slider
+                                    VStack(alignment: .leading, spacing: 10) {
+                                        HStack(spacing: 14) {
+                                            Image(systemName: "textformat.size")
+                                                .fableFont(size: 16)
+                                                .foregroundColor(FableTheme.textPrimary)
+                                                .frame(width: 32, height: 32)
+                                                .background(FableTheme.surface)
+                                                .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                                            Text("Text Size")
+                                                .fableFont(size: 15, weight: .medium)
+                                                .foregroundColor(FableTheme.textPrimary)
+
+                                            Spacer()
+
+                                            Text("\(Int(store.readerFontSize))%")
+                                                .fableFont(size: 13, weight: .semibold)
+                                                .monospacedDigit()
+                                                .foregroundColor(FableTheme.brandPrimary)
+                                        }
+
+                                        HStack(spacing: 12) {
+                                            Text("A")
+                                                .fableFont(size: 12, weight: .semibold, design: store.readerFont.design)
+                                                .foregroundColor(FableTheme.textMuted)
+
+                                            Slider(value: $store.readerFontSize, in: 80...150, step: 5)
+                                                .tint(FableTheme.brandPrimary)
+                                                .accessibilityLabel("Text Size")
+
+                                            Text("A")
+                                                .fableFont(size: 18, weight: .bold, design: store.readerFont.design)
+                                                .foregroundColor(FableTheme.textPrimary)
+                                        }
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 6)
+                                        .background(FableTheme.surfaceVariant)
+                                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                                    }
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 14)
+
+                                    Divider().padding(.leading, 62)
+
+                                    // Line Spacing Toggle
+                                    VStack(alignment: .leading, spacing: 10) {
+                                        HStack(spacing: 14) {
+                                            Image(systemName: "arrow.up.and.down.text.horizontal")
+                                                .fableFont(size: 16)
+                                                .foregroundColor(FableTheme.textPrimary)
+                                                .frame(width: 32, height: 32)
+                                                .background(FableTheme.surface)
+                                                .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                                            Text("Line Spacing")
+                                                .fableFont(size: 15, weight: .medium)
+                                                .foregroundColor(FableTheme.textPrimary)
+
+                                            Spacer()
+
+                                            Text(store.readerLineSpacing.rawValue)
+                                                .fableFont(size: 13, weight: .medium)
+                                                .foregroundColor(FableTheme.textMuted)
+                                        }
+
+                                        Picker("Line Spacing", selection: $store.readerLineSpacing) {
+                                            ForEach(ReaderLineSpacing.allCases) { spacing in
+                                                Text(spacing.rawValue).tag(spacing)
+                                            }
+                                        }
+                                        .pickerStyle(.segmented)
+                                        .accessibilityLabel("Line Spacing")
+                                    }
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 14)
+
+                                    Divider().padding(.leading, 62)
+
+                                    // Live Reading Typography Preview
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        Text("PREVIEW")
+                                            .fableFont(size: 10, weight: .bold)
+                                            .tracking(1.0)
+                                            .foregroundColor(store.readerTheme.textColor.opacity(0.65))
+
+                                        Text("Stories come alive when typography and contrast match your environment.")
+                                            .fableFont(
+                                                size: 14,
+                                                scale: max(12.0 / 14.0, CGFloat(store.readerFontSize / 100.0)),
+                                                design: store.readerFont.design,
+                                                relativeTo: .body
+                                            )
+                                            .lineSpacing(store.readerLineSpacing.points)
+                                            .foregroundColor(store.readerTheme.textColor)
+                                            .fixedSize(horizontal: false, vertical: true)
+                                    }
+                                    .padding(14)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .background(store.readerTheme.backgroundColor)
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(FableTheme.divider, lineWidth: 0.8)
+                                    )
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 12)
+
                                     Divider().padding(.leading, 62)
                                     
                                     // Default Theme Picker Menu
@@ -195,12 +334,16 @@ public struct SettingsView: View {
                                                 Circle()
                                                     .fill(store.readerTheme.swatchColor)
                                                     .frame(width: 14, height: 14)
+                                                    .overlay(
+                                                        Circle()
+                                                            .stroke(FableTheme.divider, lineWidth: 0.8)
+                                                    )
                                                 Text(store.readerTheme.rawValue)
                                                     .fableFont(size: 14)
                                                     .foregroundColor(FableTheme.textMuted)
                                                 Image(systemName: "chevron.up.chevron.down")
                                                     .fableFont(size: 11)
-                                                    .foregroundColor(Color.gray.opacity(0.4))
+                                                    .foregroundColor(FableTheme.textMuted.opacity(0.6))
                                             }
                                         }
                                     }
@@ -486,13 +629,22 @@ public struct SettingsView: View {
             .sheet(isPresented: $navigateToProfile) {
                 ProfileView()
                     .environmentObject(store)
+                    .preferredColorScheme(store.appAppearance.colorScheme)
             }
             .sheet(isPresented: $isShowingDiagnostics) {
                 SystemDiagnosticsSheet()
+                    .preferredColorScheme(store.appAppearance.colorScheme)
             }
             .task {
                 imageCacheSizeInBytes = await DiskImageCache.shared.diskUsageInBytes()
             }
+        }
+        .preferredColorScheme(store.appAppearance.colorScheme)
+        .onAppear {
+            store.appAppearance.applyToWindows()
+        }
+        .onChange(of: store.appAppearance) { _, newAppearance in
+            newAppearance.applyToWindows()
         }
     }
 }

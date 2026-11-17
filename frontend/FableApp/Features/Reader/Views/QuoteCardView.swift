@@ -28,6 +28,10 @@ public struct QuoteCardView: View {
     }
 
     public var body: some View {
+        let primaryInk = Color(red: 0.07, green: 0.09, blue: 0.13)
+        let secondaryInk = Color(red: 0.30, green: 0.35, blue: 0.43)
+        let mutedInk = Color(red: 0.353, green: 0.392, blue: 0.455)
+
         VStack(alignment: .leading, spacing: 18) {
             // Header: Fable Reads Branding & Chapter Tag
             HStack(alignment: .center) {
@@ -39,7 +43,7 @@ public struct QuoteCardView: View {
                     Text("FABLE READS")
                         .fableFont(size: 10, weight: .heavy)
                         .tracking(1.4)
-                        .foregroundColor(FableTheme.subtleSlate)
+                        .foregroundColor(mutedInk)
                 }
 
                 Spacer()
@@ -48,10 +52,10 @@ public struct QuoteCardView: View {
                     Text("CHAPTER \(chap)")
                         .fableFont(size: 10, weight: .bold)
                         .tracking(1.0)
-                        .foregroundColor(FableTheme.subtleSlate)
+                        .foregroundColor(mutedInk)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
-                        .background(Color.black.opacity(0.04))
+                        .background(Color.black.opacity(0.05))
                         .clipShape(Capsule())
                 }
             }
@@ -62,7 +66,7 @@ public struct QuoteCardView: View {
                     .fableFont(size: 17, weight: .medium, design: .serif)
                     .italic()
                     .lineSpacing(5)
-                    .foregroundColor(FableTheme.deepCharcoal)
+                    .foregroundColor(primaryInk)
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -82,7 +86,7 @@ public struct QuoteCardView: View {
 
                     Text(note)
                         .fableFont(size: 12, weight: .regular)
-                        .foregroundColor(FableTheme.textSecondary)
+                        .foregroundColor(secondaryInk)
                         .italic()
                 }
                 .padding(10)
@@ -92,19 +96,19 @@ public struct QuoteCardView: View {
             }
 
             Divider()
-                .background(FableTheme.divider)
+                .background(Color(red: 0.89, green: 0.91, blue: 0.93))
 
             // Footer: Story Title, Author, and App Mark
             HStack(alignment: .bottom) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(storyTitle)
                         .fableFont(size: 14, weight: .bold, design: .serif)
-                        .foregroundColor(FableTheme.deepCharcoal)
+                        .foregroundColor(primaryInk)
                         .lineLimit(2)
 
                     Text("— \(storyAuthor)")
                         .fableFont(size: 12, weight: .medium)
-                        .foregroundColor(FableTheme.textMuted)
+                        .foregroundColor(mutedInk)
                 }
 
                 Spacer()
@@ -168,6 +172,7 @@ public struct QuoteCardShareSheet: View {
     public let note: String?
     public let highlightColor: HighlightColor
 
+    @AppStorage(AppAppearance.storageKey) private var appAppearanceRaw: String = AppAppearance.system.rawValue
     @Environment(\.dismiss) private var dismiss
     @State private var renderedImage: UIImage?
     @State private var hasSavedToPhotos: Bool = false
@@ -240,8 +245,8 @@ public struct QuoteCardShareSheet: View {
                             }
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 12)
-                            .background(Color.gray.opacity(0.1))
-                            .foregroundColor(FableTheme.deepCharcoal)
+                            .background(FableTheme.surfaceVariant)
+                            .foregroundColor(FableTheme.textPrimary)
                             .clipShape(RoundedRectangle(cornerRadius: 12))
                         }
                     } else {
@@ -252,7 +257,7 @@ public struct QuoteCardShareSheet: View {
                 .padding(.horizontal, 24)
                 .padding(.bottom, 24)
             }
-            .background(Color(red: 0.95, green: 0.94, blue: 0.93).ignoresSafeArea())
+            .background(FableTheme.background.ignoresSafeArea())
             .navigationTitle("Quote Card")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -279,6 +284,7 @@ public struct QuoteCardShareSheet: View {
                 Text("Your quote card has been saved to your Photos library.")
             }
         }
+        .preferredColorScheme((AppAppearance(rawValue: appAppearanceRaw) ?? .system).colorScheme)
     }
 }
 #endif

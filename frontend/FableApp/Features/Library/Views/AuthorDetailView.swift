@@ -176,12 +176,15 @@ public struct AuthorDetailView: View {
                 if currentStory.contentFormat == .manga || currentStory.sourceProvider == .mangadex {
                     MangaReaderView(story: currentStory)
                         .environmentObject(store)
+                        .preferredColorScheme(store.appAppearance.colorScheme)
                 } else {
                     ReaderView(story: currentStory)
                         .environmentObject(store)
+                        .preferredColorScheme(store.appAppearance.colorScheme)
                 }
             }
         }
+        .preferredColorScheme(store.appAppearance.colorScheme)
     }
 }
 

@@ -545,18 +545,22 @@ public struct ShelfView: View {
                 if currentStory.contentFormat == .manga || currentStory.sourceProvider == .mangadex {
                     MangaReaderView(story: currentStory)
                         .environmentObject(store)
+                        .preferredColorScheme(store.appAppearance.colorScheme)
                 } else {
                     ReaderView(story: currentStory, initialTargetAnnotation: selectedQuoteTarget)
                         .environmentObject(store)
+                        .preferredColorScheme(store.appAppearance.colorScheme)
                 }
             }
             .sheet(isPresented: $isShowingSettingsSheet) {
                 SettingsView()
                     .environmentObject(store)
+                    .preferredColorScheme(store.appAppearance.colorScheme)
             }
             .sheet(isPresented: $isShowingProfileSheet) {
                 ProfileView()
                     .environmentObject(store)
+                    .preferredColorScheme(store.appAppearance.colorScheme)
             }
             .onChange(of: store.tourShelfTab) { _, newValue in
                 withAnimation(.easeInOut(duration: 0.25)) {

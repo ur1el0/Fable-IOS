@@ -1,6 +1,7 @@
 import SwiftUI
 
 public struct SystemDiagnosticsSheet: View {
+    @AppStorage(AppAppearance.storageKey) private var appAppearanceRaw: String = AppAppearance.system.rawValue
     @Environment(\.dismiss) var dismiss
     @State private var passed: Int = 0
     @State private var total: Int = 0
@@ -134,6 +135,7 @@ public struct SystemDiagnosticsSheet: View {
                 runDiagnostics()
             }
         }
+        .preferredColorScheme((AppAppearance(rawValue: appAppearanceRaw) ?? .system).colorScheme)
     }
 
     private func runDiagnostics() {

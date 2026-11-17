@@ -73,6 +73,12 @@ struct ContentView: View {
             store.sessionDidChange()
         }
         .preferredColorScheme(store.appAppearance.colorScheme)
+        .onAppear {
+            store.appAppearance.applyToWindows()
+        }
+        .onChange(of: store.appAppearance) { _, newAppearance in
+            newAppearance.applyToWindows()
+        }
         .environmentObject(store)
     }
 

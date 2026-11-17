@@ -2,6 +2,7 @@ import SwiftUI
 import AVFoundation
 
 public struct VoiceSelectionSheet: View {
+    @AppStorage(AppAppearance.storageKey) private var appAppearanceRaw: String = AppAppearance.system.rawValue
     @ObservedObject var narrator = AudioNarratorController.shared
     @Environment(\.dismiss) var dismiss
     
@@ -9,55 +10,60 @@ public struct VoiceSelectionSheet: View {
     
     public var body: some View {
         NavigationStack {
-            List {
-                Section {
-                    ForEach(narrator.availableVoices, id: \.identifier) { voice in
-                        Button(action: {
-                            narrator.setVoice(identifier: voice.identifier)
-                        }) {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 3) {
-                                    HStack(spacing: 6) {
-                                        Text(voice.name)
-                                            .fableFont(size: 15, weight: isSelected(voice) ? .bold : .medium)
-                                            .foregroundColor(isSelected(voice) ? FableTheme.brandPrimary : FableTheme.textPrimary)
-                                        
-                                        if voice.quality == .enhanced || voice.quality == .premium {
-                                            Text("HD")
-                                                .fableFont(size: 9, weight: .bold)
-                                                .padding(.horizontal, 4)
-                                                .padding(.vertical, 1)
-                                                .background(FableTheme.brandPrimary.opacity(0.12))
-                                                .foregroundColor(FableTheme.brandPrimary)
-                                                .clipShape(RoundedRectangle(cornerRadius: 3))
+            ZStack {
+                FableTheme.background.ignoresSafeArea()
+                List {
+                    Section {
+                        ForEach(narrator.availableVoices, id: \.identifier) { voice in
+                            Button(action: {
+                                narrator.setVoice(identifier: voice.identifier)
+                            }) {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        HStack(spacing: 6) {
+                                            Text(voice.name)
+                                                .fableFont(size: 15, weight: isSelected(voice) ? .bold : .medium)
+                                                .foregroundColor(isSelected(voice) ? FableTheme.brandPrimary : FableTheme.textPrimary)
+                                            
+                                            if voice.quality == .enhanced || voice.quality == .premium {
+                                                Text("HD")
+                                                    .fableFont(size: 9, weight: .bold)
+                                                    .padding(.horizontal, 4)
+                                                    .padding(.vertical, 1)
+                                                    .background(FableTheme.brandPrimary.opacity(0.12))
+                                                    .foregroundColor(FableTheme.brandPrimary)
+                                                    .clipShape(RoundedRectangle(cornerRadius: 3))
+                                            }
                                         }
+                                        
+                                        Text("\(regionName(for: voice.language)) • \(voice.language)")
+                                            .fableFont(size: 12)
+                                            .foregroundColor(FableTheme.textMuted)
                                     }
                                     
-                                    Text("\(regionName(for: voice.language)) • \(voice.language)")
-                                        .fableFont(size: 12)
-                                        .foregroundColor(FableTheme.textMuted)
+                                    Spacer()
+                                    
+                                    if isSelected(voice) {
+                                        Image(systemName: "checkmark")
+                                            .fableFont(size: 14, weight: .bold)
+                                            .foregroundColor(FableTheme.brandPrimary)
+                                    }
                                 }
-                                
-                                Spacer()
-                                
-                                if isSelected(voice) {
-                                    Image(systemName: "checkmark")
-                                        .fableFont(size: 14, weight: .bold)
-                                        .foregroundColor(FableTheme.brandPrimary)
-                                }
+                                .padding(.vertical, 4)
                             }
-                            .padding(.vertical, 4)
+                            .listRowBackground(FableTheme.cardBackground)
                         }
+                    } header: {
+                        Text("Available System Voices")
+                            .fableFont(size: 11, weight: .bold)
+                            .foregroundColor(FableTheme.textMuted)
+                    } footer: {
+                        Text("Voice engines are provided by the operating system speech synthesis service.")
+                            .fableFont(size: 11)
+                            .foregroundColor(FableTheme.textMuted)
                     }
-                } header: {
-                    Text("Available System Voices")
-                        .fableFont(size: 11, weight: .bold)
-                        .foregroundColor(FableTheme.textMuted)
-                } footer: {
-                    Text("Voice engines are provided by the operating system speech synthesis service.")
-                        .fableFont(size: 11)
-                        .foregroundColor(FableTheme.textMuted)
                 }
+                .scrollContentBackground(.hidden)
             }
             .navigationTitle("Narrator Voice")
             .navigationBarTitleDisplayMode(.inline)
@@ -72,6 +78,7 @@ public struct VoiceSelectionSheet: View {
             }
         }
         .presentationDetents([.medium, .large])
+        .preferredColorScheme((AppAppearance(rawValue: appAppearanceRaw) ?? .system).colorScheme)
     }
     
     private func isSelected(_ voice: AVSpeechSynthesisVoice) -> Bool {

@@ -1,26 +1,55 @@
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#endif
 
 private struct FableScaledFontModifier: ViewModifier {
-    @ScaledMetric private var scaledSize: CGFloat
+    @AppStorage("fable_pref_reader_font") private var readerFontRaw: String = ReaderFont.serif.rawValue
+    @ScaledMetric private var scaledReference: CGFloat
+    private let size: CGFloat
     private let scale: CGFloat
     private let weight: Font.Weight
     private let design: Font.Design
+    private let respectReaderFont: Bool
 
     init(
         size: CGFloat,
         scale: CGFloat,
         weight: Font.Weight,
         design: Font.Design,
-        relativeTo textStyle: Font.TextStyle
+        relativeTo textStyle: Font.TextStyle,
+        respectReaderFont: Bool = true
     ) {
+        self.size = size
         self.scale = scale
         self.weight = weight
         self.design = design
-        self._scaledSize = ScaledMetric(wrappedValue: size, relativeTo: textStyle)
+        self.respectReaderFont = respectReaderFont
+        self._scaledReference = ScaledMetric(wrappedValue: 100.0, relativeTo: textStyle)
+    }
+
+    private var effectiveDesign: Font.Design {
+        guard respectReaderFont, design != .monospaced else {
+            return design
+        }
+        let selectedFont = ReaderFont(rawValue: readerFontRaw) ?? .serif
+        if design == .serif {
+            return selectedFont.design
+        }
+        if design == .default {
+            switch selectedFont {
+            case .serif, .sans:
+                return .default
+            case .rounded, .mono:
+                return selectedFont.design
+            }
+        }
+        return design
     }
 
     func body(content: Content) -> some View {
-        content.font(.system(size: scaledSize * scale, weight: weight, design: design))
+        let resolvedSize = size * (scaledReference / 100.0) * scale
+        content.font(.system(size: resolvedSize, weight: weight, design: effectiveDesign))
     }
 }
 
@@ -30,14 +59,16 @@ public extension View {
         scale: CGFloat = 1,
         weight: Font.Weight = .regular,
         design: Font.Design = .default,
-        relativeTo textStyle: Font.TextStyle = .body
+        relativeTo textStyle: Font.TextStyle = .body,
+        respectReaderFont: Bool = true
     ) -> some View {
         modifier(FableScaledFontModifier(
             size: size,
             scale: scale,
             weight: weight,
             design: design,
-            relativeTo: textStyle
+            relativeTo: textStyle,
+            respectReaderFont: respectReaderFont
         ))
     }
 }
@@ -68,6 +99,40 @@ public enum AppAppearance: String, CaseIterable, Identifiable, Codable, Sendable
         case .dark: return .dark
         }
     }
+
+    #if canImport(UIKit)
+    public var userInterfaceStyle: UIUserInterfaceStyle {
+        switch self {
+        case .system: return .unspecified
+        case .light: return .light
+        case .dark: return .dark
+        }
+    }
+
+    @MainActor
+    public func applyToWindows() {
+        let style = userInterfaceStyle
+        for scene in UIApplication.shared.connectedScenes {
+            guard let windowScene = scene as? UIWindowScene else { continue }
+            for window in windowScene.windows {
+                window.overrideUserInterfaceStyle = style
+                applyStyle(style, to: window.rootViewController)
+            }
+        }
+    }
+
+    @MainActor
+    private func applyStyle(_ style: UIUserInterfaceStyle, to viewController: UIViewController?) {
+        var current = viewController
+        while let controller = current {
+            controller.overrideUserInterfaceStyle = style
+            for child in controller.children {
+                applyStyle(style, to: child)
+            }
+            current = controller.presentedViewController
+        }
+    }
+    #endif
 }
 
 public enum FableTheme {
@@ -191,8 +256,6 @@ public struct FableCardStyle: ViewModifier {
 }
 
 #if canImport(UIKit)
-import UIKit
-
 public enum FableHaptics {
     public static func light() {
         let generator = UIImpactFeedbackGenerator(style: .light)

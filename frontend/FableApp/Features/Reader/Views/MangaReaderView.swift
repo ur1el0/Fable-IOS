@@ -635,38 +635,44 @@ public struct MangaReaderView: View {
         }
         .sheet(isPresented: $isShowingChapterSheet) {
             NavigationStack {
-                List(Array(chapters.enumerated()), id: \.element.id) { index, chap in
-                    Button(action: {
-                        currentChapterIndex = index
-                        currentPageIndex = 0
-                        isShowingChapterSheet = false
-                    }) {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(chap.title.isEmpty ? "Chapter \(chap.chapterNumber)" : chap.title)
-                                    .fableFont(size: 15, weight: index == currentChapterIndex ? .bold : .medium)
-                                    .foregroundColor(index == currentChapterIndex ? FableTheme.brandPrimary : FableTheme.textPrimary)
-                                if chap.pageUrls.isEmpty, chap.externalSourceURL != nil {
-                                    Text("Official Release")
-                                        .fableFont(size: 12, weight: .semibold)
+                ZStack {
+                    FableTheme.background.ignoresSafeArea()
+                    List(Array(chapters.enumerated()), id: \.element.id) { index, chap in
+                        Button(action: {
+                            currentChapterIndex = index
+                            currentPageIndex = 0
+                            isShowingChapterSheet = false
+                        }) {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(chap.title.isEmpty ? "Chapter \(chap.chapterNumber)" : chap.title)
+                                        .fableFont(size: 15, weight: index == currentChapterIndex ? .bold : .medium)
+                                        .foregroundColor(index == currentChapterIndex ? FableTheme.brandPrimary : FableTheme.textPrimary)
+                                    if chap.pageUrls.isEmpty, chap.externalSourceURL != nil {
+                                        Text("Official Release")
+                                            .fableFont(size: 12, weight: .semibold)
+                                            .foregroundColor(FableTheme.brandPrimary)
+                                    } else {
+                                        Text("\(chap.pageUrls.count) panels")
+                                            .fableFont(size: 12)
+                                            .foregroundColor(FableTheme.textMuted)
+                                    }
+                                }
+                                Spacer()
+                                if index == currentChapterIndex {
+                                    Image(systemName: "checkmark")
                                         .foregroundColor(FableTheme.brandPrimary)
-                                } else {
-                                    Text("\(chap.pageUrls.count) panels")
-                                        .fableFont(size: 12)
-                                        .foregroundColor(FableTheme.textMuted)
                                 }
                             }
-                            Spacer()
-                            if index == currentChapterIndex {
-                                Image(systemName: "checkmark")
-                                    .foregroundColor(FableTheme.brandPrimary)
-                            }
                         }
+                        .listRowBackground(FableTheme.cardBackground)
                     }
+                    .scrollContentBackground(.hidden)
                 }
                 .navigationTitle("Chapters")
                 .navigationBarTitleDisplayMode(.inline)
             }
+            .preferredColorScheme(store.appAppearance.colorScheme)
         }
     }
 

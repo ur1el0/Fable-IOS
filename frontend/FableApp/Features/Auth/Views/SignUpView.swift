@@ -2,6 +2,7 @@ import SwiftUI
 import UIKit
 
 public struct SignUpView: View {
+    @AppStorage(AppAppearance.storageKey) private var appAppearanceRaw: String = AppAppearance.system.rawValue
     @ObservedObject var authVM: AuthViewModel
     var onNavigateToLogin: (() -> Void)?
     @Environment(\.dismiss) var dismiss
@@ -66,6 +67,7 @@ public struct SignUpView: View {
                 }
             }
         }
+        .preferredColorScheme((AppAppearance(rawValue: appAppearanceRaw) ?? .system).colorScheme)
     }
 
     // MARK: - Subviews

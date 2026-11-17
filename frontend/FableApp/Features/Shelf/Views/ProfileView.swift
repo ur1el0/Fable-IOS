@@ -499,10 +499,12 @@ public struct ProfileView: View {
             .fullScreenCover(item: $selectedStoryToRead) { story in
                 ReaderView(story: story)
                     .environmentObject(store)
+                    .preferredColorScheme(store.appAppearance.colorScheme)
             }
             .sheet(item: $storyToEdit) { story in
                 EditPublishedStorySheet(story: story)
                     .environmentObject(store)
+                    .preferredColorScheme(store.appAppearance.colorScheme)
             }
             .alert(
                 "Delete Published Story?",
@@ -551,11 +553,13 @@ public struct ProfileView: View {
                     self.userAvatar = newAvatar
                     Task { await store.loadMyPublishedStories() }
                 }
+                .preferredColorScheme(store.appAppearance.colorScheme)
             }
             .sheet(isPresented: $isShowingAuthSheet) {
                 NavigationStack {
                     SignInView()
                 }
+                .preferredColorScheme(store.appAppearance.colorScheme)
             }
             .alert(auth.isGuestMode ? "Exit Guest Mode?" : "Sign Out?", isPresented: $isShowingSignOutAlert) {
                 Button(auth.isGuestMode ? "Exit" : "Sign Out", role: .destructive) {
@@ -609,6 +613,7 @@ public struct ProfileView: View {
                 }
             }
         }
+        .preferredColorScheme(store.appAppearance.colorScheme)
     }
 }
 
@@ -656,6 +661,7 @@ public struct ProfileAvatarView: View {
 
 // MARK: - Isolated Edit Profile Sheet
 struct EditProfileSheet: View {
+    @AppStorage(AppAppearance.storageKey) private var appAppearanceRaw: String = AppAppearance.system.rawValue
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var auth = AuthManager.shared
     
@@ -769,6 +775,7 @@ struct EditProfileSheet: View {
             }
         }
         .presentationDetents([.medium, .large])
+        .preferredColorScheme((AppAppearance(rawValue: appAppearanceRaw) ?? .system).colorScheme)
     }
     
     private func saveProfile() {
@@ -919,6 +926,7 @@ private struct EditPublishedStorySheet: View {
                 }
             }
         }
+        .preferredColorScheme(store.appAppearance.colorScheme)
     }
 
     private func saveChanges() {

@@ -434,14 +434,17 @@ public struct ExploreView: View {
                 if currentStory.contentFormat == .manga || currentStory.sourceProvider == .mangadex {
                     MangaReaderView(story: currentStory)
                         .environmentObject(store)
+                        .preferredColorScheme(store.appAppearance.colorScheme)
                 } else {
                     ReaderView(story: currentStory)
                         .environmentObject(store)
+                        .preferredColorScheme(store.appAppearance.colorScheme)
                 }
             }
             .sheet(item: $selectedWriter) { writer in
                 AuthorDetailView(writer: writer)
                     .environmentObject(store)
+                    .preferredColorScheme(store.appAppearance.colorScheme)
             }
             .onChange(of: store.tourExploreFilter) { _, newValue in
                 withAnimation(.easeInOut(duration: 0.25)) {

@@ -566,14 +566,17 @@ public struct LibraryView: View {
                 if currentStory.contentFormat == .manga || currentStory.sourceProvider == .mangadex {
                     MangaReaderView(story: currentStory)
                         .environmentObject(store)
+                        .preferredColorScheme(store.appAppearance.colorScheme)
                 } else {
                     ReaderView(story: currentStory)
                         .environmentObject(store)
+                        .preferredColorScheme(store.appAppearance.colorScheme)
                 }
             }
             .sheet(isPresented: $isShowingProfileSheet) {
                 ProfileView()
                     .environmentObject(store)
+                    .preferredColorScheme(store.appAppearance.colorScheme)
             }
             .onChange(of: store.selectedCategory) { _, newValue in
                 withAnimation(.easeInOut(duration: 0.25)) {

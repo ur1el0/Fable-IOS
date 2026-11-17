@@ -13,7 +13,7 @@ struct DisplayOptionsSheet: View {
         VStack(spacing: 0) {
             // Drag indicator
             Capsule()
-                .fill(Color.gray.opacity(0.3))
+                .fill(FableTheme.textMuted.opacity(0.35))
                 .frame(width: 36, height: 5)
                 .padding(.top, 12)
                 .padding(.bottom, 16)
@@ -40,9 +40,11 @@ struct DisplayOptionsSheet: View {
         }
         .presentationDetents([.fraction(0.88), .large])
         .presentationDragIndicator(.hidden)
-        .background(Color.white)
+        .background(FableTheme.background.ignoresSafeArea())
+        .preferredColorScheme(store.appAppearance.colorScheme)
         .sheet(isPresented: $isShowingVoiceSheet) {
             VoiceSelectionSheet()
+                .preferredColorScheme(store.appAppearance.colorScheme)
         }
     }
 
@@ -75,7 +77,7 @@ struct DisplayOptionsSheet: View {
                     .fableFont(size: 13, weight: .bold)
                     .foregroundColor(FableTheme.subtleSlate)
                     .padding(8)
-                    .background(Color.gray.opacity(0.12))
+                    .background(FableTheme.surfaceVariant)
                     .clipShape(Circle())
             }
             .frame(minWidth: 44, minHeight: 44, alignment: .trailing)
@@ -103,9 +105,10 @@ struct DisplayOptionsSheet: View {
             Text("The old forest whispered tales of forgotten kings and quiet dawn. Every word echoed with timeless wonder.")
                 .fableFont(
                     size: 15,
-                    scale: max(13.0 / 15.0, CGFloat(store.readerFontSize / 100.0)),
+                    scale: max(12.0 / 15.0, CGFloat(store.readerFontSize / 100.0)),
                     design: store.readerFont.design,
-                    relativeTo: .body
+                    relativeTo: .body,
+                    respectReaderFont: false
                 )
                 .lineSpacing(store.readerLineSpacing.points)
                 .foregroundColor(store.readerTheme.textColor)
@@ -146,19 +149,24 @@ struct DisplayOptionsSheet: View {
                         store.readerFont = font
                     }) {
                         Text(font.rawValue)
-                            .font(font.font(size: 13))
-                            .fontWeight(store.readerFont == font ? .semibold : .regular)
+                            .fableFont(
+                                size: 13,
+                                weight: store.readerFont == font ? .semibold : .regular,
+                                design: font.design,
+                                respectReaderFont: false
+                            )
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 10)
-                            .background(store.readerFont == font ? Color.white : Color.clear)
-                            .foregroundColor(store.readerFont == font ? FableTheme.deepCharcoal : FableTheme.subtleSlate)
+                            .background(store.readerFont == font ? FableTheme.cardBackground : Color.clear)
+                            .foregroundColor(store.readerFont == font ? FableTheme.textPrimary : FableTheme.textMuted)
                             .clipShape(RoundedRectangle(cornerRadius: 8))
-                            .shadow(color: store.readerFont == font ? Color.black.opacity(0.06) : Color.clear, radius: 4, y: 1)
+                            .shadow(color: store.readerFont == font ? Color.black.opacity(0.08) : Color.clear, radius: 4, y: 1)
                     }
+                    .buttonStyle(.plain)
                 }
             }
             .padding(4)
-            .background(Color.gray.opacity(0.09))
+            .background(FableTheme.surfaceVariant)
             .clipShape(RoundedRectangle(cornerRadius: 10))
         }
         .padding(.horizontal, 20)
@@ -194,7 +202,7 @@ struct DisplayOptionsSheet: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
-            .background(Color.gray.opacity(0.07))
+            .background(FableTheme.surfaceVariant)
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }
         .padding(.horizontal, 20)
@@ -233,7 +241,7 @@ struct DisplayOptionsSheet: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
-            .background(Color.gray.opacity(0.06))
+            .background(FableTheme.surfaceVariant)
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }
         .padding(.horizontal, 20)
@@ -267,7 +275,7 @@ struct DisplayOptionsSheet: View {
                                 .frame(width: 40, height: 40)
                                 .overlay(
                                     Circle()
-                                        .stroke(store.readerTheme == theme ? FableTheme.terracotta : Color.black.opacity(0.12), lineWidth: store.readerTheme == theme ? 2.5 : 0.8)
+                                        .stroke(store.readerTheme == theme ? FableTheme.brandPrimary : FableTheme.divider, lineWidth: store.readerTheme == theme ? 2.5 : 1.0)
                                 )
                                 .shadow(color: Color.black.opacity(0.06), radius: 3, y: 1)
                             
@@ -280,7 +288,7 @@ struct DisplayOptionsSheet: View {
                         
                         Text(theme.rawValue)
                             .fableFont(size: 11, weight: store.readerTheme == theme ? .bold : .medium)
-                            .foregroundColor(store.readerTheme == theme ? FableTheme.deepCharcoal : FableTheme.subtleSlate)
+                            .foregroundColor(store.readerTheme == theme ? FableTheme.textPrimary : FableTheme.textMuted)
                     }
                     .frame(maxWidth: .infinity)
                     .contentShape(Rectangle())
@@ -292,7 +300,7 @@ struct DisplayOptionsSheet: View {
             }
             .padding(.vertical, 12)
             .padding(.horizontal, 8)
-            .background(Color.gray.opacity(0.06))
+            .background(FableTheme.surfaceVariant)
             .clipShape(RoundedRectangle(cornerRadius: 14))
         }
         .padding(.horizontal, 20)
@@ -320,14 +328,15 @@ struct DisplayOptionsSheet: View {
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 11)
-                        .background(store.readerLineSpacing == spacing ? FableTheme.softPeach : Color.gray.opacity(0.07))
-                        .foregroundColor(store.readerLineSpacing == spacing ? FableTheme.terracotta : FableTheme.deepCharcoal)
+                        .background(store.readerLineSpacing == spacing ? FableTheme.brandPrimary.opacity(0.14) : FableTheme.surfaceVariant)
+                        .foregroundColor(store.readerLineSpacing == spacing ? FableTheme.brandPrimary : FableTheme.textPrimary)
                         .overlay(
                             RoundedRectangle(cornerRadius: 10)
-                                .stroke(store.readerLineSpacing == spacing ? FableTheme.terracotta.opacity(0.4) : Color.clear, lineWidth: 1)
+                                .stroke(store.readerLineSpacing == spacing ? FableTheme.brandPrimary.opacity(0.45) : Color.clear, lineWidth: 1)
                         )
                         .clipShape(RoundedRectangle(cornerRadius: 10))
                     }
+                    .buttonStyle(.plain)
                 }
             }
         }
@@ -354,14 +363,15 @@ struct DisplayOptionsSheet: View {
                     .fableFont(size: 13, weight: .medium)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 11)
-                    .background(!store.isPaginatedMode ? FableTheme.softPeach : Color.gray.opacity(0.07))
-                    .foregroundColor(!store.isPaginatedMode ? FableTheme.terracotta : FableTheme.deepCharcoal)
+                    .background(!store.isPaginatedMode ? FableTheme.brandPrimary.opacity(0.14) : FableTheme.surfaceVariant)
+                    .foregroundColor(!store.isPaginatedMode ? FableTheme.brandPrimary : FableTheme.textPrimary)
                     .overlay(
                         RoundedRectangle(cornerRadius: 10)
-                            .stroke(!store.isPaginatedMode ? FableTheme.terracotta.opacity(0.4) : Color.clear, lineWidth: 1)
+                            .stroke(!store.isPaginatedMode ? FableTheme.brandPrimary.opacity(0.45) : Color.clear, lineWidth: 1)
                     )
                     .clipShape(RoundedRectangle(cornerRadius: 10))
                 }
+                .buttonStyle(.plain)
                 
                 Button(action: {
                     FableHaptics.selection()
@@ -374,14 +384,15 @@ struct DisplayOptionsSheet: View {
                     .fableFont(size: 13, weight: .medium)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 11)
-                    .background(store.isPaginatedMode ? FableTheme.softPeach : Color.gray.opacity(0.07))
-                    .foregroundColor(store.isPaginatedMode ? FableTheme.terracotta : FableTheme.deepCharcoal)
+                    .background(store.isPaginatedMode ? FableTheme.brandPrimary.opacity(0.14) : FableTheme.surfaceVariant)
+                    .foregroundColor(store.isPaginatedMode ? FableTheme.brandPrimary : FableTheme.textPrimary)
                     .overlay(
                         RoundedRectangle(cornerRadius: 10)
-                            .stroke(store.isPaginatedMode ? FableTheme.terracotta.opacity(0.4) : Color.clear, lineWidth: 1)
+                            .stroke(store.isPaginatedMode ? FableTheme.brandPrimary.opacity(0.45) : Color.clear, lineWidth: 1)
                     )
                     .clipShape(RoundedRectangle(cornerRadius: 10))
                 }
+                .buttonStyle(.plain)
             }
         }
         .padding(.horizontal, 20)

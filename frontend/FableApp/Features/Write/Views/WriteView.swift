@@ -286,7 +286,10 @@ public struct WriteView: View {
                                 
                                 ManuscriptEditor(
                                     text: $store.draftManuscript,
-                                    formattingRequest: $formattingRequest
+                                    formattingRequest: $formattingRequest,
+                                    fontDesign: store.readerFont.design,
+                                    fontScale: CGFloat(store.readerFontSize / 100.0),
+                                    userInterfaceStyle: store.appAppearance.userInterfaceStyle
                                 )
                                 .frame(minHeight: 280)
                                 .accessibilityIdentifier("manuscriptEditor")
@@ -349,7 +352,7 @@ public struct WriteView: View {
                         .fill(.ultraThinMaterial)
                         .overlay(
                             RoundedRectangle(cornerRadius: 24, style: .continuous)
-                                .stroke(Color.white.opacity(0.4), lineWidth: 0.8)
+                                .stroke(FableTheme.divider.opacity(0.75), lineWidth: 0.8)
                         )
                         .shadow(color: Color.black.opacity(0.06), radius: 10, y: 4)
                 )
@@ -367,6 +370,7 @@ public struct WriteView: View {
                             selectedStoryToRead = publishedStory
                         }
                     )
+                    .preferredColorScheme(store.appAppearance.colorScheme)
                 }
             }
             .alert("Couldn't publish story", isPresented: Binding(
@@ -380,6 +384,7 @@ public struct WriteView: View {
             .fullScreenCover(item: $selectedStoryToRead) { story in
                 ReaderView(story: story)
                     .environmentObject(store)
+                    .preferredColorScheme(store.appAppearance.colorScheme)
             }
             .task(id: auth.currentSession?.id) {
                 store.restoreWriterDraftForCurrentSession()

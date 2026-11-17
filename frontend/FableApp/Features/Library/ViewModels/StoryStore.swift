@@ -1,5 +1,8 @@
 import SwiftUI
 import Combine
+#if canImport(UIKit)
+import UIKit
+#endif
 
 @MainActor
 public final class StoryStore: ObservableObject {
@@ -26,8 +29,34 @@ public final class StoryStore: ObservableObject {
     @Published var downloadingStoryIds: Set<UUID> = []
 
     // App & Reader Preferences (Persisted across launches)
+    private var isLoadingPreferences = false
     @Published var appAppearance: AppAppearance = .system {
-        didSet { UserDefaults.standard.set(appAppearance.rawValue, forKey: AppAppearance.storageKey) }
+        didSet {
+            UserDefaults.standard.set(appAppearance.rawValue, forKey: AppAppearance.storageKey)
+            #if canImport(UIKit)
+            appAppearance.applyToWindows()
+            #endif
+            guard !isLoadingPreferences else { return }
+            switch appAppearance {
+            case .dark:
+                if !readerTheme.isDark {
+                    readerTheme = .midnight
+                }
+            case .light:
+                if readerTheme.isDark {
+                    readerTheme = .sepia
+                }
+            case .system:
+                #if canImport(UIKit)
+                let systemIsDark = UIScreen.main.traitCollection.userInterfaceStyle == .dark
+                if systemIsDark && !readerTheme.isDark {
+                    readerTheme = .midnight
+                } else if !systemIsDark && readerTheme.isDark {
+                    readerTheme = .sepia
+                }
+                #endif
+            }
+        }
     }
     @Published var readerFont: ReaderFont = .serif {
         didSet { UserDefaults.standard.set(readerFont.rawValue, forKey: "fable_pref_reader_font") }
@@ -271,6 +300,8 @@ public final class StoryStore: ObservableObject {
     }
 
     private func loadReaderPreferences() {
+        isLoadingPreferences = true
+        defer { isLoadingPreferences = false }
         if let appearanceRaw = UserDefaults.standard.string(forKey: AppAppearance.storageKey),
            let appearance = AppAppearance(rawValue: appearanceRaw) {
             self.appAppearance = appearance
@@ -298,6 +329,9 @@ public final class StoryStore: ObservableObject {
         if UserDefaults.standard.object(forKey: "fable_pref_reader_paginated") != nil {
             self.isPaginatedMode = UserDefaults.standard.bool(forKey: "fable_pref_reader_paginated")
         }
+        #if canImport(UIKit)
+        appAppearance.applyToWindows()
+        #endif
     }
 
 

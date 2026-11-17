@@ -2,6 +2,7 @@ import SwiftUI
 import UIKit
 
 struct PasswordRecoveryView: View {
+    @AppStorage(AppAppearance.storageKey) private var appAppearanceRaw: String = AppAppearance.system.rawValue
     @StateObject private var viewModel: PasswordRecoveryViewModel
     @Environment(\.dismiss) private var dismiss
 
@@ -82,6 +83,7 @@ struct PasswordRecoveryView: View {
                 UIAccessibility.post(notification: .announcement, argument: message)
             }
         }
+        .preferredColorScheme((AppAppearance(rawValue: appAppearanceRaw) ?? .system).colorScheme)
     }
 
     private var requestForm: some View {

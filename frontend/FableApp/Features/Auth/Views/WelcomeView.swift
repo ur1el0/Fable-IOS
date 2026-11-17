@@ -1,6 +1,7 @@
 import SwiftUI
 
 public struct WelcomeView: View {
+    @AppStorage(AppAppearance.storageKey) private var appAppearanceRaw: String = AppAppearance.system.rawValue
     @ObservedObject var authVM: AuthViewModel = .shared
     @ObservedObject var auth = AuthManager.shared
 
@@ -188,6 +189,7 @@ public struct WelcomeView: View {
                     isShowingSignUp = true
                 }
             })
+            .preferredColorScheme((AppAppearance(rawValue: appAppearanceRaw) ?? .system).colorScheme)
         }
         .sheet(isPresented: $isShowingSignUp) {
             SignUpView(authVM: authVM, onNavigateToLogin: {
@@ -196,6 +198,7 @@ public struct WelcomeView: View {
                     isShowingSignIn = true
                 }
             })
+            .preferredColorScheme((AppAppearance(rawValue: appAppearanceRaw) ?? .system).colorScheme)
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("FableTourWelcomeState"))) { note in
             let mode = note.object as? String ?? "none"

@@ -2,6 +2,7 @@ import SwiftUI
 import UIKit
 
 public struct SignInView: View {
+    @AppStorage(AppAppearance.storageKey) private var appAppearanceRaw: String = AppAppearance.system.rawValue
     @ObservedObject var authVM: AuthViewModel
     var onNavigateToRegister: (() -> Void)?
     @Environment(\.dismiss) var dismiss
@@ -61,8 +62,10 @@ public struct SignInView: View {
             }
             .sheet(isPresented: $isPasswordRecoveryPresented) {
                 PasswordRecoveryView(authViewModel: authVM, initialEmail: email)
+                    .preferredColorScheme((AppAppearance(rawValue: appAppearanceRaw) ?? .system).colorScheme)
             }
         }
+        .preferredColorScheme((AppAppearance(rawValue: appAppearanceRaw) ?? .system).colorScheme)
     }
 
     // MARK: - Subviews

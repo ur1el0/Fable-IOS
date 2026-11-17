@@ -17,6 +17,9 @@ struct ManuscriptFormattingRequest: Identifiable {
 struct ManuscriptEditor: UIViewRepresentable {
     @Binding var text: String
     @Binding var formattingRequest: ManuscriptFormattingRequest?
+    var fontDesign: Font.Design = .default
+    var fontScale: CGFloat = 1.0
+    var userInterfaceStyle: UIUserInterfaceStyle = .unspecified
 
     func makeCoordinator() -> Coordinator {
         Coordinator(text: $text)
@@ -26,7 +29,8 @@ struct ManuscriptEditor: UIViewRepresentable {
         let textView = UITextView()
         textView.delegate = context.coordinator
         textView.backgroundColor = .clear
-        textView.font = .systemFont(ofSize: 16)
+        textView.font = resolvedFont()
+        textView.overrideUserInterfaceStyle = userInterfaceStyle
         textView.textColor = UIColor(FableTheme.textPrimary)
         textView.textContainerInset = UIEdgeInsets(top: 8, left: 4, bottom: 8, right: 4)
         textView.adjustsFontForContentSizeCategory = true
@@ -35,6 +39,8 @@ struct ManuscriptEditor: UIViewRepresentable {
     }
 
     func updateUIView(_ textView: UITextView, context: Context) {
+        textView.overrideUserInterfaceStyle = userInterfaceStyle
+        textView.font = resolvedFont()
         textView.textColor = UIColor(FableTheme.textPrimary)
         if textView.text != text {
             textView.text = text
@@ -43,6 +49,24 @@ struct ManuscriptEditor: UIViewRepresentable {
               context.coordinator.lastAppliedRequestID != request.id else { return }
         context.coordinator.apply(request.style, to: textView)
         context.coordinator.lastAppliedRequestID = request.id
+    }
+
+    private func resolvedFont() -> UIFont {
+        let baseSize = 16.0 * max(0.8, min(1.5, fontScale))
+        let systemFont = UIFont.systemFont(ofSize: baseSize)
+        let uiDesign: UIFontDescriptor.SystemDesign = switch fontDesign {
+        case .serif: .serif
+        case .rounded: .rounded
+        case .monospaced: .monospaced
+        default: .default
+        }
+        let styledFont: UIFont
+        if let descriptor = systemFont.fontDescriptor.withDesign(uiDesign) {
+            styledFont = UIFont(descriptor: descriptor, size: baseSize)
+        } else {
+            styledFont = systemFont
+        }
+        return UIFontMetrics(forTextStyle: .body).scaledFont(for: styledFont)
     }
 
     @MainActor
