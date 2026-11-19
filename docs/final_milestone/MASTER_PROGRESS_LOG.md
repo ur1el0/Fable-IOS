@@ -761,3 +761,15 @@ This progress log tracks the transition of **Fable** from an editorial prototype
 - [x] Verified full backend test suite: **101/101 tests passed** in 27.25s (`PYTHONPATH=.:backend pytest backend/test_main.py -q`).
 - [x] Verified Docker Compose configuration security constraints and `validate_ios_release_config.sh` release guards.
 
+## Neon PostgreSQL, Render Cloud & Liveness Monitoring (2026-11-14, PRs #44–#45)
+
+- [x] Added dual SQLite/PostgreSQL support in `backend/core/database.py` with advisory locking, schema versioning, and `psycopg` compatibility tests.
+- [x] Added `render.yaml` and `docs/RENDER_NEON_DEPLOYMENT.md` (`ADR 0004`) for colocated Singapore Render + Neon hosting.
+- [x] Added database-independent `/api/v1/live` GET/HEAD probes for free-tier uptime monitoring without waking Neon compute.
+
+## Federated Book Sources, Wireless Launcher & Reader Suite (2026-11-16, PRs #46–#48)
+
+- [x] Added Standard Ebooks detail endpoint (`GET /api/v1/public/standard-ebooks/story`), cross-provider `UUIDv5` edition disambiguation, and independent provider fault isolation (`StoryStore.swift`, `backend/services/standard_ebooks.py`).
+- [x] Added one-command wireless launcher (`scripts/start_wireless_server.sh`), `docs/WIRELESS_IPHONE_AND_LINUX_SETUP.md`, fractional ISO-8601 date decoding, development recovery token fallback, and in-app runtime **Backend Server URL** switcher (`WelcomeView`, `SettingsView`).
+- [x] Added adaptive `System` / `Light` / `Dark` app appearance (`AppAppearance`), screen brightness slider (`DisplayOptionsSheet`), long-press annotations with passage boundary controls, **in-book search**, **one-tap offline book download**, **Markdown highlight export**, and **Quote Card** generation (`QuoteCardView`).
+

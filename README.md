@@ -7,8 +7,8 @@
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI%200.110+-009688.svg)](https://fastapi.tiangolo.com)
 [![Pydantic v2](https://img.shields.io/badge/Contract-Pydantic%20v2-e92063.svg)](https://docs.pydantic.dev/)
 [![Database](https://img.shields.io/badge/Database-SQLite%20%2B%20PostgreSQL-4169E1.svg)](https://www.sqlite.org/)
-[![Pytest](https://img.shields.io/badge/Backend%20Tests-100%20Passed-brightgreen.svg)](https://pytest.org)
-[![XCTest](https://img.shields.io/badge/iOS%20Tests-28%20Passed-brightgreen.svg)](https://developer.apple.com/xcode/)
+[![Pytest](https://img.shields.io/badge/Backend%20Tests-Pytest%20Suite-brightgreen.svg)](https://pytest.org)
+[![XCTest](https://img.shields.io/badge/iOS%20Tests-XCTest%20Suite-brightgreen.svg)](https://developer.apple.com/xcode/)
 [![Figma Prototype](https://img.shields.io/badge/Figma-100%25%20Prototype-pink.svg)](https://www.figma.com/proto/fable-ios-prototype-midterm)
 
 **Fable** is a native iOS literary reading and community publishing platform with a companion FastAPI REST backend, engineered as a distraction-free sanctuary for **federated open-source classic books (Standard Ebooks & Project Gutenberg), world folklore, timeless fables, and original community manuscripts**. Fable couples a refined editorial aesthetic with an offline-first, contract-first system architecture: the live catalog returns federated provider metadata and official covers without downloading every book's text, while the reader fetches chapter text on demand when a book is opened and caches it for offline reading.
@@ -26,6 +26,7 @@
 | **[`docs/DATA_SOURCES_AND_API_STRATEGY.md`](docs/DATA_SOURCES_AND_API_STRATEGY.md)** | Federated provider metadata, Standard Ebooks & Gutenberg endpoints, on-demand chapter loading, and edition identity |
 | **[`docs/simulator_captures/README.md`](docs/simulator_captures/README.md)** | **29 Retina iOS Simulator Screenshots** + **Full Walkthrough Video (`fable_ios_full_walkthrough.mp4`)** + Federated Endpoint Index |
 | **[`docs/presentation/08_FEATURE_CATALOG_AND_USER_JOURNEYS.md`](docs/presentation/08_FEATURE_CATALOG_AND_USER_JOURNEYS.md)** | Complete functional feature catalog, user journey state machines, and federated discovery flows |
+| **[`docs/presentation/09_FINAL_DEFENSE_PRESENTATION_GUIDE.md`](docs/presentation/09_FINAL_DEFENSE_PRESENTATION_GUIDE.md)** | Final Capstone presentation script, tech stack, wireless demo guide, and Midterm vs. Final diff |
 | **[`docs/plans/06_SECURITY_VULNERABILITIES_AND_ARCHITECTURE_REMEDIATION.md`](docs/plans/06_SECURITY_VULNERABILITIES_AND_ARCHITECTURE_REMEDIATION.md)** | **Plan 06:** 4-Phase Security & Architecture Hardening Plan (`SEC-01`–`SEC-04`, `PERF-01`–`PERF-03`, `DOM-01`–`DOM-02`, `IOS-01`–`IOS-02`) |
 | **[`docs/RENDER_NEON_DEPLOYMENT.md`](docs/RENDER_NEON_DEPLOYMENT.md)** | Free-tier Render + Neon deployment setup, limits, secrets, and operator steps |
 | **[`docs/adr/`](docs/adr/)** | Architecture Decision Records: [`ADR 0001`](docs/adr/0001-password-hash-versioning.md) (Password Hashing), [`ADR 0002`](docs/adr/0002-ios-open-source-literature-focus-and-manga-feature-flag.md) (Manga Feature Flag), [`ADR 0003`](docs/adr/0003-comprehensive-catalog-seeding-and-chapter-1-continuity.md) (Catalog Seeding), [`ADR 0004`](docs/adr/0004-render-neon-postgres-deployment.md) (Render + Neon) |
@@ -42,8 +43,8 @@
 * **Target Operating System:** iOS 17.0+ (iPhone & iPad responsive layouts)
 * **User Interface:** SwiftUI (Declarative state-driven UI, custom geometry readers, safe-area insets, dynamic typography)
 * **Reading Engines:**
-  * *Prose Engine:* Typographical customizer (font family, theme, line spacing), Table of Contents modal, pacing velocity estimator.
-  * *Graphic Manga Engine:* Cinema-black `MangaReaderView` with continuous vertical Webtoon scrolling and horizontal swipe pagination.
+  * *Prose Engine:* Typographical customizer (font family, Dynamic Type scaling, 6 reader themes, line spacing, brightness slider), Table of Contents modal, in-book search, one-tap offline download, long-press highlights/marginalia, Markdown & Quote Card export, and pacing velocity estimator.
+  * *Graphic Manga Engine:* Cinema-black `MangaReaderView` with continuous vertical Webtoon scrolling and horizontal swipe pagination (feature-flagged off on iOS via `StoryStore.isMangaEnabled = false`).
 * **Reactive State Management:** Combine framework (`@Published`, `ObservableObject`, `PassthroughSubject`)
 * **Local Persistence & Caching:** SwiftData & CoreData SQLite engine (`ModelContainer`, `ModelContext`, `FetchDescriptor`)
 * **Audio Speech Engine:** `AVFoundation` (`AVSpeechSynthesizer`, `AVSpeechUtterance`, regional `AVSpeechSynthesisVoice` audition sheet)
@@ -55,7 +56,7 @@
 * **Runtime & Framework:** Python 3.9+ / FastAPI (High-performance asynchronous REST API)
 * **Data Validation & Contracts:** Pydantic v2 with `serialization_alias` (Strict camelCase client / snake_case server parity)
 * **Database & Persistence:** SQLite 3 by default for local development; PostgreSQL via Neon for hosted persistence, with additive schema initialization and account-scoped shelf, reading-session, and user records.
-* **HTTP Client:** HTTPX for live Gutendex/Project Gutenberg and Open Library requests.
+* **HTTP Client:** HTTPX for live Standard Ebooks, Gutendex/Project Gutenberg, and Open Library requests.
 * **Security:** Salted PBKDF2-HMAC-SHA256 password hashes, SHA-256 digests of random bearer tokens, 30-day session expiry, server-side logout revocation, and operator-key protected provider ingestion.
 * **ASGI Web Server:** Uvicorn.
 * **Automated Testing:** Pytest with FastAPI `TestClient`, plus native iOS XCTest verification in CI.
@@ -203,44 +204,48 @@ Fable-IOS/
 │   ├── main.py                             # Application entrypoint & middleware configuration
 │   ├── requirements.txt                    # Runtime dependencies (FastAPI, Uvicorn, Pydantic, HTTPX)
 │   ├── requirements-test.txt               # Runtime plus pytest for local and CI verification
-│   ├── test_main.py                        # Pytest runner entrypoint (executes 100-test suite)
+│   ├── test_main.py                        # Pytest runner entrypoint
+│   ├── test_provider_http.py               # Live provider HTTP & fault-isolation tests
 │   ├── tests/
-│   │   └── test_api_v1.py                  # Comprehensive 100-case API, auth, backup, and catalog test suite
+│   │   └── test_api_v1.py                  # Comprehensive API, auth, backup, and catalog test suite
 │   ├── api/v1/
 │   │   ├── api.py                          # Unified API router mounting
-│   │   └── endpoints/                      # Route controllers (auth, stories, shelf, gutenberg, health)
+│   │   └── endpoints/                      # Route controllers (auth, stories, shelf, gutenberg, standard_ebooks, health)
 │   ├── core/
 │   │   ├── config.py                       # Environment & security settings
-│   │   ├── database.py                     # SQLite connection, schema bootstrap & curated catalog upsert
+│   │   ├── database.py                     # Dual SQLite/PostgreSQL connection, schema bootstrap & migrations
 │   │   ├── operator_auth.py                # Operator key guard for ingestion routes
-│   │   └── rate_limit.py                   # Sliding-window and SQLite token-bucket rate limiters
+│   │   └── rate_limit.py                   # Sliding-window and SQLite/PostgreSQL token-bucket rate limiters
 │   ├── models/                             # Pydantic v2 DTOs with camelCase serialization aliases
-│   └── services/                           # Business logic (auth_service, story_service, shelf_service, gutenberg)
-├── frontend/                               # Native iOS Application (22 XCTests)
+│   └── services/                           # Business logic (auth_service, story_service, shelf_service, gutenberg, standard_ebooks)
+├── frontend/                               # Native iOS Application (XCTest suite)
 │   ├── FableApp.xcodeproj/                 # Xcode 16 project file
 │   └── FableApp/
 │       ├── App/                            # Lifecycle bootstrap (FableApp.swift, ContentView.swift)
-│       ├── Core/                           # Foundation tokens, FableTheme, FableImageView, KeychainStore
+│       ├── Core/                           # Foundation tokens, FableTheme (Light/Dark/System), FableImageView, KeychainStore
 │       ├── Features/                       # Domain-Driven Vertical Slices
-│       │   ├── Auth/                       # Welcome, SignIn, SignUp, AuthManager, AuthTests
-│       │   ├── Library/                    # LibraryView, ExploreView, GenreDetail, StoryStore, APIService, AppHealthTests
-│       │   ├── Reader/                     # ReaderView, MangaReaderView (dormant), DisplayOptionsSheet, VoiceSelectionSheet
-│       │   ├── Shelf/                      # ShelfView, ProfileView, SettingsView, SystemDiagnosticsSheet, ShelfTests
-│       │   └── Write/                      # WriteView, StoryComposer, StoryPublishedSheet, WriteTests
-│       └── Assets.xcassets/                # App icon and accent color
+│       │   ├── Auth/                       # Welcome, SignIn, SignUp, PasswordRecovery, AuthManager
+│       │   ├── Library/                    # LibraryView, ExploreView, GenreDetail, AuthorDetail, StoryStore, APIService, AppHealthTests
+│       │   ├── Reader/                     # ReaderView, MangaReaderView (dormant), DisplayOptionsSheet, QuoteCardView, VoiceSelectionSheet
+│       │   ├── Shelf/                      # ShelfView, ProfileView, SettingsView, SystemDiagnosticsSheet
+│       │   └── Write/                      # WriteView, StoryComposer, StoryPublishedSheet
+│       └── Assets.xcassets/                # App icon, FableLogo, and accent color
 ├── docs/                                   # Architectural specifications & engineering documentation
 │   ├── AGENT_HANDOFF_CONTEXT.md            # Complete session handoff context for laptop agents
-│   ├── adr/                                # Architecture Decision Records (ADR 0001, 0002, 0003)
+│   ├── adr/                                # Architecture Decision Records (ADR 0001–0004)
 │   ├── plans/                              # Feature & Security Remediation Plans (Plans 01 through 06)
-│   ├── simulator_captures/                 # 29 Retina UI screenshots + full walkthrough MP4 video
+│   ├── simulator_captures/                 # Retina UI screenshots + full walkthrough MP4 video
 │   ├── final_milestone/                    # Capstone specs & MASTER_PROGRESS_LOG.md
 │   ├── FINAL_MILESTONE_PROGRESS.md         # Comprehensive milestone progression audit
-│   ├── DATA_SOURCES_AND_API_STRATEGY.md    # Catalog seeding architecture & upstream manga gap analysis
+│   ├── DATA_SOURCES_AND_API_STRATEGY.md    # Federated provider architecture & upstream source analysis
+│   ├── RENDER_NEON_DEPLOYMENT.md           # Render + Neon PostgreSQL deployment guide
+│   ├── WIRELESS_IPHONE_AND_LINUX_SETUP.md  # Wireless iPhone, Fedora Linux, and tunnel setup guide
 │   ├── ARCHITECTURE.md                     # System architecture & vertical slice design
 │   ├── SYSTEM_DESIGN.md                    # Critical system design & 5 pillars specification
 │   ├── OPERATIONS.md                       # Encrypted backup, verification, and restore runbook
 │   ├── OCI_DEPLOYMENT.md                   # Oracle Cloud production deployment guide
 │   └── MAC_LAB_RUNBOOK.md                  # Step-by-step computer lab verification runbook
+├── render.yaml                             # Render + Neon cloud service blueprint
 └── prototype_reference/                    # High-resolution screenshots of all 10 prototype screens
 ```
 

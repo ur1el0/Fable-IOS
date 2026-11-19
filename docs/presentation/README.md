@@ -20,6 +20,7 @@ This directory provides complete, presentation-ready documentation covering all 
 | [**`06_FRAMEWORKS_AND_DEPENDENCIES.md`**](./06_FRAMEWORKS_AND_DEPENDENCIES.md) | Frameworks & Zero-Third-Party Architecture | Native Apple SDKs (SwiftUI, SwiftData, AVFoundation, Security) vs backend stack |
 | [**`07_AUTHENTICATION_AND_SECURITY.md`**](./07_AUTHENTICATION_AND_SECURITY.md) | Authentication & Hardware Security | Tri-state AuthState machine, KeychainStore (Secure Enclave) vs UserDefaults |
 | [**`08_FEATURE_CATALOG_AND_USER_JOURNEYS.md`**](./08_FEATURE_CATALOG_AND_USER_JOURNEYS.md) | Comprehensive Feature Catalog & User Flows | End-to-end feature inventory and Mermaid user journey state diagrams |
+| [**`09_FINAL_DEFENSE_PRESENTATION_GUIDE.md`**](./09_FINAL_DEFENSE_PRESENTATION_GUIDE.md) | Final Capstone Defense Guide | Live demo script, tech stack, wireless iPhone setup, full features, and Midterm (50%) vs. Final comparison |
 
 ---
 

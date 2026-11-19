@@ -17,12 +17,13 @@ Fable delivers a comprehensive literary ecosystem spanning federated discovery, 
 │      DISCOVERY        │    DEEP READING    │        WRITING & SCHOLARSHIP         │
 ├───────────────────────┼────────────────────┼──────────────────────────────────────┤
 │ • Federated Providers │ • Dynamic Paging   │ • Story Composer (WriteView)         │
-│   (Standard Ebooks &  │ • 3 Ambient Themes │ • Real-Time Word Counter             │
+│   (Standard Ebooks &  │ • 6 Reader Themes  │ • Real-Time Word Counter             │
 │    Project Gutenberg) │ • Oral Audio Sync  │ • Personal Shelf Hub                 │
-│ • Cross-Provider ID   │ • Marginalia Notes │ • Excerpted Quote Journal            │
-│ • Provider Fault Iso  │ • Typography HUD   │ • Live Reading Analytics             │
-│ • Tale of the Day     │ • TOC & Chapter    │ • Multi-Device Shelf Sync            │
-│ • Full-Text Search    │   Hydration        │ • Community Author Profiles          │
+│ • Cross-Provider ID   │ • In-Book Search   │ • Excerpted Quote Journal            │
+│ • Provider Fault Iso  │ • Offline Download │ • Markdown & Quote Card Export       │
+│ • Tale of the Day     │ • Marginalia Notes │ • Live Reading Analytics             │
+│ • Full-Text Search    │ • Typography HUD   │ • Multi-Device Shelf Sync            │
+│                       │ • TOC & Brightness │ • Runtime Server URL Switcher        │
 └───────────────────────┴────────────────────┴──────────────────────────────────────┘
 ```
 
@@ -43,15 +44,15 @@ Fable delivers a comprehensive literary ecosystem spanning federated discovery, 
 - **Full-Text Live Search:** Real-time query matching filtering simultaneously across story titles, author names, and synopses with independent provider query dispatch and zero lag.
 
 ### 2.2 The Ambient Reader Experience (`ReaderView.swift`)
-- **Physical Book Pagination:** Rather than an endless vertical web-scroll, manuscripts are algorithmically divided into numbered physical book pages (`PacingEngine.swift`).
-- **On-Demand Chapter Hydration:** Catalog metadata remains lightweight; full multi-chapter content is fetched on demand from `/api/v1/public/gutenberg/{id}/chapters` or `/api/v1/public/standard-ebooks/chapters?book_id={slug}` and cached locally for offline continuity.
-- **3 Meditative Themes:**
-  - *Parchment (Default):* Warm sepia and cream tones inspired by antique paper.
-  - *Noir:* Pure OLED black background with muted ivory text to prevent eye strain in dark rooms.
-  - *Classic Cream:* Crisp, traditional editorial styling.
-- **Oral Audio Storytelling:** Native text-to-speech synthesis (`AVSpeechSynthesizer`) reading aloud with synchronized visual paragraph highlights.
-- **Marginalia & Quote Highlighting:** Select any text passage to apply an amber or terracotta highlight and pin it to the user's personal shelf journal.
-- **Typography HUD (`DisplayOptionsSheet.swift`):** Real-time adjustment of font size (14pt to 26pt) and line spacing (1.2 to 2.0).
+- **Physical Book Pagination & Continuous Scroll:** Supports both paginated physical book pages (`PacingEngine.swift`) and vertical scrolling.
+- **On-Demand Chapter Hydration & One-Tap Offline Download:** Catalog metadata remains lightweight; full multi-chapter content is fetched on demand from `/api/v1/public/gutenberg/{id}/chapters` or `/api/v1/public/standard-ebooks/chapters?book_id={slug}` and cached locally for offline continuity, or downloaded in full with one tap.
+- **6 Reader Themes (`ReaderTheme`) & Adaptive App Theme (`AppAppearance`):**
+  - *Light Reader Themes:* **White**, **Paper**, and **Sepia** for daytime and warm-paper reading.
+  - *Dark Reader Themes:* **Charcoal**, **Midnight**, and **OLED** for low-light reading, paired with app-wide **System / Light / Dark** appearance settings.
+- **In-Book Full-Text Search:** Search across all chapters of the active book with contextual snippet previews and direct jump-to-passage navigation.
+- **Oral Audio Storytelling:** Native text-to-speech synthesis (`AVSpeechSynthesizer`) reading aloud with synchronized visual paragraph highlights and regional `VoiceSelectionSheet`.
+- **Long-Press Marginalia, Markdown Export & Quote Cards:** Long-press any passage to highlight (`Terracotta`, `Sage`, `Amber`), attach notes, pin to your personal shelf journal, export all highlights as Markdown (`.md`), or generate shareable Quote Cards (`QuoteCardView.swift`).
+- **Typography & Brightness HUD (`DisplayOptionsSheet.swift`):** Real-time adjustment of font family, Dynamic Type scaling (`80%`–`150%`), line spacing, and screen brightness.
 
 ### 2.3 Community Writer Studio (`WriteView.swift`)
 - **Manuscript Composer:** Clean writing canvas with title, genre dropdown, chapter tag, and synopsis fields.

@@ -1,8 +1,8 @@
 # Fable iOS — Agent Handoff & Full Session Context
 
-**Last Updated:** 2026-11-16  
-**Active Git Branch:** `feat/federated-book-sources`  
-**Primary Current Focus:** Federated literature sources (Standard Ebooks + Project Gutenberg + Fable Originals), cross-provider edition disambiguation, and upstream failure isolation.
+- **Last Updated:** 2026-11-19
+- **Active Git Branch:** `main` (`f3f5b87`, PRs #44–#48 merged; live cloud backend on `https://fable-api-cbo8.onrender.com`)
+- **Primary Current Focus:** Final Capstone Defense preparation, federated literature sources (Standard Ebooks + Project Gutenberg + Fable Originals), wireless iPhone testing, and reader/offline UX polish.
 
 ---
 
@@ -19,6 +19,10 @@ If you are an AI coding agent picking up this repository on the developer's lapt
 
 | Commit / PR | Summary | Key Files Touched |
 |---|---|---|
+| `PR #48` | **Wireless Launcher, Dark Mode & Reader Suite:** Added `start_wireless_server.sh`, runtime Server URL switcher, adaptive System/Light/Dark theme, brightness slider, long-press annotations, in-book search, offline download, Markdown export, and Quote Cards. | `scripts/start_wireless_server.sh`, `ReaderView.swift`, `QuoteCardView.swift`, `DisplayOptionsSheet.swift`, `SettingsView.swift`, `FableTheme.swift` |
+| `PR #47` | **Federated Standard Ebooks & Edition Identity:** Standard Ebooks detail endpoint, UUIDv5 cross-provider edition isolation, provider fault isolation, and updated architecture/walkthrough docs. | `backend/services/standard_ebooks.py`, `StoryStore.swift`, `docs/ARCHITECTURE.md`, `docs/presentation/08_FEATURE_CATALOG_AND_USER_JOURNEYS.md` |
+| `PR #46` | **Book Library Continuity:** Select most recently updated book for Continue Reading card. | `frontend/FableApp/Features/Library/ViewModels/StoryStore.swift`, `LibraryView.swift` |
+| `PR #44–#45` | **Neon PostgreSQL, Render Cloud & Liveness Probes:** Dual SQLite/PostgreSQL backend, Render deployment blueprint (`render.yaml`), and DB-independent `/api/v1/live` probe. | `backend/core/database.py`, `backend/api/v1/endpoints/health.py`, `render.yaml`, `docs/RENDER_NEON_DEPLOYMENT.md` |
 | `49268c0` | **Documented Federated Standard Ebooks Endpoints & Edition Identity:** Updated API strategy docs for Standard Ebooks discovery, detail, and XHTML parsing endpoints. | `docs/DATA_SOURCES_AND_API_STRATEGY.md` |
 | `2d29bb1` | **Cross-Provider Edition Identity Tests:** Verified same-title works across Standard Ebooks and Gutenberg stay distinct in persistence, chapter cache, and reading progress. | `frontend/FableAppTests/StoryStoreTests.swift` |
 | `afee0d8` | **Surfaced Standard Ebooks Shelf & Preserved Edition Identity on iOS:** Added dedicated shelf, provider badges, and UUIDv5 edition isolation in SwiftUI client. | `frontend/FableApp/Features/Library/ViewModels/StoryStore.swift`, `LibraryView.swift`, `ShelfView.swift` |
